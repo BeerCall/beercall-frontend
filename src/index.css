@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+    /* Ambre/Doré (la bière, la chaleur du Bar) */
+    --color-beer-light: #FBBF24;
+    --color-beer: #D97706;
+    --color-beer-dark: #B45309;
+
+    /* Bleu cyan (la Piscine, la froideur de l'excuse) */
+    --color-excuse: #06B6D4;
+
+    /* Violet foncé/Gris (Le Dodo, l'absence totale) */
+    --color-ghost: #4C1D95;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    /* Fond par défaut pour faire ressortir l'UI */
+    background-color: #f3f4f6;
+    overflow-x: hidden;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
