@@ -1,6 +1,6 @@
 import {useNavigate} from 'react-router-dom';
 import {useQuery} from '@tanstack/react-query';
-import {ChevronLeft, Users, Trophy, Wallet, ArrowRight} from 'lucide-react';
+import {ChevronLeft, Users, Trophy, ArrowRight} from 'lucide-react';
 import {api} from '../lib/api';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
 import {motion} from 'framer-motion';
