@@ -1,5 +1,27 @@
 @import "tailwindcss";
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 🛡️ Empêche la sélection de texte (Sensation 100% Native) */
+body {
+    margin: 0;
+    padding: 0;
+    /* Fond par défaut pour faire ressortir l'UI */
+    background-color: #f3f4f6;
+    overflow-x: hidden;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* On réautorise la sélection pour que les mecs puissent taper leur pseudo/mdp ! */
+input, textarea {
+    -webkit-user-select: auto;
+    user-select: auto;
+}
+
 @theme {
     /* Ambre/Doré (la bière, la chaleur du Bar) */
     --color-beer-light: #FBBF24;
@@ -11,14 +33,6 @@
 
     /* Violet foncé/Gris (Le Dodo, l'absence totale) */
     --color-ghost: #4C1D95;
-}
-
-body {
-    margin: 0;
-    padding: 0;
-    /* Fond par défaut pour faire ressortir l'UI */
-    background-color: #f3f4f6;
-    overflow-x: hidden;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
