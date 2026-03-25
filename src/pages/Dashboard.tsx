@@ -1,4 +1,5 @@
 import {useState, useEffect, useRef} from 'react';
+import {usePushNotifications} from '../hooks/usePushNotifications';
 import {useParams} from 'react-router-dom';
 import Navbar from '../components/UI/Navbar';
 import CreateSquadModal from '../components/Modals/CreateSquadModal';
@@ -12,6 +13,8 @@ import {Check, Copy, Key, User as UserIcon} from 'lucide-react';
 import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useProfile} from '../hooks/useProfile';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
+import {motion, AnimatePresence} from 'framer-motion';
+import {BellRing, CheckCircle2} from 'lucide-react';
 
 const timeAgo = (dateString: string) => {
     const diff = Date.now() - new Date(dateString).getTime();
@@ -46,6 +49,32 @@ export default function Dashboard() {
     const mapRef = useRef<MapRef>(null);
 
     const [copied, setCopied] = useState(false);
+
+    const {subscribeToNotifications} = usePushNotifications();
+
+    // État pour savoir si on doit afficher la bannière
+    const [showPushBanner, setShowPushBanner] = useState(false);
+
+    useEffect(() => {
+        // Si le navigateur supporte les notifs ET que l'utilisateur n'a pas encore fait de choix
+        if ('Notification' in window && Notification.permission === 'default') {
+            setShowPushBanner(true);
+        }
+    }, []);
+
+    const [successToast, setSuccessToast] = useState(false);
+
+    const handleEnableNotifications = async () => {
+        const success = await subscribeToNotifications();
+
+        setShowPushBanner(false); // On cache la bannière quoi qu'il arrive
+
+        if (success) {
+            setSuccessToast(true);
+            // Le toast disparaît tout seul après 4 secondes avec style ✨
+            setTimeout(() => setSuccessToast(false), 4000);
+        }
+    };
 
     const openCamera = () => {
         if (fileInputRef.current) fileInputRef.current.click();
@@ -113,8 +142,53 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="h-full w-full relative flex flex-col bg-[#f8fafc] overflow-hidden font-sans">
+        <div className="h-full w-full relative flex flex-col...">
 
+            {/* 🌟 LE SOFT PROMPT (Bannière UX) 🌟 */}
+            {showPushBanner && (
+                <div
+                    className="absolute top-0 left-0 right-0 z-50 bg-gray-900 text-white p-4 flex items-center justify-between shadow-xl">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-beer rounded-full flex items-center justify-center animate-bounce">
+                            <BellRing size={20} className="text-white"/>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="font-black text-sm uppercase italic">Ne rate aucun apéro !</span>
+                            <span className="text-xs text-gray-300 font-bold">Active les alertes de la squad.</span>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleEnableNotifications} // 👈 Déclenche la popup native !
+                        className="bg-white text-gray-900 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest active:scale-95"
+                    >
+                        Activer
+                    </button>
+                </div>
+            )}
+            <AnimatePresence>
+                {successToast && (
+                    <motion.div
+                        initial={{opacity: 0, y: -50, scale: 0.8, x: "-50%"}}
+                        animate={{opacity: 1, y: 0, scale: 1, x: "-50%"}}
+                        exit={{opacity: 0, y: -20, scale: 0.8, x: "-50%"}}
+                        transition={{type: "spring", stiffness: 400, damping: 25}}
+                        className="absolute top-6 left-1/2 z-[100] w-[90%] max-w-sm bg-gray-900/95 backdrop-blur-md border border-gray-700 p-4 rounded-2xl shadow-2xl flex items-center gap-4"
+                    >
+                        <div
+                            className="w-12 h-12 bg-beer/20 rounded-full flex flex-shrink-0 items-center justify-center">
+                            <CheckCircle2 size={24} className="text-beer animate-pulse"/>
+                        </div>
+                        <div className="flex flex-col">
+                <span className="font-black text-white text-sm uppercase tracking-wider italic">
+                    Radar Activé ! 🍻
+                </span>
+                            <span className="text-gray-400 text-xs font-bold leading-tight mt-0.5">
+                    Ton téléphone vibrera au prochain appel de la Squad.
+                </span>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             <input
                 type="file" accept="image/jpeg, image/png, image/jpg" capture="environment"
                 ref={fileInputRef} onChange={handlePhotoCapture} className="hidden"

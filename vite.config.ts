@@ -1,14 +1,18 @@
 import {defineConfig} from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+/*
 import basicSsl from '@vitejs/plugin-basic-ssl'
+*/
 import {VitePWA} from 'vite-plugin-pwa'
 
 export default defineConfig({
     plugins: [
         react(),
         tailwindcss(),
+/*
         basicSsl(), // 🔒 Parfait pour tester la PWA sur ton tel en HTTPS !
+*/
         VitePWA({
             registerType: 'autoUpdate',
             includeAssets: ['favicon.svg', 'apple-touch-icon.svg'],

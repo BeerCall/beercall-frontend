@@ -2,6 +2,7 @@
 import {BrowserRouter, Routes, Route, Navigate} from 'react-router-dom';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {useUserStore} from './store/useUserStore';
+import {usePushNotifications} from './hooks/usePushNotifications';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -20,6 +21,8 @@ const queryClient = new QueryClient({
 
 export default function App() {
     const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+
+    usePushNotifications();
 
     return (
         <QueryClientProvider client={queryClient}>
