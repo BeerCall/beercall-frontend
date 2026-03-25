@@ -3,6 +3,7 @@ import {X, Camera, Send, Beer, Ghost, MessageSquare, Check} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQueryClient} from '@tanstack/react-query';
 import {api} from '../../lib/api';
+import {toast} from "../../store/useToastStore.ts";
 
 interface RespondBeerCallModalProps {
     isOpen: boolean;
@@ -14,7 +15,13 @@ interface RespondBeerCallModalProps {
 
 type Step = 'dilemma' | 'accepting' | 'declining';
 
-export default function RespondBeerCallModal({isOpen, onClose, beerCall, squadId, location}: RespondBeerCallModalProps) {
+export default function RespondBeerCallModal({
+                                                 isOpen,
+                                                 onClose,
+                                                 beerCall,
+                                                 squadId,
+                                                 location
+                                             }: RespondBeerCallModalProps) {
     const queryClient = useQueryClient();
 
     const [step, setStep] = useState<Step>('dilemma');
@@ -62,9 +69,10 @@ export default function RespondBeerCallModal({isOpen, onClose, beerCall, squadId
             await api.post(`/squads/${squadId}/beer-calls/${beerCall.id}/decline/`, {excuse});
             await queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
-        } catch (err) {
+        } catch (err: any) {
             console.error("Erreur Decline:", err);
-            alert("Impossible d'envoyer l'excuse !");
+            const errorMessage = err.response?.data?.detail || "Erreur serveur inattendue";
+            toast.error("Impossible d'envoyer l'excuse !", errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -74,7 +82,7 @@ export default function RespondBeerCallModal({isOpen, onClose, beerCall, squadId
     const handleAccept = async () => {
         // 🛡️ Sécurité : on vérifie qu'on a la photo ET la localisation
         if (!photoFile || !location) {
-            alert("Localisation introuvable. Vérifie que ton GPS est activé !");
+            toast.error("Localisation introuvable. Vérifie que ton GPS est activé !");
             return;
         }
 
@@ -99,9 +107,10 @@ export default function RespondBeerCallModal({isOpen, onClose, beerCall, squadId
             await queryClient.invalidateQueries({queryKey: ['squad', squadId]});
 
             onClose();
-        } catch (err) {
+        } catch (err: any) {
             console.error("Erreur Accept:", err);
-            alert("L'IA a rejeté ta bière (ou le serveur a planté) !");
+            const errorMessage = err.response?.data?.detail || "Erreur serveur inattendue";
+            toast.error("L'IA a rejeté ta bière (ou le serveur a planté) !", errorMessage);
         } finally {
             setIsSubmitting(false);
         }

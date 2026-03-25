@@ -13,8 +13,8 @@ import {Check, Copy, Key, User as UserIcon} from 'lucide-react';
 import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useProfile} from '../hooks/useProfile';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
-import {motion, AnimatePresence} from 'framer-motion';
-import {BellRing, CheckCircle2} from 'lucide-react';
+import {BellRing} from 'lucide-react';
+import {toast} from "../store/useToastStore.ts";
 
 const timeAgo = (dateString: string) => {
     const diff = Date.now() - new Date(dateString).getTime();
@@ -62,17 +62,11 @@ export default function Dashboard() {
         }
     }, []);
 
-    const [successToast, setSuccessToast] = useState(false);
-
     const handleEnableNotifications = async () => {
         const success = await subscribeToNotifications();
-
-        setShowPushBanner(false); // On cache la bannière quoi qu'il arrive
-
+        setShowPushBanner(false);
         if (success) {
-            setSuccessToast(true);
-            // Le toast disparaît tout seul après 4 secondes avec style ✨
-            setTimeout(() => setSuccessToast(false), 4000);
+            toast.success("Radar Activé ! 🍻", "Ton téléphone vibrera au prochain appel.");
         }
     };
 
@@ -165,30 +159,6 @@ export default function Dashboard() {
                     </button>
                 </div>
             )}
-            <AnimatePresence>
-                {successToast && (
-                    <motion.div
-                        initial={{opacity: 0, y: -50, scale: 0.8, x: "-50%"}}
-                        animate={{opacity: 1, y: 0, scale: 1, x: "-50%"}}
-                        exit={{opacity: 0, y: -20, scale: 0.8, x: "-50%"}}
-                        transition={{type: "spring", stiffness: 400, damping: 25}}
-                        className="absolute top-6 left-1/2 z-[100] w-[90%] max-w-sm bg-gray-900/95 backdrop-blur-md border border-gray-700 p-4 rounded-2xl shadow-2xl flex items-center gap-4"
-                    >
-                        <div
-                            className="w-12 h-12 bg-beer/20 rounded-full flex flex-shrink-0 items-center justify-center">
-                            <CheckCircle2 size={24} className="text-beer animate-pulse"/>
-                        </div>
-                        <div className="flex flex-col">
-                <span className="font-black text-white text-sm uppercase tracking-wider italic">
-                    Radar Activé ! 🍻
-                </span>
-                            <span className="text-gray-400 text-xs font-bold leading-tight mt-0.5">
-                    Ton téléphone vibrera au prochain appel de la Squad.
-                </span>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
             <input
                 type="file" accept="image/jpeg, image/png, image/jpg" capture="environment"
                 ref={fileInputRef} onChange={handlePhotoCapture} className="hidden"

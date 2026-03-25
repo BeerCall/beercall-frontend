@@ -3,6 +3,7 @@ import {X, Send, MapPin} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQueryClient} from '@tanstack/react-query';
 import {api} from '../../lib/api';
+import {toast} from "../../store/useToastStore.ts";
 
 interface CreateBeerCallModalProps {
     squadId: string;
@@ -16,10 +17,6 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
     const [locationName, setLocationName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const [errorToast, setErrorToast] = useState<{ show: boolean; message: string }>({
-        show: false,
-        message: ""
-    });
 
     // Générer l'aperçu de l'image
     useEffect(() => {
@@ -48,13 +45,8 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
             queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
         } catch (err: any) {
-            // Extraction du message d'erreur du backend
             const errorMessage = err.response?.data?.detail || "Erreur serveur inattendue";
-
-            setErrorToast({show: true, message: errorMessage});
-
-            // Auto-fermeture après 5 secondes
-            setTimeout(() => setErrorToast({show: false, message: ""}), 5000);
+            toast.error("Alerte Fraude 🚫", errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -115,30 +107,6 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
                                 {isSubmitting ? 'ANALYSE IA EN COURS...' : 'LANCER L\'APPEL'} <Send size={24}/>
                             </button>
                         </div>
-                        <AnimatePresence mode="wait">
-                            {errorToast.show && (
-                                <motion.div
-                                    initial={{opacity: 0, y: 20, scale: 0.9, x: "-50%"}}
-                                    animate={{opacity: 1, y: 0, scale: 1, x: "-50%"}}
-                                    exit={{opacity: 0, scale: 0.9, x: "-50%"}}
-                                    className="fixed bottom-32 left-1/2 z-[110] w-[90%] max-w-sm bg-red-950/95 backdrop-blur-md border border-red-500/50 p-4 rounded-2xl shadow-2xl flex items-center gap-4"
-                                >
-                                    <div
-                                        className="w-12 h-12 bg-red-500/20 rounded-full flex flex-shrink-0 items-center justify-center text-2xl">
-                                        🚫
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span
-                                            className="font-black text-red-400 text-[10px] uppercase tracking-[0.2em] italic">
-                                            Alerte Fraude
-                                        </span>
-                                        <span className="text-gray-100 text-xs font-bold leading-tight mt-0.5">
-                                            {errorToast.message}
-                                        </span>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
 
                     </motion.div>
                 </>

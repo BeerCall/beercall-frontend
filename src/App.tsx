@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import SignUp from "./pages/SignUp.tsx";
 import Profile from "./pages/Profile.tsx";
 import Connections from "./pages/Connections.tsx";
+import ToastContainer from './components/UI/ToastContainer';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -27,6 +28,7 @@ export default function App() {
     return (
         <QueryClientProvider client={queryClient}>
             <BrowserRouter>
+                <ToastContainer />
                 <Routes>
                     <Route element={<Layout/>}>
                         <Route path="/login"

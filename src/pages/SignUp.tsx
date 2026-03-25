@@ -6,6 +6,7 @@ import {api} from '../lib/api';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
 import VestiairePanel, {type Gender, type ShopItem} from '../components/Profile/VestiairePanel';
 import {useQuery} from '@tanstack/react-query';
+import {toast} from "../store/useToastStore.ts";
 
 export default function SignUp() {
     const navigate = useNavigate();
@@ -71,8 +72,10 @@ export default function SignUp() {
                 loginAction(res.data.username);
                 navigate('/dashboard');
             }
-        } catch (err) {
-            alert("Erreur lors de l'inscription. Pseudo déjà pris ?");
+        } catch (err: any) {
+            console.error("Erreur lors de l'inscription:", err);
+            const errorMessage = err.response?.data?.detail || "Erreur serveur inattendue";
+            toast.error("Erreur lors de l'inscription.", errorMessage);
         } finally {
             setIsLoading(false);
         }
