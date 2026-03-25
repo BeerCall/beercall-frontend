@@ -241,10 +241,10 @@ export default function Dashboard() {
                             <NavigationControl position="top-right" style={{marginTop: '100px', marginRight: '20px'}}/>
 
                             {/* 1. MARQUEUR DE L'APÉRO EN COURS */}
-                            {squadDetails?.active_beer_call && (
+                            {squadDetails?.active_beer_call?.map((call) => (
                                 <Marker
-                                    longitude={squadDetails.active_beer_call.longitude}
-                                    latitude={squadDetails.active_beer_call.latitude}
+                                    longitude={call.longitude}
+                                    latitude={call.latitude}
                                     anchor="bottom"
                                     style={{zIndex: 60}}
                                 >
@@ -252,7 +252,7 @@ export default function Dashboard() {
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             // 🚦 ON UTILISE NOTRE AIGUILLAGE ICI
-                                            handleBeerCallClick(squadDetails.active_beer_call);
+                                            handleBeerCallClick(call);
                                         }}
                                         className="relative group cursor-pointer animate-bounce"
                                     >
@@ -260,13 +260,9 @@ export default function Dashboard() {
                                             className="bg-beer text-white p-3 rounded-full shadow-xl border-4 border-white flex items-center justify-center text-xl hover:scale-110 transition-transform">
                                             🍻
                                         </div>
-                                        <div
-                                            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-lg whitespace-nowrap shadow-lg">
-                                            {squadDetails.active_beer_call.has_responded ? "🌍 VOIR LES MONDES" : "RÉPONDRE"}
-                                        </div>
                                     </div>
                                 </Marker>
-                            )}
+                            ))}
 
                             {/* 2. TON MARQUEUR : LE VOXEL AVATAR 3D */}
                             {userLocation && (
@@ -314,23 +310,23 @@ export default function Dashboard() {
                                 className="flex gap-4 overflow-x-auto pb-4 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto">
 
                                 {/* CARTE DE L'APÉRO EN COURS */}
-                                {squadDetails?.active_beer_call && (
+                                {squadDetails?.active_beer_call?.map((call) => (
                                     <div
-                                        onClick={() => focusOnLocation(squadDetails.active_beer_call!.longitude, squadDetails.active_beer_call!.latitude)}
-                                        className={`min-w-[220px] bg-white rounded-3xl p-5 shadow-xl border-4 snap-center flex-shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform ${squadDetails.active_beer_call.has_responded ? 'border-blue-500' : 'border-beer'}`}
+                                        onClick={() => focusOnLocation(call!.longitude, call!.latitude)}
+                                        className={`min-w-[220px] bg-white rounded-3xl p-5 shadow-xl border-4 snap-center flex-shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform ${call.has_responded ? 'border-blue-500' : 'border-beer'}`}
                                     >
                                         <div className="flex justify-between items-start mb-2">
                                             <span
-                                                className={`text-white text-[10px] font-black px-3 py-1 rounded-full animate-pulse tracking-widest ${squadDetails.active_beer_call.has_responded ? 'bg-blue-500' : 'bg-red-500'}`}>
-                                                {squadDetails.active_beer_call.has_responded ? "REJOINT" : "EN COURS"}
+                                                className={`text-white text-[10px] font-black px-3 py-1 rounded-full animate-pulse tracking-widest ${call.has_responded ? 'bg-blue-500' : 'bg-red-500'}`}>
+                                                {call.has_responded ? "REJOINT" : "EN COURS"}
                                             </span>
                                             <span
-                                                className="text-gray-400 text-xs font-bold">{timeAgo(squadDetails.active_beer_call.started_at)}</span>
+                                                className="text-gray-400 text-xs font-bold">{timeAgo(call.started_at)}</span>
                                         </div>
-                                        <h3 className="font-black text-gray-800 text-lg uppercase italic mt-2 truncate">{squadDetails.active_beer_call.location_name}</h3>
-                                        <p className="text-xs text-gray-500 font-bold mt-1 tracking-widest">{squadDetails.active_beer_call.participants_count} PARTICIPANTS</p>
+                                        <h3 className="font-black text-gray-800 text-lg uppercase italic mt-2 truncate">{call.location_name}</h3>
+                                        <p className="text-xs text-gray-500 font-bold mt-1 tracking-widest">{call.participants_count} PARTICIPANTS</p>
                                     </div>
-                                )}
+                                ))}
 
                                 {/* CARTES DES ANCIENS APÉROS */}
                                 {squadDetails?.past_beer_calls?.map((call) => (
@@ -350,7 +346,7 @@ export default function Dashboard() {
                                     </div>
                                 ))}
 
-                                {!squadDetails?.active_beer_call && (!squadDetails?.past_beer_calls || squadDetails.past_beer_calls.length === 0) && (
+                                {(!squadDetails?.active_beer_call || squadDetails.active_beer_call.length === 0) && (!squadDetails?.past_beer_calls || squadDetails.past_beer_calls.length === 0) && (
                                     <div
                                         className="min-w-[220px] bg-white/80 backdrop-blur-sm rounded-3xl p-5 shadow-sm border border-dashed border-gray-300 snap-center flex-shrink-0">
                                         <p className="text-sm font-bold text-gray-400 text-center mt-4">Aucun apéro pour
@@ -387,6 +383,7 @@ export default function Dashboard() {
                 onClose={() => setSelectedBeerCall(null)}
                 beerCall={selectedBeerCall}
                 squadId={id || ''}
+                location={userLocation}
             />
 
             <SelectWorldModal

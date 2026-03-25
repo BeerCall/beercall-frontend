@@ -16,6 +16,10 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
     const [locationName, setLocationName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [errorToast, setErrorToast] = useState<{ show: boolean; message: string }>({
+        show: false,
+        message: ""
+    });
 
     // Générer l'aperçu de l'image
     useEffect(() => {
@@ -31,24 +35,26 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
         setIsSubmitting(true);
 
         try {
-            // ⚠️ Format Multipart pour l'upload d'image vers FastAPI
             const formData = new FormData();
             formData.append('file', photoFile);
             formData.append('latitude', location.lat.toString());
             formData.append('longitude', location.lng.toString());
             formData.append('location_name', locationName || 'Lieu inconnu');
 
-            // POST /squads/{id}/beer-calls (à adapter selon ton routeur FastAPI)
             await api.post(`/squads/${squadId}/beer-calls/`, formData, {
                 headers: {'Content-Type': 'multipart/form-data'},
             });
 
-            // On rafraîchit les détails de la squad pour voir le nouvel apéro
             queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
-        } catch (err) {
-            console.error("Erreur lors de l'envoi du Beer Call :", err);
-            alert("Erreur lors de l'envoi. T'as renversé ta bière sur le serveur ?");
+        } catch (err: any) {
+            // Extraction du message d'erreur du backend
+            const errorMessage = err.response?.data?.detail || "Erreur serveur inattendue";
+
+            setErrorToast({show: true, message: errorMessage});
+
+            // Auto-fermeture après 5 secondes
+            setTimeout(() => setErrorToast({show: false, message: ""}), 5000);
         } finally {
             setIsSubmitting(false);
         }
@@ -109,6 +115,31 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
                                 {isSubmitting ? 'ANALYSE IA EN COURS...' : 'LANCER L\'APPEL'} <Send size={24}/>
                             </button>
                         </div>
+                        <AnimatePresence mode="wait">
+                            {errorToast.show && (
+                                <motion.div
+                                    initial={{opacity: 0, y: 20, scale: 0.9, x: "-50%"}}
+                                    animate={{opacity: 1, y: 0, scale: 1, x: "-50%"}}
+                                    exit={{opacity: 0, scale: 0.9, x: "-50%"}}
+                                    className="fixed bottom-32 left-1/2 z-[110] w-[90%] max-w-sm bg-red-950/95 backdrop-blur-md border border-red-500/50 p-4 rounded-2xl shadow-2xl flex items-center gap-4"
+                                >
+                                    <div
+                                        className="w-12 h-12 bg-red-500/20 rounded-full flex flex-shrink-0 items-center justify-center text-2xl">
+                                        🚫
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span
+                                            className="font-black text-red-400 text-[10px] uppercase tracking-[0.2em] italic">
+                                            Alerte Fraude
+                                        </span>
+                                        <span className="text-gray-100 text-xs font-bold leading-tight mt-0.5">
+                                            {errorToast.message}
+                                        </span>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                     </motion.div>
                 </>
             )}

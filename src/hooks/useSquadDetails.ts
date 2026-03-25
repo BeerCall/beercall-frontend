@@ -20,7 +20,7 @@ export interface SquadDetails {
     color: string;
     icon: string;
     invite_code: string;
-    active_beer_call: BeerCall | null;
+    active_beer_call: BeerCall[];
     past_beer_calls: BeerCall[];
 }
 

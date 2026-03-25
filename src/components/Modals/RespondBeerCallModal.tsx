@@ -7,13 +7,14 @@ import {api} from '../../lib/api';
 interface RespondBeerCallModalProps {
     isOpen: boolean;
     onClose: () => void;
-    beerCall: any; // L'objet de l'apéro cliqué
+    beerCall: any;
     squadId: string;
+    location: { lat: number; lng: number } | null;
 }
 
 type Step = 'dilemma' | 'accepting' | 'declining';
 
-export default function RespondBeerCallModal({isOpen, onClose, beerCall, squadId}: RespondBeerCallModalProps) {
+export default function RespondBeerCallModal({isOpen, onClose, beerCall, squadId, location}: RespondBeerCallModalProps) {
     const queryClient = useQueryClient();
 
     const [step, setStep] = useState<Step>('dilemma');
@@ -71,17 +72,32 @@ export default function RespondBeerCallModal({isOpen, onClose, beerCall, squadId
 
     // --- APPEL API : ACCEPTER ---
     const handleAccept = async () => {
-        if (!photoFile) return;
+        // 🛡️ Sécurité : on vérifie qu'on a la photo ET la localisation
+        if (!photoFile || !location) {
+            alert("Localisation introuvable. Vérifie que ton GPS est activé !");
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const formData = new FormData();
+
+            // 1. On ajoute le fichier (clé 'file' comme attendu par FastAPI)
             formData.append('file', photoFile);
 
-            // Contrat API attendu : POST /beer-calls/{id}/join (Multipart/form-data)
+            // 2. On ajoute la lat/lon (FastAPI les recevra via Form(...))
+            // Note : On les convertit en string car FormData ne stocke que des strings ou des Blobs
+            formData.append('lat', location.lat.toString());
+            formData.append('lon', location.lng.toString());
+
+            // 3. Envoi de la requête Multipart
             await api.post(`/squads/${squadId}/beer-calls/${beerCall.id}/join/`, formData, {
                 headers: {'Content-Type': 'multipart/form-data'},
             });
+
+            // 4. Rafraîchissement des données de la squad pour voir l'avatar apparaître
             await queryClient.invalidateQueries({queryKey: ['squad', squadId]});
+
             onClose();
         } catch (err) {
             console.error("Erreur Accept:", err);
