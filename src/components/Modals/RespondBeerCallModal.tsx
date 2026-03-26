@@ -3,7 +3,57 @@ import {X, Camera, Send, Beer, Ghost, MessageSquare, Check} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQueryClient} from '@tanstack/react-query';
 import {api} from '../../lib/api';
-import {toast} from "../../store/useToastStore.ts";
+import {toast} from '../../store/useToastStore';
+
+// 🚀 NOUVELLE FONCTION : Compression + Correction EXIF Apple
+const processImageForBackend = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+
+                // Dessine la photo (efface les métadonnées de rotation d'Apple)
+                ctx?.drawImage(img, 0, 0, width, height);
+
+                // Convertit en pur JPEG
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const newFileName = file.name.replace(/\.[^/.]+$/, "") + "_fixed.jpg";
+                        const newFile = new File([blob], newFileName, {type: 'image/jpeg'});
+                        resolve(newFile);
+                    } else {
+                        reject(new Error("Erreur Blob"));
+                    }
+                }, 'image/jpeg', 0.8);
+            };
+        };
+        reader.onerror = (error) => reject(error);
+    });
+};
 
 interface RespondBeerCallModalProps {
     isOpen: boolean;
@@ -65,14 +115,12 @@ export default function RespondBeerCallModal({
     const handleDecline = async () => {
         setIsSubmitting(true);
         try {
-            // Contrat API attendu : POST /beer-calls/{id}/decline avec {"excuse": "..."}
             await api.post(`/squads/${squadId}/beer-calls/${beerCall.id}/decline/`, {excuse});
             await queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
-        } catch (err: any) {
+        } catch (err) {
             console.error("Erreur Decline:", err);
-            const errorMessage = err.response?.data?.detail || "Erreur serveur inattendue";
-            toast.error("Impossible d'envoyer l'excuse !", errorMessage);
+            toast.error("Erreur", "Impossible d'envoyer l'excuse !");
         } finally {
             setIsSubmitting(false);
         }
@@ -80,37 +128,31 @@ export default function RespondBeerCallModal({
 
     // --- APPEL API : ACCEPTER ---
     const handleAccept = async () => {
-        // 🛡️ Sécurité : on vérifie qu'on a la photo ET la localisation
         if (!photoFile || !location) {
-            toast.error("Localisation introuvable. Vérifie que ton GPS est activé !");
+            toast.error("Erreur GPS", "Localisation introuvable. Vérifie que ton GPS est activé !");
             return;
         }
 
         setIsSubmitting(true);
         try {
+            // 🚀 Compression et correction de la photo avant l'envoi
+            const fixedPhoto = await processImageForBackend(photoFile);
+
             const formData = new FormData();
-
-            // 1. On ajoute le fichier (clé 'file' comme attendu par FastAPI)
-            formData.append('file', photoFile);
-
-            // 2. On ajoute la lat/lon (FastAPI les recevra via Form(...))
-            // Note : On les convertit en string car FormData ne stocke que des strings ou des Blobs
+            formData.append('file', fixedPhoto);
             formData.append('lat', location.lat.toString());
             formData.append('lon', location.lng.toString());
 
-            // 3. Envoi de la requête Multipart
             await api.post(`/squads/${squadId}/beer-calls/${beerCall.id}/join/`, formData, {
                 headers: {'Content-Type': 'multipart/form-data'},
             });
 
-            // 4. Rafraîchissement des données de la squad pour voir l'avatar apparaître
             await queryClient.invalidateQueries({queryKey: ['squad', squadId]});
-
             onClose();
         } catch (err: any) {
             console.error("Erreur Accept:", err);
-            const errorMessage = err.response?.data?.detail || "Erreur serveur inattendue";
-            toast.error("L'IA a rejeté ta bière (ou le serveur a planté) !", errorMessage);
+            const errorMessage = err.response?.data?.detail || "L'IA a rejeté ta bière (ou le serveur a planté) !";
+            toast.error("Échec", errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -133,9 +175,9 @@ export default function RespondBeerCallModal({
                         transition={{type: "spring", damping: 25, stiffness: 200}}
                         className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[3rem] p-8 z-[101] shadow-2xl flex flex-col"
                     >
-                        {/* INPUT CAMÉRA CACHÉ */}
+                        {/* 🚀 L'attribut capture="environment" a été retiré ! */}
                         <input
-                            type="file" accept="image/jpeg, image/png" capture="environment"
+                            type="file" accept="image/jpeg, image/png, image/jpg"
                             ref={fileInputRef} onChange={handlePhotoCapture} className="hidden"
                         />
 
@@ -219,7 +261,8 @@ export default function RespondBeerCallModal({
                                         className="w-full aspect-square border-4 border-dashed border-gray-200 rounded-[2rem] flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-50 hover:border-beer transition-all"
                                     >
                                         <Camera size={48} className="mb-4"/>
-                                        <p className="font-black uppercase tracking-widest text-xs">Prendre la photo</p>
+                                        <p className="font-black uppercase tracking-widest text-xs">Prendre ou choisir
+                                            une photo</p>
                                     </div>
                                 ) : (
                                     <div

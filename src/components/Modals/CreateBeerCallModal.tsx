@@ -3,7 +3,57 @@ import {X, Send, MapPin} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQueryClient} from '@tanstack/react-query';
 import {api} from '../../lib/api';
-import {toast} from "../../store/useToastStore.ts";
+import {toast} from '../../store/useToastStore';
+
+// 🚀 NOUVELLE FONCTION : Compression + Correction EXIF Apple
+const processImageForBackend = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+
+                // Dessine la photo (efface les métadonnées de rotation d'Apple)
+                ctx?.drawImage(img, 0, 0, width, height);
+
+                // Convertit en pur JPEG
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const newFileName = file.name.replace(/\.[^/.]+$/, "") + "_fixed.jpg";
+                        const newFile = new File([blob], newFileName, {type: 'image/jpeg'});
+                        resolve(newFile);
+                    } else {
+                        reject(new Error("Erreur Blob"));
+                    }
+                }, 'image/jpeg', 0.8);
+            };
+        };
+        reader.onerror = (error) => reject(error);
+    });
+};
 
 interface CreateBeerCallModalProps {
     squadId: string;
@@ -32,8 +82,11 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
         setIsSubmitting(true);
 
         try {
+            // 🚀 Compression et correction de la photo avant l'envoi
+            const fixedPhoto = await processImageForBackend(photoFile);
+
             const formData = new FormData();
-            formData.append('file', photoFile);
+            formData.append('file', fixedPhoto);
             formData.append('latitude', location.lat.toString());
             formData.append('longitude', location.lng.toString());
             formData.append('location_name', locationName || 'Lieu inconnu');
@@ -45,6 +98,7 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
             queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
         } catch (err: any) {
+            // Utilisation du toast global
             const errorMessage = err.response?.data?.detail || "Erreur serveur inattendue";
             toast.error("Alerte Fraude 🚫", errorMessage);
         } finally {
@@ -107,7 +161,6 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
                                 {isSubmitting ? 'ANALYSE IA EN COURS...' : 'LANCER L\'APPEL'} <Send size={24}/>
                             </button>
                         </div>
-
                     </motion.div>
                 </>
             )}
