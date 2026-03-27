@@ -9,11 +9,10 @@ import RespondBeerCallModal from '../components/Modals/RespondBeerCallModal';
 import SelectWorldModal from '../components/Modals/SelectWorldModal';
 import Map, {Marker, NavigationControl, type MapRef} from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import {Check, Copy, Key, User as UserIcon} from 'lucide-react';
+import {Check, Copy, Key, User as UserIcon, BellRing, LocateFixed, MapPin, Users} from 'lucide-react';
 import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useProfile} from '../hooks/useProfile';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
-import {BellRing} from 'lucide-react';
 import {toast} from "../store/useToastStore.ts";
 
 const timeAgo = (dateString: string) => {
@@ -134,7 +133,34 @@ export default function Dashboard() {
             setTimeout(() => setCopied(false), 2000); // Remet l'icône normale après 2s
         }
     };
+// 🎯 LA FONCTION DE LOCALISATION MANUELLE
+    const handleLocateMe = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const newLocation = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+                    setUserLocation(newLocation);
 
+                    if (mapRef.current) {
+                        mapRef.current.flyTo({
+                            center: [newLocation.lng, newLocation.lat],
+                            zoom: 16,
+                            pitch: 60,
+                            duration: 1500
+                        });
+                    }
+                    // Si on a l'utilitaire toast (Optionnel)
+                    // toast.success("Localisation", "Te voilà sur la carte !");
+                },
+                (err) => {
+                    console.error("Erreur géoloc:", err);
+                    // Si tu as gardé le store de Toasts :
+                    // toast.error("Erreur GPS", "Active ta localisation pour trouver l'apéro !");
+                },
+                {enableHighAccuracy: true}
+            );
+        }
+    };
     return (
         <div className="h-full w-full relative flex flex-col...">
 
@@ -238,13 +264,23 @@ export default function Dashboard() {
                             {userLocation && (
                                 <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
                                         style={{zIndex: 50}}>
+
+                                    {/* 🚀 MICRO-INTERACTION & HALO : Ajout de soft-pulse et de l'effet after: */}
                                     <div onClick={openCamera}
-                                         className="relative flex flex-col items-center cursor-pointer group">
+                                         className="relative flex flex-col items-center cursor-pointer group rounded-full p-2
+                                                    after:content-[''] after:absolute after:inset-1 after:rounded-full after:animate-soft-pulse after:z-[-1]
+                                                    animate-in fade-in zoom-in-50 duration-500 delay-300 fill-mode-both">
+
+                                        <div
+                                            className="absolute -top-7 px-3 py-1 bg-white/70 backdrop-blur-sm rounded-full shadow-sm border border-gray-100 transition-opacity opacity-100 group-hover:opacity-100 group-hover:scale-105 group-hover:bg-white group-hover:border-beer pointer-events-none whitespace-nowrap">
+                                            <span
+                                                className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-beer transition-colors">
+                                                📸🍻
+                                            </span>
+                                        </div>
+
                                         <div className="relative w-24 h-32 flex items-end justify-center pb-2">
-                                            <div
-                                                className="absolute bottom-1 w-12 h-3 bg-beer/50 rounded-full animate-ping blur-[2px]"/>
-                                            <div
-                                                className="absolute bottom-1 w-8 h-2 bg-beer/80 rounded-full blur-[1px]"/>
+                                            {/* Suppression de l'ancien effet ping, remplacé par l'halo global */}
                                             <div className="absolute inset-0 pointer-events-none">
                                                 {profile?.avatar ? (
                                                     <AvatarCanvas config={profile.avatar}/>
@@ -253,10 +289,6 @@ export default function Dashboard() {
                                                               className="text-beer drop-shadow-xl m-auto mt-10"/>
                                                 )}
                                             </div>
-                                        </div>
-                                        <div
-                                            className="absolute bottom-full mb-0 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                            📸 Lancer l'Appel
                                         </div>
                                     </div>
                                 </Marker>
@@ -267,7 +299,14 @@ export default function Dashboard() {
                                 <Marker key={call.id} longitude={call.longitude} latitude={call.latitude}
                                         anchor="bottom" style={{zIndex: 30}}>
                                     <div
-                                        className="bg-gray-300 text-white p-2 rounded-full shadow-sm border-2 border-white flex items-center justify-center text-sm opacity-60">
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            // 🌍 Ouvre la modale des mondes avec l'ID de cet ancien apéro
+                                            setIsWorldsModalOpen(call.id);
+                                        }}
+                                        className="bg-gray-300 text-white p-2 rounded-full shadow-sm border-2 border-white flex items-center justify-center text-sm opacity-60 cursor-pointer hover:opacity-100 hover:scale-125 transition-all"
+                                        title="Voir les mondes"
+                                    >
                                         👻
                                     </div>
                                 </Marker>
@@ -275,56 +314,120 @@ export default function Dashboard() {
                         </Map>
 
                         {/* TIMELINE DES APÉROS */}
-                        <div className="absolute bottom-[170px] w-full px-4 z-10 pointer-events-none">
+                        <div className="absolute bottom-[130px] w-full px-4 z-[70] pointer-events-none">
                             <div
-                                className="flex gap-4 overflow-x-auto pb-4 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto">
-
-                                {/* CARTE DE L'APÉRO EN COURS */}
+                                className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto">
+                                {/* 🟢 CARTE DE L'APÉRO EN COURS */}
                                 {squadDetails?.active_beer_call?.map((call) => (
                                     <div
+                                        key={call.id}
                                         onClick={() => focusOnLocation(call!.longitude, call!.latitude)}
-                                        className={`min-w-[220px] bg-white rounded-3xl p-5 shadow-xl border-4 snap-center flex-shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform ${call.has_responded ? 'border-blue-500' : 'border-beer'}`}
+                                        className={`w-[220px] relative overflow-hidden rounded-3xl p-3.5 snap-center flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-center ${
+                                            call.has_responded
+                                                ? 'bg-gradient-to-br from-blue-50 to-white border border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.15)]'
+                                                : 'bg-gradient-to-br from-orange-50 to-white border border-orange-100 shadow-[0_8px_20px_rgb(217,119,6,0.15)]'
+                                        }`}
                                     >
-                                        <div className="flex justify-between items-start mb-2">
+                                        <div className="flex justify-between items-center mb-1.5">
                                             <span
-                                                className={`text-white text-[10px] font-black px-3 py-1 rounded-full animate-pulse tracking-widest ${call.has_responded ? 'bg-blue-500' : 'bg-red-500'}`}>
+                                                className={`flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-full tracking-widest leading-none ${
+                                                    call.has_responded ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-beer'
+                                                }`}>
+                                                <span
+                                                    className={`w-1.5 h-1.5 rounded-full ${call.has_responded ? 'bg-blue-600' : 'bg-beer animate-pulse'}`}></span>
                                                 {call.has_responded ? "REJOINT" : "EN COURS"}
                                             </span>
                                             <span
-                                                className="text-gray-400 text-xs font-bold">{timeAgo(call.started_at)}</span>
+                                                className="text-gray-400 text-[9px] font-bold uppercase tracking-wider bg-gray-100 px-1.5 py-0.5 rounded-md leading-none">
+                                                {timeAgo(call.started_at)}
+                                            </span>
                                         </div>
-                                        <h3 className="font-black text-gray-800 text-lg uppercase italic mt-2 truncate">{call.location_name}</h3>
-                                        <p className="text-xs text-gray-500 font-bold mt-1 tracking-widest">{call.participants_count} PARTICIPANTS</p>
+
+                                        <h3 className="font-black text-gray-900 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
+                                            <MapPin size={14}
+                                                    className={call.has_responded ? 'text-blue-500' : 'text-beer'}/>
+                                            {call.location_name}
+                                        </h3>
+
+                                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 tracking-widest flex items-center gap-1.5 leading-none">
+                                            <Users size={12} className="text-gray-400"/>
+                                            {call.participants_count} PARTICIPANT{call.participants_count > 1 ? 'S' : ''}
+                                        </p>
                                     </div>
                                 ))}
 
-                                {/* CARTES DES ANCIENS APÉROS */}
+                                {/* 👻 CARTES DES ANCIENS APÉROS */}
                                 {squadDetails?.past_beer_calls?.map((call) => (
                                     <div
                                         key={call.id}
                                         onClick={() => focusOnLocation(call.longitude, call.latitude)}
-                                        className="min-w-[220px] bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-sm border border-gray-100 snap-center flex-shrink-0 grayscale opacity-70 cursor-pointer hover:opacity-100 transition-opacity"
+                                        className="w-[220px] bg-white/80 backdrop-blur-xl rounded-3xl p-3.5 shadow-md border border-white/50 snap-center flex-shrink-0 cursor-pointer hover:-translate-y-1 hover:bg-white/95 transition-all duration-300 flex flex-col justify-between group"
                                     >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span
-                                                className="bg-gray-200 text-gray-600 text-[10px] font-black px-3 py-1 rounded-full tracking-widest">TERMINÉ</span>
-                                            <span
-                                                className="text-gray-400 text-xs font-bold">{timeAgo(call.started_at)}</span>
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1.5">
+                                                <span
+                                                    className="bg-gray-100/80 text-gray-500 text-[9px] font-black px-2 py-1 rounded-full tracking-widest flex items-center gap-1 leading-none">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                                                    TERMINÉ
+                                                </span>
+                                                <span
+                                                    className="text-gray-400 text-[9px] font-bold uppercase tracking-wider leading-none">
+                                                    {timeAgo(call.started_at)}
+                                                </span>
+                                            </div>
+                                            <h3 className="font-black text-gray-700 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
+                                                <MapPin size={14} className="text-gray-400"/>
+                                                {call.location_name}
+                                            </h3>
                                         </div>
-                                        <h3 className="font-black text-gray-800 text-lg uppercase italic mt-2 truncate">{call.location_name}</h3>
-                                        <p className="text-xs text-gray-500 font-bold mt-1 tracking-widest">{call.participants_count} PARTICIPANTS</p>
+
+                                        {/* Ligne du bas ultra compacte */}
+                                        <div
+                                            className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/50">
+                                            <p className="text-[10px] text-gray-500 font-bold tracking-widest flex items-center gap-1 leading-none">
+                                                <Users size={12} className="text-gray-400"/>
+                                                {call.participants_count}
+                                            </p>
+
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsWorldsModalOpen(call.id);
+                                                }}
+                                                className="bg-white text-gray-800 text-[9px] px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider hover:bg-gray-800 hover:text-white active:scale-95 transition-all shadow-sm border border-gray-200 flex items-center gap-1 group-hover:border-gray-800 leading-none"
+                                            >
+                                                Mondes 🌍
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
 
+                                {/* 📭 EMPTY STATE */}
                                 {(!squadDetails?.active_beer_call || squadDetails.active_beer_call.length === 0) && (!squadDetails?.past_beer_calls || squadDetails.past_beer_calls.length === 0) && (
                                     <div
-                                        className="min-w-[220px] bg-white/80 backdrop-blur-sm rounded-3xl p-5 shadow-sm border border-dashed border-gray-300 snap-center flex-shrink-0">
-                                        <p className="text-sm font-bold text-gray-400 text-center mt-4">Aucun apéro pour
-                                            le moment.<br/>Lance le premier !</p>
+                                        className="w-[220px] bg-white/60 backdrop-blur-md rounded-3xl p-4 shadow-sm border-2 border-dashed border-gray-300/50 snap-center flex-shrink-0 flex flex-col items-center justify-center">
+                                        <div
+                                            className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mb-2">
+                                            <BellRing size={16} className="text-gray-400"/>
+                                        </div>
+                                        <p className="text-xs font-bold text-gray-500 text-center uppercase tracking-wider leading-tight">
+                                            Aucun apéro.<br/>Lance le premier !
+                                        </p>
                                     </div>
                                 )}
 
                             </div>
+                        </div>
+                        {/* BOUTON RECENTRER */}
+                        {/* 🚀 Change z-20 par z-[70] ici pour qu'il ne se fasse pas manger non plus */}
+                        <div className="absolute top-[190px] right-4 z-[70]">
+                            <button
+                                onClick={handleLocateMe}
+                                className="bg-white/90 backdrop-blur-md text-gray-700 p-3 rounded-2xl shadow-xl border-2 border-gray-100 hover:scale-110 active:scale-95 transition-all group"
+                                title="Me localiser"
+                            >
+                                <LocateFixed size={24} className="group-hover:text-beer transition-colors"/>
+                            </button>
                         </div>
                     </div>
                 ) : (

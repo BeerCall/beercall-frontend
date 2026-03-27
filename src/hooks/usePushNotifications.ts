@@ -26,7 +26,6 @@ export function usePushNotifications() {
 
                 if (currentToken) {
                     await api.put('/auth/push-token/', {token: currentToken});
-                    console.log("🍻 Token FCM enregistré avec succès !");
                     return true;
                 }
             }
@@ -53,7 +52,6 @@ export function usePushNotifications() {
 
                         if (currentToken) {
                             await api.put('/auth/push-token/', {token: currentToken});
-                            console.log("🔄 Token FCM restauré silencieusement (Retour de l'utilisateur) !");
                         }
                     }
                 } catch (error) {

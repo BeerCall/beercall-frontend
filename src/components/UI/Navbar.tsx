@@ -1,4 +1,4 @@
-import {Users, User, LogOut, Plus, LogIn, Beer, Martini, Pizza, Rocket, Ghost, Flame} from 'lucide-react';
+import {Users, User, LogOut, Plus, Key, Beer, Martini, Pizza, Rocket, Ghost, Flame} from 'lucide-react';
 import {motion, useMotionValue, useTransform} from 'framer-motion';
 import {useUserStore} from '../../store/useUserStore';
 import {useSquads} from '../../hooks/useSquads';
@@ -9,7 +9,6 @@ interface NavbarProps {
     onJoinClick: () => void;
 }
 
-// 🔧 Le dictionnaire de conversion Texte -> Icône
 const SQUAD_ICONS: Record<string, React.ReactNode> = {
     beer: <Beer size={24}/>,
     cocktail: <Martini size={24}/>,
@@ -21,7 +20,7 @@ const SQUAD_ICONS: Record<string, React.ReactNode> = {
 
 const WheelItem = ({angle, children}: { angle: number; children: React.ReactNode }) => (
     <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
+        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center"
         style={{transformOrigin: '50% 250px', transform: `rotate(${angle}deg)`}}
     >
         {children}
@@ -37,38 +36,58 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
     const negateX = useTransform(dragX, (v) => -v);
     const wheelRotation = useTransform(dragX, [-150, 150], [-35, 35]);
 
+    // 🎯 CALCUL DYNAMIQUE DES ANGLES
+    // Permet aux boutons Créer et Rejoindre d'être toujours aux extrémités exactes de la liste !
+    const squadsCount = squads?.length || 0;
+    const spacing = 24; // Espace en degrés entre chaque élément
+
+    // Le bouton Créer est placé juste avant la première squad (index -1)
+    const createAngle = (-1 - (squadsCount - 1) / 2) * spacing;
+    // Le bouton Rejoindre est placé juste après la dernière squad (index = squadsCount)
+    const joinAngle = (squadsCount - (squadsCount - 1) / 2) * spacing;
+
     return (
-        <div className="absolute bottom-0 w-full z-50">
-            <div className="relative h-32 flex justify-center overflow-hidden">
-                <div
-                    className="absolute top-10 w-[500px] h-[500px] rounded-full border-t-[3px] border-beer/20 pointer-events-none"/>
+        <div className="absolute bottom-0 w-full z-50 pointer-events-none">
+
+            {/* 🎡 LA ROULETTE (Boutons + Squads) */}
+            <div className="relative h-32 flex justify-center overflow-hidden pointer-events-none">
+                <div className="absolute top-10 w-[500px] h-[500px] rounded-full border-t-[3px] border-beer/20"/>
 
                 <motion.div
                     drag="x"
                     dragConstraints={{left: -150, right: 150}}
                     style={{x: dragX}}
-                    className="absolute top-10 w-[500px] h-[500px] cursor-grab active:cursor-grabbing z-40"
+                    className="absolute top-10 w-[500px] h-[500px] cursor-grab active:cursor-grabbing z-40 pointer-events-auto"
                 >
                     <motion.div style={{x: negateX, rotate: wheelRotation, originX: "50%", originY: "50%"}}
                                 className="w-full h-full relative">
 
-                        <WheelItem angle={-40}>
-                            <button onClick={onCreateClick}
-                                    className="bg-white p-3 rounded-full shadow-lg text-beer hover:scale-110 active:scale-90 transition-transform pointer-events-auto border border-gray-100">
-                                <Plus size={24}/>
+                        {/* 🟢 BOUTON CRÉER (Dynamique) */}
+                        <WheelItem angle={createAngle}>
+                            <button
+                                onClick={onCreateClick}
+                                className="relative flex flex-col items-center group pointer-events-auto hover:-translate-y-1 transition-transform mt-2"
+                            >
+                                {/* 🚀 Le label passe AU-DESSUS de l'icône */}
+                                <span className="absolute -top-6 text-[9px] font-black uppercase tracking-widest text-gray-700 bg-white/95 px-2.5 py-1 ml-1 rounded-full shadow-sm border border-gray-200">
+                                    Créer
+                                </span>
+                                <div className="w-14 h-14 bg-white/95 backdrop-blur-md rounded-full border-4 border-orange-100 shadow-[0_8px_20px_rgb(217,119,6,0.2)] flex items-center justify-center text-beer group-active:scale-95 transition-all">
+                                    <Plus size={26}/>
+                                </div>
                             </button>
                         </WheelItem>
 
+                        {/* 🍻 LES SQUADS */}
                         {!isLoading && squads?.map((squad, index) => {
-                            const angle = (index - (squads.length - 1) / 2) * 22;
-                            // 🔧 Récupération de l'icône réelle, fallback sur Beer si non trouvé
+                            const angle = (index - (squadsCount - 1) / 2) * spacing;
                             const IconComponent = SQUAD_ICONS[squad.icon || 'beer'] || <Beer size={24}/>;
 
                             return (
                                 <WheelItem key={squad.id} angle={angle}>
                                     <button
                                         onClick={() => navigate(`/squad/${squad.id}`)}
-                                        className="w-14 h-14 rounded-full border-4 border-white shadow-xl flex items-center justify-center text-white hover:scale-110 transition-transform pointer-events-auto"
+                                        className="w-14 h-14 rounded-full border-4 border-white shadow-xl flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-transform pointer-events-auto"
                                         style={{backgroundColor: squad.color || '#F59E0B'}}
                                     >
                                         {IconComponent}
@@ -77,10 +96,19 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                             );
                         })}
 
-                        <WheelItem angle={40}>
-                            <button onClick={onJoinClick}
-                                    className="bg-white p-3 rounded-full shadow-lg text-beer hover:scale-110 active:scale-90 transition-transform pointer-events-auto border border-gray-100">
-                                <LogIn size={24}/>
+                        {/* 🔵 BOUTON REJOINDRE (Dynamique) */}
+                        <WheelItem angle={joinAngle}>
+                            <button
+                                onClick={onJoinClick}
+                                className="relative flex flex-col items-center group pointer-events-auto hover:-translate-y-1 transition-transform mt-2"
+                            >
+                                {/* 🚀 Le label passe AU-DESSUS de l'icône */}
+                                <span className="absolute -top-6 text-[9px] font-black uppercase tracking-widest text-gray-700 bg-white/95 px-2.5 py-1 rounded-full shadow-sm border border-gray-200">
+                                    Rejoindre
+                                </span>
+                                <div className="w-14 h-14 bg-white/95 backdrop-blur-md rounded-full border-4 border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.2)] flex items-center justify-center text-blue-500 group-active:scale-95 transition-all">
+                                    <Key size={24}/>
+                                </div>
                             </button>
                         </WheelItem>
 
@@ -88,8 +116,9 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                 </motion.div>
             </div>
 
+            {/* 🔽 BARRE DE NAVIGATION INFÉRIEURE */}
             <div
-                className="bg-white border-t border-gray-100 h-20 px-8 flex justify-between items-center pb-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50">
+                className="bg-white border-t border-gray-100 h-20 px-8 flex justify-between items-center pb-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50 pointer-events-auto">
                 <button
                     onClick={() => navigate('/connections')}
                     className="flex flex-col items-center text-gray-400 hover:text-beer"
@@ -99,7 +128,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                 </button>
 
                 <button onClick={() => navigate('/profile')}
-                        className="flex flex-col items-center justify-center bg-beer text-white w-[70px] h-[70px] rounded-full shadow-2xl transform -translate-y-5 border-[6px] border-white z-50 hover:scale-105 transition-transform">
+                        className="flex flex-col items-center justify-center bg-beer text-white w-[70px] h-[70px] rounded-full shadow-2xl transform -translate-y-5 border-[6px] border-white z-50 hover:scale-105 active:scale-95 transition-all">
                     <User size={28}/>
                 </button>
 
