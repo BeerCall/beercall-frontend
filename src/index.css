@@ -4,39 +4,40 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 1. ON COLORE LE FOND ABSOLU (Fusionne la barre du bas avec l'app) */
-html {
-    background-color: #f8fafc;
-}
+html, body {
+    /* 1. On ancre l'application sur les 4 bords physiques */
+    position: fixed;
+    inset: 0; /* Équivaut à top: 0; right: 0; bottom: 0; left: 0; */
 
-/* 2. ON PREND 100% DE L'ÉCRAN PHYSIQUE AVEC DVH */
-body {
+    /* 2. Le hack absolu pour WebKit (Safari/iOS) */
     width: 100vw;
-    height: 100dvh; /* 🚀 Ignore les restrictions d'Apple et va de tout en haut à tout en bas */
-
-    position: fixed; /* Bloque le scroll natif */
-    top: 0;
-    left: 0;
+    height: 100%;
+    height: -webkit-fill-available;
 
     margin: 0;
     padding: 0;
-    overflow: hidden;
-    overscroll-behavior-y: none; /* Tue le rebond élastique de Safari */
 
-    /* Expérience 100% App Native */
+    /* 3. On verrouille tout mouvement */
+    overflow: hidden;
+    overscroll-behavior-y: none;
+
+    /* 4. On fond la barre du bas dans le décor */
+    background-color: #f8fafc;
+
+    /* 5. Comportement natif */
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
 }
 
-/* 3. ROOT SUIT EXACTEMENT LE BODY */
 #root {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
 }
 
-/* On réautorise la sélection de texte UNIQUEMENT pour les formulaires */
 input, textarea {
     -webkit-user-select: auto;
     user-select: auto;
