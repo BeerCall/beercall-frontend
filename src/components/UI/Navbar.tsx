@@ -124,7 +124,8 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
 
             {/* 🔽 BARRE DE NAVIGATION INFÉRIEURE */}
             <div
-                className="bg-white border-t h-20 border-gray-100 px-8 flex justify-between items-center pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50 pointer-events-auto">
+                className="fixed bottom-0 w-full bg-white border-t border-gray-100 px-8 flex justify-between items-center pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,20px))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-50 pointer-events-auto"
+            >
                 <button
                     onClick={() => navigate('/connections')}
                     className="flex flex-col items-center text-gray-400 hover:text-beer"
@@ -134,7 +135,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                 </button>
 
                 <button onClick={() => navigate('/profile')}
-                        className="flex flex-col items-center justify-center bg-beer text-white w-[70px] h-[70px] rounded-full shadow-2xl transform -translate-y-5 border-[6px] border-white z-50 hover:scale-105 active:scale-95 transition-all">
+                        className="flex flex-col items-center justify-center bg-beer text-white w-[70px] h-[70px] rounded-full shadow-2xl transform -translate-y-6 border-[6px] border-white z-50 hover:scale-105 active:scale-95 transition-all">
                     <User size={28}/>
                 </button>
 
