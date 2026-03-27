@@ -124,7 +124,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
 
             {/* 🔽 BARRE DE NAVIGATION INFÉRIEURE */}
             <div
-                className="bg-white border-t border-gray-100 h-20 px-8 flex justify-between items-center pb-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50 pointer-events-auto">
+                className="bg-white border-t border-gray-100 px-8 flex justify-between items-center pt-4 pb-[calc(0.5rem+env(safe-area-inset-bottom,1rem))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50 pointer-events-auto">
                 <button
                     onClick={() => navigate('/connections')}
                     className="flex flex-col items-center text-gray-400 hover:text-beer"
