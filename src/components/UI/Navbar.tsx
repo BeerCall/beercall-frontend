@@ -122,26 +122,28 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                 </motion.div>
             </div>
 
-            {/* 🔽 BARRE DE NAVIGATION INFÉRIEURE */}
-            <div
-                className="bg-white border-t h-20 border-gray-100 px-8 flex justify-between items-center pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50 pointer-events-auto">
-                <button
-                    onClick={() => navigate('/connections')}
-                    className="flex flex-col items-center text-gray-400 hover:text-beer"
-                >
-                    <Users size={24}/>
-                    <span className="text-[10px] font-black uppercase mt-1 tracking-tighter">Connexions</span>
+            {/* 🚀 NAVBAR MODIFIÉE POUR LE PLEIN ÉCRAN */}
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-8 flex justify-between items-center z-50 pointer-events-auto
+                /* On ajoute du padding en bas égal à la zone de sécurité d'Apple */
+                pb-[env(safe-area-inset-bottom,1.5rem)]
+                pt-4 h-auto">
+
+                <button onClick={() => navigate('/connections')} className="flex flex-col items-center gap-1 group">
+                    <Users size={24} className="text-gray-400 group-hover:text-beer transition-colors"/>
+                    <span
+                        className="text-[10px] font-bold text-gray-400 group-hover:text-beer uppercase tracking-tighter">Connexions</span>
                 </button>
 
-                <button onClick={() => navigate('/profile')}
-                        className="flex flex-col items-center justify-center bg-beer text-white w-[70px] h-[70px] rounded-full shadow-2xl transform -translate-y-5 border-[6px] border-white z-50 hover:scale-105 active:scale-95 transition-all">
-                    <User size={28}/>
+                <button onClick={() => navigate('/profile')} className="flex flex-col items-center gap-1 group">
+                    <UserIcon size={24} className="text-gray-400 group-hover:text-beer transition-colors"/>
+                    <span
+                        className="text-[10px] font-bold text-gray-400 group-hover:text-beer uppercase tracking-tighter">Profil</span>
                 </button>
 
-                <button onClick={logout}
-                        className="flex flex-col items-center text-gray-400 hover:text-red-400 transition-colors">
-                    <LogOut size={24}/>
-                    <span className="text-[10px] font-black uppercase mt-1 tracking-tighter">Sign Out</span>
+                <button onClick={handleSignOut} className="flex flex-col items-center gap-1 group">
+                    <LogOut size={24} className="text-gray-400 group-hover:text-red-500 transition-colors"/>
+                    <span
+                        className="text-[10px] font-bold text-gray-400 group-hover:text-red-500 uppercase tracking-tighter">Sign Out</span>
                 </button>
             </div>
         </div>

@@ -4,12 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import "tailwindcss";
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 html {
     /* 🚀 On force la hauteur dynamique pour Safari */
     height: -webkit-fill-available;
