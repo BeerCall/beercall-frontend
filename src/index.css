@@ -4,36 +4,39 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-    /* 🚀 ON CLOUE LES 4 COINS DE L'ÉCRAN */
-    position: fixed;
+/* 1. ON COLORE LE FOND ABSOLU (Fusionne la barre du bas avec l'app) */
+html {
+    background-color: #f8fafc;
+}
+
+/* 2. ON PREND 100% DE L'ÉCRAN PHYSIQUE AVEC DVH */
+body {
+    width: 100vw;
+    height: 100dvh; /* 🚀 Ignore les restrictions d'Apple et va de tout en haut à tout en bas */
+
+    position: fixed; /* Bloque le scroll natif */
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
 
-    overflow: hidden;
-    overscroll-behavior: none; /* Tue le rebond élastique */
-    background-color: #f8fafc; /* Assorti à ton theme-color */
     margin: 0;
     padding: 0;
+    overflow: hidden;
+    overscroll-behavior-y: none; /* Tue le rebond élastique de Safari */
 
+    /* Expérience 100% App Native */
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
 }
 
+/* 3. ROOT SUIT EXACTEMENT LE BODY */
 #root {
-    /* 🚀 ON S'ASSURE QUE ROOT SUIT LE MOUVEMENT */
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
 }
 
-/* On réautorise la sélection pour les inputs */
+/* On réautorise la sélection de texte UNIQUEMENT pour les formulaires */
 input, textarea {
     -webkit-user-select: auto;
     user-select: auto;
