@@ -1,4 +1,4 @@
-import {Users, User, LogOut, Plus, Key, Beer, Martini, Pizza, Rocket, Ghost, Flame} from 'lucide-react';
+import {Users, LogOut, Plus, Key, Beer, Martini, Pizza, Rocket, Ghost, Flame, UserIcon} from 'lucide-react';
 import {motion, useMotionValue, useTransform} from 'framer-motion';
 import {useUserStore} from '../../store/useUserStore';
 import {useSquads} from '../../hooks/useSquads';
@@ -140,7 +140,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                         className="text-[10px] font-bold text-gray-400 group-hover:text-beer uppercase tracking-tighter">Profil</span>
                 </button>
 
-                <button onClick={handleSignOut} className="flex flex-col items-center gap-1 group">
+                <button onClick={logout} className="flex flex-col items-center gap-1 group">
                     <LogOut size={24} className="text-gray-400 group-hover:text-red-500 transition-colors"/>
                     <span
                         className="text-[10px] font-bold text-gray-400 group-hover:text-red-500 uppercase tracking-tighter">Sign Out</span>
