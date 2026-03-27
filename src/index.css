@@ -3,16 +3,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-html, body {
-    width: 100%;
-    height: 100%;
 
-    /* 🚀 L'ASTUCE ULTIME CONTRE SAFARI */
+:root {
+    /* Hauteur de secours pour le chargement initial */
+    --app-height: 100vh;
+}
+
+html, body {
+    width: 100vw;
+    height: var(--app-height); /* 🚀 La magie opère ici ! */
+
     position: fixed;
     top: 0;
     left: 0;
 
-    /* 🚀 TUE LE SCROLL NATIF ET LE REBOND ÉLASTIQUE */
     overflow: hidden;
     overscroll-behavior-y: none;
 
@@ -20,7 +24,6 @@ html, body {
     margin: 0;
     padding: 0;
 
-    /* Empêche la sélection de texte */
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
@@ -29,7 +32,7 @@ html, body {
 #root {
     width: 100%;
     height: 100%;
-    overflow: hidden; /* Garde tout bien confiné */
+    overflow: hidden;
 }
 
 /* On réautorise la sélection pour les inputs */

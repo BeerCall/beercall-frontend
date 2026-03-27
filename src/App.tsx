@@ -10,6 +10,7 @@ import SignUp from "./pages/SignUp.tsx";
 import Profile from "./pages/Profile.tsx";
 import Connections from "./pages/Connections.tsx";
 import ToastContainer from './components/UI/ToastContainer';
+import {useEffect} from "react";
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -25,10 +26,26 @@ export default function App() {
 
     usePushNotifications();
 
+    useEffect(() => {
+        const setAppHeight = () => {
+            // Récupère la taille exacte de l'écran en pixels
+            const doc = document.documentElement;
+            doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+        };
+
+        // On l'exécute au lancement
+        setAppHeight();
+
+        // Et on l'exécute si l'utilisateur tourne son téléphone
+        window.addEventListener('resize', setAppHeight);
+
+        return () => window.removeEventListener('resize', setAppHeight);
+    }, []);
+
     return (
         <QueryClientProvider client={queryClient}>
             <BrowserRouter>
-                <ToastContainer />
+                <ToastContainer/>
                 <Routes>
                     <Route element={<Layout/>}>
                         <Route path="/login"
