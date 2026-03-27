@@ -59,11 +59,13 @@ function CanvasLoader() {
     );
 }
 
-// J'ai ajouté la prop "customTransform"
 function AvatarPart({path, customTransform}: { path: string, customTransform?: any }) {
+    // 1. On lance le téléchargement (qui bénéficie du cache de Drei)
     const fbx = useFBX(path);
 
     const clonedFbx = useMemo(() => {
+        if (!fbx) return null; // Sécurité si fbx n'est pas encore prêt
+
         const clone = fbx.clone();
         clone.traverse((child) => {
             if ((child as THREE.Mesh).isMesh) {
@@ -77,7 +79,8 @@ function AvatarPart({path, customTransform}: { path: string, customTransform?: a
         return clone;
     }, [fbx]);
 
-    // On applique le décalage sur l'objet primitif
+    if (!clonedFbx) return null;
+
     return (
         <primitive
             object={clonedFbx}
@@ -87,6 +90,9 @@ function AvatarPart({path, customTransform}: { path: string, customTransform?: a
         />
     );
 }
+
+useFBX.preload = () => {
+};
 
 function ModularAvatar({config}: { config: any }) {
     // On vérifie si l'accessoire équipé possède des réglages personnalisés
@@ -117,14 +123,30 @@ export default function AvatarCanvas({config}: { config: any }) {
         silenceWarnings();
     }, []);
 
+    // 🚀 PRÉCHARGEMENT MASSIF
+    // On dit au navigateur : "Hey, tu vas avoir besoin de ces 5 fichiers,
+    // commence à les télécharger maintenant en cache !"
+    useEffect(() => {
+        if (config) {
+            if (config.head !== 'none') useFBX.preload(`${MODELS_URL}/${config.head}.fbx`);
+            if (config.body !== 'none') useFBX.preload(`${MODELS_URL}/${config.body}.fbx`);
+            if (config.legs !== 'none') useFBX.preload(`${MODELS_URL}/${config.legs}.fbx`);
+            if (config.feet !== 'none') useFBX.preload(`${MODELS_URL}/${config.feet}.fbx`);
+            if (config.accessory !== 'none') useFBX.preload(`${MODELS_URL}/${config.accessory}.fbx`);
+        }
+    }, [config]);
+
     return (
         <div className="w-full h-full relative">
+            {/* L'interface HTML du chargeur se met au-dessus du canvas, pas dedans ! */}
+
             <Canvas camera={{position: [0, CONFIG.cameraTargetY, CONFIG.cameraZ], fov: 45}} dpr={[1, 2]}
                     className="z-10 relative">
                 <ambientLight intensity={1.5}/>
                 <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                 <directionalLight position={[-10, 10, -10]} intensity={1}/>
 
+                {/* Le Suspense encadre tout le contenu 3D */}
                 <Suspense fallback={<CanvasLoader/>}>
                     <ModularAvatar config={config}/>
                     <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={200} blur={2} far={200} color="#000000"/>

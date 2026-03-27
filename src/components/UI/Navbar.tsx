@@ -2,7 +2,7 @@ import {Users, User, LogOut, Plus, Key, Beer, Martini, Pizza, Rocket, Ghost, Fla
 import {motion, useMotionValue, useTransform} from 'framer-motion';
 import {useUserStore} from '../../store/useUserStore';
 import {useSquads} from '../../hooks/useSquads';
-import {useNavigate} from 'react-router-dom';
+import {useNavigate, useParams} from 'react-router-dom';
 
 interface NavbarProps {
     onCreateClick: () => void;
@@ -31,6 +31,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
     const navigate = useNavigate();
     const logout = useUserStore((state) => state.logout);
     const {data: squads, isLoading} = useSquads();
+    const {id: currentSquadId} = useParams();
 
     const dragX = useMotionValue(0);
     const negateX = useTransform(dragX, (v) => -v);
@@ -69,10 +70,12 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                                 className="relative flex flex-col items-center group pointer-events-auto hover:-translate-y-1 transition-transform mt-2"
                             >
                                 {/* 🚀 Le label passe AU-DESSUS de l'icône */}
-                                <span className="absolute -top-6 text-[9px] font-black uppercase tracking-widest text-gray-700 bg-white/95 px-2.5 py-1 ml-1 rounded-full shadow-sm border border-gray-200">
+                                <span
+                                    className="absolute -top-6 text-[9px] font-black uppercase tracking-widest text-gray-700 bg-white/95 px-2.5 py-1 ml-1 rounded-full shadow-sm border border-gray-200">
                                     Créer
                                 </span>
-                                <div className="w-14 h-14 bg-white/95 backdrop-blur-md rounded-full border-4 border-orange-100 shadow-[0_8px_20px_rgb(217,119,6,0.2)] flex items-center justify-center text-beer group-active:scale-95 transition-all">
+                                <div
+                                    className="w-14 h-14 bg-white/95 backdrop-blur-md rounded-full border-4 border-orange-100 shadow-[0_8px_20px_rgb(217,119,6,0.2)] flex items-center justify-center text-beer group-active:scale-95 transition-all">
                                     <Plus size={26}/>
                                 </div>
                             </button>
@@ -82,12 +85,13 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                         {!isLoading && squads?.map((squad, index) => {
                             const angle = (index - (squadsCount - 1) / 2) * spacing;
                             const IconComponent = SQUAD_ICONS[squad.icon || 'beer'] || <Beer size={24}/>;
+                            const isActive = currentSquadId && +squad.id === +currentSquadId;
 
                             return (
                                 <WheelItem key={squad.id} angle={angle}>
                                     <button
                                         onClick={() => navigate(`/squad/${squad.id}`)}
-                                        className="w-14 h-14 rounded-full border-4 border-white shadow-xl flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-transform pointer-events-auto"
+                                        className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-white transition-all pointer-events-auto ${isActive ? 'scale-110 ring-4 ring-beer ring-opacity-50' : 'border-4 border-white hover:scale-110'}`}
                                         style={{backgroundColor: squad.color || '#F59E0B'}}
                                     >
                                         {IconComponent}
@@ -103,10 +107,12 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                                 className="relative flex flex-col items-center group pointer-events-auto hover:-translate-y-1 transition-transform mt-2"
                             >
                                 {/* 🚀 Le label passe AU-DESSUS de l'icône */}
-                                <span className="absolute -top-6 text-[9px] font-black uppercase tracking-widest text-gray-700 bg-white/95 px-2.5 py-1 rounded-full shadow-sm border border-gray-200">
+                                <span
+                                    className="absolute -top-6 text-[9px] font-black uppercase tracking-widest text-gray-700 bg-white/95 px-2.5 py-1 rounded-full shadow-sm border border-gray-200">
                                     Rejoindre
                                 </span>
-                                <div className="w-14 h-14 bg-white/95 backdrop-blur-md rounded-full border-4 border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.2)] flex items-center justify-center text-blue-500 group-active:scale-95 transition-all">
+                                <div
+                                    className="w-14 h-14 bg-white/95 backdrop-blur-md rounded-full border-4 border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.2)] flex items-center justify-center text-blue-500 group-active:scale-95 transition-all">
                                     <Key size={24}/>
                                 </div>
                             </button>
