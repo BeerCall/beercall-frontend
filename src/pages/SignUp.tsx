@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import {useNavigate, Link} from 'react-router-dom';
-import {ChevronLeft, ArrowRight} from 'lucide-react';
+import {ChevronLeft, ArrowRight, User, Lock} from 'lucide-react';
 import {useUserStore} from '../store/useUserStore';
 import {api} from '../lib/api';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
@@ -84,48 +84,82 @@ export default function SignUp() {
     return (
         <div className="h-screen w-full bg-[#f8fafc] flex flex-col overflow-hidden">
             {step === 1 ? (
-                <div className="flex-1 flex flex-col px-8 justify-center animate-in fade-in duration-500">
-                    <header className="mb-12 text-center">
+                <div
+                    className="flex-1 flex flex-col px-8 justify-center font-sans relative overflow-hidden animate-in fade-in duration-500">
+
+                    {/* 1. ON REPREND LE MÊME DECOR DE FOND QUE LE LOGIN */}
+                    <div
+                        className="absolute top-[-5%] right-[-10%] w-64 h-64 bg-beer opacity-10 rounded-full blur-3xl"/>
+                    <div
+                        className="absolute bottom-[-5%] left-[-10%] w-64 h-64 bg-beer opacity-5 rounded-full blur-3xl"/>
+
+                    {/* 2. ON HARMONISE LE HEADER / LOGO */}
+                    <div className="text-center mb-12 relative z-10">
                         <div
-                            className="w-20 h-20 bg-beer rounded-[2rem] mx-auto mb-6 flex items-center justify-center shadow-xl rotate-3 text-4xl">🍻
+                            className="w-20 h-20 bg-white rounded-[2rem] shadow-xl mx-auto mb-6 flex items-center justify-center border-4 border-beer transform -rotate-6">
+                            <span className="text-4xl">🍻</span>
                         </div>
                         <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase italic">Nouvelle
                             Recrue</h1>
-                    </header>
-                    <div className="space-y-4">
-                        <input
-                            type="text"
-                            placeholder="Pseudo"
-                            maxLength={14}
-                            value={formData.username}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                if (/^[a-zA-Z0-9]*$/.test(val)) {
-                                    setFormData({...formData, username: val});
-                                }
-                            }}
-                            className="w-full p-5 rounded-3xl bg-white border-4 focus:border-beer focus:outline-none font-bold text-lg shadow-inner"
-                        />
-                        <input
-                            type="password"
-                            placeholder="Mot de passe"
-                            maxLength={50}
-                            value={formData.password}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                if (/^\S*$/.test(val)) {
-                                    setFormData({...formData, password: val});
-                                }
-                            }}
-                            className="w-full p-5 rounded-3xl bg-white border-4 focus:border-beer focus:outline-none font-bold text-lg shadow-inner"
-                        />
+                        <p className="text-[10px] font-black text-gray-400 mt-2 uppercase tracking-[0.2em]">Crée ton
+                            profil</p>
                     </div>
-                    <button disabled={!formData.username || formData.password.length < 4} onClick={() => setStep(2)}
-                            className="mt-10 w-full bg-gray-900 text-white p-6 rounded-[2rem] font-black text-xl shadow-2xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20">CRÉER
-                        L'AVATAR <ArrowRight size={22}/></button>
-                    <Link to="/login"
-                          className="mt-8 text-center block text-gray-400 font-bold text-xs uppercase hover:text-beer tracking-widest">Déjà
-                        inscrit ? Se connecter</Link>
+
+                    {/* 3. ON HARMONISE LES INPUTS (Même radius, même ombre, ajout des icônes) */}
+                    <div className="space-y-4 relative z-10">
+                        <div className="relative">
+                            <User className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300" size={20}/>
+                            <input
+                                type="text"
+                                placeholder="Pseudo"
+                                maxLength={14}
+                                value={formData.username}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (/^[a-zA-Z0-9]*$/.test(val)) {
+                                        setFormData({...formData, username: val});
+                                    }
+                                }}
+                                className="w-full bg-white p-5 pl-14 rounded-[2rem] shadow-inner text-lg font-bold focus:outline-none border-4 border-transparent focus:border-beer transition-all"
+                            />
+                        </div>
+
+                        <div className="relative">
+                            <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300" size={20}/>
+                            <input
+                                type="password"
+                                placeholder="Mot de passe"
+                                maxLength={50}
+                                value={formData.password}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (/^\S*$/.test(val)) {
+                                        setFormData({...formData, password: val});
+                                    }
+                                }}
+                                className="w-full bg-white p-5 pl-14 rounded-[2rem] shadow-inner text-lg font-bold focus:outline-none border-4 border-transparent focus:border-beer transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    {/* 4. ON HARMONISE LE BOUTON (rounded-[2.5rem]) */}
+                    <button
+                        disabled={!formData.username || formData.password.length < 4}
+                        onClick={() => setStep(2)}
+                        className="relative z-10 w-full bg-gray-900 text-white p-6 rounded-[2.5rem] font-black text-xl shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all mt-8 disabled:opacity-30"
+                    >
+                        CRÉER L'AVATAR <ArrowRight size={24}/>
+                    </button>
+
+                    <div className="mt-12 text-center relative z-10">
+                        <p className="text-gray-400 font-bold text-xs uppercase tracking-tighter">
+                            Déjà inscrit ?
+                        </p>
+                        <Link to="/login"
+                              className="mt-2 inline-flex items-center gap-2 text-beer font-black text-lg hover:underline decoration-4">
+                            <ChevronLeft size={20}/> SE CONNECTER
+                        </Link>
+                    </div>
                 </div>
             ) : (
                 <div

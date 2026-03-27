@@ -131,7 +131,7 @@ export default function Login() {
 
             <div className="mt-12 text-center relative z-10">
                 <p className="text-gray-400 font-bold text-xs uppercase tracking-tighter">
-                    Pas encore de Voxel ?
+                    Pas encore d'Avatar ?
                 </p>
                 <Link to="/signup"
                       className="mt-2 inline-flex items-center gap-2 text-beer font-black text-lg hover:underline decoration-4">
