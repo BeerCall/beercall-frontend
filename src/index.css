@@ -10,48 +10,40 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 🚀 CONFIGURATION ÉCRAN TOTAL iOS/ANDROID */
-html, body {
-    /* On cloue l'app aux 4 bords physiques du téléphone */
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-
-    width: 100%;
-    height: 100%;
-
-    /* On utilise l'unité de secours pour Safari */
+/* 1. ON FORCE LE CONTENEUR À IGNORER LES LIMITES SAFARI */
+html {
     height: -webkit-fill-available;
+    background-color: #f8fafc; /* Couleur identique à ton fond d'app */
+}
+
+body {
+    /* On remplace fixed par absolute pour permettre l'étirement sous les barres */
+    position: absolute;
+    inset: 0;
+
+    /* Utilisation de svh (Small Viewport Height) pour le calcul iOS */
+    height: 100svh;
+    width: 100vw;
 
     margin: 0;
     padding: 0;
-    overflow: hidden; /* Empêche le scroll qui crée la barre */
-    background-color: #f8fafc;
+    overflow: hidden;
 
-    /* Expérience App Native */
-    -webkit-touch-callout: none;
+    /* 🚀 LA LIGNE CRUCIALE : Désactive le scroll rebond système */
+    touch-action: none;
+    overscroll-behavior: none;
+
     -webkit-user-select: none;
     user-select: none;
-    overscroll-behavior: none;
 }
 
 #root {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
     width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
-
-    /* 🚀 REPOUSSE LE CONTENU DE MANIÈRE NATIVE HAUT/BAS */
-    /* Cela évite que tes boutons ne touchent le trait noir du bas */
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
+    /* Grid est beaucoup plus stable que Flexbox pour le plein écran iOS */
+    display: grid;
+    grid-template-rows: 1fr;
+    overflow: hidden;
 }
 
 /* On autorise la sélection uniquement là où c'est nécessaire */

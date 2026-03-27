@@ -82,7 +82,7 @@ export default function SignUp() {
     };
 
     return (
-        <div className="h-screen w-full bg-[#f8fafc] flex flex-col overflow-hidden">
+        <div className="h-full w-full bg-[#f8fafc] flex flex-col overflow-hidden">
             {step === 1 ? (
                 <div
                     className="flex-1 flex flex-col px-8 justify-center font-sans relative overflow-hidden animate-in fade-in duration-500">
