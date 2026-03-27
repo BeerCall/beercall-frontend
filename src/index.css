@@ -5,19 +5,18 @@
 @tailwind utilities;
 
 html, body {
-    /* On cloue le body à l'écran physique */
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    /* 🚀 PLUS AUCUN POSITION: FIXED ICI */
+    width: 100%;
+    height: 100%; /* Avec viewport-fit=cover, 100% = l'écran physique complet */
 
     margin: 0;
     padding: 0;
+
+    /* On remplace le position: fixed par overflow: hidden pour bloquer le scroll */
     overflow: hidden;
     overscroll-behavior: none;
 
-    background-color: blue !important; /* Le test bleu */
+    background-color: blue !important; /* Le fond baveur */
 
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -25,16 +24,12 @@ html, body {
 }
 
 #root {
-    /* 🚀 LA SOLUTION MAGIQUE EST ICI */
-    /* Au lieu de height: 100%, on l'étire physiquement aux 4 bords du body */
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-
+    /* 🚀 PLUS DE POSITION: ABSOLUTE NON PLUS */
+    width: 100%;
+    height: 100%;
     overflow: hidden;
-    background-color: green !important; /* Le test vert */
+
+    background-color: green !important; /* Le contenu React */
 }
 
 /* On autorise la sélection uniquement là où c'est nécessaire */
