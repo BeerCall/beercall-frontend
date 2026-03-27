@@ -5,33 +5,15 @@
 @tailwind utilities;
 
 html {
-    /* 🚀 On force la hauteur dynamique pour Safari */
-    height: -webkit-fill-available;
-    background-color: #ffffff; /* On met du blanc pour que le vide soit invisible */
+    background-color: red !important;
 }
 
 body {
-    margin: 0;
-    padding: 0;
-    width: 100vw;
-    min-height: 100dvh; /* 🚀 Prend 100% de l'écran réel */
-
-    position: relative;
-    overflow: hidden;
-    overscroll-behavior: none;
-
-    background-color: #ffffff;
-
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
+    background-color: blue !important;
 }
 
 #root {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+    background-color: green !important;
 }
 
 /* On autorise la sélection uniquement là où c'est nécessaire */

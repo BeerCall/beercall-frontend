@@ -162,8 +162,7 @@ export default function Dashboard() {
         }
     };
     return (
-        <div className="h-full w-full relative flex flex-col...">
-
+        <div className="h-full w-full relative flex flex-col bg-purple-500">
             {/* 🌟 LE SOFT PROMPT (Bannière UX) 🌟 */}
             {showPushBanner && (
                 <div
