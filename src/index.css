@@ -3,18 +3,41 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+html, body {
+    width: 100%;
+    height: 100%;
 
-/* 🛡️ Empêche la sélection de texte (Sensation 100% Native) */
-body {
+    /* 🚀 L'ASTUCE ULTIME CONTRE SAFARI */
+    position: fixed;
+    top: 0;
+    left: 0;
+
+    /* 🚀 TUE LE SCROLL NATIF ET LE REBOND ÉLASTIQUE */
+    overflow: hidden;
+    overscroll-behavior-y: none;
+
+    background-color: #f3f4f6;
     margin: 0;
     padding: 0;
-    /* Fond par défaut pour faire ressortir l'UI */
-    background-color: #f3f4f6;
-    overflow-x: hidden;
+
+    /* Empêche la sélection de texte */
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
 }
+
+#root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Garde tout bien confiné */
+}
+
+/* On réautorise la sélection pour les inputs */
+input, textarea {
+    -webkit-user-select: auto;
+    user-select: auto;
+}
+
 
 /* On réautorise la sélection pour que les mecs puissent taper leur pseudo/mdp ! */
 input, textarea {
