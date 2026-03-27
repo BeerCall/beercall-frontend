@@ -4,37 +4,19 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-    /* 🚀 LA SEULE UNITÉ STABLE POUR iOS PWA */
-    height: 100svh;
-    width: 100vw;
-
-    /* On retire le position: fixed qui causait le décalage blanc en bas */
+/* 🛡️ Empêche la sélection de texte (Sensation 100% Native) */
+body {
     margin: 0;
     padding: 0;
-    overflow: hidden;
-    position: relative;
-
-    background-color: #f8fafc; /* Pour que le fond du téléphone soit raccord */
-
-    -webkit-tap-highlight-color: transparent;
+    /* Fond par défaut pour faire ressortir l'UI */
+    background-color: #f3f4f6;
+    overflow-x: hidden;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
 }
 
-#root {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-
-    /* 🚀 REPOUSSE LE CONTENU DE MANIÈRE NATIVE HAUT/BAS */
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-}
-
+/* On réautorise la sélection pour que les mecs puissent taper leur pseudo/mdp ! */
 input, textarea {
     -webkit-user-select: auto;
     user-select: auto;
