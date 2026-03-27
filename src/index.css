@@ -5,37 +5,32 @@
 @tailwind utilities;
 
 html, body {
-    /* 1. On ancre l'application sur les 4 bords physiques */
-    position: fixed;
-    inset: 0; /* Équivaut à top: 0; right: 0; bottom: 0; left: 0; */
-
-    /* 2. Le hack absolu pour WebKit (Safari/iOS) */
-    width: 100vw;
-    height: 100%;
-    height: -webkit-fill-available;
+    width: 100%;
+    height: 100%; /* Avec viewport-fit=cover, 100% s'étire de tout en haut à tout en bas */
 
     margin: 0;
     padding: 0;
 
-    /* 3. On verrouille tout mouvement */
+    /* 🚀 Bloque le scroll et l'effet élastique d'iOS */
     overflow: hidden;
-    overscroll-behavior-y: none;
+    overscroll-behavior: none;
 
-    /* 4. On fond la barre du bas dans le décor */
+    /* 🚀 Fusionne le haut et le bas avec ton UI */
     background-color: #f8fafc;
 
-    /* 5. Comportement natif */
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
 }
 
 #root {
-    position: absolute;
-    inset: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
+    /*
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    */
 }
 
 input, textarea {
