@@ -4,35 +4,19 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-    /* 🚀 PLUS AUCUN POSITION: FIXED ICI */
-    width: 100%;
-    height: 100%; /* Avec viewport-fit=cover, 100% = l'écran physique complet */
-
+/* 🛡️ Empêche la sélection de texte (Sensation 100% Native) */
+body {
     margin: 0;
     padding: 0;
-
-    /* On remplace le position: fixed par overflow: hidden pour bloquer le scroll */
-    overflow: hidden;
-    overscroll-behavior: none;
-
-    background-color: blue !important; /* Le fond baveur */
-
+    /* Fond par défaut pour faire ressortir l'UI */
+    background-color: #f3f4f6;
+    overflow-x: hidden;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
 }
 
-#root {
-    /* 🚀 PLUS DE POSITION: ABSOLUTE NON PLUS */
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-
-    background-color: green !important; /* Le contenu React */
-}
-
-/* On autorise la sélection uniquement là où c'est nécessaire */
+/* On réautorise la sélection pour que les mecs puissent taper leur pseudo/mdp ! */
 input, textarea {
     -webkit-user-select: auto;
     user-select: auto;
