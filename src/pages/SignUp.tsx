@@ -164,7 +164,7 @@ export default function SignUp() {
             ) : (
                 <div
                     className="flex-1 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-500">
-                    <div className="h-[35vh] w-full relative flex-shrink-0">
+                    <div className="h-[35vh] w-full relative shrink-0">
                         <button onClick={() => setStep(1)}
                                 className="absolute top-6 left-6 z-20 p-3 bg-white shadow-xl rounded-full border border-gray-100 hover:scale-110 active:scale-90 transition-transform">
                             <ChevronLeft size={20}/></button>

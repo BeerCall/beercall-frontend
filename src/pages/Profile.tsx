@@ -79,7 +79,7 @@ export default function Profile() {
     );
 
     return (
-        <div className="h-screen w-full bg-[#f8fafc] flex flex-col relative overflow-hidden">
+        <div className="h-full w-full bg-[#f8fafc] flex flex-col overflow-hidden">
 
             {/* MODALE ACHAT */}
             <AnimatePresence>
@@ -114,7 +114,7 @@ export default function Profile() {
 
             {/* HEADER ET INFOS CAPS */}
             <div
-                className="absolute top-0 left-0 right-0 z-20 p-6 flex justify-between items-start pointer-events-none">
+                className="absolute top-[calc(0px+env(safe-area-inset-top))] left-0 right-0 z-20 p-6 flex justify-between items-start pointer-events-none">
                 <button onClick={() => navigate(-1)}
                         className="p-3 bg-white/90 backdrop-blur-md rounded-full shadow-lg pointer-events-auto hover:scale-105 transition-transform">
                     <ChevronLeft size={24} className="text-gray-700"/></button>
@@ -127,18 +127,18 @@ export default function Profile() {
 
             {/* TITRE ET PSEUDO */}
             <div
-                className="absolute top-24 left-0 right-0 z-20 flex flex-col items-center pointer-events-none text-center px-6">
+                className="absolute top-[calc(72px+env(safe-area-inset-top))] left-0 right-0 z-20 flex flex-col items-center pointer-events-none text-center px-6">
                 <span
                     className="bg-amber-100 text-amber-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm border border-amber-200 mb-2">{profile.title}</span>
                 <h1 className="text-4xl font-black text-gray-900 uppercase italic tracking-tighter drop-shadow-md break-all leading-none">{profile.username}</h1>
             </div>
 
-            <div className="flex-1 w-full relative -mt-10">
-                <AvatarCanvas config={previewAvatar}/>
-            </div>
+            <div
+                className="flex-1 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-500">
+                <div className="h-[35vh] w-full relative shrink-0">
+                    <AvatarCanvas config={previewAvatar}/>
+                </div>
 
-            {/* SECTION BASSE DYNAMIQUE */}
-            <div className="h-[50vh] flex-shrink-0 flex flex-col relative z-30">
                 {isOwnProfile ? (
                     <VestiairePanel
                         shopItems={profile.shop_items || []}

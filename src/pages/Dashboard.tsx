@@ -7,9 +7,9 @@ import CreateBeerCallModal from '../components/Modals/CreateBeerCallModal';
 import JoinSquadModal from '../components/Modals/JoinSquadModal';
 import RespondBeerCallModal from '../components/Modals/RespondBeerCallModal';
 import SelectWorldModal from '../components/Modals/SelectWorldModal';
-import Map, {Marker, NavigationControl, type MapRef} from 'react-map-gl/maplibre';
+import Map, {Marker, NavigationControl, GeolocateControl, type MapRef} from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import {Check, Copy, Key, User as UserIcon, BellRing, LocateFixed, MapPin, Users} from 'lucide-react';
+import {Check, Copy, Key, User as UserIcon, BellRing, MapPin, Users} from 'lucide-react';
 import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useProfile} from '../hooks/useProfile';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
@@ -133,34 +133,7 @@ export default function Dashboard() {
             setTimeout(() => setCopied(false), 2000); // Remet l'icône normale après 2s
         }
     };
-// 🎯 LA FONCTION DE LOCALISATION MANUELLE
-    const handleLocateMe = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const newLocation = {lat: pos.coords.latitude, lng: pos.coords.longitude};
-                    setUserLocation(newLocation);
 
-                    if (mapRef.current) {
-                        mapRef.current.flyTo({
-                            center: [newLocation.lng, newLocation.lat],
-                            zoom: 16,
-                            pitch: 60,
-                            duration: 1500
-                        });
-                    }
-                    // Si on a l'utilitaire toast (Optionnel)
-                    // toast.success("Localisation", "Te voilà sur la carte !");
-                },
-                (err) => {
-                    console.error("Erreur géoloc:", err);
-                    // Si tu as gardé le store de Toasts :
-                    // toast.error("Erreur GPS", "Active ta localisation pour trouver l'apéro !");
-                },
-                {enableHighAccuracy: true}
-            );
-        }
-    };
     return (
         <div className="h-full w-full relative flex flex-col bg-[#f8fafc] overflow-hidden font-sans">
 
@@ -194,7 +167,7 @@ export default function Dashboard() {
                 {id ? (
                     <div className="w-full h-full relative animate-in fade-in duration-500">
 
-                        <div className="absolute top-12 w-full flex justify-center z-10 pointer-events-none">
+                        <div className="absolute top-[calc(15px+env(safe-area-inset-top))] w-full flex justify-center z-10 pointer-events-none">
                             {/* BADGE UNIQUE : Nom en haut, Code en bas */}
                             <div
                                 className="bg-white/95 backdrop-blur-md px-8 py-3 rounded-[2rem] shadow-xl pointer-events-auto border-2 flex flex-col items-center gap-2 transition-all"
@@ -234,7 +207,18 @@ export default function Dashboard() {
                             mapStyle={mapStyle}
                             interactive={true}
                         >
-                            <NavigationControl position="top-right" style={{marginTop: '100px', marginRight: '20px'}}/>
+                            <NavigationControl position="top-right" style={{marginTop: 'calc(100px + env(safe-area-inset-top))', marginRight: '20px'}}/>
+
+                            <GeolocateControl
+                                position="top-right"
+                                style={{marginRight: '20px'}}
+                                positionOptions={{enableHighAccuracy: true}}
+                                trackUserLocation={true} // Suit l'utilisateur s'il bouge
+                                onGeolocate={(e) => {
+                                    // Met à jour ton Avatar 3D avec les nouvelles coordonnées
+                                    setUserLocation({lat: e.coords.latitude, lng: e.coords.longitude});
+                                }}
+                            />
 
                             {/* 1. MARQUEUR DE L'APÉRO EN COURS */}
                             {squadDetails?.active_beer_call?.map((call) => (
@@ -314,7 +298,8 @@ export default function Dashboard() {
                         </Map>
 
                         {/* TIMELINE DES APÉROS */}
-                        <div className="absolute bottom-[130px] w-full px-4 z-[70] pointer-events-none">
+                        <div
+                            className="absolute bottom-[calc(130px_+_env(safe-area-inset-top))] w-full px-4 z-[70] pointer-events-none">
                             <div
                                 className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto">
                                 {/* 🟢 CARTE DE L'APÉRO EN COURS */}
@@ -417,17 +402,6 @@ export default function Dashboard() {
                                 )}
 
                             </div>
-                        </div>
-                        {/* BOUTON RECENTRER */}
-                        {/* 🚀 Change z-20 par z-[70] ici pour qu'il ne se fasse pas manger non plus */}
-                        <div className="absolute top-[190px] right-4 z-[70]">
-                            <button
-                                onClick={handleLocateMe}
-                                className="bg-white/90 backdrop-blur-md text-gray-700 p-3 rounded-2xl shadow-xl border-2 border-gray-100 hover:scale-110 active:scale-95 transition-all group"
-                                title="Me localiser"
-                            >
-                                <LocateFixed size={24} className="group-hover:text-beer transition-colors"/>
-                            </button>
                         </div>
                     </div>
                 ) : (

@@ -42,7 +42,7 @@ export default function Connections() {
     return (
         <div className="h-full w-full bg-[#f8fafc] flex flex-col font-sans overflow-hidden">
             {/* HEADER FIXE */}
-            <header className="p-6 flex items-center gap-4 bg-white/80 backdrop-blur-md border-b border-gray-100 z-20">
+            <header className="p-6 pt-[calc(18px+env(safe-area-inset-top))] flex items-center gap-4 bg-white/80 backdrop-blur-md border-b border-gray-100 z-20">
                 <button
                     onClick={() => navigate(-1)}
                     className="p-3 bg-white shadow-md rounded-full text-gray-700 hover:scale-110 active:scale-90 transition-transform"
