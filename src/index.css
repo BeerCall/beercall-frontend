@@ -3,33 +3,28 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-html, body {
-    width: 100%;
-    height: 100%;
 
-    /* 🚀 L'ASTUCE ULTIME CONTRE SAFARI */
-    position: fixed;
-    top: 0;
-    left: 0;
+html {
+    background-color: red !important;
+}
 
-    /* 🚀 TUE LE SCROLL NATIF ET LE REBOND ÉLASTIQUE */
-    overflow: hidden;
-    overscroll-behavior-y: none;
-
-    background-color: #f3f4f6;
-    margin: 0;
-    padding: 0;
-
-    /* Empêche la sélection de texte */
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
+body {
+    background-color: blue !important;
 }
 
 #root {
-    width: 100%;
-    height: 100%;
-    overflow: hidden; /* Garde tout bien confiné */
+    background-color: yellow !important;
+}
+
+:root {
+    --unit-100vh: 100vh;
+    background-color: green !important;
+}
+
+@supports (height: 100dvh) {
+    :root {
+        --unit-100vh: 100dvh;
+    }
 }
 
 /* On réautorise la sélection pour les inputs */
