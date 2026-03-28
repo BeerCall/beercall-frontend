@@ -6,15 +6,15 @@
 
 /* 🟥 NIVEAU 1 : L'ÉCRAN PHYSIQUE (Rouge) */
 html {
-    height: calc(100dvh + env(safe-area-inset-top));
-    min-height: calc(100dvh + env(safe-area-inset-top));
+    height: calc(100% + env(safe-area-inset-top));
+    min-height: calc(100% + env(safe-area-inset-top));
     width: 100%;
     background-color: red;
 }
 
 /* 🟦 NIVEAU 2 : LE CORPS DU SITE (Bleu) */
 body {
-    min-height: calc(100dvh + env(safe-area-inset-top));
+    min-height: calc(100% + env(safe-area-inset-top));
     height: 100%;
     width: 100%;
     background-color: blue;
@@ -26,7 +26,7 @@ body {
 
 /* 🟩 NIVEAU 3 : L'APPLICATION REACT (Vert) */
 #root {
-    min-height: calc(100dvh + env(safe-area-inset-top));
+    min-height: calc(100% + env(safe-area-inset-top));
     height: 100%;
     width: 100%;
     /*
