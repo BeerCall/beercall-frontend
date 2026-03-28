@@ -117,7 +117,7 @@ export default function Profile() {
 
             {/* 🌟 NOUVEAU HEADER COMPACT (Tout sur une ligne) 🌟 */}
             <div
-                className="absolute top-[env(safe-area-inset-top)] left-0 right-0 z-100 px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] flex justify-between items-center pointer-events-none">
+                className="absolute top-[calc(0px+env(safe-area-inset-top))] left-0 right-0 z-100 px-4 py-3 flex justify-between items-center pointer-events-none">
 
                 {/* GAUCHE : Bouton Retour */}
                 <button onClick={() => navigate(-1)}
