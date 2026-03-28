@@ -51,7 +51,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
         <div className="absolute bottom-0 w-full z-50 pointer-events-none">
 
             {/* 🎡 LA ROULETTE (Boutons + Squads) */}
-            <div className="relative h-32 flex justify-center overflow-hidden pointer-events-none">
+            <div className="relative h-26 flex justify-center overflow-hidden pointer-events-none">
                 <div className="absolute top-10 w-[500px] h-[500px] rounded-full border-t-[3px] border-beer/20"/>
 
                 <motion.div

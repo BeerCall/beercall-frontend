@@ -167,7 +167,7 @@ export default function Dashboard() {
             {/* 🌟 LE SOFT PROMPT (Bannière UX) 🌟 */}
             {showPushBanner && (
                 <div
-                    className="absolute top-0 left-0 right-0 z-50 bg-gray-900 text-white p-4 flex items-center justify-between shadow-xl">
+                    className="absolute top-[env(safe-area-inset-top)] left-0 right-0 z-50 bg-gray-900 text-white p-4 flex items-center justify-between shadow-xl">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-beer rounded-full flex items-center justify-center animate-bounce">
                             <BellRing size={20} className="text-white"/>

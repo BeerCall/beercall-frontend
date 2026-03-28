@@ -4,24 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 🟥 NIVEAU 1 : L'ÉCRAN PHYSIQUE (Rouge) */
 html {
     height: calc(100% + env(safe-area-inset-top));
     min-height: calc(100% + env(safe-area-inset-top));
     width: 100%;
-    background-color: red;
 }
 
-/* 🟦 NIVEAU 2 : LE CORPS DU SITE (Bleu) */
 body {
     min-height: 100%;
     height: 100%;
     width: 100%;
-    background-color: blue;
-
-    /*
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-    */
 }
 
 /* 🟩 NIVEAU 3 : L'APPLICATION REACT (Vert) */
@@ -29,10 +21,6 @@ body {
     min-height: 100%;
     height: 100%;
     width: 100%;
-    background-color: green;
-    /*
-    min-height: calc(100% + env(safe-area-inset-top));
-    */
 }
 
 /* On réautorise la sélection pour les inputs */
