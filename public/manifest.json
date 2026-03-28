@@ -3,7 +3,7 @@
   "short_name": "BeerCall",
   "start_url": "/",
   "scope": "/",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#f8fafc",
   "theme_color": "#f8fafc",
   "icons": [
