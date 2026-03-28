@@ -62,10 +62,10 @@ const FLOATY_ISLAND_SETTINGS = {
 
 // 📍 PLACEMENT DES LÂCHES AUTOUR/DANS L'ILE
 const UX_SPOTS = [
-    {position: [-25, 90, 70] as [number, number, number], rotationY: -Math.PI / 4},  // Joueur 1
+    {position: [100, 75, -120] as [number, number, number], rotationY: -Math.PI / 4},  // Joueur 1
     {position: [-40, 90, -40] as [number, number, number], rotationY: (3 * Math.PI) / 4}, // Joueur 2
     {position: [-130, 85, 10] as [number, number, number], rotationY: Math.PI / 4},   // Joueur 3
-    {position: [40, 100, -40] as [number, number, number], rotationY: -(3 * Math.PI) / 4}  // Joueur 4
+    {position: [-25, 90, 70] as [number, number, number], rotationY: -(3 * Math.PI) / 4}  // Joueur 4
 ];
 
 interface FloatyIslandWorldProps {
