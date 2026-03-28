@@ -37,15 +37,19 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
     const negateX = useTransform(dragX, (v) => -v);
     const wheelRotation = useTransform(dragX, [-150, 150], [-35, 35]);
 
-    // 🎯 CALCUL DYNAMIQUE DES ANGLES
-    // Permet aux boutons Créer et Rejoindre d'être toujours aux extrémités exactes de la liste !
+// 🎯 CALCUL DYNAMIQUE DES ANGLES CORRIGÉ
     const squadsCount = squads?.length || 0;
     const spacing = 24; // Espace en degrés entre chaque élément
 
-    // Le bouton Créer est placé juste avant la première squad (index -1)
-    const createAngle = (-1 - (squadsCount - 1) / 2) * spacing;
-    // Le bouton Rejoindre est placé juste après la dernière squad (index = squadsCount)
-    const joinAngle = (squadsCount - (squadsCount - 1) / 2) * spacing;
+    // 1. Calcul de l'angle naturel de la liste
+    const baseCreateAngle = (-1 - (squadsCount - 1) / 2) * spacing;
+    const baseJoinAngle = (squadsCount - (squadsCount - 1) / 2) * spacing;
+
+    // 🚀 2. LE FIX IPHONE : On force un écartement MINIMUM vers les bords !
+    // Si la liste est vide ou courte, ça reste cloué à -45° et +45° (bords de l'écran).
+    // Si tu as 10 squads, Math.min/max laissera l'angle grandir naturellement (-60°, +60°...)
+    const createAngle = Math.min(-45, baseCreateAngle);
+    const joinAngle = Math.max(45, baseJoinAngle);
 
     return (
         <div className="absolute bottom-0 w-full z-50 pointer-events-none">
