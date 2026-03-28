@@ -267,7 +267,7 @@ export default function Dashboard() {
                                             {/* Suppression de l'ancien effet ping, remplacé par l'halo global */}
                                             <div className="absolute inset-0 pointer-events-none">
                                                 {profile?.avatar ? (
-                                                    <AvatarCanvas config={profile.avatar}/>
+                                                    <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true}/>
                                                 ) : (
                                                     <UserIcon size={32}
                                                               className="text-beer drop-shadow-xl m-auto mt-10"/>

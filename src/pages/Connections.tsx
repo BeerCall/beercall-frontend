@@ -42,7 +42,8 @@ export default function Connections() {
     return (
         <div className="h-full w-full bg-[#f8fafc] flex flex-col font-sans overflow-hidden">
             {/* HEADER FIXE */}
-            <header className="p-6 pt-[calc(18px+env(safe-area-inset-top))] flex items-center gap-4 bg-white/80 backdrop-blur-md border-b border-gray-100 z-20">
+            <header
+                className="p-6 pt-[calc(18px+env(safe-area-inset-top))] flex items-center gap-4 bg-white/80 backdrop-blur-md border-b border-gray-100 z-20">
                 <button
                     onClick={() => navigate(-1)}
                     className="p-3 bg-white shadow-md rounded-full text-gray-700 hover:scale-110 active:scale-90 transition-transform"
@@ -73,7 +74,7 @@ export default function Connections() {
                             {/* MINIATURE AVATAR 3D */}
                             <div
                                 className="w-32 h-full bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
-                                <AvatarCanvas config={user.avatar}/>
+                                <AvatarCanvas config={user.avatar} disableZoom={true} disablePan={true}/>
                                 <div className="absolute inset-0 z-10"/>
                                 {/* Overlay pour empêcher l'interaction OrbitControls ici */}
                             </div>

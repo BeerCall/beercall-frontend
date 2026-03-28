@@ -118,7 +118,13 @@ function ModularAvatar({config}: { config: any }) {
     );
 }
 
-export default function AvatarCanvas({config}: { config: any }) {
+interface AvatarCanvasProps {
+    config: any;
+    disableZoom?: boolean;
+    disablePan?: boolean;
+}
+
+export default function AvatarCanvas({config, disableZoom = false, disablePan = false}: AvatarCanvasProps) {
     useEffect(() => {
         silenceWarnings();
     }, []);
@@ -154,7 +160,8 @@ export default function AvatarCanvas({config}: { config: any }) {
                 </Suspense>
 
                 <OrbitControls
-                    enableZoom={true}
+                    enableZoom={!disableZoom}
+                    enablePan={!disablePan}
                     target={[0, CONFIG.cameraTargetY, 0]}
                     minPolarAngle={Math.PI / 3}
                     maxPolarAngle={Math.PI / 1.7}
