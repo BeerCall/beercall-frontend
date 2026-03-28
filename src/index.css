@@ -6,7 +6,6 @@
 
 /* 🟥 NIVEAU 1 : L'ÉCRAN PHYSIQUE (Rouge) */
 html {
-    background-color: red !important;
     min-height: calc(100% + env(safe-area-inset-top));
 }
 
