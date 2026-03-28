@@ -4,27 +4,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 🟥 NIVEAU 1 : L'ÉCRAN PHYSIQUE (Rouge) */
 html {
     background-color: red !important;
+    height: 100dvh;
+    width: 100vw;
+    overflow: hidden;
 }
 
+/* 🟦 NIVEAU 2 : LE CORPS DU SITE (Bleu) */
 body {
     background-color: blue !important;
+    margin: 0;
+    padding: 0;
+
+    /* On cloue le body aux 4 coins du HTML */
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
+/* 🟩 NIVEAU 3 : L'APPLICATION REACT (Vert) */
 #root {
-    background-color: yellow !important;
-}
-
-:root {
-    --unit-100vh: 100vh;
     background-color: green !important;
-}
 
-@supports (height: 100dvh) {
-    :root {
-        --unit-100vh: 100dvh;
-    }
+    /* On cloue React aux 4 coins du body */
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+
+    overflow: hidden;
 }
 
 /* On réautorise la sélection pour les inputs */
