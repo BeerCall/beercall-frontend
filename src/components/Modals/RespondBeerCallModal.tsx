@@ -177,10 +177,13 @@ export default function RespondBeerCallModal({
                     >
                         {/* 🚀 L'attribut capture="environment" a été retiré ! */}
                         <input
-                            type="file" accept="image/jpeg, image/png, image/jpg"
-                            ref={fileInputRef} onChange={handlePhotoCapture} className="hidden"
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            ref={fileInputRef}
+                            onChange={handlePhotoCapture}
+                            className="hidden"
                         />
-
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter">
                                 {step === 'dilemma' && 'Appel aux armes !'}

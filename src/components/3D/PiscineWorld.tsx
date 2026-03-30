@@ -60,13 +60,19 @@ const PISCINE_SETTINGS = {
     rotation: [0, 0, 0] as [number, number, number]
 };
 
-// 📍 PLACEMENT DES LÂCHES AUTOUR/DANS LA PISCINE
-const UX_SPOTS = [
-    {position: [40, 0, 40] as [number, number, number], rotationY: -Math.PI / 4},  // Joueur 1
-    {position: [-40, 0, -40] as [number, number, number], rotationY: (3 * Math.PI) / 4}, // Joueur 2
-    {position: [-40, 0, 40] as [number, number, number], rotationY: Math.PI / 4},   // Joueur 3
-    {position: [40, 0, -40] as [number, number, number], rotationY: -(3 * Math.PI) / 4}  // Joueur 4
-];
+// 🎯 PLACEMENT DYNAMIQUE ILLIMITÉ
+const getDynamicPlacement = (index: number, totalParticipants: number) => {
+    const centerX = 0;
+    const centerZ = 0;
+    const baseY = 0; // La hauteur du sol de la piscine
+    const radius = Math.max(50, totalParticipants * 15);
+    const angle = (index / totalParticipants) * Math.PI * 2;
+    const x = centerX + Math.cos(angle) * radius;
+    const z = centerZ + Math.sin(angle) * radius;
+    const rotationY = -angle + Math.PI / 2;
+
+    return {position: [x, baseY, z] as [number, number, number], rotationY};
+};
 
 interface PiscineWorldProps {
     participants: any[];
@@ -91,16 +97,18 @@ export default function PiscineWorld({participants}: PiscineWorldProps) {
                 <ModelPart path="/models/Swimming_pool.fbx" isEnvironment={true}/>
             </group>
 
-            {/* LES AVATARS DES ABSENTS */}
+            {/* LES AVATARS PLACÉS EN CERCLE */}
             {participants.map((participant: any, index: number) => {
                 const config = participant.avatar_config || {};
-                const spot = UX_SPOTS[index] || UX_SPOTS[UX_SPOTS.length - 1];
+
+                // 🚀 On calcule la position dynamiquement
+                const {position, rotationY} = getDynamicPlacement(index, participants.length);
 
                 return (
                     <group
                         key={`${participant.user_id}-${index}`}
-                        position={spot.position}
-                        rotation={[0, spot.rotationY, 0]}
+                        position={position}
+                        rotation={[0, rotationY, 0]}
                         onClick={(e) => {
                             e.stopPropagation();
                             document.body.style.cursor = 'auto';

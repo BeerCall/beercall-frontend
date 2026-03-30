@@ -67,13 +67,19 @@ const BAR_SETTINGS = {
     rotation: [0, 0, 0] as [number, number, number]
 };
 
-// 📍 LE CALAGE UX PRÉCIS
-const UX_SPOTS = [
-    {position: [30, 5, -20] as [number, number, number], rotationY: -Math.PI / 4},  // Joueur 1
-    {position: [-30, 5, 20] as [number, number, number], rotationY: Math.PI / 4},   // Joueur 2
-    {position: [0, 5, 40] as [number, number, number], rotationY: 0},               // Joueur 3
-    {position: [-50, 5, -40] as [number, number, number], rotationY: Math.PI / 2}   // Joueur 4
-];
+// 🎯 PLACEMENT DYNAMIQUE ILLIMITÉ
+const getDynamicPlacement = (index: number, totalParticipants: number) => {
+    const centerX = 0;
+    const centerZ = 0;
+    const baseY = 5; // La hauteur du sol du bar
+    const radius = Math.max(40, totalParticipants * 15); // S'agrandit s'il y a trop de monde
+    const angle = (index / totalParticipants) * Math.PI * 2;
+    const x = centerX + Math.cos(angle) * radius;
+    const z = centerZ + Math.sin(angle) * radius;
+    const rotationY = -angle + Math.PI / 2; // Oriente l'avatar vers le centre
+
+    return {position: [x, baseY, z] as [number, number, number], rotationY};
+};
 
 export default function BarWorld({participants}: BarWorldProps) {
     useMemo(() => {
@@ -94,16 +100,18 @@ export default function BarWorld({participants}: BarWorldProps) {
                 <ModelPart path="/models/Bar.fbx" isBar={true}/>
             </group>
 
-            {/* 2. LES AVATARS DES SOLDATS, CALÉS SUR LES SPOTS */}
+            {/* 2. LES AVATARS DES SOLDATS, PLACÉS EN CERCLE */}
             {participants.map((participant: any, index: number) => {
                 const config = participant.avatar_config || {};
-                const spot = UX_SPOTS[index] || UX_SPOTS[UX_SPOTS.length - 1];
+
+                // 🚀 On utilise la fonction magique ici !
+                const {position, rotationY} = getDynamicPlacement(index, participants.length);
 
                 return (
                     <group
                         key={`${participant.user_id}-${index}`}
-                        position={spot.position}
-                        rotation={[0, spot.rotationY, 0]}
+                        position={position}
+                        rotation={[0, rotationY, 0]}
                         onClick={(e) => {
                             e.stopPropagation(); // Empêche le clic de traverser l'avatar
                             document.body.style.cursor = 'auto'; // Reset le curseur

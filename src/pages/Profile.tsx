@@ -131,31 +131,42 @@ export default function Profile() {
                 )}
             </AnimatePresence>
 
+            {/* 🌟 NOUVEAU HEADER COMPACT (Tout sur une ligne) 🌟 */}
             <div
-                className="absolute top-0 left-0 right-0 z-20 p-6 flex justify-between items-start pointer-events-none">
+                className="absolute top-[calc(0px+env(safe-area-inset-top))] left-0 right-0 z-20 px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] flex justify-between items-center pointer-events-none">
+
+                {/* GAUCHE : Bouton Retour */}
                 <button onClick={() => navigate(-1)}
-                        className="p-3 bg-white/90 backdrop-blur-md rounded-full shadow-lg pointer-events-auto hover:scale-105 transition-transform">
-                    <ChevronLeft size={24} className="text-gray-700"/></button>
+                        className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-sm border border-gray-100 pointer-events-auto hover:scale-105 active:scale-95 transition-all shrink-0">
+                    <ChevronLeft size={22} className="text-gray-700"/>
+                </button>
+
+                {/* CENTRE : Titre + Pseudo ultra condensé */}
+                <div className="flex flex-col items-center flex-1 px-3 pointer-events-none overflow-hidden">
+                    <span
+                        className="bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm border border-amber-200 mb-0.5 leading-none whitespace-nowrap">
+                        {profile.title}
+                    </span>
+                    <h1 className="text-xl sm:text-2xl font-black text-gray-900 uppercase italic tracking-tight drop-shadow-sm truncate w-full text-center leading-none">
+                        {profile.username}
+                    </h1>
+                </div>
+
+                {/* DROITE : Les Caps */}
                 <div
-                    className="bg-gray-900/90 backdrop-blur-md px-4 py-2 rounded-full shadow-xl border-2 border-amber-500 pointer-events-auto flex items-center gap-2">
-                    <span className="text-xl">💊</span>
-                    <span className="text-amber-500 font-black tracking-widest">{profile.caps} CAPS</span>
+                    className="bg-gray-900/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md border-[1.5px] border-amber-500 pointer-events-auto flex items-center gap-1 shrink-0">
+                    <span className="text-base leading-none">💊</span>
+                    <span className="text-amber-500 font-black tracking-widest text-xs pt-0.5">{profile.caps}</span>
                 </div>
             </div>
 
             <div
-                className="absolute top-24 left-0 right-0 z-20 flex flex-col items-center pointer-events-none text-center px-6">
-                <span
-                    className="bg-amber-100 text-amber-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm border border-amber-200 mb-2">{profile.title}</span>
-                <h1 className="text-4xl font-black text-gray-900 uppercase italic tracking-tighter drop-shadow-md break-all leading-none">{profile.username}</h1>
-            </div>
+                className="flex-1 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-500">
+                <div className="h-[35vh] w-full pt-[calc(50px+env(safe-area-inset-top))] relative shrink-0">
+                    {/* 🚀 LIAISON DU CALLBACK ANIMATIONS */}
+                    <AvatarCanvas config={previewAvatar} onAnimationsLoaded={setAvailableAnimations}/>
+                </div>
 
-            <div className="flex-1 w-full relative -mt-10">
-                {/* 🚀 LIAISON DU CALLBACK ANIMATIONS */}
-                <AvatarCanvas config={previewAvatar} onAnimationsLoaded={setAvailableAnimations}/>
-            </div>
-
-            <div className="h-[50vh] flex-shrink-0 flex flex-col relative z-30">
                 {isOwnProfile ? (
                     <VestiairePanel
                         shopItems={profile.shop_items || []}

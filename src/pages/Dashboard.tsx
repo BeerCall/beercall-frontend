@@ -159,15 +159,19 @@ export default function Dashboard() {
                 </div>
             )}
             <input
-                type="file" accept="image/jpeg, image/png, image/jpg" capture="environment"
-                ref={fileInputRef} onChange={handlePhotoCapture} className="hidden"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                ref={fileInputRef}
+                onChange={handlePhotoCapture}
+                className="hidden"
             />
-
             <div className="absolute inset-0 z-0">
                 {id ? (
                     <div className="w-full h-full relative animate-in fade-in duration-500">
 
-                        <div className="absolute top-[calc(15px+env(safe-area-inset-top))] w-full flex justify-center z-10 pointer-events-none">
+                        <div
+                            className="absolute top-[calc(15px+env(safe-area-inset-top))] w-full flex justify-center z-10 pointer-events-none">
                             {/* BADGE UNIQUE : Nom en haut, Code en bas */}
                             <div
                                 className="bg-white/95 backdrop-blur-md px-8 py-3 rounded-[2rem] shadow-xl pointer-events-auto border-2 flex flex-col items-center gap-2 transition-all"
@@ -207,7 +211,10 @@ export default function Dashboard() {
                             mapStyle={mapStyle}
                             interactive={true}
                         >
-                            <NavigationControl position="top-right" style={{marginTop: 'calc(100px + env(safe-area-inset-top))', marginRight: '20px'}}/>
+                            <NavigationControl position="top-right" style={{
+                                marginTop: 'calc(100px + env(safe-area-inset-top))',
+                                marginRight: '20px'
+                            }}/>
 
                             <GeolocateControl
                                 position="top-right"
@@ -267,7 +274,8 @@ export default function Dashboard() {
                                             {/* Suppression de l'ancien effet ping, remplacé par l'halo global */}
                                             <div className="absolute inset-0 pointer-events-none">
                                                 {profile?.avatar ? (
-                                                    <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true}/>
+                                                    <AvatarCanvas config={profile.avatar} disableZoom={true}
+                                                                  disablePan={true}/>
                                                 ) : (
                                                     <UserIcon size={32}
                                                               className="text-beer drop-shadow-xl m-auto mt-10"/>

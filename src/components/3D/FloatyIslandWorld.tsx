@@ -60,13 +60,19 @@ const FLOATY_ISLAND_SETTINGS = {
     rotation: [0, 0, 0] as [number, number, number]
 };
 
-// 📍 PLACEMENT DES LÂCHES AUTOUR/DANS L'ILE
-const UX_SPOTS = [
-    {position: [100, 75, -120] as [number, number, number], rotationY: -Math.PI / 4},  // Joueur 1
-    {position: [-40, 90, -40] as [number, number, number], rotationY: (3 * Math.PI) / 4}, // Joueur 2
-    {position: [-130, 85, 10] as [number, number, number], rotationY: Math.PI / 4},   // Joueur 3
-    {position: [-25, 90, 70] as [number, number, number], rotationY: -(3 * Math.PI) / 4}  // Joueur 4
-];
+// 🎯 PLACEMENT DYNAMIQUE ILLIMITÉ
+const getDynamicPlacement = (index: number, totalParticipants: number) => {
+    const centerX = -30; // On décale un peu le centre pour matcher l'île
+    const centerZ = 0;
+    const baseY = 95; // 🚀 Très important : l'île flotte à 95 de hauteur !
+    const radius = Math.max(80, totalParticipants * 20); // Rayon plus grand
+    const angle = (index / totalParticipants) * Math.PI * 2;
+    const x = centerX + Math.cos(angle) * radius;
+    const z = centerZ + Math.sin(angle) * radius;
+    const rotationY = -angle + Math.PI / 2;
+
+    return {position: [x, baseY, z] as [number, number, number], rotationY};
+};
 
 interface FloatyIslandWorldProps {
     participants: any[];
@@ -91,16 +97,18 @@ export default function FloatyIslandWorld({participants}: FloatyIslandWorldProps
                 <ModelPart path="/models/Floaty_Island.fbx" isEnvironment={true}/>
             </group>
 
-            {/* LES AVATARS DES ABSENTS */}
+            {/* LES AVATARS PLACÉS EN CERCLE */}
             {participants.map((participant: any, index: number) => {
                 const config = participant.avatar_config || {};
-                const spot = UX_SPOTS[index] || UX_SPOTS[UX_SPOTS.length - 1];
+
+                // 🚀 Fonction dynamique
+                const {position, rotationY} = getDynamicPlacement(index, participants.length);
 
                 return (
                     <group
                         key={`${participant.user_id}-${index}`}
-                        position={spot.position}
-                        rotation={[0, spot.rotationY, 0]}
+                        position={position}
+                        rotation={[0, rotationY, 0]}
                         onClick={(e) => {
                             e.stopPropagation();
                             document.body.style.cursor = 'auto';
