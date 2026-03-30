@@ -5,7 +5,6 @@ import {useQueryClient} from '@tanstack/react-query';
 import {api} from '../../lib/api';
 import {toast} from '../../store/useToastStore';
 
-// 🚀 NOUVELLE FONCTION : Compression + Correction EXIF Apple
 const processImageForBackend = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -68,7 +67,6 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-    // Générer l'aperçu de l'image
     useEffect(() => {
         if (photoFile) {
             const url = URL.createObjectURL(photoFile);
@@ -78,18 +76,17 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
     }, [photoFile]);
 
     const handleSubmit = async () => {
-        if (!photoFile || !location) return;
+        if (!photoFile || !location || !locationName.trim()) return;
         setIsSubmitting(true);
 
         try {
-            // 🚀 Compression et correction de la photo avant l'envoi
             const fixedPhoto = await processImageForBackend(photoFile);
 
             const formData = new FormData();
             formData.append('file', fixedPhoto);
             formData.append('latitude', location.lat.toString());
             formData.append('longitude', location.lng.toString());
-            formData.append('location_name', locationName || 'Lieu inconnu');
+            formData.append('location_name', locationName.trim());
 
             await api.post(`/squads/${squadId}/beer-calls/`, formData, {
                 headers: {'Content-Type': 'multipart/form-data'},
@@ -105,6 +102,8 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
             setIsSubmitting(false);
         }
     };
+
+    const isFormValid = location !== null && locationName.trim().length > 0;
 
     return (
         <AnimatePresence>
@@ -143,7 +142,7 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
                             <div className="space-y-3">
                                 <label
                                     className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-1">
-                                    <MapPin size={12}/> Nom du bar / lieu
+                                    <MapPin size={12}/> Nom du bar / lieu <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="text" placeholder="Ex: Bar Le Central..."
@@ -155,8 +154,9 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
 
                         <div className="absolute bottom-8 left-8 right-8">
                             <button
-                                onClick={handleSubmit} disabled={isSubmitting || !location}
-                                className="w-full bg-beer text-white p-6 rounded-[2.5rem] font-black text-xl shadow-xl shadow-beer/30 flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50"
+                                onClick={handleSubmit}
+                                disabled={isSubmitting || !isFormValid}
+                                className="w-full bg-beer text-white p-6 rounded-[2.5rem] font-black text-xl shadow-xl shadow-beer/30 flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                             >
                                 {isSubmitting ? 'ANALYSE IA EN COURS...' : 'LANCER L\'APPEL'} <Send size={24}/>
                             </button>
