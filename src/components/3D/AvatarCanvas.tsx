@@ -1,7 +1,17 @@
-import {Suspense, useMemo, useEffect} from 'react';
+import {Suspense, useMemo, useEffect, useRef} from 'react';
 import {Canvas} from '@react-three/fiber';
-import {OrbitControls, ContactShadows, Float, Environment, useFBX, Html, useProgress} from '@react-three/drei';
+import {
+    OrbitControls,
+    ContactShadows,
+    Float,
+    Environment,
+    useFBX,
+    Html,
+    useProgress,
+    useAnimations
+} from '@react-three/drei';
 import * as THREE from 'three';
+import {SkeletonUtils} from 'three-stdlib';
 import {MODELS_URL} from "../../lib/api.ts";
 
 const silenceWarnings = () => {
@@ -59,14 +69,22 @@ function CanvasLoader() {
     );
 }
 
-function AvatarPart({path, customTransform}: { path: string, customTransform?: any }) {
-    // 1. On lance le téléchargement (qui bénéficie du cache de Drei)
+// 🚀 NOUVEAU COMPOSANT AVATAR PART : Chaque partie s'anime TOUTE SEULE
+function AvatarPart({path, customTransform, animations, currentAnim}: {
+    path: string,
+    customTransform?: any,
+    animations?: THREE.AnimationClip[],
+    currentAnim?: string
+}) {
     const fbx = useFBX(path);
+    const groupRef = useRef<THREE.Group>(null);
 
     const clonedFbx = useMemo(() => {
-        if (!fbx) return null; // Sécurité si fbx n'est pas encore prêt
+        if (!fbx) return null;
 
-        const clone = fbx.clone();
+        // On utilise SkeletonUtils pour cloner correctement les os et maillages
+        const clone = SkeletonUtils.clone(fbx);
+
         clone.traverse((child) => {
             if ((child as THREE.Mesh).isMesh) {
                 const mesh = child as THREE.Mesh;
@@ -79,38 +97,80 @@ function AvatarPart({path, customTransform}: { path: string, customTransform?: a
         return clone;
     }, [fbx]);
 
+    // On crée un AnimationMixer isolé pour CE vêtement
+    const {actions} = useAnimations(animations || [], groupRef);
+
+    useEffect(() => {
+        if (currentAnim && actions[currentAnim]) {
+            actions[currentAnim].reset().fadeIn(0.2).play(); // Fondu rapide pour plus de réactivité
+        }
+        return () => {
+            if (currentAnim && actions[currentAnim]) {
+                actions[currentAnim].fadeOut(0.2);
+            }
+        };
+    }, [currentAnim, actions]);
+
     if (!clonedFbx) return null;
 
     return (
-        <primitive
-            object={clonedFbx}
+        <group
+            ref={groupRef}
             position={customTransform?.position || [0, 0, 0]}
             scale={customTransform?.scale || [1, 1, 1]}
             rotation={customTransform?.rotation || [0, 0, 0]}
-        />
+        >
+            <primitive object={clonedFbx}/>
+        </group>
     );
 }
 
-useFBX.preload = () => {
-};
-
-function ModularAvatar({config}: { config: any }) {
-    // On vérifie si l'accessoire équipé possède des réglages personnalisés
+function ModularAvatar({config, onAnimationsLoaded}: {
+    config: any,
+    onAnimationsLoaded?: (animations: string[]) => void
+}) {
     const accessoryTransform = config.accessory ? CUSTOM_ITEMS_CONFIG[config.accessory] : undefined;
+
+    // 1. On charge l'animation globale depuis ton backend
+    const animFbx = useFBX(`${MODELS_URL}/Animations.fbx`);
+    const targetAnimation = config.animation || "Idle";
+
+    // 2. On extrait les noms des animations pour le Vestiaire
+    useEffect(() => {
+        if (onAnimationsLoaded && animFbx.animations) {
+            const names = animFbx.animations.map(anim => anim.name);
+            onAnimationsLoaded(names);
+        }
+    }, [animFbx, onAnimationsLoaded]);
 
     return (
         <group position={[0, 0, 0]} scale={[CONFIG.scale, CONFIG.scale, CONFIG.scale]}>
             <Float speed={1.5} rotationIntensity={0.05} floatIntensity={0.05}>
-                {config.head && config.head !== 'none' && <AvatarPart path={`${MODELS_URL}/${config.head}.fbx`}/>}
-                {config.body && config.body !== 'none' && <AvatarPart path={`${MODELS_URL}/${config.body}.fbx`}/>}
-                {config.legs && config.legs !== 'none' && <AvatarPart path={`${MODELS_URL}/${config.legs}.fbx`}/>}
-                {config.feet && config.feet !== 'none' && <AvatarPart path={`${MODELS_URL}/${config.feet}.fbx`}/>}
 
-                {/* L'ACCESSOIRE AVEC SES POSITIONS CORRIGÉES */}
+                {/* 🚀 LE SECRET EST ICI : key={config.xxx} force React à détruire et recréer la pièce au changement, ce qui relance le moteur d'animation ! */}
+                {config.head && config.head !== 'none' &&
+                    <AvatarPart key={`head-${config.head}`} path={`${MODELS_URL}/${config.head}.fbx`}
+                                animations={animFbx.animations} currentAnim={targetAnimation}/>}
+
+                {config.body && config.body !== 'none' &&
+                    <AvatarPart key={`body-${config.body}`} path={`${MODELS_URL}/${config.body}.fbx`}
+                                animations={animFbx.animations} currentAnim={targetAnimation}/>}
+
+                {config.legs && config.legs !== 'none' &&
+                    <AvatarPart key={`legs-${config.legs}`} path={`${MODELS_URL}/${config.legs}.fbx`}
+                                animations={animFbx.animations} currentAnim={targetAnimation}/>}
+
+                {config.feet && config.feet !== 'none' &&
+                    <AvatarPart key={`feet-${config.feet}`} path={`${MODELS_URL}/${config.feet}.fbx`}
+                                animations={animFbx.animations} currentAnim={targetAnimation}/>}
+
                 {config.accessory && config.accessory !== 'none' && (
                     <AvatarPart
+                        key={`acc-${config.accessory}`}
                         path={`${MODELS_URL}/${config.accessory}.fbx`}
                         customTransform={accessoryTransform}
+                        animations={animFbx.animations}
+                        currentAnim={targetAnimation}
                     />
                 )}
             </Float>
@@ -122,39 +182,42 @@ interface AvatarCanvasProps {
     config: any;
     disableZoom?: boolean;
     disablePan?: boolean;
+    onAnimationsLoaded?: (animations: string[]) => void;
 }
 
-export default function AvatarCanvas({config, disableZoom = false, disablePan = false}: AvatarCanvasProps) {
+export default function AvatarCanvas({
+                                         config,
+                                         disableZoom = false,
+                                         disablePan = false,
+                                         onAnimationsLoaded
+                                     }: AvatarCanvasProps) {
     useEffect(() => {
         silenceWarnings();
     }, []);
 
     // 🚀 PRÉCHARGEMENT MASSIF
-    // On dit au navigateur : "Hey, tu vas avoir besoin de ces 5 fichiers,
-    // commence à les télécharger maintenant en cache !"
     useEffect(() => {
+        useFBX.preload(`${MODELS_URL}/Animations.fbx`);
+
         if (config) {
-            if (config.head !== 'none') useFBX.preload(`${MODELS_URL}/${config.head}.fbx`);
-            if (config.body !== 'none') useFBX.preload(`${MODELS_URL}/${config.body}.fbx`);
-            if (config.legs !== 'none') useFBX.preload(`${MODELS_URL}/${config.legs}.fbx`);
-            if (config.feet !== 'none') useFBX.preload(`${MODELS_URL}/${config.feet}.fbx`);
-            if (config.accessory !== 'none') useFBX.preload(`${MODELS_URL}/${config.accessory}.fbx`);
+            if (config.head && config.head !== 'none') useFBX.preload(`${MODELS_URL}/${config.head}.fbx`);
+            if (config.body && config.body !== 'none') useFBX.preload(`${MODELS_URL}/${config.body}.fbx`);
+            if (config.legs && config.legs !== 'none') useFBX.preload(`${MODELS_URL}/${config.legs}.fbx`);
+            if (config.feet && config.feet !== 'none') useFBX.preload(`${MODELS_URL}/${config.feet}.fbx`);
+            if (config.accessory && config.accessory !== 'none') useFBX.preload(`${MODELS_URL}/${config.accessory}.fbx`);
         }
     }, [config]);
 
     return (
         <div className="w-full h-full relative">
-            {/* L'interface HTML du chargeur se met au-dessus du canvas, pas dedans ! */}
-
             <Canvas camera={{position: [0, CONFIG.cameraTargetY, CONFIG.cameraZ], fov: 45}} dpr={[1, 2]}
                     className="z-10 relative">
                 <ambientLight intensity={1.5}/>
                 <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                 <directionalLight position={[-10, 10, -10]} intensity={1}/>
 
-                {/* Le Suspense encadre tout le contenu 3D */}
                 <Suspense fallback={<CanvasLoader/>}>
-                    <ModularAvatar config={config}/>
+                    <ModularAvatar config={config} onAnimationsLoaded={onAnimationsLoaded}/>
                     <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={200} blur={2} far={200} color="#000000"/>
                     <Environment preset="city"/>
                 </Suspense>

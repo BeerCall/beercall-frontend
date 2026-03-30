@@ -4,9 +4,10 @@ import {ChevronLeft, ArrowRight, User, Lock} from 'lucide-react';
 import {useUserStore} from '../store/useUserStore';
 import {api} from '../lib/api';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
-import VestiairePanel, {type Gender, type ShopItem} from '../components/Profile/VestiairePanel';
+import VestiairePanel, {type Gender} from '../components/Profile/VestiairePanel';
 import {useQuery} from '@tanstack/react-query';
 import {toast} from "../store/useToastStore.ts";
+import type {ShopItem} from "../hooks/useProfile.ts";
 
 export default function SignUp() {
     const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function SignUp() {
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({username: '', password: ''});
     const [gender, setGender] = useState<Gender>('Men');
+    const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
 
     // On initialise à 'none' en attendant le chargement du backend
     const [avatarConfig, setAvatarConfig] = useState({
@@ -22,7 +24,8 @@ export default function SignUp() {
         body: 'none',
         legs: 'none',
         feet: 'none',
-        accessory: 'none'
+        accessory: 'none',
+        animation: 'Idle'
     });
 
     // 📡 Requête sur le profil anonyme pour récupérer le shop_items
@@ -50,7 +53,8 @@ export default function SignUp() {
                 body: getFirstItem('body'),
                 legs: getFirstItem('legs'),
                 feet: getFirstItem('feet'),
-                accessory: getFirstItem('accessory')
+                accessory: getFirstItem('accessory'),
+                animation: getFirstItem('animation'),
             });
         }
     }, [publicShopItems, gender]); // Se déclenche au chargement des items ET quand on change de sexe
@@ -168,7 +172,7 @@ export default function SignUp() {
                         <button onClick={() => setStep(1)}
                                 className="absolute top-6 left-6 z-20 p-3 bg-white shadow-xl rounded-full border border-gray-100 hover:scale-110 active:scale-90 transition-transform">
                             <ChevronLeft size={20}/></button>
-                        <AvatarCanvas config={avatarConfig}/>
+                        <AvatarCanvas config={avatarConfig} onAnimationsLoaded={setAvailableAnimations}/>
                     </div>
                     <VestiairePanel
                         shopItems={publicShopItems}
@@ -178,7 +182,7 @@ export default function SignUp() {
                         setGender={handleGenderChange}
                         onEquipAndSave={handleSignup}
                         isSubmitting={isLoading}
-                        hideTabs={true}
+                        availableAnimations={availableAnimations}
                     />
                 </div>
             )}
