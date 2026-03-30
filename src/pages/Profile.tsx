@@ -1,12 +1,13 @@
 import {useState, useEffect} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
-import {ChevronLeft, Check, AlertCircle, Medal, Users} from 'lucide-react';
+import {ChevronLeft, Check, Medal, Users} from 'lucide-react';
 import {useQueryClient} from '@tanstack/react-query';
 import {useProfile} from '../hooks/useProfile';
 import {api} from '../lib/api';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
 import VestiairePanel from '../components/Profile/VestiairePanel';
 import {motion, AnimatePresence} from 'framer-motion';
+import {toast} from "../store/useToastStore.ts";
 
 export default function Profile() {
     const {id} = useParams();
@@ -24,17 +25,11 @@ export default function Profile() {
     // 🚀 AJOUT DE L'ÉTAT POUR LES ANIMATIONS
     const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
 
-    const [notification, setNotification] = useState<{ message: string, isError: boolean } | null>(null);
     const [purchaseIntent, setPurchaseIntent] = useState<{
         itemId: string,
         price: number,
         itemName: string
     } | null>(null);
-
-    const showToast = (message: string, isError = false) => {
-        setNotification({message, isError});
-        setTimeout(() => setNotification(null), 3500);
-    };
 
     useEffect(() => {
         if (profile?.avatar && !previewAvatar) {
@@ -45,7 +40,7 @@ export default function Profile() {
     const handleBuyItem = (itemId: string, price: number, itemName: string) => {
         if (!isOwnProfile || !profile) return;
         if (profile.caps < price) {
-            showToast("Pas assez de capsules, retourne picoler ! 🍻", true);
+            toast.error("Fonds insuffisants", "Pas assez de capsules, retourne picoler ! 🍻");
             return;
         }
         setPurchaseIntent({itemId, price, itemName});
@@ -57,9 +52,9 @@ export default function Profile() {
         try {
             await api.post('/auth/buy/', {item_id: purchaseIntent.itemId});
             queryClient.invalidateQueries({queryKey: ['profile', profileId]});
-            showToast(`Félicitations ! "${purchaseIntent.itemName}" acheté. 🛍️`, false);
+            toast.success("Achat validé", `Félicitations ! "${purchaseIntent.itemName}" acheté. 🛍️`);
         } catch (e) {
-            showToast("Erreur d'achat. Le serveur est sûrement ivre.", true);
+            toast.error("Erreur", "Le serveur est sûrement ivre.");
         } finally {
             setIsSaving(false);
             setPurchaseIntent(null);
@@ -72,34 +67,22 @@ export default function Profile() {
         try {
             await api.put('/auth/equip/', previewAvatar);
             queryClient.invalidateQueries({queryKey: ['profile', profileId]});
-            showToast("Tenue sauvegardée avec succès ! ✨", false);
+            toast.success("Succès", "Tenue sauvegardée avec succès ! ✨");
         } catch (e) {
-            showToast("Erreur lors de la sauvegarde.", true);
+            toast.error("Erreur", "Erreur lors de la sauvegarde.");
         } finally {
             setIsSaving(false);
         }
     };
 
     if (isLoading || !profile || !previewAvatar) return (
-        <div className="h-screen flex flex-col items-center justify-center bg-[#f8fafc]">
+        <div className="h-full flex flex-col items-center justify-center bg-[#f8fafc]">
             <div className="w-12 h-12 border-4 border-beer border-t-transparent rounded-full animate-spin"></div>
         </div>
     );
 
     return (
-        <div className="h-screen w-full bg-[#f8fafc] flex flex-col relative overflow-hidden">
-
-            <AnimatePresence>
-                {notification && (
-                    <motion.div initial={{y: -100, opacity: 0, x: "-50%"}} animate={{y: 0, opacity: 1, x: "-50%"}}
-                                exit={{y: -100, opacity: 0, x: "-50%"}}
-                                className={`absolute top-24 left-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 border-2 whitespace-nowrap ${notification.isError ? 'bg-red-500 border-red-400 text-white' : 'bg-gray-900 border-gray-700 text-white'}`}>
-                        {notification.isError ? <AlertCircle size={18}/> : <Check size={18} className="text-beer"/>}
-                        <span
-                            className="font-black tracking-widest uppercase text-xs pt-0.5">{notification.message}</span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+        <div className="h-full w-full bg-[#f8fafc] flex flex-col relative overflow-hidden">
 
             <AnimatePresence>
                 {purchaseIntent && (
@@ -133,7 +116,7 @@ export default function Profile() {
 
             {/* 🌟 NOUVEAU HEADER COMPACT (Tout sur une ligne) 🌟 */}
             <div
-                className="absolute top-[calc(0px+env(safe-area-inset-top))] left-0 right-0 z-20 px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] flex justify-between items-center pointer-events-none">
+                className="absolute top-[calc(0px+env(safe-area-inset-top))] left-0 right-0 z-20 px-4 py-3 flex justify-between items-center pointer-events-none">
 
                 {/* GAUCHE : Bouton Retour */}
                 <button onClick={() => navigate(-1)}
