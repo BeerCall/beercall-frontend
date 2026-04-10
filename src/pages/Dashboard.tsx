@@ -251,7 +251,7 @@ export default function Dashboard() {
                             interactive={true}
                         >
                             {/* 🚀 NOTRE BOUTON DE RE-CENTRAGE 100% FIABLE */}
-                            <div className="absolute top-[100px] right-[20px] z-10">
+                            <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-[20px] z-10">
                                 <button
                                     onClick={(e) => {
                                         e.preventDefault();
