@@ -64,7 +64,7 @@ const PISCINE_SETTINGS = {
 const getDynamicPlacement = (index: number, totalParticipants: number) => {
     const centerX = 0;
     const centerZ = 0;
-    const baseY = 0; // La hauteur du sol de la piscine
+    const baseY = 50; // La hauteur du sol de la piscine
     const radius = Math.max(50, totalParticipants * 15);
     const angle = (index / totalParticipants) * Math.PI * 2;
     const x = centerX + Math.cos(angle) * radius;
@@ -141,12 +141,17 @@ export default function PiscineWorld({participants}: PiscineWorldProps) {
 
                         {/* 💬 LA BULLE D'EXCUSE */}
                         {participant.excuse && (
-                            <Html position={[0, GLOBAL_CONFIG.htmlY, 0]} center>
+                            <Html position={[0, GLOBAL_CONFIG.htmlY + 10, 0]} center>
                                 <div
                                     className="bg-white/95 backdrop-blur px-4 py-2 rounded-2xl shadow-xl text-xs font-black text-cyan-600 whitespace-nowrap relative animate-in zoom-in duration-500 delay-300 border-2 border-cyan-100 pointer-events-none">
                                     {participant.excuse}
                                     <div
                                         className="absolute -bottom-2 left-1/2 -translate-x-1/2 border-4 border-transparent border-t-white/95"/>
+                                </div>
+                                {/* 🏷️ LE PSEUDO */}
+                                <div
+                                    className="bg-amber-500 text-white px-3 py-1.5 rounded-xl shadow-xl border-2 border-amber-400 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                                    {participant.username || "SQUAD MEMBER"}
                                 </div>
                             </Html>
                         )}
