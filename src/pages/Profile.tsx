@@ -144,7 +144,7 @@ export default function Profile() {
             <div
                 className="flex-1 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-500">
 
-                <div className="h-[35vh] w-full pt-[calc(50px+env(safe-area-inset-top))] relative shrink-0">
+                <div className="h-[50vh] w-full pt-[calc(50px+env(safe-area-inset-top))] relative shrink-0">
 
                     {/* 🚀 LE SWITCH DÉPLACÉ EN BAS : Aux pieds de l'avatar, juste au-dessus du panneau ! */}
                     {isOwnProfile && (

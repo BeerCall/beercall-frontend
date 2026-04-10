@@ -135,6 +135,16 @@ const CUSTOM_ITEMS_CONFIG: Record<string, {
         scale: [.1, .1, .1],
         rotation: [0, 0, 0]
     },
+    'Men_accessory_Kart_3000': {
+        position: [0, 0, 0],
+        scale: [2, 2, 2],
+        rotation: [0, 70, 0]
+    },
+    'Men_accessory_Soccer_500': {
+        position: [50, 0, 0],
+        scale: [.5, .5, .5],
+        rotation: [0, 0, 0]
+    },
     'Women_accessory_Beer_500': {
         position: [75, 150, 10],
         scale: [100, 100, 100],
@@ -243,6 +253,16 @@ const CUSTOM_ITEMS_CONFIG: Record<string, {
     'Women_accessory_Victreebel_2000': {
         position: [50, 30, 20],
         scale: [.1, .1, .1],
+        rotation: [0, 0, 0]
+    },
+    'Women_accessory_Kart_3000': {
+        position: [0, 0, 0],
+        scale: [2, 2, 2],
+        rotation: [0, 70, 0]
+    },
+    'Women_accessory_Soccer_500': {
+        position: [50, 0, 0],
+        scale: [.5, .5, .5],
         rotation: [0, 0, 0]
     }
 };
