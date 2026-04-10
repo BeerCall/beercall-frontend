@@ -147,11 +147,37 @@ export default function BarWorld({participants}: BarWorldProps) {
                         <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={150} blur={2} far={100}
                                         color="#000000"/>
 
-                        {/* 💬 LE PSEUDO AU-DESSUS DE LA TÊTE */}
-                        <Html position={[0, GLOBAL_CONFIG.htmlY, 0]} center>
-                            <div
-                                className="bg-amber-500 text-white px-4 py-2 rounded-xl shadow-xl border-2 border-amber-400 text-xs font-black uppercase tracking-widest whitespace-nowrap pointer-events-none">
-                                {participant.username || "SQUAD MEMBER"}
+                        {/* 💬 LA PHOTO DE PREUVE ET LE PSEUDO AU-DESSUS DE LA TÊTE */}
+                        <Html position={[0, GLOBAL_CONFIG.htmlY + 5, 0]} center zIndexRange={[100, 0]}>
+                            <div className="flex flex-col items-center pointer-events-none">
+
+                                {/* 📸 LA BULLE PHOTO (S'il y en a une) */}
+                                {participant.proof_photo_url && (
+                                    <div
+                                        className="mb-2 p-1.5 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/50 transform rotate-3 hover:rotate-0 transition-transform origin-bottom">
+                                        <div
+                                            className="w-16 h-20 relative rounded-xl overflow-hidden bg-gray-900 shadow-inner">
+                                            <img
+                                                src={participant.proof_photo_url}
+                                                alt={`Preuve de ${participant.username}`}
+                                                className="w-full h-full object-cover"
+                                            />
+                                            {/* Petit badge "PREUVE" par-dessus la photo */}
+                                            <div className="absolute bottom-1 left-0 right-0 flex justify-center">
+                                                <span
+                                                    className="bg-black/60 backdrop-blur-md text-white text-[8px] font-black px-2 py-0.5 rounded-full tracking-widest uppercase border border-white/20">
+                                                    Preuve
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 🏷️ LE PSEUDO */}
+                                <div
+                                    className="bg-amber-500 text-white px-3 py-1.5 rounded-xl shadow-xl border-2 border-amber-400 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                                    {participant.username || "SQUAD MEMBER"}
+                                </div>
                             </div>
                         </Html>
                     </group>
