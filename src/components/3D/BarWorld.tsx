@@ -148,7 +148,7 @@ export default function BarWorld({participants}: BarWorldProps) {
                                         color="#000000"/>
 
                         {/* 💬 LA PHOTO DE PREUVE ET LE PSEUDO AU-DESSUS DE LA TÊTE */}
-                        <Html position={[0, GLOBAL_CONFIG.htmlY + 5, 0]} center zIndexRange={[100, 0]}>
+                        <Html position={[0, GLOBAL_CONFIG.htmlY + 25, 0]} center zIndexRange={[100, 0]}>
                             <div className="flex flex-col items-center pointer-events-none">
 
                                 {/* 📸 LA BULLE PHOTO (S'il y en a une) */}

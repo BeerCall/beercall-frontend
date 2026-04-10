@@ -22,7 +22,9 @@ export default function Profile() {
     const [previewAvatar, setPreviewAvatar] = useState<any>(null);
     const [isSaving, setIsSaving] = useState(false);
 
-    // 🚀 AJOUT DE L'ÉTAT POUR LES ANIMATIONS
+    // 🚀 AJOUT DE L'ÉTAT POUR LE SWITCH VESTIAIRE / TROPHÉES
+    const [activeView, setActiveView] = useState<'vestiaire' | 'infos'>('vestiaire');
+
     const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
 
     const [purchaseIntent, setPurchaseIntent] = useState<{
@@ -114,17 +116,14 @@ export default function Profile() {
                 )}
             </AnimatePresence>
 
-            {/* 🌟 NOUVEAU HEADER COMPACT (Tout sur une ligne) 🌟 */}
             <div
                 className="absolute top-[calc(0px+env(safe-area-inset-top))] left-0 right-0 z-20 px-4 py-3 flex justify-between items-center pointer-events-none">
 
-                {/* GAUCHE : Bouton Retour */}
                 <button onClick={() => navigate(-1)}
                         className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-sm border border-gray-100 pointer-events-auto hover:scale-105 active:scale-95 transition-all shrink-0">
                     <ChevronLeft size={22} className="text-gray-700"/>
                 </button>
 
-                {/* CENTRE : Titre + Pseudo ultra condensé */}
                 <div className="flex flex-col items-center flex-1 px-3 pointer-events-none overflow-hidden">
                     <span
                         className="bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm border border-amber-200 mb-0.5 leading-none whitespace-nowrap">
@@ -135,7 +134,6 @@ export default function Profile() {
                     </h1>
                 </div>
 
-                {/* DROITE : Les Caps */}
                 <div
                     className="bg-gray-900/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md border-[1.5px] border-amber-500 pointer-events-auto flex items-center gap-1 shrink-0">
                     <span className="text-base leading-none">💊</span>
@@ -145,12 +143,32 @@ export default function Profile() {
 
             <div
                 className="flex-1 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-500">
+
                 <div className="h-[35vh] w-full pt-[calc(50px+env(safe-area-inset-top))] relative shrink-0">
-                    {/* 🚀 LIAISON DU CALLBACK ANIMATIONS */}
+
+                    {/* 🚀 LE SWITCH DÉPLACÉ EN BAS : Aux pieds de l'avatar, juste au-dessus du panneau ! */}
+                    {isOwnProfile && (
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-gray-200/80 backdrop-blur-md p-1 rounded-full flex shadow-sm border border-white/50 pointer-events-auto">
+                            <button
+                                onClick={() => setActiveView('vestiaire')}
+                                className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'vestiaire' ? 'bg-white text-beer shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+                            >
+                                Vestiaire
+                            </button>
+                            <button
+                                onClick={() => setActiveView('infos')}
+                                className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'infos' ? 'bg-white text-beer shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+                            >
+                                Trophées
+                            </button>
+                        </div>
+                    )}
+
                     <AvatarCanvas config={previewAvatar} onAnimationsLoaded={setAvailableAnimations}/>
                 </div>
 
-                {isOwnProfile ? (
+                {/* 🚀 LOGIQUE CORRIGÉE : Si c'est ton profil ET que tu es sur "vestiaire", on affiche le vestiaire. Sinon, on affiche les infos. */}
+                {isOwnProfile && activeView === 'vestiaire' ? (
                     <VestiairePanel
                         shopItems={profile.shop_items || []}
                         avatarConfig={previewAvatar}
@@ -165,11 +183,13 @@ export default function Profile() {
                     />
                 ) : (
                     <div
-                        className="flex-1 bg-white rounded-t-[3rem] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] flex flex-col p-8 overflow-hidden">
-                        <div className="flex-1 overflow-y-auto space-y-8 hide-scrollbar">
+                        className="flex-1 bg-white rounded-t-[3rem] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] flex flex-col p-8 overflow-hidden z-20 relative">
+                        <div className="flex-1 overflow-y-auto space-y-8 hide-scrollbar pb-10">
                             <div>
+                                {/* 🚀 TEXTE DYNAMIQUE (Mes Squads vs Ses Squads) */}
                                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                    <Users size={14}/> Ses Squads</h3>
+                                    <Users size={14}/> {isOwnProfile ? 'Mes Squads' : 'Ses Squads'}
+                                </h3>
                                 <div className="flex flex-wrap gap-3">
                                     {profile.squads?.map(squad => (
                                         <div key={squad.id}
@@ -184,8 +204,10 @@ export default function Profile() {
                                 </div>
                             </div>
                             <div>
+                                {/* 🚀 TEXTE DYNAMIQUE (Mes Trophées vs Ses Trophées) */}
                                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                    <Medal size={14}/> Ses Trophées</h3>
+                                    <Medal size={14}/> {isOwnProfile ? 'Mes Trophées' : 'Ses Trophées'}
+                                </h3>
                                 <div className="space-y-3">
                                     {profile.unlocked_badges?.map(badge => (
                                         <div key={badge.id}
