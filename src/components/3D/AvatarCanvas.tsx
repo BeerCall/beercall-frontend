@@ -406,9 +406,14 @@ export default function AvatarCanvas({
                 <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                 <directionalLight position={[-10, 10, -10]} intensity={1}/>
 
+                {/* 🚀 APRÈS : On sépare les Suspense pour éviter le conflit d'état ! */}
                 <Suspense fallback={<CanvasLoader/>}>
                     <ModularAvatar config={config} onAnimationsLoaded={onAnimationsLoaded}/>
                     <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={200} blur={2} far={200} color="#000000"/>
+                </Suspense>
+
+                {/* L'environnement charge de son côté silencieusement */}
+                <Suspense fallback={null}>
                     <Environment preset="city"/>
                 </Suspense>
 

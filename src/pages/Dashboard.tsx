@@ -7,7 +7,7 @@ import CreateBeerCallModal from '../components/Modals/CreateBeerCallModal';
 import JoinSquadModal from '../components/Modals/JoinSquadModal';
 import RespondBeerCallModal from '../components/Modals/RespondBeerCallModal';
 import SelectWorldModal from '../components/Modals/SelectWorldModal';
-import Map, {Marker, NavigationControl, GeolocateControl, type MapRef} from 'react-map-gl/maplibre';
+import Map, {Marker, NavigationControl, type MapRef} from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {Check, Copy, Key, User as UserIcon, BellRing, MapPin, Users} from 'lucide-react';
 import {useSquadDetails} from '../hooks/useSquadDetails';
@@ -47,6 +47,9 @@ export default function Dashboard() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const mapRef = useRef<MapRef>(null);
 
+    // 🚀 FIX GPS : Permet de ne recentrer la carte qu'au premier chargement
+    const hasCentered = useRef(false);
+
     const [copied, setCopied] = useState(false);
 
     const {subscribeToNotifications} = usePushNotifications();
@@ -79,11 +82,13 @@ export default function Dashboard() {
         }
     };
 
-    // 🚁 L'ANIMATION DE VOL (FLYTO)
-    const focusOnLocation = (lng: number, lat: number) => {
-        if (mapRef.current) {
+    // 🚁 L'ANIMATION DE VOL (FLYTO) - 🚀 FIX: Sécurisation contre le crash NaN
+    const focusOnLocation = (lng: any, lat: any) => {
+        const numLng = Number(lng);
+        const numLat = Number(lat);
+        if (mapRef.current && !isNaN(numLng) && !isNaN(numLat)) {
             mapRef.current.flyTo({
-                center: [lng, lat],
+                center: [numLng, numLat],
                 zoom: 16,
                 pitch: 60, // Bel angle 3D
                 duration: 1500, // Animation fluide
@@ -91,27 +96,61 @@ export default function Dashboard() {
             });
         }
     };
-
+// 🚀 NOUVEAU FIX : Fonction de recentrage manuelle 100% fiable
+    const handleManualRecenter = () => {
+        if (userLocation && mapRef.current) {
+            mapRef.current.flyTo({
+                center: [userLocation.lng, userLocation.lat],
+                zoom: 16,
+                pitch: 60,
+                duration: 1000,
+                essential: true
+            });
+        } else if (!userLocation) {
+            toast.error("Recherche en cours", "Le GPS cherche encore votre position... 📡");
+        }
+    };
+    // 🌙 SÉPARATION DU MODE NUIT
     useEffect(() => {
         const currentHour = new Date().getHours();
         setIsNightMode(currentHour >= 19 || currentHour < 6);
+    }, []);
 
-        if (id && navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const newLocation = {lat: pos.coords.latitude, lng: pos.coords.longitude};
-                    setUserLocation(newLocation);
+    // 🚀 FIX GPS : GÉOLOCALISATION STABLE EN ARRIÈRE-PLAN
+// 🚀 FIX : Suivi de position pur
+    useEffect(() => {
+        if (!navigator.geolocation) return;
 
-                    if (mapRef.current) {
-                        mapRef.current.flyTo({center: [newLocation.lng, newLocation.lat], zoom: 14, duration: 1000});
-                    }
-                },
-                (err) => console.error("Erreur géoloc:", err),
-                {enableHighAccuracy: true}
-            );
+        const watchId = navigator.geolocation.watchPosition(
+            (pos) => {
+                const newLocation = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+                setUserLocation(newLocation);
+                // On a supprimé le bloc flyTo d'ici !
+            },
+            (err) => console.warn("Erreur géoloc (ignorée):", err),
+            {
+                enableHighAccuracy: true,
+                maximumAge: 10000,
+                timeout: 10000
+            }
+        );
+
+        return () => navigator.geolocation.clearWatch(watchId);
+    }, []); // On ne touche pas à l'ID ici pour garder une seule souscription
+
+    // 🚀 NOUVEAU : Recentrage automatique robuste au chargement
+    useEffect(() => {
+        // Si on a tout ce qu'il faut et qu'on n'a pas encore centré
+        if (id && userLocation && mapRef.current && !hasCentered.current) {
+            mapRef.current.flyTo({
+                center: [userLocation.lng, userLocation.lat],
+                zoom: 14,
+                duration: 1500,
+                essential: true
+            });
+            hasCentered.current = true;
         }
-    }, [id]);
-
+    }, [userLocation, id]); // Se déclenche dès que la position arrive ou que la carte est rendue (via le state id)
     const mapStyle = isNightMode
         ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
         : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
@@ -211,52 +250,70 @@ export default function Dashboard() {
                             mapStyle={mapStyle}
                             interactive={true}
                         >
+                            {/* 🚀 NOTRE BOUTON DE RE-CENTRAGE 100% FIABLE */}
+                            <div className="absolute top-[100px] right-[20px] z-10">
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleManualRecenter();
+                                    }}
+                                    className="w-[29px] h-[29px] bg-white rounded flex items-center justify-center shadow-[0_0_0_2px_rgba(0,0,0,0.1)] hover:bg-gray-50 active:scale-95 transition-all"
+                                    title="Me recentrer"
+                                >
+                                    {/* Icône de viseur simple (SVG) */}
+                                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
+                                         strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"
+                                         className={userLocation ? "text-gray-700" : "text-gray-300 animate-pulse"}>
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                                    </svg>
+                                </button>
+                            </div>
+
                             <NavigationControl position="top-right" style={{
-                                marginTop: 'calc(100px + env(safe-area-inset-top))',
+                                marginTop: 'calc(135px + env(safe-area-inset-top))',
                                 marginRight: '20px'
                             }}/>
 
-                            <GeolocateControl
-                                position="top-right"
-                                style={{marginRight: '20px'}}
-                                positionOptions={{enableHighAccuracy: true}}
-                                trackUserLocation={true} // Suit l'utilisateur s'il bouge
-                                onGeolocate={(e) => {
-                                    // Met à jour ton Avatar 3D avec les nouvelles coordonnées
-                                    setUserLocation({lat: e.coords.latitude, lng: e.coords.longitude});
-                                }}
-                            />
-
                             {/* 1. MARQUEUR DE L'APÉRO EN COURS */}
-                            {squadDetails?.active_beer_call?.map((call) => (
-                                <Marker
-                                    longitude={call.longitude}
-                                    latitude={call.latitude}
-                                    anchor="bottom"
-                                    style={{zIndex: 60}}
-                                >
-                                    <div
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            // 🚦 ON UTILISE NOTRE AIGUILLAGE ICI
-                                            handleBeerCallClick(call);
-                                        }}
-                                        className="relative group cursor-pointer animate-bounce"
+                            {squadDetails?.active_beer_call?.map((call) => {
+                                // 🚀 FIX: Forcer les coordonnées en Number pour éviter le crash Mapbox
+                                const numLng = Number(call.longitude);
+                                const numLat = Number(call.latitude);
+                                if (isNaN(numLng) || isNaN(numLat)) return null;
+
+                                return (
+                                    <Marker
+                                        key={`active-${call.id}`}
+                                        longitude={numLng}
+                                        latitude={numLat}
+                                        anchor="bottom"
+                                        style={{zIndex: 60}}
                                     >
                                         <div
-                                            className="bg-beer text-white p-3 rounded-full shadow-xl border-4 border-white flex items-center justify-center text-xl hover:scale-110 transition-transform">
-                                            🍻
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleBeerCallClick(call);
+                                            }}
+                                            className="relative group cursor-pointer animate-bounce"
+                                        >
+                                            <div
+                                                className="bg-beer text-white p-3 rounded-full shadow-xl border-4 border-white flex items-center justify-center text-xl hover:scale-110 transition-transform">
+                                                🍻
+                                            </div>
                                         </div>
-                                    </div>
-                                </Marker>
-                            ))}
+                                    </Marker>
+                                );
+                            })}
 
                             {/* 2. TON MARQUEUR : LE VOXEL AVATAR 3D */}
                             {userLocation && (
                                 <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
                                         style={{zIndex: 50}}>
 
-                                    {/* 🚀 MICRO-INTERACTION & HALO : Ajout de soft-pulse et de l'effet after: */}
+                                    {/* MICRO-INTERACTION & HALO */}
                                     <div onClick={openCamera}
                                          className="relative flex flex-col items-center cursor-pointer group rounded-full p-2
                                                     after:content-[''] after:absolute after:inset-1 after:rounded-full after:animate-soft-pulse after:z-[-1]
@@ -271,7 +328,6 @@ export default function Dashboard() {
                                         </div>
 
                                         <div className="relative w-24 h-32 flex items-end justify-center pb-2">
-                                            {/* Suppression de l'ancien effet ping, remplacé par l'halo global */}
                                             <div className="absolute inset-0 pointer-events-none">
                                                 {profile?.avatar ? (
                                                     <AvatarCanvas config={profile.avatar} disableZoom={true}
@@ -287,22 +343,28 @@ export default function Dashboard() {
                             )}
 
                             {/* MARQUEURS DES ANCIENS APÉROS */}
-                            {squadDetails?.past_beer_calls?.map((call) => (
-                                <Marker key={call.id} longitude={call.longitude} latitude={call.latitude}
-                                        anchor="bottom" style={{zIndex: 30}}>
-                                    <div
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            // 🌍 Ouvre la modale des mondes avec l'ID de cet ancien apéro
-                                            setIsWorldsModalOpen(call.id);
-                                        }}
-                                        className="bg-gray-300 text-white p-2 rounded-full shadow-sm border-2 border-white flex items-center justify-center text-sm opacity-60 cursor-pointer hover:opacity-100 hover:scale-125 transition-all"
-                                        title="Voir les mondes"
-                                    >
-                                        👻
-                                    </div>
-                                </Marker>
-                            ))}
+                            {squadDetails?.past_beer_calls?.map((call) => {
+                                // 🚀 FIX: Forcer les coordonnées en Number ici aussi
+                                const numLng = Number(call.longitude);
+                                const numLat = Number(call.latitude);
+                                if (isNaN(numLng) || isNaN(numLat)) return null;
+
+                                return (
+                                    <Marker key={`past-${call.id}`} longitude={numLng} latitude={numLat}
+                                            anchor="bottom" style={{zIndex: 30}}>
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsWorldsModalOpen(call.id);
+                                            }}
+                                            className="bg-gray-300 text-white p-2 rounded-full shadow-sm border-2 border-white flex items-center justify-center text-sm opacity-60 cursor-pointer hover:opacity-100 hover:scale-125 transition-all"
+                                            title="Voir les mondes"
+                                        >
+                                            👻
+                                        </div>
+                                    </Marker>
+                                );
+                            })}
                         </Map>
 
                         {/* TIMELINE DES APÉROS */}
@@ -314,7 +376,7 @@ export default function Dashboard() {
                                 {squadDetails?.active_beer_call?.map((call) => (
                                     <div
                                         key={call.id}
-                                        onClick={() => focusOnLocation(call!.longitude, call!.latitude)}
+                                        onClick={() => focusOnLocation(call.longitude, call.latitude)}
                                         className={`w-[220px] relative overflow-hidden rounded-3xl p-3.5 snap-center flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-center ${
                                             call.has_responded
                                                 ? 'bg-gradient-to-br from-blue-50 to-white border border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.15)]'
@@ -374,7 +436,6 @@ export default function Dashboard() {
                                             </h3>
                                         </div>
 
-                                        {/* Ligne du bas ultra compacte */}
                                         <div
                                             className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/50">
                                             <p className="text-[10px] text-gray-500 font-bold tracking-widest flex items-center gap-1 leading-none">
