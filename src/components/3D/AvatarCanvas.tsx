@@ -3,7 +3,6 @@ import {Canvas} from '@react-three/fiber';
 import {
     OrbitControls,
     ContactShadows,
-    Float,
     Environment,
     useFBX,
     Html,
@@ -335,17 +334,15 @@ function AvatarPart({path, customTransform, animations, currentAnim}: {
     );
 }
 
-function ModularAvatar({config, onAnimationsLoaded}: {
+export function ModularAvatar({config, onAnimationsLoaded}: {
     config: any,
     onAnimationsLoaded?: (animations: string[]) => void
 }) {
     const accessoryTransform = config.accessory ? CUSTOM_ITEMS_CONFIG[config.accessory] : undefined;
 
-    // 1. On charge l'animation globale depuis ton backend
     const animFbx = useFBX(`${MODELS_URL}/Animations.fbx`);
     const targetAnimation = config.animation || "Idle";
 
-    // 2. On extrait les noms des animations pour le Vestiaire
     useEffect(() => {
         if (onAnimationsLoaded && animFbx.animations) {
             const names = animFbx.animations.map(anim => anim.name);
@@ -354,36 +351,33 @@ function ModularAvatar({config, onAnimationsLoaded}: {
     }, [animFbx, onAnimationsLoaded]);
 
     return (
-        <group position={[0, 0, 0]} scale={[CONFIG.scale, CONFIG.scale, CONFIG.scale]}>
-            <Float speed={1.5} rotationIntensity={0.05} floatIntensity={0.05}>
+        <group>
+            {/* Le paramètre key force React à recréer la pièce et relancer l'animation */}
+            {config.head && config.head !== 'none' &&
+                <AvatarPart key={`head-${config.head}`} path={`${MODELS_URL}/${config.head}.fbx`}
+                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
 
-                {/* 🚀 LE SECRET EST ICI : key={config.xxx} force React à détruire et recréer la pièce au changement, ce qui relance le moteur d'animation ! */}
-                {config.head && config.head !== 'none' &&
-                    <AvatarPart key={`head-${config.head}`} path={`${MODELS_URL}/${config.head}.fbx`}
-                                animations={animFbx.animations} currentAnim={targetAnimation}/>}
+            {config.body && config.body !== 'none' &&
+                <AvatarPart key={`body-${config.body}`} path={`${MODELS_URL}/${config.body}.fbx`}
+                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
 
-                {config.body && config.body !== 'none' &&
-                    <AvatarPart key={`body-${config.body}`} path={`${MODELS_URL}/${config.body}.fbx`}
-                                animations={animFbx.animations} currentAnim={targetAnimation}/>}
+            {config.legs && config.legs !== 'none' &&
+                <AvatarPart key={`legs-${config.legs}`} path={`${MODELS_URL}/${config.legs}.fbx`}
+                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
 
-                {config.legs && config.legs !== 'none' &&
-                    <AvatarPart key={`legs-${config.legs}`} path={`${MODELS_URL}/${config.legs}.fbx`}
-                                animations={animFbx.animations} currentAnim={targetAnimation}/>}
+            {config.feet && config.feet !== 'none' &&
+                <AvatarPart key={`feet-${config.feet}`} path={`${MODELS_URL}/${config.feet}.fbx`}
+                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
 
-                {config.feet && config.feet !== 'none' &&
-                    <AvatarPart key={`feet-${config.feet}`} path={`${MODELS_URL}/${config.feet}.fbx`}
-                                animations={animFbx.animations} currentAnim={targetAnimation}/>}
-
-                {config.accessory && config.accessory !== 'none' && (
-                    <AvatarPart
-                        key={`acc-${config.accessory}`}
-                        path={`${MODELS_URL}/${config.accessory}.fbx`}
-                        customTransform={accessoryTransform}
-                        animations={animFbx.animations}
-                        currentAnim={targetAnimation}
-                    />
-                )}
-            </Float>
+            {config.accessory && config.accessory !== 'none' && (
+                <AvatarPart
+                    key={`acc-${config.accessory}`}
+                    path={`${MODELS_URL}/${config.accessory}.fbx`}
+                    customTransform={accessoryTransform}
+                    animations={animFbx.animations}
+                    currentAnim={targetAnimation}
+                />
+            )}
         </group>
     );
 }

@@ -3,7 +3,7 @@ import {useFBX, Float, ContactShadows, Html} from '@react-three/drei';
 import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
 import {useNavigate} from 'react-router-dom';
-import {MODELS_URL} from "../../lib/api.ts";
+import {ModularAvatar} from "./AvatarCanvas.tsx";
 
 // --- FILTRE ANTI-WARNINGS ---
 const silenceWarnings = () => {
@@ -20,15 +20,38 @@ function ModelPart({path, customTransform, isBar = false}: { path: string, custo
     const fbx = useFBX(path);
 
     const clonedFbx = useMemo(() => {
-        // Pour les avatars, on utilise SkeletonUtils, pour le bar, un clone simple suffit
         const clone = isBar ? fbx.clone() : SkeletonUtils.clone(fbx);
 
-        clone.traverse((child) => {
-            if ((child as THREE.Mesh).isMesh) {
-                const mesh = child as THREE.Mesh;
-                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-                materials.forEach((mat) => {
-                    if (mat) mat.needsUpdate = true;
+        clone.traverse((child: any) => {
+            if (child.isMesh) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+
+                materials.forEach((mat: any) => {
+                    if (mat) {
+                        // 🚀 2. LE FIX DES AVATARS BLANCS :
+                        // On ne force le blanc QUE sur le bar (isBar), pour ne pas repeindre les avatars !
+                        if (isBar && mat.color && mat.map) {
+                            mat.color.set(0xffffff);
+                        }
+
+                        // 🚀 3. LA CORRECTION DES COULEURS FADES
+                        if (mat.map) {
+                            // S'adapte à toutes les versions de Three.js sans erreur TypeScript
+                            if (THREE.SRGBColorSpace) {
+                                mat.map.colorSpace = THREE.SRGBColorSpace;
+                            } else {
+                                mat.map.encoding = 3001; // Code de sRGBEncoding
+                            }
+                        }
+
+                        // 🚀 4. RETIRER L'EFFET PLASTIQUE
+                        if (mat.shininess !== undefined) mat.shininess = 0;
+                        if (mat.specular) mat.specular.set(0x000000);
+                        if (mat.roughness !== undefined) mat.roughness = 1;
+                        if (mat.metalness !== undefined) mat.metalness = 0;
+
+                        mat.needsUpdate = true;
+                    }
                 });
             }
         });
@@ -53,8 +76,6 @@ const GLOBAL_CONFIG = {
     htmlY: 65
 };
 
-// 🍺 LE RECTIFICATEUR DE BIÈRE
-const BEER_CONFIG = {position: [40, 85, 20], scale: [5, 5, 5], rotation: [0, 0, 0]};
 
 interface BarWorldProps {
     participants: any[];
@@ -62,7 +83,7 @@ interface BarWorldProps {
 
 // 1. AJOUTE CE NOUVEAU BLOC DE RÉGLAGE EXCLUSIF AU BAR
 const BAR_SETTINGS = {
-    scale: 10,
+    scale: .1,
     position: [0, 0, 0] as [number, number, number],
     rotation: [0, 0, 0] as [number, number, number]
 };
@@ -129,17 +150,7 @@ export default function BarWorld({participants}: BarWorldProps) {
                         {/* L'AVATAR 3D À LA BONNE ÉCHELLE */}
                         <group scale={[GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale]}>
                             <Float speed={1} rotationIntensity={0.02} floatIntensity={0.02}>
-                                {config.head && config.head !== 'none' &&
-                                    <ModelPart path={`${MODELS_URL}/${config.head}.fbx`}/>}
-                                {config.body && config.body !== 'none' &&
-                                    <ModelPart path={`${MODELS_URL}/${config.body}.fbx`}/>}
-                                {config.legs && config.legs !== 'none' &&
-                                    <ModelPart path={`${MODELS_URL}/${config.legs}.fbx`}/>}
-                                {config.feet && config.feet !== 'none' &&
-                                    <ModelPart path={`${MODELS_URL}/${config.feet}.fbx`}/>}
-                                {config.accessory === 'Beer_Men' && (
-                                    <ModelPart path="/models/Beer_Men.fbx" customTransform={BEER_CONFIG}/>
-                                )}
+                                <ModularAvatar config={config}/>
                             </Float>
                         </group>
 

@@ -3,7 +3,7 @@ import {useFBX, Float, ContactShadows, Html} from '@react-three/drei';
 import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
 import {useNavigate} from 'react-router-dom';
-import {MODELS_URL} from "../../lib/api.ts";
+import {ModularAvatar} from "./AvatarCanvas.tsx";
 
 // --- FILTRE ANTI-WARNINGS ---
 const silenceWarnings = () => {
@@ -125,14 +125,7 @@ export default function PiscineWorld({participants}: PiscineWorldProps) {
                         {/* L'AVATAR AVEC UNE FLottaison PLUS FORTE */}
                         <group scale={[GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale]}>
                             <Float speed={2.5} rotationIntensity={0.05} floatIntensity={0.2}>
-                                {config.head && config.head !== 'none' &&
-                                    <ModelPart path={`${MODELS_URL}/${config.head}.fbx`}/>}
-                                {config.body && config.body !== 'none' &&
-                                    <ModelPart path={`${MODELS_URL}/${config.body}.fbx`}/>}
-                                {config.legs && config.legs !== 'none' &&
-                                    <ModelPart path={`${MODELS_URL}/${config.legs}.fbx`}/>}
-                                {config.feet && config.feet !== 'none' &&
-                                    <ModelPart path={`${MODELS_URL}/${config.feet}.fbx`}/>}
+                                <ModularAvatar config={config} />
                             </Float>
                         </group>
 
