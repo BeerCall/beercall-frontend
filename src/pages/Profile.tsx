@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
-import {ChevronLeft, Check, Medal, Users} from 'lucide-react';
+import {ChevronLeft, Check, Medal, Users, BarChart2, Trophy} from 'lucide-react';
 import {useQueryClient} from '@tanstack/react-query';
 import {useProfile} from '../hooks/useProfile';
 import {api} from '../lib/api';
@@ -126,7 +126,7 @@ export default function Profile() {
 
                 <div className="flex flex-col items-center flex-1 px-3 pointer-events-none overflow-hidden">
                     <span
-                        className="bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm border border-amber-200 mb-0.5 leading-none whitespace-nowrap">
+                        className="bg-amber-100 text-amber-600 px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm border border-amber-200 mb-0.5 leading-none whitespace-nowrap">
                         {profile.title}
                     </span>
                     <h1 className="text-xl sm:text-2xl font-black text-gray-900 uppercase italic tracking-tight drop-shadow-sm truncate w-full text-center leading-none">
@@ -134,12 +134,25 @@ export default function Profile() {
                     </h1>
                 </div>
 
-                <div
-                    className="bg-gray-900/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md border-[1.5px] border-amber-500 pointer-events-auto flex items-center gap-1 shrink-0">
-                    <span className="text-base leading-none">💊</span>
-                    <span className="text-amber-500 font-black tracking-widest text-xs pt-0.5">{profile.caps}</span>
+                <div>
+                    {/* 🏆 Score XP */}
+                    <div
+                        className="flex items-center gap-1.5 bg-gradient-to-br from-amber-100 to-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/50 shadow-sm">
+                        <Trophy size={14} className="text-amber-500 drop-shadow-sm"/>
+                        <span
+                            className="text-xs font-black text-amber-700 pt-[2px] leading-none tracking-wide">{profile.score}</span>
+                    </div>
+
+                    {/* 💊 Capsules */}
+                    <div
+                        className="flex items-center gap-1.5 bg-gray-100/80 px-3 py-1.5 rounded-xl border border-gray-200/80 shadow-sm">
+                        <span className="text-xs leading-none drop-shadow-sm">💊</span>
+                        <span
+                            className="text-xs font-black text-gray-600 pt-[2px] leading-none tracking-wide">{profile.caps}</span>
+                    </div>
                 </div>
             </div>
+
 
             <div
                 className="flex-1 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-500">
@@ -148,7 +161,8 @@ export default function Profile() {
 
                     {/* 🚀 LE SWITCH DÉPLACÉ EN BAS : Aux pieds de l'avatar, juste au-dessus du panneau ! */}
                     {isOwnProfile && (
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-gray-200/80 backdrop-blur-md p-1 rounded-full flex shadow-sm border border-white/50 pointer-events-auto">
+                        <div
+                            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-gray-200/80 backdrop-blur-md p-1 rounded-full flex shadow-sm border border-white/50 pointer-events-auto">
                             <button
                                 onClick={() => setActiveView('vestiaire')}
                                 className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'vestiaire' ? 'bg-white text-beer shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
@@ -203,6 +217,45 @@ export default function Profile() {
                                             rejointe</p>}
                                 </div>
                             </div>
+
+                            <div>
+                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                    <BarChart2 size={14}/> Statistiques
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <div
+                                        className="bg-gray-50 rounded-2xl p-3 border-2 border-gray-100 flex flex-col items-center text-center">
+                                        <span className="text-2xl mb-1">👑</span>
+                                        <span className="text-xl font-black text-gray-900">{profile.stats.aperos_created}</span>
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Créés</span>
+                                    </div>
+                                    <div
+                                        className="bg-blue-50 rounded-2xl p-3 border-2 border-blue-100 flex flex-col items-center text-center">
+                                        <span className="text-2xl mb-1">🍻</span>
+                                        <span className="text-xl font-black text-blue-900">{profile.stats.aperos_joined}</span>
+                                        <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">Rejoints</span>
+                                    </div>
+                                    <div
+                                        className="bg-purple-50 rounded-2xl p-3 border-2 border-purple-100 flex flex-col items-center text-center">
+                                        <span className="text-2xl mb-1">👻</span>
+                                        <span className="text-xl font-black text-purple-900">{profile.stats.aperos_declined}</span>
+                                        <span className="text-[9px] font-bold text-purple-400 uppercase tracking-widest">Esquivés</span>
+                                    </div>
+                                    <div
+                                        className="bg-orange-50 rounded-2xl p-3 border-2 border-orange-100 flex flex-col items-center text-center">
+                                        <span className="text-2xl mb-1">😴</span>
+                                        <span className="text-xl font-black text-orange-900">{profile.stats.aperos_missed}</span>
+                                        <span className="text-[9px] font-bold text-orange-400 uppercase tracking-widest">Ratés</span>
+                                    </div>
+                                    <div
+                                        className="bg-red-50 rounded-2xl p-3 border-2 border-red-100 flex flex-col items-center text-center">
+                                        <span className="text-2xl mb-1">🚨</span>
+                                        <span className="text-xl font-black text-red-900">{profile.stats.fraud_count}</span>
+                                        <span className="text-[9px] font-bold text-red-400 uppercase tracking-widest">Fraudes</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div>
                                 {/* 🚀 TEXTE DYNAMIQUE (Mes Trophées vs Ses Trophées) */}
                                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">

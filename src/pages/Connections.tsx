@@ -10,6 +10,7 @@ interface Connection {
     id: string;
     username: string;
     caps: number;
+    score: number; // 🚀 NOUVEAU
     title: string;
     avatar: {
         head: string;
@@ -89,17 +90,22 @@ export default function Connections() {
                                     {user.username}
                                 </h3>
 
-                                <div className="flex gap-4">
-                                    <div className="flex items-center gap-1.5">
-                                        <div
-                                            className="w-7 h-7 bg-amber-50 rounded-full flex items-center justify-center text-xs">💊
-                                        </div>
-                                        <span className="text-sm font-black text-gray-700">{user.caps}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <Trophy size={16} className="text-gray-300"/>
+                                {/* 🚀 LE BLOC STATS ÉPURÉ (Fini le flex-wrap qui casse tout) */}
+                                <div className="flex items-center gap-2.5 mt-1">
+                                    {/* 🏆 Score XP */}
+                                    <div
+                                        className="flex items-center gap-1.5 bg-gradient-to-br from-amber-100 to-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/50 shadow-sm">
+                                        <Trophy size={14} className="text-amber-500 drop-shadow-sm"/>
                                         <span
-                                            className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Vétéran</span>
+                                            className="text-xs font-black text-amber-700 pt-[2px] leading-none tracking-wide">{user.score}</span>
+                                    </div>
+
+                                    {/* 💊 Capsules */}
+                                    <div
+                                        className="flex items-center gap-1.5 bg-gray-100/80 px-3 py-1.5 rounded-xl border border-gray-200/80 shadow-sm">
+                                        <span className="text-xs leading-none drop-shadow-sm">💊</span>
+                                        <span
+                                            className="text-xs font-black text-gray-600 pt-[2px] leading-none tracking-wide">{user.caps}</span>
                                     </div>
                                 </div>
                             </div>

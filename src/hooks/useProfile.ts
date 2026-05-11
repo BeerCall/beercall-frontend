@@ -14,10 +14,20 @@ export interface ShopItem {
     is_owned: boolean; // Flag critique pour l'UI
 }
 
+// 🚀 NOUVELLE INTERFACE POUR LES STATS
+export interface UserStats {
+    aperos_created: number;
+    aperos_joined: number;
+    aperos_declined: number;
+    aperos_missed: number;
+    fraud_count: number;
+}
+
 export interface UserProfile {
     id: number;
     username: string;
     caps: number;
+    score: number;
     title: string;
     avatar: {
         head: string;
@@ -25,11 +35,13 @@ export interface UserProfile {
         legs: string;
         feet: string;
         accessory: string;
+        animation?: string;
         gender: Gender;
     };
     unlocked_badges: any[];
-    shop_items: ShopItem[]; // Catalogue complet
+    shop_items: ShopItem[];
     squads: any[];
+    stats: UserStats;
 }
 
 export function useProfile(userId: string = 'me') {
