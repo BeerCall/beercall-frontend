@@ -26,7 +26,7 @@ interface Connection {
 const AvatarThumbnail = ({config}: { config: any }) => {
     const ref = useRef(null);
     // margin: "100px" permet de charger l'avatar juste avant qu'il n'entre dans l'écran
-    const isInView = useInView(ref);
+    const isInView = useInView(ref, {margin: "100px"});
 
     return (
         <div ref={ref} className="w-full h-full relative">
@@ -64,7 +64,7 @@ export default function Connections() {
         <div className="h-full w-full bg-[#f8fafc] flex flex-col font-sans overflow-hidden">
             {/* HEADER FIXE */}
             <header
-                className="p-6 pt-[calc(18px+env(safe-area-inset-top))] flex items-center gap-4 bg-white/80 backdrop-blur-md border-b border-gray-100 z-20">
+                className="p-6 pt-[calc(18px+env(safe-area-inset-top))] flex items-center gap-4 bg-white/80 backdrop-blur-md border-b border-gray-100 z-20 shrink-0">
                 <button
                     onClick={() => navigate(-1)}
                     className="p-3 bg-white shadow-md rounded-full text-gray-700 hover:scale-110 active:scale-90 transition-transform"
@@ -96,35 +96,33 @@ export default function Connections() {
                             <div
                                 className="w-32 h-40 shrink-0 bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
 
-                                {/* 🚀 ON UTILISE NOTRE NOUVEAU COMPOSANT INTELLIGENT */}
                                 <AvatarThumbnail config={user.avatar}/>
 
                                 <div className="absolute inset-0 z-10"/>
                             </div>
 
                             {/* INFOS JOUEUR */}
-                            <div className="flex-1 flex flex-col justify-center py-2">
+                            {/* 🚀 L'ajout de min-w-0 empêche Flexbox de pousser les éléments hors de l'écran */}
+                            <div className="flex-1 flex flex-col justify-center py-2 min-w-0">
                                 <span
-                                    className="bg-amber-100 text-amber-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest self-start mb-2">
+                                    className="bg-amber-100 text-amber-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest self-start mb-2 truncate max-w-full">
                                     {user.title}
                                 </span>
-                                <h3 className="text-xl font-black text-gray-900 uppercase italic tracking-tighter leading-tight mb-3">
+                                {/* 🚀 Ajout de "truncate" pour couper avec des "..." si le pseudo est trop long */}
+                                <h3 className="text-xl font-black text-gray-900 uppercase italic tracking-tighter leading-tight mb-3 truncate">
                                     {user.username}
                                 </h3>
 
-                                {/* 🚀 LE BLOC STATS ÉPURÉ (Fini le flex-wrap qui casse tout) */}
                                 <div className="flex items-center gap-2.5 mt-1">
-                                    {/* 🏆 Score XP */}
                                     <div
-                                        className="flex items-center gap-1.5 bg-gradient-to-br from-amber-100 to-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/50 shadow-sm">
+                                        className="flex items-center gap-1.5 bg-gradient-to-br from-amber-100 to-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/50 shadow-sm shrink-0">
                                         <Trophy size={14} className="text-amber-500 drop-shadow-sm"/>
                                         <span
                                             className="text-xs font-black text-amber-700 pt-[2px] leading-none tracking-wide">{user.score}</span>
                                     </div>
 
-                                    {/* 💊 Capsules */}
                                     <div
-                                        className="flex items-center gap-1.5 bg-gray-100/80 px-3 py-1.5 rounded-xl border border-gray-200/80 shadow-sm">
+                                        className="flex items-center gap-1.5 bg-gray-100/80 px-3 py-1.5 rounded-xl border border-gray-200/80 shadow-sm shrink-0">
                                         <span className="text-xs leading-none drop-shadow-sm">💊</span>
                                         <span
                                             className="text-xs font-black text-gray-600 pt-[2px] leading-none tracking-wide">{user.caps}</span>
@@ -133,11 +131,10 @@ export default function Connections() {
                             </div>
 
                             {/* BOUTON ACTION */}
-                            <div className="pr-4">
-                                <div
-                                    className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 group-hover:bg-beer group-hover:text-white transition-all shadow-inner group-hover:shadow-beer/30">
-                                    <ArrowRight size={20}/>
-                                </div>
+                            {/* 🚀 J'ai retiré la div pr-4 inutile et mis le shrink-0 pour garantir qu'il ne s'écrase jamais */}
+                            <div
+                                className="w-12 h-12 shrink-0 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 group-hover:bg-beer group-hover:text-white transition-all shadow-inner group-hover:shadow-beer/30">
+                                <ArrowRight size={20}/>
                             </div>
                         </motion.div>
                     ))
