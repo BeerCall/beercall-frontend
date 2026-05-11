@@ -3,8 +3,8 @@ import {useQuery} from '@tanstack/react-query';
 import {ChevronLeft, Users, Trophy, ArrowRight} from 'lucide-react';
 import {api} from '../lib/api';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
-import {motion} from 'framer-motion';
-import {useEffect, useState} from "react";
+import {motion, useInView} from 'framer-motion';
+import {useRef} from "react";
 
 // Interface basée sur l'objet que tu m'as fourni
 interface Connection {
@@ -23,20 +23,25 @@ interface Connection {
     };
 }
 
-// 🚀 NOUVEAU COMPOSANT : Décale le montage 3D pour éviter les crashs et les Canvas vides
-const DelayedAvatar = ({config, index}: { config: any, index: number }) => {
-    const [isReady, setIsReady] = useState(false);
+const AvatarThumbnail = ({config}: { config: any }) => {
+    const ref = useRef(null);
+    // margin: "100px" permet de charger l'avatar juste avant qu'il n'entre dans l'écran
+    const isInView = useInView(ref);
 
-    useEffect(() => {
-        // Chaque avatar attend son tour (ex: le 1er attend 0ms, le 2ème 150ms, etc.)
-        const timer = setTimeout(() => setIsReady(true), index * 150);
-        return () => clearTimeout(timer);
-    }, [index]);
-
-    if (!isReady) return null; // Laisse la boîte grise tranquille pendant l'animation d'entrée
-
-    return <AvatarCanvas config={config} disableZoom={true} disablePan={true}/>;
+    return (
+        <div ref={ref} className="w-full h-full relative">
+            {isInView ? (
+                <AvatarCanvas config={config} disableZoom={true} disablePan={true}/>
+            ) : (
+                // Si la carte est hors écran, on détruit le Canvas et on libère la carte graphique
+                <div className="absolute inset-0 bg-gray-50 flex items-center justify-center">
+                    <div className="w-6 h-6 border-4 border-beer/30 border-t-beer rounded-full animate-spin"></div>
+                </div>
+            )}
+        </div>
+    );
 };
+
 export default function Connections() {
     const navigate = useNavigate();
 
@@ -91,8 +96,8 @@ export default function Connections() {
                             <div
                                 className="w-32 h-40 shrink-0 bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
 
-                                {/* 🚀 ON UTILISE NOTRE NOUVEAU COMPOSANT ICI */}
-                                <DelayedAvatar config={user.avatar} index={index} />
+                                {/* 🚀 ON UTILISE NOTRE NOUVEAU COMPOSANT INTELLIGENT */}
+                                <AvatarThumbnail config={user.avatar}/>
 
                                 <div className="absolute inset-0 z-10"/>
                             </div>
