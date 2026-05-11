@@ -4,6 +4,7 @@ import {ChevronLeft, Users, Trophy, ArrowRight} from 'lucide-react';
 import {api} from '../lib/api';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
 import {motion} from 'framer-motion';
+import {useEffect, useState} from "react";
 
 // Interface basée sur l'objet que tu m'as fourni
 interface Connection {
@@ -22,6 +23,20 @@ interface Connection {
     };
 }
 
+// 🚀 NOUVEAU COMPOSANT : Décale le montage 3D pour éviter les crashs et les Canvas vides
+const DelayedAvatar = ({config, index}: { config: any, index: number }) => {
+    const [isReady, setIsReady] = useState(false);
+
+    useEffect(() => {
+        // Chaque avatar attend son tour (ex: le 1er attend 0ms, le 2ème 150ms, etc.)
+        const timer = setTimeout(() => setIsReady(true), index * 150);
+        return () => clearTimeout(timer);
+    }, [index]);
+
+    if (!isReady) return null; // Laisse la boîte grise tranquille pendant l'animation d'entrée
+
+    return <AvatarCanvas config={config} disableZoom={true} disablePan={true}/>;
+};
 export default function Connections() {
     const navigate = useNavigate();
 
@@ -74,10 +89,12 @@ export default function Connections() {
                         >
                             {/* MINIATURE AVATAR 3D */}
                             <div
-                                className="w-32 h-full bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
-                                <AvatarCanvas config={user.avatar} disableZoom={true} disablePan={true}/>
+                                className="w-32 h-40 shrink-0 bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
+
+                                {/* 🚀 ON UTILISE NOTRE NOUVEAU COMPOSANT ICI */}
+                                <DelayedAvatar config={user.avatar} index={index} />
+
                                 <div className="absolute inset-0 z-10"/>
-                                {/* Overlay pour empêcher l'interaction OrbitControls ici */}
                             </div>
 
                             {/* INFOS JOUEUR */}
