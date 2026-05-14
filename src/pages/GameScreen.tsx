@@ -15,7 +15,7 @@ import CanvasDraw from '../components/Game/Sensors/CanvasDraw';
 import {useGameUIStore} from '../store/useGameUIStore';
 
 // 🚀 AJOUT DE LA PROP OPTIONNELLE 'aperoIdProp'
-export default function GameScreen({ aperoIdProp }: { aperoIdProp?: string }) {
+export default function GameScreen({aperoIdProp}: { aperoIdProp: string | null }) {
     const {aperoId: paramsId} = useParams<{ aperoId: string }>();
 
     // 🚀 LA MAGIE EST ICI : On utilise la Prop envoyée par le Dashboard en priorité !
@@ -61,7 +61,7 @@ export default function GameScreen({ aperoIdProp }: { aperoIdProp?: string }) {
                 onClick={closeGameScreen}
                 className="absolute top-[calc(15px+env(safe-area-inset-top))] left-6 z-[110] p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/10 transition-all active:scale-90"
             >
-                <X size={24} className="text-white" />
+                <X size={24} className="text-white"/>
             </button>
 
             {/* OVERLAY ANTI-DOUBLE-CLIC */}

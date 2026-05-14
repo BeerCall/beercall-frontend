@@ -26,11 +26,12 @@ interface SelectWorldModalProps {
     onClose: () => void;
     squadId: string;
     beerCallId: string;
+    isActiveApero: boolean;
 }
 
 type WorldTab = 'bar' | 'piscine' | 'dodo';
 
-export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId}: SelectWorldModalProps) {
+export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, isActiveApero}: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
 
     useEffect(() => {
@@ -123,7 +124,9 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId}:
                                     <directionalLight position={[-10, 10, -10]} intensity={1}/>
 
                                     {/* AIGUILLAGE VERS LES BONS COMPOSANTS 3D */}
-                                    {activeTab === 'bar' && <BarWorld aperoId={beerCallId} participants={currentParticipants}/>}
+                                    {activeTab === 'bar' && <BarWorld isActiveApero={isActiveApero}
+                                                                      aperoId={beerCallId}
+                                                                      participants={currentParticipants}/>}
                                     {activeTab === 'piscine' && <PiscineWorld participants={currentParticipants}/>}
                                     {activeTab === 'dodo' && <FloatyIslandWorld participants={currentParticipants}/>}
 

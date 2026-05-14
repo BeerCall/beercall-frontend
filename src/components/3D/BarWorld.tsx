@@ -172,15 +172,20 @@ const getDynamicPlacement = (index: number, totalParticipants: number) => {
     return {position: [x, 5, z] as [number, number, number], rotationY: -angle + Math.PI / 2};
 };
 
-export default function BarWorld({aperoId, participants}: { aperoId: string, participants: any[] }) {
+export default function BarWorld({aperoId, participants, isActiveApero}: {
+    aperoId: string,
+    participants: any[],
+    isActiveApero: boolean
+}) {
     const {gameState, startGame, isLocked} = useGameEngine(aperoId);
 
     const openGameScreen = useGameUIStore((state) => state.openGameScreen);
 
     const handlePullLever = () => {
         startGame();
-        openGameScreen();
+        openGameScreen(aperoId);
     };
+
     useMemo(() => silenceWarnings(), []);
     const navigate = useNavigate();
 
@@ -193,11 +198,14 @@ export default function BarWorld({aperoId, participants}: { aperoId: string, par
             </group>
 
             {/* 🎰 LA MACHINE À SOUS EN LÉVITATION AU-DESSUS DU BAR */}
-            <SlotMachine
-                isGameInProgress={!!gameState}
-                onPull={handlePullLever} // 🚀 On utilise notre nouvelle fonction
-                isLocked={isLocked}
-            />
+            {/* 🚀 Elle ne s'affiche que si l'apéro est en cours ! */}
+            {isActiveApero && (
+                <SlotMachine
+                    isGameInProgress={!!gameState}
+                    onPull={handlePullLever}
+                    isLocked={isLocked}
+                />
+            )}
 
             {/* 🧍‍♂️ LES AVATARS */}
             {participants.map((participant: any, index: number) => {

@@ -46,9 +46,8 @@ export default function Dashboard() {
 
     const {data: profile} = useProfile();
     const {data: squadDetails} = useSquadDetails(id);
-    const isGameScreenOpen = useGameUIStore((state) => state.isGameScreenOpen);
-
-    const activeAperoId = squadDetails?.active_beer_call?.[0]?.id;
+    const {isGameScreenOpen, currentAperoId} = useGameUIStore();
+    const isActiveApero = squadDetails?.active_beer_call?.some((call: any) => call.id === isWorldsModalOpen);
 
     const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
     const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -174,7 +173,7 @@ export default function Dashboard() {
 
             {/* 🎮 1. L'ÉCRAN DE JEU (S'affiche par-dessus la carte si une partie est en cours) */}
             <AnimatePresence>
-                {isGameScreenOpen && (
+                {isGameScreenOpen && currentAperoId && (
                     <motion.div
                         initial={{opacity: 0, y: "100%"}}
                         animate={{opacity: 1, y: 0}}
@@ -182,7 +181,7 @@ export default function Dashboard() {
                         transition={{type: "spring", damping: 25, stiffness: 200}}
                         className="absolute inset-0 z-[100] bg-gray-950"
                     >
-                        <GameScreen aperoIdProp={activeAperoId}/>
+                        <GameScreen aperoIdProp={currentAperoId}/>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -447,6 +446,7 @@ export default function Dashboard() {
                 onClose={() => setIsWorldsModalOpen(null)}
                 squadId={id || ''}
                 beerCallId={isWorldsModalOpen || ''}
+                isActiveApero={!!isActiveApero}
             />
         </div>
     );
