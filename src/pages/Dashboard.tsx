@@ -13,7 +13,13 @@ import {Check, Copy, Key, User as UserIcon, BellRing, MapPin, Users} from 'lucid
 import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useProfile} from '../hooks/useProfile';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
-import {toast} from "../store/useToastStore.ts";
+import {toast} from "../store/useToastStore";
+import {useGameEngine} from "../hooks/useGameEngine";
+import { useGameUIStore } from '../store/useGameUIStore';
+
+// 🚀 NOUVEAUX IMPORTS POUR LE JEU
+import {motion, AnimatePresence} from 'framer-motion';
+import GameScreen from './GameScreen';
 
 const timeAgo = (dateString: string) => {
     const diff = Date.now() - new Date(dateString).getTime();
@@ -34,31 +40,29 @@ export default function Dashboard() {
     const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
     // États de l'apéro
-    const [selectedBeerCall, setSelectedBeerCall] = useState<any | null>(null); // Pour répondre
-    const [isWorldsModalOpen, setIsWorldsModalOpen] = useState<string | null>(null); // 👈 NOUVEL ÉTAT pour les mondes
+    const [selectedBeerCall, setSelectedBeerCall] = useState<any | null>(null);
+    const [isWorldsModalOpen, setIsWorldsModalOpen] = useState<string | null>(null);
 
     const [isNightMode, setIsNightMode] = useState(false);
 
     const {data: profile} = useProfile();
     const {data: squadDetails} = useSquadDetails(id);
+    const isGameScreenOpen = useGameUIStore((state) => state.isGameScreenOpen);
+
+    const activeAperoId = squadDetails?.active_beer_call?.[0]?.id;
 
     const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const mapRef = useRef<MapRef>(null);
 
-    // 🚀 FIX GPS : Permet de ne recentrer la carte qu'au premier chargement
     const hasCentered = useRef(false);
-
     const [copied, setCopied] = useState(false);
 
     const {subscribeToNotifications} = usePushNotifications();
-
-    // État pour savoir si on doit afficher la bannière
     const [showPushBanner, setShowPushBanner] = useState(false);
 
     useEffect(() => {
-        // Si le navigateur supporte les notifs ET que l'utilisateur n'a pas encore fait de choix
         if ('Notification' in window && Notification.permission === 'default') {
             setShowPushBanner(true);
         }
@@ -82,7 +86,6 @@ export default function Dashboard() {
         }
     };
 
-    // 🚁 L'ANIMATION DE VOL (FLYTO) - 🚀 FIX: Sécurisation contre le crash NaN
     const focusOnLocation = (lng: any, lat: any) => {
         const numLng = Number(lng);
         const numLat = Number(lat);
@@ -90,13 +93,13 @@ export default function Dashboard() {
             mapRef.current.flyTo({
                 center: [numLng, numLat],
                 zoom: 16,
-                pitch: 60, // Bel angle 3D
-                duration: 1500, // Animation fluide
+                pitch: 60,
+                duration: 1500,
                 essential: true
             });
         }
     };
-// 🚀 NOUVEAU FIX : Fonction de recentrage manuelle 100% fiable
+
     const handleManualRecenter = () => {
         if (userLocation && mapRef.current) {
             mapRef.current.flyTo({
@@ -110,14 +113,12 @@ export default function Dashboard() {
             toast.error("Recherche en cours", "Le GPS cherche encore votre position... 📡");
         }
     };
-    // 🌙 SÉPARATION DU MODE NUIT
+
     useEffect(() => {
         const currentHour = new Date().getHours();
         setIsNightMode(currentHour >= 19 || currentHour < 6);
     }, []);
 
-    // 🚀 FIX GPS : GÉOLOCALISATION STABLE EN ARRIÈRE-PLAN
-// 🚀 FIX : Suivi de position pur
     useEffect(() => {
         if (!navigator.geolocation) return;
 
@@ -125,7 +126,6 @@ export default function Dashboard() {
             (pos) => {
                 const newLocation = {lat: pos.coords.latitude, lng: pos.coords.longitude};
                 setUserLocation(newLocation);
-                // On a supprimé le bloc flyTo d'ici !
             },
             (err) => console.warn("Erreur géoloc (ignorée):", err),
             {
@@ -136,11 +136,9 @@ export default function Dashboard() {
         );
 
         return () => navigator.geolocation.clearWatch(watchId);
-    }, []); // On ne touche pas à l'ID ici pour garder une seule souscription
+    }, []);
 
-    // 🚀 NOUVEAU : Recentrage automatique robuste au chargement
     useEffect(() => {
-        // Si on a tout ce qu'il faut et qu'on n'a pas encore centré
         if (id && userLocation && mapRef.current && !hasCentered.current) {
             mapRef.current.flyTo({
                 center: [userLocation.lng, userLocation.lat],
@@ -150,15 +148,14 @@ export default function Dashboard() {
             });
             hasCentered.current = true;
         }
-    }, [userLocation, id]); // Se déclenche dès que la position arrive ou que la carte est rendue (via le state id)
+    }, [userLocation, id]);
+
     const mapStyle = isNightMode
         ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
         : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
-    // 🚦 LA FONCTION D'AIGUILLAGE CORRIGÉE
     const handleBeerCallClick = (beerCall: any) => {
         if (beerCall.has_responded) {
-            // On stocke l'ID de l'apéro pour que React Query puisse faire sa requête !
             setIsWorldsModalOpen(beerCall.id);
         } else {
             setSelectedBeerCall(beerCall);
@@ -169,338 +166,282 @@ export default function Dashboard() {
         if (squadDetails?.invite_code) {
             navigator.clipboard.writeText(squadDetails.invite_code);
             setCopied(true);
-            setTimeout(() => setCopied(false), 2000); // Remet l'icône normale après 2s
+            setTimeout(() => setCopied(false), 2000);
         }
     };
 
     return (
         <div className="h-full w-full relative flex flex-col bg-[#f8fafc] overflow-hidden font-sans">
 
-            {/* 🌟 LE SOFT PROMPT (Bannière UX) 🌟 */}
-            {showPushBanner && (
-                <div
-                    className="absolute top-[env(safe-area-inset-top)] left-0 right-0 z-50 bg-gray-900 text-white p-4 flex items-center justify-between shadow-xl">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-beer rounded-full flex items-center justify-center animate-bounce">
-                            <BellRing size={20} className="text-white"/>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="font-black text-sm uppercase italic">Ne rate aucun apéro !</span>
-                            <span className="text-xs text-gray-300 font-bold">Active les alertes de la squad.</span>
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleEnableNotifications} // 👈 Déclenche la popup native !
-                        className="bg-white text-gray-900 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest active:scale-95"
+            {/* 🎮 1. L'ÉCRAN DE JEU (S'affiche par-dessus la carte si une partie est en cours) */}
+            <AnimatePresence>
+                {isGameScreenOpen && (
+                    <motion.div
+                        initial={{opacity: 0, y: "100%"}}
+                        animate={{opacity: 1, y: 0}}
+                        exit={{opacity: 0, y: "100%"}}
+                        transition={{type: "spring", damping: 25, stiffness: 200}}
+                        className="absolute inset-0 z-[100] bg-gray-950"
                     >
-                        Activer
-                    </button>
-                </div>
-            )}
-            <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                ref={fileInputRef}
-                onChange={handlePhotoCapture}
-                className="hidden"
-            />
-            <div className="absolute inset-0 z-0">
-                {id ? (
-                    <div className="w-full h-full relative animate-in fade-in duration-500">
+                        <GameScreen aperoIdProp={activeAperoId} />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-                        <div
-                            className="absolute top-[calc(15px+env(safe-area-inset-top))] w-full flex justify-center z-10 pointer-events-none">
-                            {/* BADGE UNIQUE : Nom en haut, Code en bas */}
+            {/* 🌍 2. LE RESTE DU DASHBOARD (Carte, timeline, modals...) */}
+            <div className={`w-full h-full relative ${isGameScreenOpen ? 'hidden' : ''}`}>
+
+                {/* BANNIÈRE PUSH */}
+                {showPushBanner && (
+                    <div
+                        className="absolute top-[env(safe-area-inset-top)] left-0 right-0 z-50 bg-gray-900 text-white p-4 flex items-center justify-between shadow-xl">
+                        <div className="flex items-center gap-3">
                             <div
-                                className="bg-white/95 backdrop-blur-md px-8 py-3 rounded-[2rem] shadow-xl pointer-events-auto border-2 flex flex-col items-center gap-2 transition-all"
-                                style={{borderColor: squadDetails?.color ? `${squadDetails.color}40` : 'rgba(217, 119, 6, 0.25)'}}
-                            >
-                                {/* LIGNE 1 : SQUAD NAME */}
-                                <h2 className="font-black tracking-widest uppercase italic text-xl leading-none"
-                                    style={{color: squadDetails?.color || '#D97706'}}>
-                                    {squadDetails?.name || `Squad #${id}`}
-                                </h2>
-
-                                {/* LIGNE 2 : INVITE CODE */}
-                                {squadDetails?.invite_code && (
-                                    <button
-                                        onClick={handleCopyCode}
-                                        className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 px-4 py-1.5 rounded-full transition-all group active:scale-95"
-                                        title="Copier le code d'invitation"
-                                    >
-                                        <Key size={12} style={{color: squadDetails?.color || '#D97706'}}/>
-                                        <span className="font-black tracking-[0.25em] text-gray-700 text-xs pt-[2px]">
-                    {squadDetails.invite_code}
-                </span>
-                                        {copied ? (
-                                            <Check size={14}
-                                                   className="text-green-500 animate-in zoom-in duration-300"/>
-                                        ) : (
-                                            <Copy size={12}
-                                                  className="text-gray-400 group-hover:text-gray-700 transition-colors"/>
-                                        )}
-                                    </button>
-                                )}
+                                className="w-10 h-10 bg-beer rounded-full flex items-center justify-center animate-bounce">
+                                <BellRing size={20} className="text-white"/>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="font-black text-sm uppercase italic">Ne rate aucun apéro !</span>
+                                <span className="text-xs text-gray-300 font-bold">Active les alertes de la squad.</span>
                             </div>
                         </div>
-                        <Map
-                            ref={mapRef}
-                            initialViewState={{longitude: 2.3522, latitude: 48.8566, zoom: 12, pitch: 45}}
-                            mapStyle={mapStyle}
-                            interactive={true}
-                        >
-                            {/* 🚀 NOTRE BOUTON DE RE-CENTRAGE 100% FIABLE */}
-                            <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-[20px] z-10">
-                                <button
-                                    onClick={(e) => {
+                        <button onClick={handleEnableNotifications}
+                                className="bg-white text-gray-900 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest active:scale-95">
+                            Activer
+                        </button>
+                    </div>
+                )}
+
+                <input type="file" accept="image/*" capture="environment" ref={fileInputRef}
+                       onChange={handlePhotoCapture} className="hidden"/>
+
+                <div className="absolute inset-0 z-0">
+                    {id ? (
+                        <div className="w-full h-full relative animate-in fade-in duration-500">
+                            {/* BADGE SQUAD */}
+                            <div
+                                className="absolute top-[calc(15px+env(safe-area-inset-top))] w-full flex justify-center z-10 pointer-events-none">
+                                <div
+                                    className="bg-white/95 backdrop-blur-md px-8 py-3 rounded-[2rem] shadow-xl pointer-events-auto border-2 flex flex-col items-center gap-2 transition-all"
+                                    style={{borderColor: squadDetails?.color ? `${squadDetails.color}40` : 'rgba(217, 119, 6, 0.25)'}}
+                                >
+                                    <h2 className="font-black tracking-widest uppercase italic text-xl leading-none"
+                                        style={{color: squadDetails?.color || '#D97706'}}>
+                                        {squadDetails?.name || `Squad #${id}`}
+                                    </h2>
+                                    {squadDetails?.invite_code && (
+                                        <button onClick={handleCopyCode}
+                                                className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 px-4 py-1.5 rounded-full transition-all group active:scale-95"
+                                                title="Copier le code">
+                                            <Key size={12} style={{color: squadDetails?.color || '#D97706'}}/>
+                                            <span
+                                                className="font-black tracking-[0.25em] text-gray-700 text-xs pt-[2px]">{squadDetails.invite_code}</span>
+                                            {copied ? <Check size={14}
+                                                             className="text-green-500 animate-in zoom-in duration-300"/> :
+                                                <Copy size={12}
+                                                      className="text-gray-400 group-hover:text-gray-700 transition-colors"/>}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <Map ref={mapRef}
+                                 initialViewState={{longitude: 2.3522, latitude: 48.8566, zoom: 12, pitch: 45}}
+                                 mapStyle={mapStyle} interactive={true}>
+                                {/* BOUTON RECENTRER */}
+                                <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-[20px] z-10">
+                                    <button onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         handleManualRecenter();
                                     }}
-                                    className="w-[29px] h-[29px] bg-white rounded flex items-center justify-center shadow-[0_0_0_2px_rgba(0,0,0,0.1)] hover:bg-gray-50 active:scale-95 transition-all"
-                                    title="Me recentrer"
-                                >
-                                    {/* Icône de viseur simple (SVG) */}
-                                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
-                                         strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"
-                                         className={userLocation ? "text-gray-700" : "text-gray-300 animate-pulse"}>
-                                        <circle cx="12" cy="12" r="10"></circle>
-                                        <line x1="12" y1="8" x2="12" y2="16"></line>
-                                        <line x1="8" y1="12" x2="16" y2="12"></line>
-                                    </svg>
-                                </button>
-                            </div>
+                                            className="w-[29px] h-[29px] bg-white rounded flex items-center justify-center shadow-[0_0_0_2px_rgba(0,0,0,0.1)] hover:bg-gray-50 active:scale-95 transition-all"
+                                            title="Me recentrer">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
+                                             strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"
+                                             className={userLocation ? "text-gray-700" : "text-gray-300 animate-pulse"}>
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <line x1="12" y1="8" x2="12" y2="16"></line>
+                                            <line x1="8" y1="12" x2="16" y2="12"></line>
+                                        </svg>
+                                    </button>
+                                </div>
 
-                            <NavigationControl position="top-right" style={{
-                                marginTop: 'calc(135px + env(safe-area-inset-top))',
-                                marginRight: '20px'
-                            }}/>
+                                <NavigationControl position="top-right" style={{
+                                    marginTop: 'calc(135px + env(safe-area-inset-top))',
+                                    marginRight: '20px'
+                                }}/>
 
-                            {/* 1. MARQUEUR DE L'APÉRO EN COURS */}
-                            {squadDetails?.active_beer_call?.map((call) => {
-                                // 🚀 FIX: Forcer les coordonnées en Number pour éviter le crash Mapbox
-                                const numLng = Number(call.longitude);
-                                const numLat = Number(call.latitude);
-                                if (isNaN(numLng) || isNaN(numLat)) return null;
+                                {/* MARQUEURS ACTIFS */}
+                                {squadDetails?.active_beer_call?.map((call) => {
+                                    const numLng = Number(call.longitude);
+                                    const numLat = Number(call.latitude);
+                                    if (isNaN(numLng) || isNaN(numLat)) return null;
 
-                                return (
-                                    <Marker
-                                        key={`active-${call.id}`}
-                                        longitude={numLng}
-                                        latitude={numLat}
-                                        anchor="bottom"
-                                        style={{zIndex: 60}}
-                                    >
-                                        <div
-                                            onClick={(e) => {
+                                    return (
+                                        <Marker key={`active-${call.id}`} longitude={numLng} latitude={numLat}
+                                                anchor="bottom" style={{zIndex: 60}}>
+                                            <div onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleBeerCallClick(call);
-                                            }}
-                                            className="relative group cursor-pointer animate-bounce"
-                                        >
+                                            }} className="relative group cursor-pointer animate-bounce">
+                                                <div
+                                                    className="bg-beer text-white p-3 rounded-full shadow-xl border-4 border-white flex items-center justify-center text-xl hover:scale-110 transition-transform">🍻
+                                                </div>
+                                            </div>
+                                        </Marker>
+                                    );
+                                })}
+
+                                {/* MARQUEUR JOUEUR */}
+                                {userLocation && (
+                                    <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
+                                            style={{zIndex: 50}}>
+                                        <div onClick={openCamera}
+                                             className="relative flex flex-col items-center cursor-pointer group rounded-full p-2 after:content-[''] after:absolute after:inset-1 after:rounded-full after:animate-soft-pulse after:z-[-1] animate-in fade-in zoom-in-50 duration-500 delay-300 fill-mode-both">
                                             <div
-                                                className="bg-beer text-white p-3 rounded-full shadow-xl border-4 border-white flex items-center justify-center text-xl hover:scale-110 transition-transform">
-                                                🍻
+                                                className="absolute -top-7 px-3 py-1 bg-white/70 backdrop-blur-sm rounded-full shadow-sm border border-gray-100 transition-opacity opacity-100 group-hover:opacity-100 group-hover:scale-105 group-hover:bg-white group-hover:border-beer pointer-events-none whitespace-nowrap">
+                                                <span
+                                                    className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-beer transition-colors">📸🍻</span>
+                                            </div>
+                                            <div className="relative w-24 h-32 flex items-end justify-center pb-2">
+                                                <div className="absolute inset-0 pointer-events-none">
+                                                    {profile?.avatar ? (
+                                                        <AvatarCanvas config={profile.avatar} disableZoom={true}
+                                                                      disablePan={true}/>
+                                                    ) : (
+                                                        <UserIcon size={32}
+                                                                  className="text-beer drop-shadow-xl m-auto mt-10"/>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </Marker>
-                                );
-                            })}
+                                )}
 
-                            {/* 2. TON MARQUEUR : LE VOXEL AVATAR 3D */}
-                            {userLocation && (
-                                <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
-                                        style={{zIndex: 50}}>
+                                {/* MARQUEURS PASSÉS */}
+                                {squadDetails?.past_beer_calls?.map((call) => {
+                                    const numLng = Number(call.longitude);
+                                    const numLat = Number(call.latitude);
+                                    if (isNaN(numLng) || isNaN(numLat)) return null;
 
-                                    {/* MICRO-INTERACTION & HALO */}
-                                    <div onClick={openCamera}
-                                         className="relative flex flex-col items-center cursor-pointer group rounded-full p-2
-                                                    after:content-[''] after:absolute after:inset-1 after:rounded-full after:animate-soft-pulse after:z-[-1]
-                                                    animate-in fade-in zoom-in-50 duration-500 delay-300 fill-mode-both">
-
-                                        <div
-                                            className="absolute -top-7 px-3 py-1 bg-white/70 backdrop-blur-sm rounded-full shadow-sm border border-gray-100 transition-opacity opacity-100 group-hover:opacity-100 group-hover:scale-105 group-hover:bg-white group-hover:border-beer pointer-events-none whitespace-nowrap">
-                                            <span
-                                                className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-beer transition-colors">
-                                                📸🍻
-                                            </span>
-                                        </div>
-
-                                        <div className="relative w-24 h-32 flex items-end justify-center pb-2">
-                                            <div className="absolute inset-0 pointer-events-none">
-                                                {profile?.avatar ? (
-                                                    <AvatarCanvas config={profile.avatar} disableZoom={true}
-                                                                  disablePan={true}/>
-                                                ) : (
-                                                    <UserIcon size={32}
-                                                              className="text-beer drop-shadow-xl m-auto mt-10"/>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Marker>
-                            )}
-
-                            {/* MARQUEURS DES ANCIENS APÉROS */}
-                            {squadDetails?.past_beer_calls?.map((call) => {
-                                // 🚀 FIX: Forcer les coordonnées en Number ici aussi
-                                const numLng = Number(call.longitude);
-                                const numLat = Number(call.latitude);
-                                if (isNaN(numLng) || isNaN(numLat)) return null;
-
-                                return (
-                                    <Marker key={`past-${call.id}`} longitude={numLng} latitude={numLat}
-                                            anchor="bottom" style={{zIndex: 30}}>
-                                        <div
-                                            onClick={(e) => {
+                                    return (
+                                        <Marker key={`past-${call.id}`} longitude={numLng} latitude={numLat}
+                                                anchor="bottom" style={{zIndex: 30}}>
+                                            <div onClick={(e) => {
                                                 e.stopPropagation();
                                                 setIsWorldsModalOpen(call.id);
                                             }}
-                                            className="bg-gray-300 text-white p-2 rounded-full shadow-sm border-2 border-white flex items-center justify-center text-sm opacity-60 cursor-pointer hover:opacity-100 hover:scale-125 transition-all"
-                                            title="Voir les mondes"
-                                        >
-                                            👻
-                                        </div>
-                                    </Marker>
-                                );
-                            })}
-                        </Map>
+                                                 className="bg-gray-300 text-white p-2 rounded-full shadow-sm border-2 border-white flex items-center justify-center text-sm opacity-60 cursor-pointer hover:opacity-100 hover:scale-125 transition-all"
+                                                 title="Voir les mondes">👻
+                                            </div>
+                                        </Marker>
+                                    );
+                                })}
+                            </Map>
 
-                        {/* TIMELINE DES APÉROS */}
-                        <div
-                            className="absolute bottom-[calc(130px_+_env(safe-area-inset-top))] w-full px-4 z-[70] pointer-events-none">
+                            {/* TIMELINE */}
                             <div
-                                className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto">
-                                {/* 🟢 CARTE DE L'APÉRO EN COURS */}
-                                {squadDetails?.active_beer_call?.map((call) => (
-                                    <div
-                                        key={call.id}
-                                        onClick={() => focusOnLocation(call.longitude, call.latitude)}
-                                        className={`w-[220px] relative overflow-hidden rounded-3xl p-3.5 snap-center flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-center ${
-                                            call.has_responded
-                                                ? 'bg-gradient-to-br from-blue-50 to-white border border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.15)]'
-                                                : 'bg-gradient-to-br from-orange-50 to-white border border-orange-100 shadow-[0_8px_20px_rgb(217,119,6,0.15)]'
-                                        }`}
-                                    >
-                                        <div className="flex justify-between items-center mb-1.5">
-                                            <span
-                                                className={`flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-full tracking-widest leading-none ${
-                                                    call.has_responded ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-beer'
-                                                }`}>
-                                                <span
-                                                    className={`w-1.5 h-1.5 rounded-full ${call.has_responded ? 'bg-blue-600' : 'bg-beer animate-pulse'}`}></span>
-                                                {call.has_responded ? "REJOINT" : "EN COURS"}
-                                            </span>
-                                            <span
-                                                className="text-gray-400 text-[9px] font-bold uppercase tracking-wider bg-gray-100 px-1.5 py-0.5 rounded-md leading-none">
-                                                {timeAgo(call.started_at)}
-                                            </span>
-                                        </div>
+                                className="absolute bottom-[calc(130px_+_env(safe-area-inset-top))] w-full px-4 z-[70] pointer-events-none">
+                                <div
+                                    className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto">
 
-                                        <h3 className="font-black text-gray-900 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
-                                            <MapPin size={14}
-                                                    className={call.has_responded ? 'text-blue-500' : 'text-beer'}/>
-                                            {call.location_name}
-                                        </h3>
-
-                                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 tracking-widest flex items-center gap-1.5 leading-none">
-                                            <Users size={12} className="text-gray-400"/>
-                                            {call.participants_count} PARTICIPANT{call.participants_count > 1 ? 'S' : ''}
-                                        </p>
-                                    </div>
-                                ))}
-
-                                {/* 👻 CARTES DES ANCIENS APÉROS */}
-                                {squadDetails?.past_beer_calls?.map((call) => (
-                                    <div
-                                        key={call.id}
-                                        onClick={() => focusOnLocation(call.longitude, call.latitude)}
-                                        className="w-[220px] bg-white/80 backdrop-blur-xl rounded-3xl p-3.5 shadow-md border border-white/50 snap-center flex-shrink-0 cursor-pointer hover:-translate-y-1 hover:bg-white/95 transition-all duration-300 flex flex-col justify-between group"
-                                    >
-                                        <div>
+                                    {squadDetails?.active_beer_call?.map((call) => (
+                                        <div key={call.id}
+                                             onClick={() => focusOnLocation(call.longitude, call.latitude)}
+                                             className={`w-[220px] relative overflow-hidden rounded-3xl p-3.5 snap-center flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-center ${call.has_responded ? 'bg-gradient-to-br from-blue-50 to-white border border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.15)]' : 'bg-gradient-to-br from-orange-50 to-white border border-orange-100 shadow-[0_8px_20px_rgb(217,119,6,0.15)]'}`}>
                                             <div className="flex justify-between items-center mb-1.5">
                                                 <span
-                                                    className="bg-gray-100/80 text-gray-500 text-[9px] font-black px-2 py-1 rounded-full tracking-widest flex items-center gap-1 leading-none">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                                                    TERMINÉ
+                                                    className={`flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-full tracking-widest leading-none ${call.has_responded ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-beer'}`}>
+                                                    <span
+                                                        className={`w-1.5 h-1.5 rounded-full ${call.has_responded ? 'bg-blue-600' : 'bg-beer animate-pulse'}`}></span>
+                                                    {call.has_responded ? "REJOINT" : "EN COURS"}
                                                 </span>
                                                 <span
-                                                    className="text-gray-400 text-[9px] font-bold uppercase tracking-wider leading-none">
-                                                    {timeAgo(call.started_at)}
-                                                </span>
+                                                    className="text-gray-400 text-[9px] font-bold uppercase tracking-wider bg-gray-100 px-1.5 py-0.5 rounded-md leading-none">{timeAgo(call.started_at)}</span>
                                             </div>
-                                            <h3 className="font-black text-gray-700 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
-                                                <MapPin size={14} className="text-gray-400"/>
+                                            <h3 className="font-black text-gray-900 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
+                                                <MapPin size={14}
+                                                        className={call.has_responded ? 'text-blue-500' : 'text-beer'}/>
                                                 {call.location_name}
                                             </h3>
-                                        </div>
-
-                                        <div
-                                            className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/50">
-                                            <p className="text-[10px] text-gray-500 font-bold tracking-widest flex items-center gap-1 leading-none">
+                                            <p className="text-[10px] text-gray-500 font-bold mt-1.5 tracking-widest flex items-center gap-1.5 leading-none">
                                                 <Users size={12} className="text-gray-400"/>
-                                                {call.participants_count}
+                                                {call.participants_count} PARTICIPANT{call.participants_count > 1 ? 'S' : ''}
                                             </p>
+                                        </div>
+                                    ))}
 
-                                            <button
-                                                onClick={(e) => {
+                                    {squadDetails?.past_beer_calls?.map((call) => (
+                                        <div key={call.id}
+                                             onClick={() => focusOnLocation(call.longitude, call.latitude)}
+                                             className="w-[220px] bg-white/80 backdrop-blur-xl rounded-3xl p-3.5 shadow-md border border-white/50 snap-center flex-shrink-0 cursor-pointer hover:-translate-y-1 hover:bg-white/95 transition-all duration-300 flex flex-col justify-between group">
+                                            <div>
+                                                <div className="flex justify-between items-center mb-1.5">
+                                                    <span
+                                                        className="bg-gray-100/80 text-gray-500 text-[9px] font-black px-2 py-1 rounded-full tracking-widest flex items-center gap-1 leading-none">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span> TERMINÉ
+                                                    </span>
+                                                    <span
+                                                        className="text-gray-400 text-[9px] font-bold uppercase tracking-wider leading-none">{timeAgo(call.started_at)}</span>
+                                                </div>
+                                                <h3 className="font-black text-gray-700 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
+                                                    <MapPin size={14} className="text-gray-400"/> {call.location_name}
+                                                </h3>
+                                            </div>
+                                            <div
+                                                className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/50">
+                                                <p className="text-[10px] text-gray-500 font-bold tracking-widest flex items-center gap-1 leading-none">
+                                                    <Users size={12}
+                                                           className="text-gray-400"/> {call.participants_count}
+                                                </p>
+                                                <button onClick={(e) => {
                                                     e.stopPropagation();
                                                     setIsWorldsModalOpen(call.id);
                                                 }}
-                                                className="bg-white text-gray-800 text-[9px] px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider hover:bg-gray-800 hover:text-white active:scale-95 transition-all shadow-sm border border-gray-200 flex items-center gap-1 group-hover:border-gray-800 leading-none"
-                                            >
-                                                Mondes 🌍
-                                            </button>
+                                                        className="bg-white text-gray-800 text-[9px] px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider hover:bg-gray-800 hover:text-white active:scale-95 transition-all shadow-sm border border-gray-200 flex items-center gap-1 group-hover:border-gray-800 leading-none">
+                                                    Mondes 🌍
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
 
-                                {/* 📭 EMPTY STATE */}
-                                {(!squadDetails?.active_beer_call || squadDetails.active_beer_call.length === 0) && (!squadDetails?.past_beer_calls || squadDetails.past_beer_calls.length === 0) && (
-                                    <div
-                                        className="w-[220px] bg-white/60 backdrop-blur-md rounded-3xl p-4 shadow-sm border-2 border-dashed border-gray-300/50 snap-center flex-shrink-0 flex flex-col items-center justify-center">
+                                    {(!squadDetails?.active_beer_call || squadDetails.active_beer_call.length === 0) && (!squadDetails?.past_beer_calls || squadDetails.past_beer_calls.length === 0) && (
                                         <div
-                                            className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                                            <BellRing size={16} className="text-gray-400"/>
+                                            className="w-[220px] bg-white/60 backdrop-blur-md rounded-3xl p-4 shadow-sm border-2 border-dashed border-gray-300/50 snap-center flex-shrink-0 flex flex-col items-center justify-center">
+                                            <div
+                                                className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mb-2">
+                                                <BellRing size={16} className="text-gray-400"/>
+                                            </div>
+                                            <p className="text-xs font-bold text-gray-500 text-center uppercase tracking-wider leading-tight">
+                                                Aucun apéro.<br/>Lance le premier !
+                                            </p>
                                         </div>
-                                        <p className="text-xs font-bold text-gray-500 text-center uppercase tracking-wider leading-tight">
-                                            Aucun apéro.<br/>Lance le premier !
-                                        </p>
-                                    </div>
-                                )}
-
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ) : (
-                    <div
-                        className="w-full h-full flex flex-col items-center justify-center bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px] opacity-80 pt-10">
-                        <h1 className="text-4xl font-black text-gray-900 tracking-tighter italic uppercase text-center">Salut {profile?.username || 'Soldat'} !</h1>
-                        <p className="mt-4 text-gray-400 font-bold uppercase tracking-widest">Choisis une squad en
-                            bas</p>
-                    </div>
-                )}
+                    ) : (
+                        <div
+                            className="w-full h-full flex flex-col items-center justify-center bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px] opacity-80 pt-10">
+                            <h1 className="text-4xl font-black text-gray-900 tracking-tighter italic uppercase text-center">Salut {profile?.username || 'Soldat'} !</h1>
+                            <p className="mt-4 text-gray-400 font-bold uppercase tracking-widest">Choisis une squad en
+                                bas</p>
+                        </div>
+                    )}
+                </div>
+
+                <Navbar onCreateClick={() => setIsSquadModalOpen(true)} onJoinClick={() => setIsJoinModalOpen(true)}/>
             </div>
 
-            <Navbar
-                onCreateClick={() => setIsSquadModalOpen(true)}
-                onJoinClick={() => setIsJoinModalOpen(true)}
-            />
-
+            {/* MODALES CLASSIQUES */}
             <CreateSquadModal isOpen={isSquadModalOpen} onClose={() => setIsSquadModalOpen(false)}/>
             <JoinSquadModal isOpen={isJoinModalOpen} onClose={() => setIsJoinModalOpen(false)}/>
             <CreateBeerCallModal squadId={id || ''} photoFile={photoFile} location={userLocation}
                                  onClose={() => setPhotoFile(null)}/>
 
-            {/* L'AIGUILLAGE OUVRE L'UNE DES DEUX MODALES */}
-            <RespondBeerCallModal
-                isOpen={!!selectedBeerCall}
-                onClose={() => setSelectedBeerCall(null)}
-                beerCall={selectedBeerCall}
-                squadId={id || ''}
-                location={userLocation}
-            />
+            <RespondBeerCallModal isOpen={!!selectedBeerCall} onClose={() => setSelectedBeerCall(null)}
+                                  beerCall={selectedBeerCall} squadId={id || ''} location={userLocation}/>
 
             <SelectWorldModal
                 isOpen={!!isWorldsModalOpen}
