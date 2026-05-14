@@ -14,8 +14,7 @@ import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useProfile} from '../hooks/useProfile';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
 import {toast} from "../store/useToastStore";
-import {useGameEngine} from "../hooks/useGameEngine";
-import { useGameUIStore } from '../store/useGameUIStore';
+import {useGameUIStore} from '../store/useGameUIStore';
 
 // 🚀 NOUVEAUX IMPORTS POUR LE JEU
 import {motion, AnimatePresence} from 'framer-motion';
@@ -183,7 +182,7 @@ export default function Dashboard() {
                         transition={{type: "spring", damping: 25, stiffness: 200}}
                         className="absolute inset-0 z-[100] bg-gray-950"
                     >
-                        <GameScreen aperoIdProp={activeAperoId} />
+                        <GameScreen aperoIdProp={activeAperoId}/>
                     </motion.div>
                 )}
             </AnimatePresence>
