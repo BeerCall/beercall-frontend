@@ -10,58 +10,57 @@ export function usePushNotifications() {
     // On écoute l'état de connexion de l'utilisateur
     const isAuthenticated = useUserStore((state) => state.isAuthenticated);
 
-    // 1️⃣ L'ACTION MANUELLE (Au clic sur le bouton)
-    const subscribeToNotifications = async () => {
+    // Fonction utilitaire centralisée pour récupérer/mettre à jour le token
+    const syncToken = async () => {
         if (!messaging) return false;
 
         try {
-            const permission = await Notification.requestPermission();
+            // 1. On récupère le SEUL Service Worker de l'app (celui géré par VitePWA via injectManifest)
+            const registration = await navigator.serviceWorker.ready;
 
-            if (permission === 'granted') {
-                const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-                const currentToken = await getToken(messaging, {
-                    vapidKey: VAPID_KEY,
-                    serviceWorkerRegistration: registration
-                });
+            // 2. On demande le token à Firebase en le forçant à utiliser ce Service Worker
+            const currentToken = await getToken(messaging, {
+                vapidKey: VAPID_KEY,
+                serviceWorkerRegistration: registration
+            });
 
-                if (currentToken) {
-                    await api.put('/auth/push-token/', {token: currentToken});
-                    return true;
-                }
+            if (currentToken) {
+                // 3. On envoie le token valide au backend
+                await api.put('/auth/push-token/', {token: currentToken});
+                return true;
             }
             return false;
         } catch (error) {
-            console.error("Erreur FCM :", error);
+            console.error("Erreur FCM lors de la récupération du token :", error);
             return false;
         }
     };
 
+    // 1️⃣ L'ACTION MANUELLE (Au clic sur le bouton de demande d'autorisation)
+    const subscribeToNotifications = async () => {
+        try {
+            const permission = await Notification.requestPermission();
+
+            if (permission === 'granted') {
+                return await syncToken();
+            }
+            return false;
+        } catch (error) {
+            console.error("Erreur lors de la demande de permission :", error);
+            return false;
+        }
+    };
+
+    // 2️⃣ LA RESTAURATION SILENCIEUSE (À l'ouverture / reconnexion)
     useEffect(() => {
         if (!isAuthenticated || !messaging) return;
 
-        const restoreSubscription = async () => {
-            if (Notification.permission === 'granted') {
-                try {
-                    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-
-                    if (messaging) {
-                        const currentToken = await getToken(messaging, {
-                            vapidKey: VAPID_KEY,
-                            serviceWorkerRegistration: registration
-                        });
-
-                        if (currentToken) {
-                            await api.put('/auth/push-token/', {token: currentToken});
-                        }
-                    }
-                } catch (error) {
-                    console.error("Erreur lors de la restauration FCM :", error);
-                }
-            }
-        };
-
-        restoreSubscription();
-    }, [isAuthenticated]); // Se déclenche à chaque fois que le joueur se log
+        // Si l'OS nous dit que l'utilisateur a DÉJÀ accepté les notifs dans le passé
+        if (Notification.permission === 'granted') {
+            // On lance la synchronisation (qui utilisera navigator.serviceWorker.ready)
+            syncToken();
+        }
+    }, [isAuthenticated]); // Se déclenche quand le joueur se loggue
 
     return {subscribeToNotifications};
 }

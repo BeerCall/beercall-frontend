@@ -10,10 +10,13 @@ export default defineConfig({
     plugins: [
         react(),
         tailwindcss(),
-/*
-        basicSsl(), // 🔒 Parfait pour tester la PWA sur ton tel en HTTPS !
-*/
+        /*
+        basicSsl(),
+        */
         VitePWA({
+            strategies: 'injectManifest',
+            srcDir: 'public',
+            filename: 'firebase-messaging-sw.js',
             registerType: 'autoUpdate',
             includeAssets: ['favicon.svg', 'apple-touch-icon.svg'],
             manifest: {
