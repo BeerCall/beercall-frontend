@@ -115,7 +115,7 @@ export default function GameScreen({aperoIdProp}: { aperoIdProp: string | null }
                 className={`shrink-0 w-full relative ${(gameState.required_sensor?.type === 'DUEL_SPLIT_SCREEN' || gameState.required_sensor?.type === 'MULTI_TOUCH_TRACKER' || gameState.required_sensor?.type === 'CANVAS_DRAW') ? 'flex-1' : 'p-6 pb-[calc(24px+env(safe-area-inset-bottom))]'}`}>
                 <AnimatePresence mode="wait">
                     <motion.div
-                        key={`sensor-${gameState.title}`}
+                        key={`sensor-${gameState.game_id}-${gameState.required_sensor?.type}`}
                         initial={{opacity: 0, y: 20}}
                         animate={{opacity: 1, y: 0}}
                         exit={{opacity: 0, y: 20}}

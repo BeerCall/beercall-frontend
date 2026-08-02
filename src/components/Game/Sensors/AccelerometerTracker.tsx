@@ -135,7 +135,8 @@ export default function AccelerometerTracker({sensorPayload, onAction, disabled}
             if (lossTimerRef.current) clearTimeout(lossTimerRef.current);
             if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
         };
-    }, [phase, sensorPayload.target_shakes, onAction, disabled]);
+    }, [phase, sensorPayload.target_shakes, onAction]);
+
 
     // --- RENDU VISUEL ---
 

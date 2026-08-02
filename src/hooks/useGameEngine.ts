@@ -1,4 +1,5 @@
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
+import {useCallback} from 'react';
 import {api} from '../lib/api';
 import type {SduiPayload} from '../types/game';
 
@@ -32,8 +33,10 @@ export const useGameEngine = (aperoId: string | number | undefined) => {
         }
     });
 
-    // 🚀 Un petit wrapper pour ne pas casser tes autres composants qui font juste sendAction("ID")
-    const sendAction = (actionId: string, payload?: any) => sendActionMutation({actionId, payload});
+    // 🚀 Un wrapper mémorisé pour garder une référence stable et sauver les timers
+    const sendAction = useCallback((actionId: string, payload?: any) => {
+        sendActionMutation({actionId, payload});
+    }, [sendActionMutation]);
 
     // 3. Lancer la partie
     const {mutate: startGame, isPending: isStarting} = useMutation({

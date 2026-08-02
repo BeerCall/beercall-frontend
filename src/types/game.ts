@@ -5,6 +5,7 @@ export type ActionButton = {
 };
 
 export type SduiPayload = {
+    game_id: string;
     turn_of: string;
     instruction_header: string;
     title: string;
