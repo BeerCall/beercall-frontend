@@ -105,7 +105,7 @@ export default function GyroscopeTracker({sensorPayload, onAction, disabled}: Pr
             window.removeEventListener('deviceorientation', handleOrientation);
             if (winTimerRef.current) clearTimeout(winTimerRef.current);
         };
-    }, [phase, sensorPayload.max_tilt_angle, onAction, disabled]);
+    }, [phase, sensorPayload.max_tilt_angle, onAction]);
 
     // --- RENDU VISUEL ---
 

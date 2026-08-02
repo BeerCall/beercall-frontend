@@ -34,7 +34,7 @@ export default function TimeBombButton({sensorPayload, onAction, disabled}: Prop
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [sensorPayload.remaining_ms, onAction, disabled]);
+    }, [sensorPayload.remaining_ms, onAction]);
 
     // ✋ GESTION DU CLIC (Patate passée)
     const handleTap = () => {
