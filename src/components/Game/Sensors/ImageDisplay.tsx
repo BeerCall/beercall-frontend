@@ -4,7 +4,7 @@ import type {ActionButton} from '../../../types/game';
 
 interface ImageDisplayPayload {
     type: string;
-    image_url: string; // L'URL ou le Base64 de la photo renvoyée par le serveur
+    image_data: string; // L'URL ou le Base64 de la photo renvoyée par le serveur
 }
 
 interface Props {
@@ -15,6 +15,9 @@ interface Props {
 }
 
 export default function ImageDisplay({sensorPayload, actions, onAction, disabled}: Props) {
+    const isBase64 = sensorPayload.image_data.startsWith('data:image');
+    const imageUrl = isBase64 ? sensorPayload.image_data : `data:image/jpeg;base64,${sensorPayload.image_data}`;
+
     return (
         <div className="w-full flex flex-col items-center gap-6 z-10 relative">
 
@@ -32,7 +35,7 @@ export default function ImageDisplay({sensorPayload, actions, onAction, disabled
                 </div>
 
                 <img
-                    src={sensorPayload.image_url}
+                    src={imageUrl}
                     alt="Preuve du défi"
                     className="w-full h-auto max-h-[40vh] object-contain"
                 />
