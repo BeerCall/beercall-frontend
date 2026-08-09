@@ -7,6 +7,7 @@ import {useNavigate} from 'react-router-dom';
 import {ModularAvatar} from "./AvatarCanvas";
 import {useGameEngine} from "../../hooks/useGameEngine";
 import {useGameUIStore} from '../../store/useGameUIStore';
+import PhotoModal from '../Modals/PhotoModal';
 
 // --- FILTRE ANTI-WARNINGS ---
 const silenceWarnings = () => {
@@ -178,8 +179,9 @@ export default function BarWorld({aperoId, participants, isActiveApero}: {
     isActiveApero: boolean
 }) {
     const {gameState, startGame, isLocked} = useGameEngine(aperoId);
-
     const openGameScreen = useGameUIStore((state) => state.openGameScreen);
+
+    const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
     const handlePullLever = () => {
         startGame();
@@ -217,31 +219,39 @@ export default function BarWorld({aperoId, participants, isActiveApero}: {
                         key={`${participant.user_id}-${index}`}
                         position={position}
                         rotation={[0, rotationY, 0]}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            document.body.style.cursor = 'auto';
-                            navigate(`/profile/${participant.user_id}`);
-                        }}
-                        onPointerOver={(e) => {
-                            e.stopPropagation();
-                            document.body.style.cursor = 'pointer';
-                        }}
-                        onPointerOut={() => document.body.style.cursor = 'auto'}
                     >
-                        <group scale={[GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale]}>
-                            <Float speed={1} rotationIntensity={0.02} floatIntensity={0.02}>
-                                <ModularAvatar config={config}/>
-                            </Float>
+                        <group
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                document.body.style.cursor = 'auto';
+                                navigate(`/profile/${participant.user_id}`);
+                            }}
+                            onPointerOver={(e) => {
+                                e.stopPropagation();
+                                document.body.style.cursor = 'pointer';
+                            }}
+                            onPointerOut={() => document.body.style.cursor = 'auto'}
+                        >
+                            <group scale={[GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale]}>
+                                <Float speed={1} rotationIntensity={0.02} floatIntensity={0.02}>
+                                    <ModularAvatar config={config}/>
+                                </Float>
+                            </group>
                         </group>
 
                         <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={150} blur={2} far={100}
                                         color="#000000"/>
 
                         <Html position={[0, GLOBAL_CONFIG.htmlY + 25, 0]} center zIndexRange={[100, 0]}>
-                            <div className="flex flex-col items-center pointer-events-none">
+                            <div className="flex flex-col items-center">
                                 {participant.proof_photo_url && (
                                     <div
-                                        className="mb-2 p-1.5 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/50 transform rotate-3 hover:rotate-0 transition-transform origin-bottom">
+                                        className="mb-2 p-1.5 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/50 transform rotate-3 hover:rotate-0 transition-transform origin-bottom cursor-pointer"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedPhoto(participant.proof_photo_url);
+                                        }}
+                                    >
                                         <div
                                             className="w-16 h-20 relative rounded-xl overflow-hidden bg-gray-900 shadow-inner">
                                             <img src={participant.proof_photo_url} alt="Preuve"
@@ -262,6 +272,10 @@ export default function BarWorld({aperoId, participants, isActiveApero}: {
                     </group>
                 );
             })}
+
+            <Html>
+                <PhotoModal imageUrl={selectedPhoto} onClose={() => setSelectedPhoto(null)} />
+            </Html>
         </group>
     );
 }
