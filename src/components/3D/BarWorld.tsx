@@ -7,7 +7,6 @@ import {useNavigate} from 'react-router-dom';
 import {ModularAvatar} from "./AvatarCanvas";
 import {useGameEngine} from "../../hooks/useGameEngine";
 import {useGameUIStore} from '../../store/useGameUIStore';
-import PhotoModal from '../Modals/PhotoModal';
 
 // --- FILTRE ANTI-WARNINGS ---
 const silenceWarnings = () => {
@@ -173,15 +172,15 @@ const getDynamicPlacement = (index: number, totalParticipants: number) => {
     return {position: [x, 5, z] as [number, number, number], rotationY: -angle + Math.PI / 2};
 };
 
-export default function BarWorld({aperoId, participants, isActiveApero}: {
+// 📸 ON AJOUTE onSelectPhoto AUX PARAMÈTRES DU COMPOSANT
+export default function BarWorld({aperoId, participants, isActiveApero, onSelectPhoto}: {
     aperoId: string,
     participants: any[],
-    isActiveApero: boolean
+    isActiveApero: boolean,
+    onSelectPhoto: (url: string) => void
 }) {
     const {gameState, startGame, isLocked} = useGameEngine(aperoId);
     const openGameScreen = useGameUIStore((state) => state.openGameScreen);
-
-    const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
     const handlePullLever = () => {
         startGame();
@@ -249,7 +248,8 @@ export default function BarWorld({aperoId, participants, isActiveApero}: {
                                         className="mb-2 p-1.5 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/50 transform rotate-3 hover:rotate-0 transition-transform origin-bottom cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            setSelectedPhoto(participant.proof_photo_url);
+                                            // 📸 L'APPEL VERS LE PARENT
+                                            onSelectPhoto(participant.proof_photo_url);
                                         }}
                                     >
                                         <div
@@ -272,10 +272,6 @@ export default function BarWorld({aperoId, participants, isActiveApero}: {
                     </group>
                 );
             })}
-
-            <Html>
-                <PhotoModal imageUrl={selectedPhoto} onClose={() => setSelectedPhoto(null)} />
-            </Html>
         </group>
     );
 }

@@ -11,6 +11,9 @@ import BarWorld from '../3D/BarWorld';
 import PiscineWorld from '../3D/PiscineWorld';
 import FloatyIslandWorld from '../3D/FloatyIslandWorld.tsx';
 
+// 📸 IMPORT DE TA MODALE
+import PhotoModal from '../Modals/PhotoModal';
+
 const silenceWarnings = () => {
     const originalWarn = console.warn;
     console.warn = (...args) => {
@@ -33,6 +36,9 @@ type WorldTab = 'bar' | 'piscine' | 'dodo';
 
 export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, isActiveApero}: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
+
+    // 📸 NOUVEAU : STATE POUR LA PHOTO GÉRÉ ICI
+    const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
     useEffect(() => {
         silenceWarnings();
@@ -123,10 +129,15 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                                     <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                                     <directionalLight position={[-10, 10, -10]} intensity={1}/>
 
-                                    {/* AIGUILLAGE VERS LES BONS COMPOSANTS 3D */}
-                                    {activeTab === 'bar' && <BarWorld isActiveApero={isActiveApero}
-                                                                      aperoId={beerCallId}
-                                                                      participants={currentParticipants}/>}
+                                    {/* AIGUILLAGE VERS LES BONS COMPOSANTS 3D AVEC LA FONCTION DE PHOTO */}
+                                    {activeTab === 'bar' && (
+                                        <BarWorld
+                                            isActiveApero={isActiveApero}
+                                            aperoId={beerCallId}
+                                            participants={currentParticipants}
+                                            onSelectPhoto={setSelectedPhoto}
+                                        />
+                                    )}
                                     {activeTab === 'piscine' && <PiscineWorld participants={currentParticipants}/>}
                                     {activeTab === 'dodo' && <FloatyIslandWorld participants={currentParticipants}/>}
 
@@ -152,6 +163,9 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                             </div>
                         </div>
                     </motion.div>
+
+                    {/* 📸 LA MODALE PHOTO RENDUE ICI, TOTALEMENT SÉCURISÉE HORS DU CANVAS */}
+                    <PhotoModal imageUrl={selectedPhoto} onClose={() => setSelectedPhoto(null)}/>
                 </>
             )}
         </AnimatePresence>
