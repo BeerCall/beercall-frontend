@@ -1,5 +1,19 @@
-const manifest = self.__WB_MANIFEST;
+// 1. Importation de l'outil de cache de Workbox (fourni par vite-plugin-pwa)
+import {precacheAndRoute} from 'workbox-precaching';
 
+// 2. On exécute la mise en cache de tes fichiers compilés
+precacheAndRoute(self.__WB_MANIFEST || []);
+
+// 🔥 3. LA MAGIE ANTI-CACHE : On force l'iPhone à tuer l'ancienne version
+self.addEventListener('install', () => {
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+    event.waitUntil(self.clients.claim());
+});
+
+// 4. Ta configuration Firebase d'origine
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
