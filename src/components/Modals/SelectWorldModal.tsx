@@ -37,8 +37,9 @@ type WorldTab = 'bar' | 'piscine' | 'dodo';
 export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, isActiveApero}: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
 
-    // 📸 NOUVEAU : STATE POUR LA PHOTO GÉRÉ ICI
-    const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+    // 📸 NOUVEAU : STATE POUR LES PHOTOS GÉRÉ ICI
+    const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
+    const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
 
     useEffect(() => {
         silenceWarnings();
@@ -78,6 +79,19 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
     };
 
     const currentParticipants = worldsData?.[activeTab]?.participants || [];
+
+    // Handler pour mettre à jour la liste des photos et l'index actuel
+    const handleSelectPhoto = (url: string) => {
+        // Récupérer toutes les preuves de photos des participants de l'onglet actuel
+        const allPhotos = currentParticipants
+            .map((p: any) => p.proof_photo_url)
+            .filter((url: string | null): url is string => url !== null);
+        
+        setSelectedPhotos(allPhotos);
+        // Trouver l'index de la photo cliquée
+        const index = allPhotos.indexOf(url);
+        setCurrentPhotoIndex(index >= 0 ? index : 0);
+    };
 
     return (
         <AnimatePresence>
@@ -135,7 +149,7 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                                             isActiveApero={isActiveApero}
                                             aperoId={beerCallId}
                                             participants={currentParticipants}
-                                            onSelectPhoto={setSelectedPhoto}
+                                            onSelectPhoto={handleSelectPhoto}
                                         />
                                     )}
                                     {activeTab === 'piscine' && <PiscineWorld participants={currentParticipants}/>}
@@ -165,7 +179,17 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                     </motion.div>
 
                     {/* 📸 LA MODALE PHOTO RENDUE ICI, TOTALEMENT SÉCURISÉE HORS DU CANVAS */}
-                    <PhotoModal imageUrl={selectedPhoto} onClose={() => setSelectedPhoto(null)}/>
+                    {selectedPhotos.length > 0 && (
+                        <PhotoModal 
+                            imageUrls={selectedPhotos} 
+                            currentIndex={currentPhotoIndex} 
+                            onClose={() => {
+                                setSelectedPhotos([]);
+                                setCurrentPhotoIndex(0);
+                            }}
+                            onIndexChange={setCurrentPhotoIndex}
+                        />
+                    )}
                 </>
             )}
         </AnimatePresence>
