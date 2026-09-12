@@ -10,6 +10,7 @@ import SignUp from "./pages/SignUp.tsx";
 import Profile from "./pages/Profile.tsx";
 import Connections from "./pages/Connections.tsx";
 import ToastContainer from './components/UI/ToastContainer';
+import ChatPage from './pages/ChatPage';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -46,6 +47,10 @@ export default function App() {
                                element={isAuthenticated ? <Dashboard/> : <Navigate to="/login" replace/>}/>
                         <Route path="/squad/:id"
                                element={isAuthenticated ? <Dashboard/> : <Navigate to="/login" replace/>}/>
+                        <Route path="/squad/:squadId/beer-call/:beerCallId/chat"
+                               element={isAuthenticated ? <ChatPage/> : <Navigate to="/login" replace/>}/>
+                        <Route path="/squad/:id/chat"
+                               element={isAuthenticated ? <ChatPage/> : <Navigate to="/login" replace/>}/>
 
                         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace/>}/>
                     </Route>

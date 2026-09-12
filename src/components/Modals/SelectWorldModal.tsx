@@ -1,10 +1,11 @@
 import {useState, useEffect} from 'react';
-import {X, Beer, Waves, Moon} from 'lucide-react';
+import {X, Beer, Waves, Moon, MessageCircle} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
 import {Canvas} from '@react-three/fiber';
 import {OrbitControls} from '@react-three/drei';
 import {api} from '../../lib/api';
+import {useNavigate} from 'react-router-dom';
 
 // 🌍 IMPORT DE TES 3 MONDES
 import BarWorld from '../3D/BarWorld';
@@ -36,6 +37,7 @@ type WorldTab = 'bar' | 'piscine' | 'dodo';
 
 export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, isActiveApero}: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
+    const navigate = useNavigate();
 
     // 📸 NOUVEAU : STATE POUR LES PHOTOS GÉRÉ ICI
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
@@ -111,10 +113,12 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                         <div className="flex justify-between items-center p-6 bg-white shadow-sm z-20">
                             <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter">Les 3
                                 Mondes</h2>
-                            <button onClick={onClose}
-                                    className="p-2 bg-gray-100 rounded-full text-gray-400 hover:bg-gray-200">
-                                <X size={20}/>
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button onClick={onClose}
+                                        className="p-2 bg-gray-100 rounded-full text-gray-400 hover:bg-gray-200">
+                                    <X size={20}/>
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex bg-white px-6 py-2 border-b border-gray-100 z-20 gap-2 shadow-md">
@@ -148,6 +152,7 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                                         <BarWorld
                                             isActiveApero={isActiveApero}
                                             aperoId={beerCallId}
+                                            squadId={squadId}
                                             participants={currentParticipants}
                                             onSelectPhoto={handleSelectPhoto}
                                         />

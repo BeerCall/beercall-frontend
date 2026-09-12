@@ -156,6 +156,91 @@ const SlotMachine = ({isGameInProgress, onPull, isLocked}: {
 };
 
 
+// 💻 L'ORDINATEUR INTERACTIF PROCÉDURAL (Cliquable → ouvre le chat)
+const Computer = ({onClick}: { onClick: () => void }) => {
+    const groupRef = useRef<THREE.Group>(null);
+
+    // Léger effet de "scintillement" de l'écran pour attirer l'œil
+    useFrame(({clock}) => {
+        if (groupRef.current) {
+            const mat = groupRef.current.getObjectByName('screen-glow');
+            if (mat && (mat as any).material) {
+                (mat as any).material.opacity = 0.7 + Math.sin(clock.getElapsedTime() * 2) * 0.2;
+            }
+        }
+    });
+
+    return (
+        <group position={[15, 0, 8]} scale={[1, 1, 1]}>
+            <Float speed={2} rotationIntensity={0.02} floatIntensity={0.2}>
+                <group
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        document.body.style.cursor = 'auto';
+                        onClick();
+                    }}
+                    onPointerOver={(e) => {
+                        e.stopPropagation();
+                        document.body.style.cursor = 'pointer';
+                    }}
+                    onPointerOut={() => document.body.style.cursor = 'auto'}
+                >
+                    {/* 🖥️ LE MONITEUR */}
+                    {/* Pied de l'écran */}
+                    <mesh position={[0, 4.5, -0.2]} rotation={[0, 0, 0]}>
+                        <boxGeometry args={[5, 0.6, 4]}/>
+                        <meshStandardMaterial color="#111827" roughness={0.5} metalness={0.4}/>
+                    </mesh>
+                    {/* Support vertical */}
+                    <mesh position={[0, 6, -0.2]}>
+                        <boxGeometry args={[0.8, 3, 0.8]}/>
+                        <meshStandardMaterial color="#374151" roughness={0.5} metalness={0.4}/>
+                    </mesh>
+                    {/* Cadre de l'écran */}
+                    <mesh position={[0, 8.5, 0]}>
+                        <boxGeometry args={[8, 6, 1]}/>
+                        <meshStandardMaterial color="#1f2937" roughness={0.6} metalness={0.3}/>
+                    </mesh>
+                    {/* La vitre lumineuse (l'écran) */}
+                    <mesh name="screen-glow" position={[0, 8.5, 0.55]}>
+                        <boxGeometry args={[7, 5, 0.1]}/>
+                        <meshStandardMaterial color="#7dd3fc" emissive="#38bdf8" emissiveIntensity={1.4}
+                                              transparent opacity={0.85}/>
+                    </mesh>
+                    {/* Pastille Webcam */}
+                    <mesh position={[0, 11.6, 0.55]}>
+                        <sphereGeometry args={[0.25, 16, 16]}/>
+                        <meshStandardMaterial color="#111827" roughness={0.3}/>
+                    </mesh>
+
+                    {/* ⌨️ LE CLAVIER */}
+                    <mesh position={[0, 3.5, 2]}>
+                        <boxGeometry args={[7, 0.5, 2.5]}/>
+                        <meshStandardMaterial color="#1f2937" roughness={0.8}/>
+                    </mesh>
+                    {/* Quelques touches blanches en relief */}
+                    {[-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].map((tx) => (
+                        <mesh key={tx} position={[tx, 3.85, 2]}>
+                            <boxGeometry args={[0.8, 0.15, 0.8]}/>
+                            <meshStandardMaterial color="#e5e7eb" roughness={0.6}/>
+                        </mesh>
+                    ))}
+
+                    {/* 🖱️ LA SOURIS */}
+                    <mesh position={[4.2, 3.4, 3.4]}>
+                        <sphereGeometry args={[0.8, 20, 16]}/>
+                        <meshStandardMaterial color="#374151" roughness={0.4} metalness={0.3}/>
+                    </mesh>
+                    <mesh position={[4.2, 3.5, 3.4]}>
+                        <boxGeometry args={[0.4, 0.2, 0.9]}/>
+                        <meshStandardMaterial color="#e5e7eb" roughness={0.5}/>
+                    </mesh>
+                </group>
+            </Float>
+        </group>
+    );
+};
+
 // 🎛️ TES VALEURS PARFAITES
 const GLOBAL_CONFIG = {scale: .25, cameraZ: 450, cameraTargetY: 80, htmlY: 65};
 const BAR_SETTINGS = {
@@ -173,8 +258,9 @@ const getDynamicPlacement = (index: number, totalParticipants: number) => {
 };
 
 // 📸 ON AJOUTE onSelectPhoto AUX PARAMÈTRES DU COMPOSANT
-export default function BarWorld({aperoId, participants, isActiveApero, onSelectPhoto}: {
+export default function BarWorld({aperoId, squadId, participants, isActiveApero, onSelectPhoto}: {
     aperoId: string,
+    squadId: string,
     participants: any[],
     isActiveApero: boolean,
     onSelectPhoto: (url: string) => void
@@ -207,6 +293,9 @@ export default function BarWorld({aperoId, participants, isActiveApero, onSelect
                     isLocked={isLocked}
                 />
             )}
+
+            {/* 💻 L'ORDINATEUR → OUVRE LE CHAT DE L'APÉRO EN COURS */}
+            <Computer onClick={() => navigate(`/squad/${squadId}/beer-call/${aperoId}/chat`)}/>
 
             {/* 🧍‍♂️ LES AVATARS */}
             {participants.map((participant: any, index: number) => {

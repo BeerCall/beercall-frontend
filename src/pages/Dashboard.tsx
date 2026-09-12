@@ -1,6 +1,6 @@
 import {useState, useEffect, useRef} from 'react';
 import {usePushNotifications} from '../hooks/usePushNotifications';
-import {useParams} from 'react-router-dom';
+import {useParams, useNavigate} from 'react-router-dom';
 import Navbar from '../components/UI/Navbar';
 import CreateSquadModal from '../components/Modals/CreateSquadModal';
 import CreateBeerCallModal from '../components/Modals/CreateBeerCallModal';
@@ -9,7 +9,7 @@ import RespondBeerCallModal from '../components/Modals/RespondBeerCallModal';
 import SelectWorldModal from '../components/Modals/SelectWorldModal';
 import Map, {Marker, NavigationControl, type MapRef} from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import {Check, Copy, Key, User as UserIcon, BellRing, MapPin, Users} from 'lucide-react';
+import {Check, Copy, Key, User as UserIcon, BellRing, MapPin, Users, MessageCircle} from 'lucide-react';
 import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useProfile} from '../hooks/useProfile';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
@@ -33,6 +33,7 @@ const timeAgo = (dateString: string) => {
 
 export default function Dashboard() {
     const {id} = useParams();
+    const navigate = useNavigate();
 
     // États des Modales de gestion
     const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
@@ -46,8 +47,15 @@ export default function Dashboard() {
 
     const {data: profile} = useProfile();
     const {data: squadDetails} = useSquadDetails(id);
-    const {isGameScreenOpen, currentAperoId} = useGameUIStore();
+    const {isGameScreenOpen, currentAperoId, closeGameScreen} = useGameUIStore();
     const isActiveApero = squadDetails?.active_beer_call?.some((call: any) => call.id === isWorldsModalOpen);
+
+    // Fermer l'écran de jeu quand on change de squad
+    useEffect(() => {
+        if (isGameScreenOpen) {
+            closeGameScreen();
+        }
+    }, [id, isGameScreenOpen, closeGameScreen]);
 
     const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
     const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -367,6 +375,13 @@ export default function Dashboard() {
                                                 <Users size={12} className="text-gray-400"/>
                                                 {call.participants_count} PARTICIPANT{call.participants_count > 1 ? 'S' : ''}
                                             </p>
+                                            <button onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(`/squad/${id}/beer-call/${call.id}/chat`);
+                                            }}
+                                                    className="mt-2 flex items-center justify-center gap-1.5 bg-amber-500 text-white text-[9px] px-3 py-1.5 rounded-xl font-black uppercase tracking-widest shadow-sm shadow-amber-500/30 hover:bg-amber-600 active:scale-95 transition-all leading-none">
+                                                <MessageCircle size={11}/> Chat
+                                            </button>
                                         </div>
                                     ))}
 
@@ -393,13 +408,22 @@ export default function Dashboard() {
                                                     <Users size={12}
                                                            className="text-gray-400"/> {call.participants_count}
                                                 </p>
-                                                <button onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setIsWorldsModalOpen(call.id);
-                                                }}
-                                                        className="bg-white text-gray-800 text-[9px] px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider hover:bg-gray-800 hover:text-white active:scale-95 transition-all shadow-sm border border-gray-200 flex items-center gap-1 group-hover:border-gray-800 leading-none">
-                                                    Mondes 🌍
-                                                </button>
+                                                <div className="flex items-center gap-1.5">
+                                                    <button onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/squad/${id}/beer-call/${call.id}/chat`);
+                                                    }}
+                                                            className="bg-amber-500 text-white text-[9px] px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider hover:bg-amber-600 active:scale-95 transition-all shadow-sm flex items-center gap-1 leading-none">
+                                                        <MessageCircle size={10}/> Chat
+                                                    </button>
+                                                    <button onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsWorldsModalOpen(call.id);
+                                                    }}
+                                                            className="bg-white text-gray-800 text-[9px] px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider hover:bg-gray-800 hover:text-white active:scale-95 transition-all shadow-sm border border-gray-200 flex items-center gap-1 group-hover:border-gray-800 leading-none">
+                                                        Mondes 🌍
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
