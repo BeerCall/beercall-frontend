@@ -1,11 +1,10 @@
 import {useState, useEffect} from 'react';
-import {X, Beer, Waves, Moon, MessageCircle} from 'lucide-react';
+import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
 import {Canvas} from '@react-three/fiber';
 import {OrbitControls} from '@react-three/drei';
 import {api} from '../../lib/api';
-import {useNavigate} from 'react-router-dom';
 
 // 🌍 IMPORT DE TES 3 MONDES
 import BarWorld from '../3D/BarWorld';
@@ -37,7 +36,6 @@ type WorldTab = 'bar' | 'piscine' | 'dodo';
 
 export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, isActiveApero}: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
-    const navigate = useNavigate();
 
     // 📸 NOUVEAU : STATE POUR LES PHOTOS GÉRÉ ICI
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
