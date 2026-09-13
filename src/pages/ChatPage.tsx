@@ -99,7 +99,7 @@ export default function ChatPage() {
     return (
         <div className="h-screen w-full flex flex-col bg-[#f8fafc] overflow-hidden">
             {/* 🧾 HEADER */}
-            <header className="shrink-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm z-10">
+            <header className="pt-[calc(10px+env(safe-area-inset-top))] shrink-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm z-10">
                 <button
                     onClick={() => navigate(-1)}
                     className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"
