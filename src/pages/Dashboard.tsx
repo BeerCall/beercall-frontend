@@ -90,6 +90,16 @@ export default function Dashboard() {
 
     const handleMapPointerDown = (event: any) => {
         if (event.originalEvent?.target?.closest?.('button, a, input, [role="button"]')) return;
+        
+        // Si c'est du multi-touch (zoom à deux doigts), on annule tout
+        if (event.originalEvent?.touches && event.originalEvent.touches.length > 1) {
+            cancelLongPress();
+            return;
+        }
+
+        // Nettoyage d'un éventuel timer résiduel
+        if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+
         longPressStart.current = {x: event.point?.x || 0, y: event.point?.y || 0};
         longPressTimer.current = window.setTimeout(() => {
             const [lng, lat] = event.lngLat.toArray();
@@ -98,6 +108,13 @@ export default function Dashboard() {
         }, 700);
     };
     const cancelLongPress = (event?: any) => {
+        // Annulation immédiate si on détecte plusieurs doigts pendant le mouvement
+        if (event?.originalEvent?.touches && event.originalEvent.touches.length > 1) {
+            if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+            return;
+        }
+
         if (event && longPressStart.current && event.point) {
             const dx = event.point.x - longPressStart.current.x;
             const dy = event.point.y - longPressStart.current.y;
