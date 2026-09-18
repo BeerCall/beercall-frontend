@@ -101,9 +101,14 @@ export default function Dashboard() {
         if (event && longPressStart.current && event.point) {
             const dx = event.point.x - longPressStart.current.x;
             const dy = event.point.y - longPressStart.current.y;
-            if (Math.hypot(dx, dy) > 12) longPressTimer.current && window.clearTimeout(longPressTimer.current);
-        } else if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
+            if (Math.hypot(dx, dy) > 12) {
+                if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+                longPressTimer.current = null;
+            }
+        } else {
+            if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
     };
 
     const hasCentered = useRef(false);
@@ -309,7 +314,10 @@ export default function Dashboard() {
                                  onMouseDown={handleMapPointerDown} onMouseUp={() => cancelLongPress()}
                                  onMouseLeave={() => cancelLongPress()}
                                  onTouchStart={handleMapPointerDown} onTouchMove={cancelLongPress}
-                                 onTouchEnd={() => cancelLongPress()}>
+                                 onTouchEnd={() => cancelLongPress()}
+                                 onDragStart={() => cancelLongPress()}
+                                 onZoomStart={() => cancelLongPress()}
+                                 onMoveStart={() => cancelLongPress()}>
                                 {/* BOUTON RECENTRER */}
                                 <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-[20px] z-10">
                                     <button onClick={(e) => {
