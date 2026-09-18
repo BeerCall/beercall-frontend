@@ -1,17 +1,23 @@
 import {useQuery} from '@tanstack/react-query';
 import {api} from '../lib/api';
 
+export type AperoStatus = 'scheduled' | 'active' | 'ended' | 'cancelled';
+
 export interface BeerCall {
     id: string;
     creator_name: string;
+    creator_id: number;
     location_name: string;
     longitude: number;
     latitude: number;
-    started_at: string;
+    status: AperoStatus;
+    scheduled_for?: string;
+    started_at?: string;
+    ended_at?: string;
     participants_count: number;
-    // 👇 LES NOUVEAUX CHAMPS DE TON BACKEND
     has_responded: boolean;
-    user_status: string;
+    user_status?: string | null;
+    can_start: boolean;
 }
 
 export interface SquadDetails {
@@ -21,6 +27,7 @@ export interface SquadDetails {
     icon: string;
     invite_code: string;
     active_beer_call: BeerCall[];
+    scheduled_beer_calls: BeerCall[];
     past_beer_calls: BeerCall[];
 }
 
@@ -33,5 +40,6 @@ export function useSquadDetails(id: string | undefined) {
             return response.data;
         },
         enabled: !!id,
+        refetchInterval: 10000,
     });
 }

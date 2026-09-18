@@ -7,9 +7,11 @@ import CreateBeerCallModal from '../components/Modals/CreateBeerCallModal';
 import JoinSquadModal from '../components/Modals/JoinSquadModal';
 import RespondBeerCallModal from '../components/Modals/RespondBeerCallModal';
 import SelectWorldModal from '../components/Modals/SelectWorldModal';
+import ScheduleAperoModal from '../components/Modals/ScheduleAperoModal';
+import {ScheduledMarkerCountdown} from '../components/UI/ScheduledMarkerCountdown';
 import Map, {Marker, NavigationControl, type MapRef} from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import {Check, Copy, Key, User as UserIcon, BellRing, MapPin, Users, MessageCircle} from 'lucide-react';
+import {Check, Copy, Key, User as UserIcon, BellRing, MapPin, Users, MessageCircle, Clock, Camera} from 'lucide-react';
 import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useProfile} from '../hooks/useProfile';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
@@ -20,7 +22,8 @@ import {useGameUIStore} from '../store/useGameUIStore';
 import {motion, AnimatePresence} from 'framer-motion';
 import GameScreen from './GameScreen';
 
-const timeAgo = (dateString: string) => {
+const timeAgo = (dateString?: string) => {
+    if (!dateString) return 'À venir';
     const diff = Date.now() - new Date(dateString).getTime();
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(minutes / 60);
@@ -29,6 +32,22 @@ const timeAgo = (dateString: string) => {
     if (hours > 0) return `Il y a ${hours} h`;
     if (minutes > 0) return `Il y a ${minutes} min`;
     return 'À l\'instant';
+};
+
+const formatCountdown = (dateString: string | undefined, now: number) => {
+    if (!dateString) return 'Date inconnue';
+
+    const remaining = new Date(dateString).getTime() - now;
+    if (remaining <= 0) return 'Imminent';
+
+    const totalSeconds = Math.floor(remaining / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (days > 0) return `Dans ${days}j ${hours}h ${minutes}m`;
+    return `Dans ${hours}h ${minutes}m ${seconds.toString().padStart(2, '0')}s`;
 };
 
 export default function Dashboard() {
@@ -42,6 +61,8 @@ export default function Dashboard() {
     // États de l'apéro
     const [selectedBeerCall, setSelectedBeerCall] = useState<any | null>(null);
     const [isWorldsModalOpen, setIsWorldsModalOpen] = useState<string | null>(null);
+    const [scheduleCoordinates, setScheduleCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+    const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
     const [isNightMode, setIsNightMode] = useState(false);
 
@@ -59,8 +80,31 @@ export default function Dashboard() {
 
     const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
     const [photoFile, setPhotoFile] = useState<File | null>(null);
+    const [startingScheduledApero, setStartingScheduledApero] = useState<any>(null);
+    const [photoLocation, setPhotoLocation] = useState<{ lat: number, lng: number } | null>(null);
+    const [countdownNow, setCountdownNow] = useState(() => Date.now());
     const fileInputRef = useRef<HTMLInputElement>(null);
     const mapRef = useRef<MapRef>(null);
+    const longPressTimer = useRef<number | null>(null);
+    const longPressStart = useRef<{ x: number; y: number } | null>(null);
+
+    const handleMapPointerDown = (event: any) => {
+        if (event.originalEvent?.target?.closest?.('button, a, input, [role="button"]')) return;
+        longPressStart.current = {x: event.point?.x || 0, y: event.point?.y || 0};
+        longPressTimer.current = window.setTimeout(() => {
+            const [lng, lat] = event.lngLat.toArray();
+            setScheduleCoordinates({lng, lat});
+            setIsScheduleModalOpen(true);
+        }, 700);
+    };
+    const cancelLongPress = (event?: any) => {
+        if (event && longPressStart.current && event.point) {
+            const dx = event.point.x - longPressStart.current.x;
+            const dy = event.point.y - longPressStart.current.y;
+            if (Math.hypot(dx, dy) > 12) longPressTimer.current && window.clearTimeout(longPressTimer.current);
+        } else if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+    };
 
     const hasCentered = useRef(false);
     const [copied, setCopied] = useState(false);
@@ -82,7 +126,9 @@ export default function Dashboard() {
         }
     };
 
-    const openCamera = () => {
+    const openCamera = (location = userLocation, apero: any = null) => {
+        setPhotoLocation(location);
+        setStartingScheduledApero(apero);
         if (fileInputRef.current) fileInputRef.current.click();
     };
 
@@ -90,6 +136,7 @@ export default function Dashboard() {
         if (e.target.files && e.target.files.length > 0) {
             setPhotoFile(e.target.files[0]);
         }
+        e.target.value = '';
     };
 
     const focusOnLocation = (lng: any, lat: any) => {
@@ -123,6 +170,11 @@ export default function Dashboard() {
     useEffect(() => {
         const currentHour = new Date().getHours();
         setIsNightMode(currentHour >= 19 || currentHour < 6);
+    }, []);
+
+    useEffect(() => {
+        const intervalId = window.setInterval(() => setCountdownNow(Date.now()), 1000);
+        return () => window.clearInterval(intervalId);
     }, []);
 
     useEffect(() => {
@@ -253,7 +305,11 @@ export default function Dashboard() {
 
                             <Map ref={mapRef}
                                  initialViewState={{longitude: 2.3522, latitude: 48.8566, zoom: 12, pitch: 45}}
-                                 mapStyle={mapStyle} interactive={true}>
+                                 mapStyle={mapStyle} interactive={true}
+                                 onMouseDown={handleMapPointerDown} onMouseUp={() => cancelLongPress()}
+                                 onMouseLeave={() => cancelLongPress()}
+                                 onTouchStart={handleMapPointerDown} onTouchMove={cancelLongPress}
+                                 onTouchEnd={() => cancelLongPress()}>
                                 {/* BOUTON RECENTRER */}
                                 <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-[20px] z-10">
                                     <button onClick={(e) => {
@@ -290,20 +346,55 @@ export default function Dashboard() {
                                             <div onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleBeerCallClick(call);
-                                            }} className="relative group cursor-pointer animate-bounce">
+                                            }}
+                                                 className="relative flex items-center justify-center cursor-pointer group pb-2">
+
+                                                {/* L'onde radar orange */}
                                                 <div
-                                                    className="bg-beer text-white p-3 rounded-full shadow-xl border-4 border-white flex items-center justify-center text-xl hover:scale-110 transition-transform">🍻
-                                                </div>
+                                                    className="absolute top-1 w-8 h-8 rounded-full animate-ping opacity-60 z-0 bg-amber-500"/>
+
+                                                {/* La pastille */}
+                                                <motion.div whileHover={{scale: 1.1, y: -4}} whileTap={{scale: 0.9}}
+                                                            className="relative z-10 w-10 h-10 rounded-full shadow-lg flex items-center justify-center border-2 backdrop-blur-md transition-all bg-amber-500 text-white border-white shadow-amber-500/40">
+                                                    <span className="text-lg drop-shadow-sm leading-none">🍻</span>
+                                                    {/* Petit point de notification (pour dire 'c'est en cours') */}
+                                                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                                        <span
+                                                            className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
+                                                        <span
+                                                            className="relative inline-flex rounded-full h-3 w-3 bg-amber-200"></span>
+                                                    </span>
+                                                </motion.div>
+
+                                                {/* Le pointeur GPS */}
+                                                <div
+                                                    className="absolute -bottom-1 w-3 h-3 rotate-45 rounded-sm shadow-sm transition-all z-0 bg-amber-500 border-r border-b border-white"/>
                                             </div>
                                         </Marker>
                                     );
+                                })}
+
+                                {/* MARQUEURS PROGRAMMÉS */}
+                                {squadDetails?.scheduled_beer_calls?.map((call) => {
+                                    const lng = Number(call.longitude), lat = Number(call.latitude);
+                                    if (isNaN(lng) || isNaN(lat)) return null;
+                                    return <Marker key={`scheduled-${call.id}`} longitude={lng} latitude={lat}
+                                                   anchor="bottom" style={{zIndex: 55}}>
+                                        <ScheduledMarkerCountdown
+                                            scheduledFor={call.scheduled_for || ''}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openCamera({ lat, lng }, call);
+                                            }}
+                                        />
+                                    </Marker>;
                                 })}
 
                                 {/* MARQUEUR JOUEUR */}
                                 {userLocation && (
                                     <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
                                             style={{zIndex: 50}}>
-                                        <div onClick={openCamera}
+                                        <div onClick={() => openCamera()}
                                              className="relative flex flex-col items-center cursor-pointer group rounded-full p-2 after:content-[''] after:absolute after:inset-1 after:rounded-full after:animate-soft-pulse after:z-[-1] animate-in fade-in zoom-in-50 duration-500 delay-300 fill-mode-both">
                                             <div
                                                 className="absolute -top-7 px-3 py-1 bg-white/70 backdrop-blur-sm rounded-full shadow-sm border border-gray-100 transition-opacity opacity-100 group-hover:opacity-100 group-hover:scale-105 group-hover:bg-white group-hover:border-beer pointer-events-none whitespace-nowrap">
@@ -334,12 +425,18 @@ export default function Dashboard() {
                                     return (
                                         <Marker key={`past-${call.id}`} longitude={numLng} latitude={numLat}
                                                 anchor="bottom" style={{zIndex: 30}}>
+                                            {/* Plus petit et semi-transparent pour ne pas polluer la carte */}
                                             <div onClick={(e) => {
                                                 e.stopPropagation();
                                                 setIsWorldsModalOpen(call.id);
                                             }}
-                                                 className="bg-gray-300 text-white p-2 rounded-full shadow-sm border-2 border-white flex items-center justify-center text-sm opacity-60 cursor-pointer hover:opacity-100 hover:scale-125 transition-all"
-                                                 title="Voir les mondes">👻
+                                                 className="relative flex items-center justify-center cursor-pointer group pb-2 opacity-60 hover:opacity-100 transition-opacity">
+                                                <motion.div whileHover={{scale: 1.1, y: -4}} whileTap={{scale: 0.9}}
+                                                            className="relative z-10 w-8 h-8 rounded-full shadow-sm flex items-center justify-center border-2 backdrop-blur-sm transition-all bg-gray-400 text-white border-white">
+                                                    <span className="text-sm drop-shadow-sm leading-none">👻</span>
+                                                </motion.div>
+                                                <div
+                                                    className="absolute -bottom-1 w-2.5 h-2.5 rotate-45 rounded-sm shadow-sm transition-all z-0 bg-gray-400 border-r border-b border-white"/>
                                             </div>
                                         </Marker>
                                     );
@@ -350,49 +447,143 @@ export default function Dashboard() {
                             <div
                                 className="absolute bottom-[calc(130px_+_env(safe-area-inset-top))] w-full px-4 z-[70] pointer-events-none">
                                 <div
-                                    className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto">
+                                    className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto items-center">
 
+                                    {/* 1. CARTE PROGRAMMÉE (Dynamique : Indigo -> Rose si Imminent) */}
+                                    {squadDetails?.scheduled_beer_calls?.map((call) => {
+                                        const remaining = call.scheduled_for ? new Date(call.scheduled_for).getTime() - countdownNow : 0;
+                                        // On considère l'apéro imminent 30 minutes (1800000 ms) avant le début officiel
+                                        const isImminent = remaining <= 1800000;
+
+                                        return (
+                                            <div key={call.id} onClick={() => focusOnLocation(call.longitude, call.latitude)}
+                                                 className={`w-[220px] h-[130px] relative overflow-hidden rounded-3xl p-3.5 snap-center flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between border shadow-[0_8px_20px_rgba(0,0,0,0.05)] group ${
+                                                     isImminent
+                                                         ? 'bg-gradient-to-br from-rose-50 to-white border-rose-200'
+                                                         : 'bg-gradient-to-br from-indigo-50 to-white border-indigo-100'
+                                                 }`}>
+                                                <div>
+                                                    <div className="flex justify-between items-center mb-1.5">
+                                                        <span className={`flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-full tracking-widest leading-none ${
+                                                            isImminent ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'
+                                                        }`}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                                                                isImminent ? 'bg-rose-500' : 'bg-indigo-500'
+                                                            }`}></span>
+                                                            {isImminent ? "C'EST L'HEURE" : "PROGRAMMÉ"}
+                                                        </span>
+                                                        <Clock size={14} className={isImminent ? 'text-rose-400 animate-bounce' : 'text-indigo-400'} />
+                                                    </div>
+                                                    <h3 className="font-black text-gray-900 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
+                                                        <MapPin size={14} className={isImminent ? 'text-rose-500' : 'text-indigo-500'} />
+                                                        {call.location_name}
+                                                    </h3>
+                                                </div>
+                                                <div className={`mt-auto pt-2 border-t flex flex-col gap-1.5 ${isImminent ? 'border-rose-100/50' : 'border-indigo-100/50'}`}>
+                                                    <p className={`text-[10px] font-mono font-bold tracking-widest text-center rounded-lg py-1 ${
+                                                        isImminent ? 'text-rose-700 bg-rose-500/10' : 'text-indigo-700 bg-indigo-500/10'
+                                                    }`}>
+                                                        {formatCountdown(call.scheduled_for, countdownNow)}
+                                                    </p>
+
+                                                    {/* BOUTONS DYNAMIQUES */}
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigate(`/squad/${id}/beer-call/${call.id}/chat`);
+                                                        }}
+                                                                className={`flex-1 flex items-center justify-center gap-1 text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-wider active:scale-95 transition-all shadow-sm leading-none ${isImminent ? 'bg-white border border-rose-200 text-rose-600 hover:bg-rose-50' : 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50'}`}>
+                                                            <MessageCircle size={11}/> Chat
+                                                        </button>
+                                                        <button onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openCamera({ lat: Number(call.latitude), lng: Number(call.longitude) }, call);
+                                                        }}
+                                                                className={`flex-[1.5] text-white text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-wider active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 leading-none ${isImminent ? 'bg-rose-500 hover:bg-rose-600' : 'bg-indigo-500 hover:bg-indigo-600'}`}>
+                                                            Lancer 📸
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* 2. CARTE ACTIVE (En cours) */}
                                     {squadDetails?.active_beer_call?.map((call) => (
                                         <div key={call.id}
                                              onClick={() => focusOnLocation(call.longitude, call.latitude)}
-                                             className={`w-[220px] relative overflow-hidden rounded-3xl p-3.5 snap-center flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-center ${call.has_responded ? 'bg-gradient-to-br from-blue-50 to-white border border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.15)]' : 'bg-gradient-to-br from-orange-50 to-white border border-orange-100 shadow-[0_8px_20px_rgb(217,119,6,0.15)]'}`}>
-                                            <div className="flex justify-between items-center mb-1.5">
-                                                <span
-                                                    className={`flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-full tracking-widest leading-none ${call.has_responded ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-beer'}`}>
-                                                    <span
-                                                        className={`w-1.5 h-1.5 rounded-full ${call.has_responded ? 'bg-blue-600' : 'bg-beer animate-pulse'}`}></span>
-                                                    {call.has_responded ? "REJOINT" : "EN COURS"}
-                                                </span>
-                                                <span
-                                                    className="text-gray-400 text-[9px] font-bold uppercase tracking-wider bg-gray-100 px-1.5 py-0.5 rounded-md leading-none">{timeAgo(call.started_at)}</span>
-                                            </div>
-                                            <h3 className="font-black text-gray-900 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
-                                                <MapPin size={14}
-                                                        className={call.has_responded ? 'text-blue-500' : 'text-beer'}/>
-                                                {call.location_name}
-                                            </h3>
-                                            <p className="text-[10px] text-gray-500 font-bold mt-1.5 tracking-widest flex items-center gap-1.5 leading-none">
-                                                <Users size={12} className="text-gray-400"/>
-                                                {call.participants_count} PARTICIPANT{call.participants_count > 1 ? 'S' : ''}
-                                            </p>
-                                            <button onClick={(e) => {
-                                                e.stopPropagation();
-                                                navigate(`/squad/${id}/beer-call/${call.id}/chat`);
-                                            }}
-                                                    className="mt-2 flex items-center justify-center gap-1.5 bg-amber-500 text-white text-[9px] px-3 py-1.5 rounded-xl font-black uppercase tracking-widest shadow-sm shadow-amber-500/30 hover:bg-amber-600 active:scale-95 transition-all leading-none">
-                                                <MessageCircle size={11}/> Chat
-                                            </button>
-                                        </div>
-                                    ))}
-
-                                    {squadDetails?.past_beer_calls?.map((call) => (
-                                        <div key={call.id}
-                                             onClick={() => focusOnLocation(call.longitude, call.latitude)}
-                                             className="w-[220px] bg-white/80 backdrop-blur-xl rounded-3xl p-3.5 shadow-md border border-white/50 snap-center flex-shrink-0 cursor-pointer hover:-translate-y-1 hover:bg-white/95 transition-all duration-300 flex flex-col justify-between group">
+                                             className={`w-[220px] h-[130px] relative overflow-hidden rounded-3xl p-3.5 snap-center flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between ${call.has_responded ? 'bg-gradient-to-br from-blue-50 to-white border border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.15)]' : 'bg-gradient-to-br from-orange-50 to-white border border-orange-100 shadow-[0_8px_20px_rgb(217,119,6,0.15)]'} group`}>
                                             <div>
                                                 <div className="flex justify-between items-center mb-1.5">
                                                     <span
-                                                        className="bg-gray-100/80 text-gray-500 text-[9px] font-black px-2 py-1 rounded-full tracking-widest flex items-center gap-1 leading-none">
+                                                        className={`flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-full tracking-widest leading-none ${call.has_responded ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-beer'}`}>
+                                                        <span
+                                                            className={`w-1.5 h-1.5 rounded-full ${call.has_responded ? 'bg-blue-600' : 'bg-beer animate-pulse'}`}></span>
+                                                        {call.has_responded ? "REJOINT" : "EN COURS"}
+                                                    </span>
+                                                    <span
+                                                        className="text-gray-400 text-[9px] font-bold uppercase tracking-wider bg-gray-100 px-1.5 py-0.5 rounded-md leading-none">{timeAgo(call.started_at)}</span>
+                                                </div>
+                                                <h3 className="font-black text-gray-900 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
+                                                    <MapPin size={14}
+                                                            className={call.has_responded ? 'text-blue-500' : 'text-beer'}/>
+                                                    {call.location_name}
+                                                </h3>
+                                            </div>
+                                            <div
+                                                className="mt-auto pt-2 border-t border-gray-200/50 flex flex-col gap-1.5">
+                                                <p className="text-[10px] text-gray-500 font-bold tracking-widest flex items-center justify-center gap-1 leading-none py-1">
+                                                    <Users size={12} className="text-gray-400"/>
+                                                    {call.participants_count} Participant{call.participants_count > 1 ? 's' : ''}
+                                                </p>
+                                                {!call.has_responded ? (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigate(`/squad/${id}/beer-call/${call.id}/chat`);
+                                                        }}
+                                                                className="flex-1 bg-amber-100 text-amber-700 text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-wider hover:bg-amber-200 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 leading-none">
+                                                            <MessageCircle size={11}/> Chat
+                                                        </button>
+                                                        <button onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedBeerCall(call);
+                                                        }}
+                                                                className="flex-[1.5] flex items-center justify-center gap-1 bg-amber-500 text-white text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-widest shadow-sm shadow-amber-500/30 hover:bg-amber-600 active:scale-95 transition-all leading-none">
+                                                            <Camera size={11}/> Répondre 📸
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigate(`/squad/${id}/beer-call/${call.id}/chat`);
+                                                        }}
+                                                                className="flex-1 bg-blue-100 text-blue-600 text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-wider hover:bg-blue-200 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 leading-none">
+                                                            <MessageCircle size={11}/> Chat
+                                                        </button>
+                                                        <button onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setIsWorldsModalOpen(call.id);
+                                                        }}
+                                                                className="flex-1 bg-blue-600 text-white text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-wider hover:bg-blue-700 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 leading-none">
+                                                            Mondes 🌍
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {/* 3. CARTE TERMINÉE */}
+                                    {squadDetails?.past_beer_calls?.map((call) => (
+                                        <div key={call.id}
+                                             onClick={() => focusOnLocation(call.longitude, call.latitude)}
+                                             className="w-[220px] h-[130px] bg-white/80 backdrop-blur-xl rounded-3xl p-3.5 shadow-md border border-gray-100 snap-center flex-shrink-0 cursor-pointer hover:-translate-y-1 hover:bg-white/95 transition-all duration-300 flex flex-col justify-between group">
+                                            <div>
+                                                <div className="flex justify-between items-center mb-1.5">
+                                                    <span
+                                                        className="bg-gray-100 text-gray-500 text-[9px] font-black px-2 py-1 rounded-full tracking-widest flex items-center gap-1 leading-none">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span> TERMINÉ
                                                     </span>
                                                     <span
@@ -403,24 +594,24 @@ export default function Dashboard() {
                                                 </h3>
                                             </div>
                                             <div
-                                                className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/50">
-                                                <p className="text-[10px] text-gray-500 font-bold tracking-widest flex items-center gap-1 leading-none">
+                                                className="mt-auto pt-2 border-t border-gray-200/50 flex flex-col gap-1.5">
+                                                <p className="text-[10px] text-gray-500 font-bold tracking-widest flex items-center justify-center gap-1 leading-none py-1">
                                                     <Users size={12}
-                                                           className="text-gray-400"/> {call.participants_count}
+                                                           className="text-gray-400"/> {call.participants_count} Participant{call.participants_count > 1 ? 's' : ''}
                                                 </p>
                                                 <div className="flex items-center gap-1.5">
                                                     <button onClick={(e) => {
                                                         e.stopPropagation();
                                                         navigate(`/squad/${id}/beer-call/${call.id}/chat`);
                                                     }}
-                                                            className="bg-amber-500 text-white text-[9px] px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider hover:bg-amber-600 active:scale-95 transition-all shadow-sm flex items-center gap-1 leading-none">
-                                                        <MessageCircle size={10}/> Chat
+                                                            className="flex-1 bg-gray-100 text-gray-600 text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-wider hover:bg-gray-200 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 leading-none">
+                                                        <MessageCircle size={11}/> Chat
                                                     </button>
                                                     <button onClick={(e) => {
                                                         e.stopPropagation();
                                                         setIsWorldsModalOpen(call.id);
                                                     }}
-                                                            className="bg-white text-gray-800 text-[9px] px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider hover:bg-gray-800 hover:text-white active:scale-95 transition-all shadow-sm border border-gray-200 flex items-center gap-1 group-hover:border-gray-800 leading-none">
+                                                            className="flex-1 bg-gray-800 text-white text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-wider hover:bg-black active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 leading-none">
                                                         Mondes 🌍
                                                     </button>
                                                 </div>
@@ -428,15 +619,16 @@ export default function Dashboard() {
                                         </div>
                                     ))}
 
-                                    {(!squadDetails?.active_beer_call || squadDetails.active_beer_call.length === 0) && (!squadDetails?.past_beer_calls || squadDetails.past_beer_calls.length === 0) && (
+                                    {/* CARTE VIDE (Si aucun apéro) */}
+                                    {(!squadDetails?.active_beer_call || squadDetails.active_beer_call.length === 0) && (!squadDetails?.past_beer_calls || squadDetails.past_beer_calls.length === 0) && (!squadDetails?.scheduled_beer_calls || squadDetails.scheduled_beer_calls.length === 0) && (
                                         <div
-                                            className="w-[220px] bg-white/60 backdrop-blur-md rounded-3xl p-4 shadow-sm border-2 border-dashed border-gray-300/50 snap-center flex-shrink-0 flex flex-col items-center justify-center">
+                                            className="w-[220px] h-[130px] bg-white/60 backdrop-blur-md rounded-3xl p-4 shadow-sm border-2 border-dashed border-gray-300/50 snap-center flex-shrink-0 flex flex-col items-center justify-center">
                                             <div
                                                 className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mb-2">
                                                 <BellRing size={16} className="text-gray-400"/>
                                             </div>
                                             <p className="text-xs font-bold text-gray-500 text-center uppercase tracking-wider leading-tight">
-                                                Aucun apéro.<br/>Lance le premier !
+                                                Aucun événement.<br/>Lance le premier !
                                             </p>
                                         </div>
                                     )}
@@ -459,11 +651,20 @@ export default function Dashboard() {
             {/* MODALES CLASSIQUES */}
             <CreateSquadModal isOpen={isSquadModalOpen} onClose={() => setIsSquadModalOpen(false)}/>
             <JoinSquadModal isOpen={isJoinModalOpen} onClose={() => setIsJoinModalOpen(false)}/>
-            <CreateBeerCallModal squadId={id || ''} photoFile={photoFile} location={userLocation}
-                                 onClose={() => setPhotoFile(null)}/>
+            <CreateBeerCallModal squadId={id || ''} photoFile={photoFile} location={photoLocation}
+                                 scheduledApero={startingScheduledApero}
+                                 onClose={() => {
+                                     setPhotoFile(null);
+                                     setPhotoLocation(null);
+                                     setStartingScheduledApero(null);
+                                 }}/>
 
             <RespondBeerCallModal isOpen={!!selectedBeerCall} onClose={() => setSelectedBeerCall(null)}
                                   beerCall={selectedBeerCall} squadId={id || ''} location={userLocation}/>
+
+            <ScheduleAperoModal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)}
+                                squadId={id || ''} coordinates={scheduleCoordinates}/>
+
 
             <SelectWorldModal
                 isOpen={!!isWorldsModalOpen}

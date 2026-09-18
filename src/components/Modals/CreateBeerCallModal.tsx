@@ -58,14 +58,23 @@ interface CreateBeerCallModalProps {
     squadId: string;
     photoFile: File | null;
     location: { lat: number; lng: number } | null;
+    scheduledApero?: { id: string; location_name: string } | null;
     onClose: () => void;
 }
 
-export default function CreateBeerCallModal({squadId, photoFile, location, onClose}: CreateBeerCallModalProps) {
+export default function CreateBeerCallModal({squadId, photoFile, location, scheduledApero, onClose}: CreateBeerCallModalProps) {
     const queryClient = useQueryClient();
     const [locationName, setLocationName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (scheduledApero) {
+            setLocationName(scheduledApero.location_name);
+        } else {
+            setLocationName('');
+        }
+    }, [scheduledApero]);
 
     useEffect(() => {
         if (photoFile) {
@@ -88,9 +97,15 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
             formData.append('longitude', location.lng.toString());
             formData.append('location_name', locationName.trim());
 
-            await api.post(`/squads/${squadId}/beer-calls/`, formData, {
-                headers: {'Content-Type': 'multipart/form-data'},
-            });
+            if (scheduledApero) {
+                await api.post(`/squads/${squadId}/beer-calls/${scheduledApero.id}/start/`, formData, {
+                    headers: {'Content-Type': 'multipart/form-data'},
+                });
+            } else {
+                await api.post(`/squads/${squadId}/beer-calls/`, formData, {
+                    headers: {'Content-Type': 'multipart/form-data'},
+                });
+            }
 
             queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
@@ -119,8 +134,9 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
                         className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[3rem] p-8 z-[101] shadow-2xl flex flex-col max-h-[90vh]"
                     >
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter">Valider
-                                l'Apéro</h2>
+                            <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter">
+                                {scheduledApero ? "Démarrer l'Apéro" : "Valider l'Apéro"}
+                            </h2>
                             <button onClick={onClose} className="p-2 bg-gray-100 rounded-full text-gray-400"><X
                                 size={20}/></button>
                         </div>
@@ -147,7 +163,8 @@ export default function CreateBeerCallModal({squadId, photoFile, location, onClo
                                 <input
                                     type="text" placeholder="Ex: Bar Le Central..."
                                     value={locationName} onChange={(e) => setLocationName(e.target.value)}
-                                    className="w-full p-5 rounded-2xl bg-gray-50 border-4 border-transparent focus:border-beer focus:outline-none font-bold text-lg transition-all"
+                                    disabled={!!scheduledApero}
+                                    className="w-full p-5 rounded-2xl bg-gray-50 border-4 border-transparent focus:border-beer focus:outline-none font-bold text-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                                 />
                             </div>
                         </div>
