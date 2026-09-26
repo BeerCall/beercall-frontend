@@ -1,4 +1,4 @@
-name: Deploy Trigger
+name: Test & Deploy Trigger
 
 on:
   push:
@@ -6,7 +6,28 @@ on:
       - main
 
 jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Run Unit Tests & Coverage
+        run: npm run coverage
+
   trigger:
+    name: Trigger App Deployment
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Trigger beercall-app deployment
