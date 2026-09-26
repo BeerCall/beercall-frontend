@@ -1,8 +1,9 @@
 import {useNavigate} from 'react-router-dom';
 import {useQuery} from '@tanstack/react-query';
+import React, { Suspense } from 'react';
 import {ChevronLeft, Users, Trophy, ArrowRight} from 'lucide-react';
 import {api} from '../lib/api';
-import AvatarCanvas from '../components/3D/AvatarCanvas';
+const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
 import {motion, useInView} from 'framer-motion';
 import {useRef} from "react";
 
@@ -31,7 +32,9 @@ const AvatarThumbnail = ({config}: { config: any }) => {
     return (
         <div ref={ref} className="w-full h-full relative">
             {isInView ? (
-                <AvatarCanvas config={config} disableZoom={true} disablePan={true}/>
+                <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
+                    <AvatarCanvas config={config} disableZoom={true} disablePan={true}/>
+                </Suspense>
             ) : (
                 // Si la carte est hors écran, on détruit le Canvas et on libère la carte graphique
                 <div className="absolute inset-0 bg-gray-50 flex items-center justify-center">

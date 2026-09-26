@@ -1,9 +1,9 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, Suspense} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
 import {Canvas} from '@react-three/fiber';
-import {OrbitControls} from '@react-three/drei';
+import {OrbitControls, Html, useProgress} from '@react-three/drei';
 import {api} from '../../lib/api';
 
 // 🌍 IMPORT DE TES 3 MONDES
@@ -33,6 +33,19 @@ interface SelectWorldModalProps {
 }
 
 type WorldTab = 'bar' | 'piscine' | 'dodo';
+
+// ⏳ COMPOSANT DE CHARGEMENT SÉCURISÉ POUR LE CANVAS
+function CanvasLoader() {
+    const {progress} = useProgress();
+    return (
+        <Html center>
+            <div className="flex flex-col items-center bg-white/90 p-4 rounded-2xl shadow-xl backdrop-blur-md">
+                <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-xs font-black text-amber-500 mt-2 tracking-widest">{progress.toFixed(0)}%</p>
+            </div>
+        </Html>
+    );
+}
 
 export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, isActiveApero}: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
@@ -145,18 +158,21 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                                     <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                                     <directionalLight position={[-10, 10, -10]} intensity={1}/>
 
-                                    {/* AIGUILLAGE VERS LES BONS COMPOSANTS 3D AVEC LA FONCTION DE PHOTO */}
-                                    {activeTab === 'bar' && (
-                                        <BarWorld
-                                            isActiveApero={isActiveApero}
-                                            aperoId={beerCallId}
-                                            squadId={squadId}
-                                            participants={currentParticipants}
-                                            onSelectPhoto={handleSelectPhoto}
-                                        />
-                                    )}
-                                    {activeTab === 'piscine' && <PiscineWorld participants={currentParticipants}/>}
-                                    {activeTab === 'dodo' && <FloatyIslandWorld participants={currentParticipants}/>}
+                                    {/* 🛡️ SUSPENSE: EMPÊCHE LE DEMONTAGE GLOBAL DU DASHBOARD */}
+                                    <Suspense fallback={<CanvasLoader />}>
+                                        {/* AIGUILLAGE VERS LES BONS COMPOSANTS 3D AVEC LA FONCTION DE PHOTO */}
+                                        {activeTab === 'bar' && (
+                                            <BarWorld
+                                                isActiveApero={isActiveApero}
+                                                aperoId={beerCallId}
+                                                squadId={squadId}
+                                                participants={currentParticipants}
+                                                onSelectPhoto={handleSelectPhoto}
+                                            />
+                                        )}
+                                        {activeTab === 'piscine' && <PiscineWorld participants={currentParticipants}/>}
+                                        {activeTab === 'dodo' && <FloatyIslandWorld participants={currentParticipants}/>}
+                                    </Suspense>
 
                                     <OrbitControls
                                         enableZoom={true}

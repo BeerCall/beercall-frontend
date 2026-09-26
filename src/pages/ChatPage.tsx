@@ -1,12 +1,14 @@
 // src/pages/ChatPage.tsx
-import {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect, useRef, Suspense} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
-import {motion, AnimatePresence} from 'framer-motion';
+import {motion, AnimatePresence, useInView} from 'framer-motion';
 import {ChevronLeft, Send, MessageCircle, User as UserIcon} from 'lucide-react';
 import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useChat} from '../hooks/useChat';
 import {useProfile} from '../hooks/useProfile';
 import type {ChatMessage} from '../types/chat';
+
+const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
 
 // ⏱️ Formate un timestamp en heure (ex: 14:32)
 const formatTime = (ts: number) => {
@@ -16,8 +18,13 @@ const formatTime = (ts: number) => {
 
 // 💬 Une seule bulle de message
 function MessageBubble({message, isOwn}: { message: ChatMessage, isOwn: boolean }) {
+    const ref = useRef(null);
+    const isInView = useInView(ref, {margin: "50px"});
+    const { data: senderProfile } = useProfile(String(message.userId));
+
     return (
         <motion.div
+            ref={ref}
             initial={{opacity: 0, y: 16, scale: 0.95}}
             animate={{opacity: 1, y: 0, scale: 1}}
             transition={{type: "spring", damping: 20, stiffness: 300}}
@@ -25,9 +32,13 @@ function MessageBubble({message, isOwn}: { message: ChatMessage, isOwn: boolean 
         >
             {/* Avatar */}
             <div
-                className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white font-black text-xs shadow ${isOwn ? 'bg-amber-500' : 'bg-gray-400'}`}>
-                {message.avatar ? (
-                    <img src={message.avatar} alt={message.username} className="w-full h-full rounded-full object-cover"/>
+                className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white font-black text-xs shadow overflow-hidden relative ${isOwn ? 'bg-amber-500' : 'bg-gray-400'}`}>
+                {senderProfile?.avatar && senderProfile.avatar.head ? (
+                    isInView ? (
+                        <Suspense fallback={<div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>}>
+                            <AvatarCanvas config={senderProfile.avatar} headOnly={true} disableZoom={true} disablePan={true}/>
+                        </Suspense>
+                    ) : null
                 ) : (
                     <UserIcon size={18}/>
                 )}

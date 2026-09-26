@@ -1,4 +1,4 @@
-import {useState, useEffect, useRef} from 'react';
+﻿import React, {useState, useEffect, useRef, Suspense} from 'react';
 import {usePushNotifications} from '../hooks/usePushNotifications';
 import {useParams, useNavigate} from 'react-router-dom';
 import Navbar from '../components/UI/Navbar';
@@ -14,13 +14,15 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import {Check, Copy, Key, User as UserIcon, BellRing, MapPin, Users, MessageCircle, Clock, Camera} from 'lucide-react';
 import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useProfile} from '../hooks/useProfile';
-import AvatarCanvas from '../components/3D/AvatarCanvas';
+const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
 import {toast} from "../store/useToastStore";
 import {useGameUIStore} from '../store/useGameUIStore';
+import {useLocationStore} from '../store/useLocationStore';
 
 // 🚀 NOUVEAUX IMPORTS POUR LE JEU
 import {motion, AnimatePresence} from 'framer-motion';
-import GameScreen from './GameScreen';
+// Lazy Load du GameScreen (Three.js est très lourd, on ne le charge que si on lance le jeu)
+const GameScreen = React.lazy(() => import('./GameScreen'));
 
 const timeAgo = (dateString?: string) => {
     if (!dateString) return 'À venir';
@@ -50,6 +52,70 @@ const formatCountdown = (dateString: string | undefined, now: number) => {
     return `Dans ${hours}h ${minutes}m ${seconds.toString().padStart(2, '0')}s`;
 };
 
+const ScheduledBeerCallCard = ({ call, id, navigate, focusOnLocation, openCamera }: any) => {
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
+        return () => window.clearInterval(intervalId);
+    }, []);
+
+    const remaining = call.scheduled_for ? new Date(call.scheduled_for).getTime() - now : 0;
+    const isImminent = remaining <= 1800000;
+
+    return (
+        <div onClick={() => focusOnLocation(call.longitude, call.latitude)}
+             className={`w-[220px] h-[130px] relative overflow-hidden rounded-3xl p-3.5 snap-center flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between border shadow-[0_8px_20px_rgba(0,0,0,0.05)] group ${
+                 isImminent
+                     ? 'bg-gradient-to-br from-rose-50 to-white border-rose-200'
+                     : 'bg-gradient-to-br from-indigo-50 to-white border-indigo-100'
+             }`}>
+            <div>
+                <div className="flex justify-between items-center mb-1.5">
+                    <span className={`flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-full tracking-widest leading-none ${
+                        isImminent ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'
+                    }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                            isImminent ? 'bg-rose-500' : 'bg-indigo-500'
+                        }`}></span>
+                        {isImminent ? "C'EST L'HEURE" : "PROGRAMMÉ"}
+                    </span>
+                    <Clock size={14} className={isImminent ? 'text-rose-400 animate-bounce' : 'text-indigo-400'} />
+                </div>
+                <h3 className="font-black text-gray-900 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
+                    <MapPin size={14} className={isImminent ? 'text-rose-500' : 'text-indigo-500'} />
+                    {call.location_name}
+                </h3>
+            </div>
+            <div className={`mt-auto pt-2 border-t flex flex-col gap-1.5 ${isImminent ? 'border-rose-100/50' : 'border-indigo-100/50'}`}>
+                <p className={`text-[10px] font-mono font-bold tracking-widest text-center rounded-lg py-1 ${
+                    isImminent ? 'text-rose-700 bg-rose-500/10' : 'text-indigo-700 bg-indigo-500/10'
+                }`}>
+                    {formatCountdown(call.scheduled_for, now)}
+                </p>
+
+                {/* BOUTONS DYNAMIQUES */}
+                <div className="flex items-center gap-1.5">
+                    <button onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/squad/${id}/beer-call/${call.id}/chat`);
+                    }}
+                            className={`flex-1 flex items-center justify-center gap-1 text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-wider active:scale-95 transition-all shadow-sm leading-none ${isImminent ? 'bg-white border border-rose-200 text-rose-600 hover:bg-rose-50' : 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50'}`}>
+                        <MessageCircle size={11}/> Chat
+                    </button>
+                    <button onClick={(e) => {
+                        e.stopPropagation();
+                        openCamera({ lat: Number(call.latitude), lng: Number(call.longitude) }, call);
+                    }}
+                            className={`flex-[1.5] text-white text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-wider active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 leading-none ${isImminent ? 'bg-rose-500 hover:bg-rose-600' : 'bg-indigo-500 hover:bg-indigo-600'}`}>
+                        Lancer 📷
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function Dashboard() {
     const {id} = useParams();
     const navigate = useNavigate();
@@ -63,12 +129,14 @@ export default function Dashboard() {
     const [isWorldsModalOpen, setIsWorldsModalOpen] = useState<string | null>(null);
     const [scheduleCoordinates, setScheduleCoordinates] = useState<{ lat: number; lng: number } | null>(null);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+    const [isMapReady, setIsMapReady] = useState(false);
 
     const [isNightMode, setIsNightMode] = useState(false);
 
     const {data: profile} = useProfile();
     const {data: squadDetails} = useSquadDetails(id);
     const {isGameScreenOpen, currentAperoId, closeGameScreen} = useGameUIStore();
+    const {userLocation, startTracking, stopTracking} = useLocationStore();
     const isActiveApero = squadDetails?.active_beer_call?.some((call: any) => call.id === isWorldsModalOpen);
 
     // Fermer l'écran de jeu quand on change de squad
@@ -78,11 +146,9 @@ export default function Dashboard() {
         }
     }, [id, isGameScreenOpen, closeGameScreen]);
 
-    const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [startingScheduledApero, setStartingScheduledApero] = useState<any>(null);
     const [photoLocation, setPhotoLocation] = useState<{ lat: number, lng: number } | null>(null);
-    const [countdownNow, setCountdownNow] = useState(() => Date.now());
     const fileInputRef = useRef<HTMLInputElement>(null);
     const mapRef = useRef<MapRef>(null);
     const longPressTimer = useRef<number | null>(null);
@@ -195,40 +261,37 @@ export default function Dashboard() {
     }, []);
 
     useEffect(() => {
-        const intervalId = window.setInterval(() => setCountdownNow(Date.now()), 1000);
-        return () => window.clearInterval(intervalId);
-    }, []);
+        // Démarre le tracking au premier clic de l'utilisateur pour respecter la règle "user gesture" de Chromium
+        const handleFirstInteraction = () => {
+            startTracking();
+            window.removeEventListener('click', handleFirstInteraction);
+            window.removeEventListener('touchstart', handleFirstInteraction);
+        };
+        
+        window.addEventListener('click', handleFirstInteraction);
+        window.addEventListener('touchstart', handleFirstInteraction);
 
-    useEffect(() => {
-        if (!navigator.geolocation) return;
-
-        const watchId = navigator.geolocation.watchPosition(
-            (pos) => {
-                const newLocation = {lat: pos.coords.latitude, lng: pos.coords.longitude};
-                setUserLocation(newLocation);
-            },
-            (err) => console.warn("Erreur géoloc (ignorée):", err),
-            {
-                enableHighAccuracy: true,
-                maximumAge: 10000,
-                timeout: 10000
-            }
-        );
-
-        return () => navigator.geolocation.clearWatch(watchId);
-    }, []);
+        return () => {
+            window.removeEventListener('click', handleFirstInteraction);
+            window.removeEventListener('touchstart', handleFirstInteraction);
+            stopTracking();
+        };
+    }, [startTracking, stopTracking]);
 
     useEffect(() => {
         if (id && userLocation && mapRef.current && !hasCentered.current) {
-            mapRef.current.flyTo({
+            mapRef.current.jumpTo({
                 center: [userLocation.lng, userLocation.lat],
-                zoom: 14,
-                duration: 1500,
-                essential: true
+                zoom: 14
             });
             hasCentered.current = true;
         }
     }, [userLocation, id]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setIsMapReady(true), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const mapStyle = isNightMode
         ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
@@ -263,7 +326,9 @@ export default function Dashboard() {
                         transition={{type: "spring", damping: 25, stiffness: 200}}
                         className="absolute inset-0 z-[100] bg-gray-950"
                     >
-                        <GameScreen aperoIdProp={currentAperoId}/>
+                        <Suspense fallback={<div className="flex h-full items-center justify-center text-white"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-beer"></div></div>}>
+                            <GameScreen aperoIdProp={currentAperoId}/>
+                        </Suspense>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -296,11 +361,18 @@ export default function Dashboard() {
                        onChange={handlePhotoCapture} className="hidden"/>
 
                 <div className="absolute inset-0 z-0">
-                    {id ? (
-                        <div className="w-full h-full relative animate-in fade-in duration-500">
-                            {/* BADGE SQUAD */}
-                            <div
-                                className="absolute top-[calc(15px+env(safe-area-inset-top))] w-full flex justify-center z-10 pointer-events-none">
+                    <div className="w-full h-full relative animate-in fade-in duration-500">
+                        {/* OVERLAY ACCUEIL SI PAS DE SQUAD */}
+                        {!id && (
+                            <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-white/70 backdrop-blur-xl transition-opacity duration-300">
+                                <h1 className="text-4xl font-black text-gray-900 tracking-tighter italic uppercase text-center">Salut {profile?.username || 'Soldat'} !</h1>
+                                <p className="mt-4 text-gray-700 font-bold uppercase tracking-widest text-center">Choisis une squad en bas<br/>pour rejoindre la zone</p>
+                            </div>
+                        )}
+
+                        {/* BADGE SQUAD (Seulement si id) */}
+                        {id && (
+                            <div className="absolute top-[calc(15px+env(safe-area-inset-top))] w-full flex justify-center z-10 pointer-events-none">
                                 <div
                                     className="bg-white/95 backdrop-blur-md px-8 py-3 rounded-[2rem] shadow-xl pointer-events-auto border-2 flex flex-col items-center gap-2 transition-all"
                                     style={{borderColor: squadDetails?.color ? `${squadDetails.color}40` : 'rgba(217, 119, 6, 0.25)'}}
@@ -324,9 +396,15 @@ export default function Dashboard() {
                                     )}
                                 </div>
                             </div>
+                        )}
 
                             <Map ref={mapRef}
-                                 initialViewState={{longitude: 2.3522, latitude: 48.8566, zoom: 12, pitch: 45}}
+                                 initialViewState={{
+                                     longitude: userLocation?.lng || 2.3522, 
+                                     latitude: userLocation?.lat || 48.8566, 
+                                     zoom: userLocation ? 14 : 12, 
+                                     pitch: 45
+                                 }}
                                  mapStyle={mapStyle} interactive={true}
                                  onMouseDown={handleMapPointerDown} onMouseUp={() => cancelLongPress()}
                                  onMouseLeave={() => cancelLongPress()}
@@ -429,11 +507,15 @@ export default function Dashboard() {
                                             <div className="relative w-24 h-32 flex items-end justify-center pb-2">
                                                 <div className="absolute inset-0 pointer-events-none">
                                                     {profile?.avatar ? (
-                                                        <AvatarCanvas config={profile.avatar} disableZoom={true}
-                                                                      disablePan={true}/>
+                                                        isMapReady ? (
+                                                            <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
+                                                                <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true}/>
+                                                            </Suspense>
+                                                        ) : (
+                                                            <div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>
+                                                        )
                                                     ) : (
-                                                        <UserIcon size={32}
-                                                                  className="text-beer drop-shadow-xl m-auto mt-10"/>
+                                                        <UserIcon size={32} className="text-beer drop-shadow-xl m-auto mt-10"/>
                                                     )}
                                                 </div>
                                             </div>
@@ -468,70 +550,24 @@ export default function Dashboard() {
                                 })}
                             </Map>
 
-                            {/* TIMELINE */}
-                            <div
-                                className="absolute bottom-[calc(130px_+_env(safe-area-inset-top))] w-full px-4 z-[70] pointer-events-none">
+                            {/* TIMELINE (Seulement si id) */}
+                            {id && (
                                 <div
-                                    className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto items-center">
+                                    className="absolute bottom-[calc(130px_+_env(safe-area-inset-top))] w-full px-4 z-[70] pointer-events-none">
+                                    <div
+                                        className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto items-center">
 
-                                    {/* 1. CARTE PROGRAMMÉE (Dynamique : Indigo -> Rose si Imminent) */}
-                                    {squadDetails?.scheduled_beer_calls?.map((call) => {
-                                        const remaining = call.scheduled_for ? new Date(call.scheduled_for).getTime() - countdownNow : 0;
-                                        // On considère l'apéro imminent 30 minutes (1800000 ms) avant le début officiel
-                                        const isImminent = remaining <= 1800000;
-
-                                        return (
-                                            <div key={call.id} onClick={() => focusOnLocation(call.longitude, call.latitude)}
-                                                 className={`w-[220px] h-[130px] relative overflow-hidden rounded-3xl p-3.5 snap-center flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between border shadow-[0_8px_20px_rgba(0,0,0,0.05)] group ${
-                                                     isImminent
-                                                         ? 'bg-gradient-to-br from-rose-50 to-white border-rose-200'
-                                                         : 'bg-gradient-to-br from-indigo-50 to-white border-indigo-100'
-                                                 }`}>
-                                                <div>
-                                                    <div className="flex justify-between items-center mb-1.5">
-                                                        <span className={`flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-full tracking-widest leading-none ${
-                                                            isImminent ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'
-                                                        }`}>
-                                                            <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
-                                                                isImminent ? 'bg-rose-500' : 'bg-indigo-500'
-                                                            }`}></span>
-                                                            {isImminent ? "C'EST L'HEURE" : "PROGRAMMÉ"}
-                                                        </span>
-                                                        <Clock size={14} className={isImminent ? 'text-rose-400 animate-bounce' : 'text-indigo-400'} />
-                                                    </div>
-                                                    <h3 className="font-black text-gray-900 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
-                                                        <MapPin size={14} className={isImminent ? 'text-rose-500' : 'text-indigo-500'} />
-                                                        {call.location_name}
-                                                    </h3>
-                                                </div>
-                                                <div className={`mt-auto pt-2 border-t flex flex-col gap-1.5 ${isImminent ? 'border-rose-100/50' : 'border-indigo-100/50'}`}>
-                                                    <p className={`text-[10px] font-mono font-bold tracking-widest text-center rounded-lg py-1 ${
-                                                        isImminent ? 'text-rose-700 bg-rose-500/10' : 'text-indigo-700 bg-indigo-500/10'
-                                                    }`}>
-                                                        {formatCountdown(call.scheduled_for, countdownNow)}
-                                                    </p>
-
-                                                    {/* BOUTONS DYNAMIQUES */}
-                                                    <div className="flex items-center gap-1.5">
-                                                        <button onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            navigate(`/squad/${id}/beer-call/${call.id}/chat`);
-                                                        }}
-                                                                className={`flex-1 flex items-center justify-center gap-1 text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-wider active:scale-95 transition-all shadow-sm leading-none ${isImminent ? 'bg-white border border-rose-200 text-rose-600 hover:bg-rose-50' : 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50'}`}>
-                                                            <MessageCircle size={11}/> Chat
-                                                        </button>
-                                                        <button onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openCamera({ lat: Number(call.latitude), lng: Number(call.longitude) }, call);
-                                                        }}
-                                                                className={`flex-[1.5] text-white text-[9px] px-2.5 py-1.5 rounded-xl font-black uppercase tracking-wider active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1 leading-none ${isImminent ? 'bg-rose-500 hover:bg-rose-600' : 'bg-indigo-500 hover:bg-indigo-600'}`}>
-                                                            Lancer 📸
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                    {/* 1. CARTE PROGRAMMÉE (Dynamique) */}
+                                    {squadDetails?.scheduled_beer_calls?.map((call) => (
+                                        <ScheduledBeerCallCard
+                                            key={call.id}
+                                            call={call}
+                                            id={id}
+                                            navigate={navigate}
+                                            focusOnLocation={focusOnLocation}
+                                            openCamera={openCamera}
+                                        />
+                                    ))}
 
                                     {/* 2. CARTE ACTIVE (En cours) */}
                                     {squadDetails?.active_beer_call?.map((call) => (
@@ -659,15 +695,8 @@ export default function Dashboard() {
                                     )}
                                 </div>
                             </div>
-                        </div>
-                    ) : (
-                        <div
-                            className="w-full h-full flex flex-col items-center justify-center bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px] opacity-80 pt-10">
-                            <h1 className="text-4xl font-black text-gray-900 tracking-tighter italic uppercase text-center">Salut {profile?.username || 'Soldat'} !</h1>
-                            <p className="mt-4 text-gray-400 font-bold uppercase tracking-widest">Choisis une squad en
-                                bas</p>
-                        </div>
-                    )}
+                            )}
+                    </div>
                 </div>
 
                 <Navbar onCreateClick={() => setIsSquadModalOpen(true)} onJoinClick={() => setIsJoinModalOpen(true)}/>
@@ -701,3 +730,4 @@ export default function Dashboard() {
         </div>
     );
 }
+
