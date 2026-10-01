@@ -44,8 +44,18 @@ export default function MultiTouchTracker({sensorPayload, onAction, disabled}: P
     // On garde un pointeur vers l'état actuel pour les callbacks de timeout
     const touchesRef = useRef<TouchPoint[]>([]);
     const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const rouletteTimerRef1 = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const rouletteTimerRef2 = useRef<ReturnType<typeof setTimeout> | null>(null);
     // On stocke les couleurs déjà attribuées pour ne pas les réutiliser immédiatement
     const colorIndexRef = useRef(0);
+
+    // Nettoyage absolu au démontage du composant
+    useEffect(() => {
+        return () => {
+            if (rouletteTimerRef1.current) clearTimeout(rouletteTimerRef1.current);
+            if (rouletteTimerRef2.current) clearTimeout(rouletteTimerRef2.current);
+        };
+    }, []);
 
     // Synchronisation de la ref avec l'état (pratique pour lire l'état dans les SetTimeout)
     useEffect(() => {
@@ -87,7 +97,7 @@ export default function MultiTouchTracker({sensorPayload, onAction, disabled}: P
         const winnerId = currentTouches[winnerIndex].id;
 
         // Effet de suspense : on attend un peu avant d'afficher le résultat
-        setTimeout(() => {
+        rouletteTimerRef1.current = setTimeout(() => {
             setSelectedTouchId(winnerId);
             setPhase('RESULT');
 
@@ -96,7 +106,7 @@ export default function MultiTouchTracker({sensorPayload, onAction, disabled}: P
 
             // 🚀 CORRECTION : On passe de 2000ms à 4500ms
             // Pour laisser le temps au groupe de comprendre qui a été choisi !
-            setTimeout(() => {
+            rouletteTimerRef2.current = setTimeout(() => {
                 onAction('TARGET_SELECTED');
             }, 4500);
 
