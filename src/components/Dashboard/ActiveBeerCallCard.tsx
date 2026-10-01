@@ -1,12 +1,13 @@
 import React from 'react';
 import { MapPin, Users, MessageCircle, Camera } from 'lucide-react';
+import type { BeerCall } from '../../types/dashboard';
 
 interface ActiveBeerCallCardProps {
-    call: any;
+    call: BeerCall;
     squadId: string;
     focusOnLocation: (lng: number, lat: number) => void;
     navigate: (path: string) => void;
-    setSelectedBeerCall: (call: any) => void;
+    setSelectedBeerCall: (call: BeerCall | null) => void;
     setIsWorldsModalOpen: (id: string) => void;
     timeAgo: (dateString?: string) => string;
 }
@@ -44,7 +45,7 @@ export const ActiveBeerCallCard: React.FC<ActiveBeerCallCardProps> = ({
                 className="mt-auto pt-2 border-t border-gray-200/50 flex flex-col gap-1.5">
                 <p className="text-[10px] text-gray-500 font-bold tracking-widest flex items-center justify-center gap-1 leading-none py-1">
                     <Users size={12} className="text-gray-400"/>
-                    {call.participants_count} Participant{call.participants_count > 1 ? 's' : ''}
+                    {call.participants_count || 0} Participant{(call.participants_count || 0) > 1 ? 's' : ''}
                 </p>
                 {!call.has_responded ? (
                     <div className="flex items-center gap-1.5">

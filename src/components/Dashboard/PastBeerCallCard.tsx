@@ -1,8 +1,9 @@
 import React from 'react';
 import { MapPin, Users, MessageCircle } from 'lucide-react';
+import type { BeerCall } from '../../types/dashboard';
 
 interface PastBeerCallCardProps {
-    call: any;
+    call: BeerCall;
     squadId: string;
     focusOnLocation: (lng: number, lat: number) => void;
     navigate: (path: string) => void;
@@ -38,7 +39,7 @@ export const PastBeerCallCard: React.FC<PastBeerCallCardProps> = ({
                 className="mt-auto pt-2 border-t border-gray-200/50 flex flex-col gap-1.5">
                 <p className="text-[10px] text-gray-500 font-bold tracking-widest flex items-center justify-center gap-1 leading-none py-1">
                     <Users size={12}
-                            className="text-gray-400"/> {call.participants_count} Participant{call.participants_count > 1 ? 's' : ''}
+                            className="text-gray-400"/> {call.participants_count || 0} Participant{(call.participants_count || 0) > 1 ? 's' : ''}
                 </p>
                 <div className="flex items-center gap-1.5">
                     <button onClick={(e) => {

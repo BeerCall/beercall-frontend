@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, MapPin, MessageCircle } from 'lucide-react';
+import type { BeerCall } from '../../types/dashboard';
 
 const formatCountdown = (dateString: string | undefined, now: number) => {
     if (!dateString) return 'Date inconnue';
@@ -18,11 +19,11 @@ const formatCountdown = (dateString: string | undefined, now: number) => {
 };
 
 interface ScheduledBeerCallCardProps {
-    call: any;
+    call: BeerCall;
     id: string;
     navigate: (path: string) => void;
     focusOnLocation: (lng: number, lat: number) => void;
-    openCamera: (location: any, apero: any) => void;
+    openCamera: (location?: { lng: number; lat: number }, apero?: BeerCall) => void;
 }
 
 export const ScheduledBeerCallCard: React.FC<ScheduledBeerCallCardProps> = ({ call, id, navigate, focusOnLocation, openCamera }) => {

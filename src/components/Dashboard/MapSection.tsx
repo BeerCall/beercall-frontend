@@ -3,6 +3,7 @@ import Map, { Marker, NavigationControl, type MapRef } from 'react-map-gl/maplib
 import { motion } from 'framer-motion';
 import { User as UserIcon } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
+import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
 const AvatarCanvas = React.lazy(() => import('../3D/AvatarCanvas'));
 
 interface MapSectionProps {
@@ -10,13 +11,13 @@ interface MapSectionProps {
     userLocation: { lat: number; lng: number } | null;
     isNightMode: boolean;
     isMapReady: boolean;
-    squadDetails: any;
-    profile: any;
-    handleMapPointerDown: (event: any) => void;
-    cancelLongPress: (event?: any) => void;
+    squadDetails: SquadDetails | null | undefined;
+    profile: Profile | null | undefined;
+    handleMapPointerDown: (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement> | unknown) => void;
+    cancelLongPress: (event?: unknown) => void;
     handleManualRecenter: () => void;
-    handleBeerCallClick: (beerCall: any) => void;
-    openCamera: (location?: any, apero?: any) => void;
+    handleBeerCallClick: (beerCall: BeerCall) => void;
+    openCamera: (location?: { lng: number; lat: number }, apero?: BeerCall) => void;
     setIsWorldsModalOpen: (id: string) => void;
 }
 
@@ -80,7 +81,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
             }}/>
 
             {/* MARQUEURS ACTIFS */}
-            {squadDetails?.active_beer_call?.map((call: any) => {
+            {squadDetails?.active_beer_call?.map((call: BeerCall) => {
                 const numLng = Number(call.longitude);
                 const numLat = Number(call.latitude);
                 if (isNaN(numLng) || isNaN(numLat)) return null;
@@ -120,7 +121,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
             })}
 
             {/* MARQUEURS PROGRAMMÉS */}
-            {squadDetails?.scheduled_beer_calls?.map((call: any) => {
+            {squadDetails?.scheduled_beer_calls?.map((call: BeerCall) => {
                 const lng = Number(call.longitude), lat = Number(call.latitude);
                 if (isNaN(lng) || isNaN(lat)) return null;
                 return <Marker key={`scheduled-${call.id}`} longitude={lng} latitude={lat}
@@ -166,7 +167,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
             )}
 
             {/* MARQUEURS PASSÉS */}
-            {squadDetails?.past_beer_calls?.map((call: any) => {
+            {squadDetails?.past_beer_calls?.map((call: BeerCall) => {
                 const numLng = Number(call.longitude);
                 const numLat = Number(call.latitude);
                 if (isNaN(numLng) || isNaN(numLat)) return null;

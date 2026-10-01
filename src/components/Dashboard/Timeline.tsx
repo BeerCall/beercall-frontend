@@ -3,6 +3,7 @@ import { BellRing } from 'lucide-react';
 import { ScheduledBeerCallCard } from './ScheduledBeerCallCard';
 import { ActiveBeerCallCard } from './ActiveBeerCallCard';
 import { PastBeerCallCard } from './PastBeerCallCard';
+import type { BeerCall, SquadDetails } from '../../types/dashboard';
 
 const timeAgo = (dateString?: string) => {
     if (!dateString) return 'À venir';
@@ -17,12 +18,12 @@ const timeAgo = (dateString?: string) => {
 };
 
 interface TimelineProps {
-    squadDetails: any;
+    squadDetails: SquadDetails | null | undefined;
     squadId: string;
     navigate: (path: string) => void;
     focusOnLocation: (lng: number, lat: number) => void;
-    openCamera: (location: any, apero: any) => void;
-    setSelectedBeerCall: (call: any) => void;
+    openCamera: (location?: { lng: number; lat: number }, apero?: BeerCall) => void;
+    setSelectedBeerCall: (call: BeerCall | null) => void;
     setIsWorldsModalOpen: (id: string) => void;
 }
 
@@ -42,7 +43,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                 className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto items-center">
 
             {/* 1. CARTE PROGRAMMÉE (Dynamique) */}
-            {squadDetails?.scheduled_beer_calls?.map((call: any) => (
+            {squadDetails?.scheduled_beer_calls?.map((call: BeerCall) => (
                 <ScheduledBeerCallCard
                     key={call.id}
                     call={call}
@@ -54,7 +55,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             ))}
 
             {/* 2. CARTE ACTIVE (En cours) */}
-            {squadDetails?.active_beer_call?.map((call: any) => (
+            {squadDetails?.active_beer_call?.map((call: BeerCall) => (
                 <ActiveBeerCallCard
                     key={call.id}
                     call={call}
@@ -68,7 +69,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             ))}
 
             {/* 3. CARTE TERMINÉE */}
-            {squadDetails?.past_beer_calls?.map((call: any) => (
+            {squadDetails?.past_beer_calls?.map((call: BeerCall) => (
                 <PastBeerCallCard
                     key={call.id}
                     call={call}
