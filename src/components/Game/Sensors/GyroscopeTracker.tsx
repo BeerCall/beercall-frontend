@@ -41,7 +41,7 @@ export default function GyroscopeTracker({sensorPayload, onAction, disabled}: Pr
             // Si on est sur Android ou que la permission est accordée sur iOS :
             startGame();
         } catch (error) {
-            console.error("Erreur capteur:", error);
+            console.error("[BeerCall] Erreur capteur:", error);
             // Fallback pour les anciens navigateurs ou PC
             startGame();
         }
@@ -105,7 +105,7 @@ export default function GyroscopeTracker({sensorPayload, onAction, disabled}: Pr
             window.removeEventListener('deviceorientation', handleOrientation);
             if (winTimerRef.current) clearTimeout(winTimerRef.current);
         };
-    }, [phase, sensorPayload.max_tilt_angle, onAction]);
+    }, [phase, sensorPayload.max_tilt_angle, onAction, disabled]);
 
     // --- RENDU VISUEL ---
 

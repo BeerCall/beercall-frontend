@@ -42,7 +42,7 @@ export default function AccelerometerTracker({sensorPayload, onAction, disabled}
             }
             startGame();
         } catch (error) {
-            console.error("Erreur capteur:", error);
+            console.error("[BeerCall] Erreur capteur:", error);
             startGame(); // Fallback Android/PC
         }
     };
@@ -135,7 +135,7 @@ export default function AccelerometerTracker({sensorPayload, onAction, disabled}
             if (lossTimerRef.current) clearTimeout(lossTimerRef.current);
             if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
         };
-    }, [phase, sensorPayload.target_shakes, onAction]);
+    }, [phase, sensorPayload.target_shakes, onAction, disabled]);
 
 
     // --- RENDU VISUEL ---
