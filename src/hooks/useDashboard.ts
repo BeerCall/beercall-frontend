@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProfile } from './useProfile';
 import { useSquadDetails } from './useSquadDetails';
@@ -67,25 +67,7 @@ export const useDashboard = () => {
         }
     };
 
-    const handleMapPointerDown = (event: any) => {
-        if (event.originalEvent?.target?.closest?.('button, a, input, [role="button"]')) return;
-        
-        if (event.originalEvent?.touches && event.originalEvent.touches.length > 1) {
-            cancelLongPress();
-            return;
-        }
-
-        if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
-
-        longPressStart.current = {x: event.point?.x || 0, y: event.point?.y || 0};
-        longPressTimer.current = window.setTimeout(() => {
-            const [lng, lat] = event.lngLat.toArray();
-            setScheduleCoordinates({lng, lat});
-            setIsScheduleModalOpen(true);
-        }, 700);
-    };
-
-    const cancelLongPress = (event?: any) => {
+    const cancelLongPress = useCallback((event?: any) => {
         if (event?.originalEvent?.touches && event.originalEvent.touches.length > 1) {
             if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
@@ -103,22 +85,40 @@ export const useDashboard = () => {
             if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
         }
-    };
+    }, []);
 
-    const openCamera = (location = userLocation, apero: any = null) => {
+    const handleMapPointerDown = useCallback((event: any) => {
+        if (event.originalEvent?.target?.closest?.('button, a, input, [role="button"]')) return;
+        
+        if (event.originalEvent?.touches && event.originalEvent.touches.length > 1) {
+            cancelLongPress();
+            return;
+        }
+
+        if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+
+        longPressStart.current = {x: event.point?.x || 0, y: event.point?.y || 0};
+        longPressTimer.current = window.setTimeout(() => {
+            const [lng, lat] = event.lngLat.toArray();
+            setScheduleCoordinates({lng, lat});
+            setIsScheduleModalOpen(true);
+        }, 700);
+    }, [cancelLongPress]);
+
+    const openCamera = useCallback((location = userLocation, apero: any = null) => {
         setPhotoLocation(location);
         setStartingScheduledApero(apero);
         if (fileInputRef.current) fileInputRef.current.click();
-    };
+    }, [userLocation]);
 
-    const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePhotoCapture = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             setPhotoFile(e.target.files[0]);
         }
         e.target.value = '';
-    };
+    }, []);
 
-    const focusOnLocation = (lng: any, lat: any) => {
+    const focusOnLocation = useCallback((lng: any, lat: any) => {
         const numLng = Number(lng);
         const numLat = Number(lat);
         if (mapRef.current && !isNaN(numLng) && !isNaN(numLat)) {
@@ -130,9 +130,9 @@ export const useDashboard = () => {
                 essential: true
             });
         }
-    };
+    }, []);
 
-    const handleManualRecenter = () => {
+    const handleManualRecenter = useCallback(() => {
         if (userLocation && mapRef.current) {
             mapRef.current.flyTo({
                 center: [userLocation.lng, userLocation.lat],
@@ -144,7 +144,7 @@ export const useDashboard = () => {
         } else if (!userLocation) {
             toast.error("Recherche en cours 🛰️", "Le GPS cherche encore votre position... 📡");
         }
-    };
+    }, [userLocation]);
 
     useEffect(() => {
         const currentHour = new Date().getHours();
@@ -183,13 +183,13 @@ export const useDashboard = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    const handleBeerCallClick = (beerCall: any) => {
+    const handleBeerCallClick = useCallback((beerCall: any) => {
         if (beerCall.has_responded) {
             setIsWorldsModalOpen(beerCall.id);
         } else {
             setSelectedBeerCall(beerCall);
         }
-    };
+    }, []);
 
     const handleCopyCode = () => {
         if (squadDetails?.invite_code) {

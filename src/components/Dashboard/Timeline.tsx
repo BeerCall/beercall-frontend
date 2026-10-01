@@ -27,7 +27,7 @@ interface TimelineProps {
     setIsWorldsModalOpen: (id: string) => void;
 }
 
-export const Timeline: React.FC<TimelineProps> = ({
+export const Timeline: React.FC<TimelineProps> = React.memo(({
     squadDetails,
     squadId,
     navigate,
@@ -97,4 +97,4 @@ export const Timeline: React.FC<TimelineProps> = ({
         </div>
     </div>
     );
-};
+});

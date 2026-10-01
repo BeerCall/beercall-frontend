@@ -21,7 +21,7 @@ interface MapSectionProps {
     setIsWorldsModalOpen: (id: string) => void;
 }
 
-export const MapSection: React.FC<MapSectionProps> = ({
+export const MapSection: React.FC<MapSectionProps> = React.memo(({
     mapRef,
     userLocation,
     isNightMode,
@@ -39,6 +39,16 @@ export const MapSection: React.FC<MapSectionProps> = ({
         ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
         : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
+    const handleRecenterClick = React.useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleManualRecenter();
+    }, [handleManualRecenter]);
+
+    const handlePlayerClick = React.useCallback(() => {
+        openCamera();
+    }, [openCamera]);
+
     return (
         <Map ref={mapRef}
             initialViewState={{
@@ -48,21 +58,17 @@ export const MapSection: React.FC<MapSectionProps> = ({
                 pitch: 45
             }}
             mapStyle={mapStyle} interactive={true}
-            onMouseDown={handleMapPointerDown} onMouseUp={() => cancelLongPress()}
-            onMouseLeave={() => cancelLongPress()}
+            onMouseDown={handleMapPointerDown} onMouseUp={cancelLongPress}
+            onMouseLeave={cancelLongPress}
             onTouchStart={handleMapPointerDown} onTouchMove={cancelLongPress}
-            onTouchEnd={() => cancelLongPress()}
-            onDragStart={() => cancelLongPress()}
-            onZoomStart={() => cancelLongPress()}
-            onMoveStart={() => cancelLongPress()}>
+            onTouchEnd={cancelLongPress}
+            onDragStart={cancelLongPress}
+            onZoomStart={cancelLongPress}
+            onMoveStart={cancelLongPress}>
             
             {/* BOUTON RECENTRER */}
             <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-[20px] z-10">
-                <button onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleManualRecenter();
-                }}
+                <button onClick={handleRecenterClick}
                         className="w-[29px] h-[29px] bg-white rounded flex items-center justify-center shadow-[0_0_0_2px_rgba(0,0,0,0.1)] hover:bg-gray-50 active:scale-95 transition-all"
                         title="Me recentrer">
                     <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
@@ -140,7 +146,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
             {userLocation && (
                 <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
                         style={{zIndex: 50}}>
-                    <div onClick={() => openCamera()}
+                    <div onClick={handlePlayerClick}
                             className="relative flex flex-col items-center cursor-pointer group rounded-full p-2 after:content-[''] after:absolute after:inset-1 after:rounded-full after:animate-soft-pulse after:z-[-1] animate-in fade-in zoom-in-50 duration-500 delay-300 fill-mode-both">
                         <div
                             className="absolute -top-7 px-3 py-1 bg-white/70 backdrop-blur-sm rounded-full shadow-sm border border-gray-100 transition-opacity opacity-100 group-hover:opacity-100 group-hover:scale-105 group-hover:bg-white group-hover:border-beer pointer-events-none whitespace-nowrap">
@@ -192,4 +198,4 @@ export const MapSection: React.FC<MapSectionProps> = ({
             })}
         </Map>
     );
-};
+});
