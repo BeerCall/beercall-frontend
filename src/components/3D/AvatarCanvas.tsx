@@ -416,7 +416,11 @@ export default function AvatarCanvas({
 
     const targetY = headOnly ? 160 : CONFIG.cameraTargetY;
     const cameraZ = headOnly ? 80 : CONFIG.cameraZ;
-    const renderConfig = headOnly && config ? { head: config.head, gender: config.gender, animation: config.animation } : config;
+    const renderConfig = useMemo(() => {
+        return headOnly && config 
+            ? { head: config.head, gender: config.gender, animation: config.animation } 
+            : config;
+    }, [headOnly, config]);
 
     return (
         <div className="w-full h-full relative">
