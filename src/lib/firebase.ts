@@ -4,13 +4,13 @@ import {getDatabase, ref} from 'firebase/database';
 
 // Récupère ces valeurs dans Console Firebase > Paramètres > Général > Tes applications (Web)
 const firebaseConfig = {
-    apiKey: "AIzaSyDFbNca0hG9vVpbT0PidxT_Qs0hJuXhXTw",
-    authDomain: "beercall-7be4e.firebaseapp.com",
-    projectId: "beercall-7be4e",
-    storageBucket: "beercall-7be4e.firebasestorage.app",
-    messagingSenderId: "983909265712",
-    appId: "1:983909265712:web:d9f7a5101f9cad43e818f5",
-    databaseURL: "https://beercall-7be4e-default-rtdb.europe-west1.firebasedatabase.app"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL
 };
 
 // Initialisation de l'application Firebase
