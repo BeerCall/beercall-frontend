@@ -7,6 +7,7 @@ import { useGameUIStore } from '../store/useGameUIStore';
 import { useLocationStore } from '../store/useLocationStore';
 import { toast } from '../store/useToastStore';
 import type { MapRef } from 'react-map-gl/maplibre';
+import type { BeerCall } from '../types/dashboard';
 
 export const useDashboard = () => {
     const { id } = useParams();
@@ -17,7 +18,7 @@ export const useDashboard = () => {
     const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
     // États de l'apéro
-    const [selectedBeerCall, setSelectedBeerCall] = useState<unknown>(null);
+    const [selectedBeerCall, setSelectedBeerCall] = useState<BeerCall | null>(null);
     const [isWorldsModalOpen, setIsWorldsModalOpen] = useState<string | null>(null);
     const [scheduleCoordinates, setScheduleCoordinates] = useState<{ lat: number; lng: number } | null>(null);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -45,7 +46,7 @@ export const useDashboard = () => {
     }, [id, isGameScreenOpen, closeGameScreen]);
 
     const [photoFile, setPhotoFile] = useState<File | null>(null);
-    const [startingScheduledApero, setStartingScheduledApero] = useState<unknown>(null);
+    const [startingScheduledApero, setStartingScheduledApero] = useState<BeerCall | null>(null);
     const [photoLocation, setPhotoLocation] = useState<{ lat: number, lng: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const mapRef = useRef<MapRef>(null);
@@ -107,7 +108,7 @@ export const useDashboard = () => {
         }, 700);
     }, [cancelLongPress]);
 
-    const openCamera = useCallback((location = userLocation, apero: unknown = null) => {
+    const openCamera = useCallback((location = userLocation, apero: BeerCall | null = null) => {
         setPhotoLocation(location);
         setStartingScheduledApero(apero);
         if (fileInputRef.current) fileInputRef.current.click();
@@ -180,7 +181,7 @@ export const useDashboard = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    const handleBeerCallClick = useCallback((beerCall: { has_responded?: boolean, id?: string, [key: string]: unknown }) => {
+    const handleBeerCallClick = useCallback((beerCall: BeerCall) => {
         if (beerCall.has_responded && beerCall.id) {
             setIsWorldsModalOpen(beerCall.id);
         } else {
