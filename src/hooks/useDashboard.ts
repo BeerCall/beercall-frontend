@@ -7,7 +7,7 @@ import { usePushNotifications } from './usePushNotifications';
 import { useGameUIStore } from '../store/useGameUIStore';
 import { useLocationStore } from '../store/useLocationStore';
 import { toast } from '../store/useToastStore';
-import { type MapRef } from 'react-map-gl/maplibre';
+import type { MapRef } from 'react-map-gl/maplibre';
 
 export const useDashboard = () => {
     const { id } = useParams();

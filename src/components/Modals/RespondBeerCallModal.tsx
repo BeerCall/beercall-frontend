@@ -113,6 +113,7 @@ export default function RespondBeerCallModal({
 
     // --- APPEL API : REFUSER ---
     const handleDecline = async () => {
+        if (!beerCall) return;
         setIsSubmitting(true);
         try {
             await api.post(`/squads/${squadId}/beer-calls/${beerCall.id}/decline/`, {excuse});
@@ -128,7 +129,7 @@ export default function RespondBeerCallModal({
 
     // --- APPEL API : ACCEPTER ---
     const handleAccept = async () => {
-        if (!photoFile || !location) {
+        if (!beerCall || !photoFile || !location) {
             toast.error("Erreur GPS", "Localisation introuvable. Vérifie que ton GPS est activé !");
             return;
         }

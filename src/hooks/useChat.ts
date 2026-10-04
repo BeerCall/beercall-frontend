@@ -40,10 +40,10 @@ export function useChat(squadId: string | undefined, beerCallId?: string | undef
             const unsubscribe = onValue(
                 q,
                 (snapshot) => {
-                    const data = snapshot.val() || {};
-                    const list: ChatMessage[] = Object.entries(data).map(([id, value]: [string, Record<string, unknown>]) => ({
-                        id,
+                    const data = (snapshot.val() ?? {}) as Record<string, Omit<ChatMessage, 'id'>>;
+                    const list: ChatMessage[] = Object.entries(data).map(([id, value]) => ({
                         ...value,
+                        id,
                     }));
                     setMessages(list);
                     setTimeout(() => setLoading(false), 0);
