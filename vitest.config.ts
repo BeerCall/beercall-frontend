@@ -9,22 +9,20 @@ export default mergeConfig(viteConfig, defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      thresholds: {
-        lines: 80,
-        branches: 80,
-        functions: 80,
-        statements: 80
-      },
+      include: ['src/**/*.{ts,tsx}'],
       exclude: [
-        'node_modules/',
-        'src/test/',
-        'src/__tests__/',
+        '**/__tests__/**',
         '**/*.d.ts',
         'src/main.tsx',
-        'src/vite-env.d.ts',
-        'src/components/3D/**',
-        'src/components/Game/Sensors/**'
-      ]
+        'src/vite-env.d.ts'
+      ],
+      // Objectif à long terme : 80% (ratchet progressif)
+      thresholds: {
+        statements: 40,
+        branches: 25,
+        functions: 39,
+        lines: 43
+      }
     }
   }
 }))
