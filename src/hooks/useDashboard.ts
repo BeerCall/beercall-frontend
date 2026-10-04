@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProfile } from './useProfile';
 import { useSquadDetails } from './useSquadDetails';
-import { useSquadWebSocket } from './useSquadWebSocket';
 import { usePushNotifications } from './usePushNotifications';
 import { useGameUIStore } from '../store/useGameUIStore';
 import { useLocationStore } from '../store/useLocationStore';
@@ -18,20 +17,25 @@ export const useDashboard = () => {
     const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
     // États de l'apéro
-    const [selectedBeerCall, setSelectedBeerCall] = useState<any | null>(null);
+    const [selectedBeerCall, setSelectedBeerCall] = useState<unknown>(null);
     const [isWorldsModalOpen, setIsWorldsModalOpen] = useState<string | null>(null);
     const [scheduleCoordinates, setScheduleCoordinates] = useState<{ lat: number; lng: number } | null>(null);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
     const [isMapReady, setIsMapReady] = useState(false);
 
-    const [isNightMode, setIsNightMode] = useState(false);
+    const [isNightMode] = useState(() => {
+        const currentHour = new Date().getHours();
+        return currentHour >= 19 || currentHour < 6;
+    });
 
     const { data: profile } = useProfile();
     const { data: squadDetails } = useSquadDetails(id);
-    useSquadWebSocket(id ? Number(id) : null);
+    // TODO(REV-04): The useSquadWebSocket hook was just a no-op placeholder masking the absence
+    // of a real WebSocket implementation. It has been removed. A proper WS hook should be
+    // implemented when real-time features are actually supported by the backend and frontend.
     const { isGameScreenOpen, currentAperoId, closeGameScreen } = useGameUIStore();
     const { userLocation, startTracking, stopTracking } = useLocationStore();
-    const isActiveApero = squadDetails?.active_beer_call?.some((call: any) => call.id === isWorldsModalOpen);
+    const isActiveApero = squadDetails?.active_beer_call?.some((call: { id: string }) => call.id === isWorldsModalOpen);
 
     // Fermer l'écran de jeu quand on change de squad
     useEffect(() => {
@@ -41,7 +45,7 @@ export const useDashboard = () => {
     }, [id, isGameScreenOpen, closeGameScreen]);
 
     const [photoFile, setPhotoFile] = useState<File | null>(null);
-    const [startingScheduledApero, setStartingScheduledApero] = useState<any>(null);
+    const [startingScheduledApero, setStartingScheduledApero] = useState<unknown>(null);
     const [photoLocation, setPhotoLocation] = useState<{ lat: number, lng: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const mapRef = useRef<MapRef>(null);
@@ -49,15 +53,9 @@ export const useDashboard = () => {
     const longPressStart = useRef<{ x: number; y: number } | null>(null);
     const hasCentered = useRef(false);
     const [copied, setCopied] = useState(false);
-    const [showPushBanner, setShowPushBanner] = useState(false);
+    const [showPushBanner, setShowPushBanner] = useState(() => 'Notification' in window && Notification.permission === 'default');
 
     const { subscribeToNotifications } = usePushNotifications();
-
-    useEffect(() => {
-        if ('Notification' in window && Notification.permission === 'default') {
-            setShowPushBanner(true);
-        }
-    }, []);
 
     const handleEnableNotifications = async () => {
         const success = await subscribeToNotifications();
@@ -67,16 +65,17 @@ export const useDashboard = () => {
         }
     };
 
-    const cancelLongPress = useCallback((event?: any) => {
-        if (event?.originalEvent?.touches && event.originalEvent.touches.length > 1) {
+    const cancelLongPress = useCallback((event?: unknown) => {
+        const ev = event as { originalEvent?: { touches?: unknown[] }, point?: { x: number, y: number } } | undefined;
+        if (ev?.originalEvent?.touches && ev.originalEvent.touches.length > 1) {
             if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
             return;
         }
 
-        if (event && longPressStart.current && event.point) {
-            const dx = event.point.x - longPressStart.current.x;
-            const dy = event.point.y - longPressStart.current.y;
+        if (ev && longPressStart.current && ev.point) {
+            const dx = ev.point.x - longPressStart.current.x;
+            const dy = ev.point.y - longPressStart.current.y;
             if (Math.hypot(dx, dy) > 12) {
                 if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
                 longPressTimer.current = null;
@@ -87,25 +86,28 @@ export const useDashboard = () => {
         }
     }, []);
 
-    const handleMapPointerDown = useCallback((event: any) => {
-        if (event.originalEvent?.target?.closest?.('button, a, input, [role="button"]')) return;
+    const handleMapPointerDown = useCallback((event: unknown) => {
+        const ev = event as { originalEvent?: { target?: { closest?: (s: string) => boolean }, touches?: unknown[] }, point?: { x: number, y: number }, lngLat?: { toArray: () => [number, number] } };
+        if (ev.originalEvent?.target?.closest?.('button, a, input, [role="button"]')) return;
         
-        if (event.originalEvent?.touches && event.originalEvent.touches.length > 1) {
+        if (ev.originalEvent?.touches && ev.originalEvent.touches.length > 1) {
             cancelLongPress();
             return;
         }
 
         if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
 
-        longPressStart.current = {x: event.point?.x || 0, y: event.point?.y || 0};
+        longPressStart.current = {x: ev.point?.x || 0, y: ev.point?.y || 0};
         longPressTimer.current = window.setTimeout(() => {
-            const [lng, lat] = event.lngLat.toArray();
-            setScheduleCoordinates({lng, lat});
-            setIsScheduleModalOpen(true);
+            if (ev.lngLat) {
+                const [lng, lat] = ev.lngLat.toArray();
+                setScheduleCoordinates({lng, lat});
+                setIsScheduleModalOpen(true);
+            }
         }, 700);
     }, [cancelLongPress]);
 
-    const openCamera = useCallback((location = userLocation, apero: any = null) => {
+    const openCamera = useCallback((location = userLocation, apero: unknown = null) => {
         setPhotoLocation(location);
         setStartingScheduledApero(apero);
         if (fileInputRef.current) fileInputRef.current.click();
@@ -118,7 +120,7 @@ export const useDashboard = () => {
         e.target.value = '';
     }, []);
 
-    const focusOnLocation = useCallback((lng: any, lat: any) => {
+    const focusOnLocation = useCallback((lng: number | string, lat: number | string) => {
         const numLng = Number(lng);
         const numLat = Number(lat);
         if (mapRef.current && !isNaN(numLng) && !isNaN(numLat)) {
@@ -145,11 +147,6 @@ export const useDashboard = () => {
             toast.error("Recherche en cours 🛰️", "Le GPS cherche encore votre position... 📡");
         }
     }, [userLocation]);
-
-    useEffect(() => {
-        const currentHour = new Date().getHours();
-        setIsNightMode(currentHour >= 19 || currentHour < 6);
-    }, []);
 
     useEffect(() => {
         const handleFirstInteraction = () => {
@@ -183,8 +180,8 @@ export const useDashboard = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    const handleBeerCallClick = useCallback((beerCall: any) => {
-        if (beerCall.has_responded) {
+    const handleBeerCallClick = useCallback((beerCall: { has_responded?: boolean, id?: string, [key: string]: unknown }) => {
+        if (beerCall.has_responded && beerCall.id) {
             setIsWorldsModalOpen(beerCall.id);
         } else {
             setSelectedBeerCall(beerCall);

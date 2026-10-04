@@ -38,6 +38,14 @@ vi.mock('@react-three/drei', () => {
     };
 });
 
+vi.mock('../../hooks/useGameEngine', () => ({
+    useGameEngine: vi.fn().mockReturnValue({ gameState: true, startGame: vi.fn(), isLocked: false })
+}));
+
+vi.mock('../../store/useGameUIStore', () => ({
+    useGameUIStore: vi.fn().mockReturnValue(vi.fn())
+}));
+
 import * as drei from '@react-three/drei';
 import * as fiber from '@react-three/fiber';
 
@@ -65,17 +73,22 @@ describe('3D Components Rendering & Observability', () => {
     });
 
     it('renders BarWorld and passes participants', async () => {
+        const onSelectPhotoMock = vi.fn();
         const participants = [
-            { id: '1', username: 'P1', avatar: { head: 'cap', gender: 'Men' } }
+            { id: '1', username: 'P1', proof_photo_url: 'http://test.com/photo.jpg', avatar: { head: 'cap', gender: 'Men' } }
         ];
         
-        render(<BarWorld participants={participants} isActiveApero={true} aperoId="apero-1" squadId="sq-1" onSelectPhoto={vi.fn()} />);
+        render(<BarWorld participants={participants} isActiveApero={true} aperoId="apero-1" squadId="sq-1" onSelectPhoto={onSelectPhotoMock} />);
         
         expect(drei.useFBX).toHaveBeenCalled();
         expect(screen.getByText('P1')).toBeInTheDocument();
+        expect(screen.getByText('JACKPOT')).toBeInTheDocument(); // SlotMachine active if isActiveApero
+        
+        const photoMock = screen.getByAltText('Preuve');
+        photoMock.click();
         
         await waitFor(() => {
-            expect(true).toBe(true);
+            expect(onSelectPhotoMock).toHaveBeenCalledWith('http://test.com/photo.jpg');
         });
     });
 

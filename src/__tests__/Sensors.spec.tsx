@@ -1,7 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from './utils/test-utils';
+
+// Mock Canvas getContext
+HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
+    drawImage: vi.fn(),
+    translate: vi.fn(),
+    scale: vi.fn(),
+    fillRect: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
+}) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
+HTMLCanvasElement.prototype.toDataURL = vi.fn().mockReturnValue('data:image/jpeg;base64,fake');
+
+// Mock mediaDevices
+Object.defineProperty(navigator, 'mediaDevices', {
+    value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+            getTracks: () => [{ stop: vi.fn() }]
+        }),
+    },
+    configurable: true,
+});
+
 import AccelerometerTracker from '../components/Game/Sensors/AccelerometerTracker';
 import CameraCapture from '../components/Game/Sensors/CameraCapture';
 import CanvasDraw from '../components/Game/Sensors/CanvasDraw';
@@ -40,14 +65,25 @@ describe('Sensors Rendering & Interactions', () => {
         expect(onAction).toHaveBeenCalledWith('GAME_WON');
     });
 
-    it('CameraCapture: renders capture button', async () => {
+    it('CameraCapture: renders capture button and handles action', async () => {
         const onAction = vi.fn();
-        const { unmount } = render(<CameraCapture sensorPayload={{ type: 'CAMERA_CAPTURE' }} onAction={onAction} disabled={false} />);
+        const { rerender } = render(<CameraCapture sensorPayload={{ type: 'CAMERA_CAPTURE', facing_mode: 'user', auto_capture_ms: 10000 }} onAction={onAction} disabled={false} />);
         
-        const captureBtn = screen.getByRole('button');
-        expect(captureBtn).toBeInTheDocument();
+        // Wait for permission state to be granted (it's async with startCamera)
+        const mainBtn = await screen.findByRole('button');
+        expect(mainBtn).not.toBeDisabled();
         
-        unmount();
+        // Ensure disabled prop propagates
+        rerender(<CameraCapture sensorPayload={{ type: 'CAMERA_CAPTURE', facing_mode: 'user', auto_capture_ms: 10000 }} onAction={onAction} disabled={true} />);
+        expect(mainBtn).toBeDisabled();
+        
+        rerender(<CameraCapture sensorPayload={{ type: 'CAMERA_CAPTURE', facing_mode: 'user', auto_capture_ms: 10000 }} onAction={onAction} disabled={false} />);
+        
+        await userEvent.click(mainBtn);
+        expect(mainBtn).toBeDisabled(); // disables after capture
+        
+        await vi.advanceTimersByTimeAsync(1500);
+        expect(onAction).toHaveBeenCalledWith('PHOTO_TAKEN', expect.any(Object));
     });
 
     it('CanvasDraw: renders canvas and allows clearing', async () => {

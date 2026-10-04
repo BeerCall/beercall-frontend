@@ -19,18 +19,17 @@ global.URL.revokeObjectURL = vi.fn();
 
 // Mock FileReader and Canvas for processImageForBackend
 global.FileReader = class {
-    onload: any;
-    onerror: any;
+    onload: ((e: { target: { result: string } }) => void) | null = null;
+    onerror: ((e: Error) => void) | null = null;
     readAsDataURL() {
         setTimeout(() => {
             if (this.onload) this.onload({ target: { result: 'data:image/jpeg;base64,fake' } });
         }, 10);
     }
-} as any;
+} as unknown as typeof FileReader;
 
-const originalImage = global.Image;
 global.Image = class {
-    onload: any;
+    onload: (() => void) | null = null;
     width = 100;
     height = 100;
     _src = '';
@@ -43,11 +42,11 @@ global.Image = class {
     get src() {
         return this._src;
     }
-} as any;
+} as unknown as typeof global.Image;
 
 HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
     drawImage: vi.fn(),
-}) as any;
+}) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
 HTMLCanvasElement.prototype.toBlob = function(callback: BlobCallback) {
     setTimeout(() => {
@@ -155,5 +154,77 @@ describe('BeerCall Modals', () => {
             }));
         });
         expect(onClose).toHaveBeenCalled();
+    });
+
+    it('CreateBeerCallModal: submit with photo and location, handles error', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const onClose = vi.fn();
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        const location = { lat: 48.8566, lng: 2.3522 };
+        
+        vi.mocked(api.post).mockRejectedValueOnce(new Error('Network error'));
+        
+        render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
+        
+        const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
+        const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
+        
+        await user.type(locationInput, 'Mon super bar');
+        await user.click(submitBtn);
+        await vi.runAllTimersAsync();
+        
+        await waitFor(() => {
+            expect(submitBtn).not.toBeDisabled();
+        });
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('RespondBeerCallModal: accept and submit photo, handles error', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const onClose = vi.fn();
+        const beerCall = { id: 'call-1', location_name: 'Le Central', creator_name: 'Creator' };
+        
+        vi.mocked(api.post).mockRejectedValueOnce(new Error('Rejected'));
+        
+        render(<RespondBeerCallModal isOpen={true} onClose={onClose} beerCall={beerCall} squadId="sq-1" location={{ lat: 0, lng: 0 }} />);
+        
+        await user.click(screen.getByRole('button', { name: /J'y Vais !/i }));
+        await screen.findByText(/Prouve-le !/i);
+        
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        fireEvent.change(fileInput, { target: { files: [new File(['dummy'], 'photo.png', { type: 'image/png' })] } });
+        
+        const submitBtn = await screen.findByRole('button', { name: /VALIDATION IA/i });
+        await user.click(submitBtn);
+        await vi.runAllTimersAsync();
+        
+        await waitFor(() => {
+            expect(submitBtn).not.toBeDisabled();
+        });
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('ScheduleAperoModal: submit coordinates, handles error', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const onClose = vi.fn();
+        vi.mocked(api.post).mockRejectedValueOnce(new Error('Api error'));
+        
+        render(<ScheduleAperoModal isOpen={true} onClose={onClose} squadId="sq-1" coordinates={{ lat: 48.8, lng: 2.3 }} />);
+        
+        const locInput = screen.getByPlaceholderText(/Ex: Bar Le Central/i);
+        const timeInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
+        const submitBtn = screen.getByRole('button', { name: /PROGRAMMER/i });
+        
+        await user.type(locInput, 'Chez Roger');
+        fireEvent.change(timeInput, { target: { value: '2026-12-31T20:00' } });
+        fireEvent.blur(timeInput);
+        
+        await waitFor(() => expect(submitBtn).not.toBeDisabled());
+        await user.click(submitBtn);
+        
+        await waitFor(() => {
+            expect(submitBtn).not.toBeDisabled();
+        });
+        expect(onClose).not.toHaveBeenCalled();
     });
 });
