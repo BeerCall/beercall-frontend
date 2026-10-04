@@ -55,10 +55,12 @@ const processImageForBackend = (file: File): Promise<File> => {
     });
 };
 
+import type { BeerCall } from '../../types/dashboard';
+
 interface RespondBeerCallModalProps {
     isOpen: boolean;
     onClose: () => void;
-    beerCall: any;
+    beerCall: BeerCall | null;
     squadId: string;
     location: { lat: number; lng: number } | null;
 }
@@ -113,6 +115,7 @@ export default function RespondBeerCallModal({
 
     // --- APPEL API : REFUSER ---
     const handleDecline = async () => {
+        if (!beerCall) return;
         setIsSubmitting(true);
         try {
             await api.post(`/squads/${squadId}/beer-calls/${beerCall.id}/decline/`, {excuse});
@@ -128,7 +131,7 @@ export default function RespondBeerCallModal({
 
     // --- APPEL API : ACCEPTER ---
     const handleAccept = async () => {
-        if (!photoFile || !location) {
+        if (!beerCall || !photoFile || !location) {
             toast.error("Erreur GPS", "Localisation introuvable. Vérifie que ton GPS est activé !");
             return;
         }
@@ -149,9 +152,9 @@ export default function RespondBeerCallModal({
 
             await queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
-        } catch (err: any) {
+        } catch (err) {
             console.error("Erreur Accept:", err);
-            const errorMessage = err.response?.data?.detail || "L'IA a rejeté ta bière (ou le serveur a planté) !";
+            const errorMessage = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail || "L'IA a rejeté ta bière (ou le serveur a planté) !";
             toast.error("Échec", errorMessage);
         } finally {
             setIsSubmitting(false);

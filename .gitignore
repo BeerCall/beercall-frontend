@@ -21,3 +21,6 @@ Thumbs.db
 # Environnement
 .env
 .env.production
+# Testing
+coverage
+.vitest

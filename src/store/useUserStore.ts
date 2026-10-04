@@ -11,11 +11,10 @@ interface UserState {
 export const useUserStore = create<UserState>()(
     persist(
         (set) => ({
-            isAuthenticated: !!localStorage.getItem('token'),
+            isAuthenticated: false,
             username: null,
             login: (username) => set({isAuthenticated: true, username}),
             logout: () => {
-                localStorage.removeItem('token');
                 set({isAuthenticated: false, username: null});
             },
         }),

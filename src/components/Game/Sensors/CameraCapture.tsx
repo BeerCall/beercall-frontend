@@ -10,7 +10,7 @@ interface CameraPayload {
 interface Props {
     sensorPayload: CameraPayload;
     // On type correctement onAction pour accepter le payload de l'image
-    onAction: (actionId: string, payload?: any) => void;
+    onAction: (actionId: string, payload?: unknown) => void;
     disabled: boolean;
 }
 

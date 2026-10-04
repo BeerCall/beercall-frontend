@@ -265,7 +265,8 @@ export default function BarWorld({aperoId, squadId, participants, isActiveApero,
     isActiveApero: boolean,
     onSelectPhoto: (url: string) => void
 }) {
-    const {gameState, startGame, isLocked} = useGameEngine(aperoId);
+    // 🛡️ On désactive le check du gameState si l'apéro n'est pas actif pour éviter le 409 Conflict
+    const {gameState, startGame, isLocked} = useGameEngine(aperoId, { enabled: isActiveApero });
     const openGameScreen = useGameUIStore((state) => state.openGameScreen);
 
     const handlePullLever = () => {

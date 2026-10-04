@@ -1,9 +1,10 @@
 import {useState, useEffect} from 'react';
 import {useNavigate, Link} from 'react-router-dom';
 import {ChevronLeft, ArrowRight, User, Lock} from 'lucide-react';
+import React, { Suspense } from 'react';
 import {useUserStore} from '../store/useUserStore';
 import {api} from '../lib/api';
-import AvatarCanvas from '../components/3D/AvatarCanvas';
+const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
 import VestiairePanel, {type Gender} from '../components/Profile/VestiairePanel';
 import {useQuery} from '@tanstack/react-query';
 import {toast} from "../store/useToastStore.ts";
@@ -37,7 +38,7 @@ export default function SignUp() {
         }
     });
 
-    const publicShopItems: ShopItem[] = publicProfile?.shop_items || [];
+    const publicShopItems: ShopItem[] = React.useMemo(() => publicProfile?.shop_items || [], [publicProfile]);
 
     // 🪄 MAGIE DYNAMIQUE : On sélectionne le 1er item de chaque catégorie selon le genre
     useEffect(() => {
@@ -76,9 +77,9 @@ export default function SignUp() {
                 loginAction(res.data.username);
                 navigate('/dashboard');
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error("Erreur lors de l'inscription:", err);
-            const errorMessage = err.response?.data?.detail || "Erreur serveur inattendue";
+            const errorMessage = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail || "Erreur serveur inattendue";
             toast.error("Erreur lors de l'inscription.", errorMessage);
         } finally {
             setIsLoading(false);
@@ -172,7 +173,9 @@ export default function SignUp() {
                         <button onClick={() => setStep(1)}
                                 className="absolute top-6 left-6 z-20 p-3 bg-white shadow-xl rounded-full border border-gray-100 hover:scale-110 active:scale-90 transition-transform">
                             <ChevronLeft size={20}/></button>
-                        <AvatarCanvas config={avatarConfig} onAnimationsLoaded={setAvailableAnimations}/>
+                        <Suspense fallback={<div className="flex h-full items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-beer"></div></div>}>
+                            <AvatarCanvas config={avatarConfig} onAnimationsLoaded={setAvailableAnimations}/>
+                        </Suspense>
                     </div>
                     <VestiairePanel
                         shopItems={publicShopItems}

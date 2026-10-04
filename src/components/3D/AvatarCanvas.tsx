@@ -387,13 +387,15 @@ interface AvatarCanvasProps {
     disableZoom?: boolean;
     disablePan?: boolean;
     onAnimationsLoaded?: (animations: string[]) => void;
+    headOnly?: boolean;
 }
 
 export default function AvatarCanvas({
                                          config,
                                          disableZoom = false,
                                          disablePan = false,
-                                         onAnimationsLoaded
+                                         onAnimationsLoaded,
+                                         headOnly = false
                                      }: AvatarCanvasProps) {
     useEffect(() => {
         silenceWarnings();
@@ -405,25 +407,33 @@ export default function AvatarCanvas({
 
         if (config) {
             if (config.head && config.head !== 'none') useFBX.preload(`${MODELS_URL}/${config.head}.fbx`);
-            if (config.body && config.body !== 'none') useFBX.preload(`${MODELS_URL}/${config.body}.fbx`);
-            if (config.legs && config.legs !== 'none') useFBX.preload(`${MODELS_URL}/${config.legs}.fbx`);
-            if (config.feet && config.feet !== 'none') useFBX.preload(`${MODELS_URL}/${config.feet}.fbx`);
-            if (config.accessory && config.accessory !== 'none') useFBX.preload(`${MODELS_URL}/${config.accessory}.fbx`);
+            if (!headOnly && config.body && config.body !== 'none') useFBX.preload(`${MODELS_URL}/${config.body}.fbx`);
+            if (!headOnly && config.legs && config.legs !== 'none') useFBX.preload(`${MODELS_URL}/${config.legs}.fbx`);
+            if (!headOnly && config.feet && config.feet !== 'none') useFBX.preload(`${MODELS_URL}/${config.feet}.fbx`);
+            if (!headOnly && config.accessory && config.accessory !== 'none') useFBX.preload(`${MODELS_URL}/${config.accessory}.fbx`);
         }
-    }, [config]);
+    }, [config, headOnly]);
+
+    const targetY = headOnly ? 160 : CONFIG.cameraTargetY;
+    const cameraZ = headOnly ? 80 : CONFIG.cameraZ;
+    const renderConfig = useMemo(() => {
+        return headOnly && config 
+            ? { head: config.head, gender: config.gender, animation: config.animation } 
+            : config;
+    }, [headOnly, config]);
 
     return (
         <div className="w-full h-full relative">
-            <Canvas camera={{position: [0, CONFIG.cameraTargetY, CONFIG.cameraZ], fov: 45}} dpr={[1, 2]}
+            <Canvas camera={{position: [0, targetY, cameraZ], fov: 45}} dpr={[1, 2]}
                     className="z-10 relative">
                 <ambientLight intensity={1.5}/>
                 <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                 <directionalLight position={[-10, 10, -10]} intensity={1}/>
 
                 {/* 🚀 APRÈS : On sépare les Suspense pour éviter le conflit d'état ! */}
-                <Suspense fallback={<CanvasLoader/>}>
-                    <ModularAvatar config={config} onAnimationsLoaded={onAnimationsLoaded}/>
-                    <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={200} blur={2} far={200} color="#000000"/>
+                <Suspense fallback={headOnly ? null : <CanvasLoader/>}>
+                    <ModularAvatar config={renderConfig} onAnimationsLoaded={onAnimationsLoaded}/>
+                    {!headOnly && <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={200} blur={2} far={200} color="#000000"/>}
                 </Suspense>
 
                 {/* L'environnement charge de son côté silencieusement */}
@@ -434,7 +444,7 @@ export default function AvatarCanvas({
                 <OrbitControls
                     enableZoom={!disableZoom}
                     enablePan={!disablePan}
-                    target={[0, CONFIG.cameraTargetY, 0]}
+                    target={[0, targetY, 0]}
                     minPolarAngle={Math.PI / 3}
                     maxPolarAngle={Math.PI / 1.7}
                     autoRotate={false}

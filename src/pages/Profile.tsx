@@ -2,9 +2,10 @@ import {useState, useEffect} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
 import {ChevronLeft, Check, Medal, Users, BarChart2, Trophy} from 'lucide-react';
 import {useQueryClient} from '@tanstack/react-query';
+import React, { Suspense } from 'react';
 import {useProfile} from '../hooks/useProfile';
 import {api} from '../lib/api';
-import AvatarCanvas from '../components/3D/AvatarCanvas';
+const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
 import VestiairePanel from '../components/Profile/VestiairePanel';
 import {motion, AnimatePresence} from 'framer-motion';
 import {toast} from "../store/useToastStore.ts";
@@ -19,7 +20,7 @@ export default function Profile() {
 
     const {data: profile, isLoading} = useProfile(profileId);
 
-    const [previewAvatar, setPreviewAvatar] = useState<any>(null);
+    const [previewAvatar, setPreviewAvatar] = useState<Record<string, string> | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     // 🚀 AJOUT DE L'ÉTAT POUR LE SWITCH VESTIAIRE / TROPHÉES
@@ -37,7 +38,7 @@ export default function Profile() {
         if (profile?.avatar && !previewAvatar) {
             setPreviewAvatar(profile.avatar);
         }
-    }, [profile]);
+    }, [profile, previewAvatar]);
 
     const handleBuyItem = (itemId: string, price: number, itemName: string) => {
         if (!isOwnProfile || !profile) return;
@@ -55,7 +56,7 @@ export default function Profile() {
             await api.post('/auth/buy/', {item_id: purchaseIntent.itemId});
             queryClient.invalidateQueries({queryKey: ['profile', profileId]});
             toast.success("Achat validé", `Félicitations ! "${purchaseIntent.itemName}" acheté. 🛍️`);
-        } catch (e) {
+        } catch {
             toast.error("Erreur", "Le serveur est sûrement ivre.");
         } finally {
             setIsSaving(false);
@@ -70,7 +71,7 @@ export default function Profile() {
             await api.put('/auth/equip/', previewAvatar);
             queryClient.invalidateQueries({queryKey: ['profile', profileId]});
             toast.success("Succès", "Tenue sauvegardée avec succès ! ✨");
-        } catch (e) {
+        } catch {
             toast.error("Erreur", "Erreur lors de la sauvegarde.");
         } finally {
             setIsSaving(false);
@@ -178,7 +179,9 @@ export default function Profile() {
                         </div>
                     )}
 
-                    <AvatarCanvas config={previewAvatar} onAnimationsLoaded={setAvailableAnimations}/>
+                    <Suspense fallback={<div className="flex h-full items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-beer"></div></div>}>
+                        <AvatarCanvas config={previewAvatar} onAnimationsLoaded={setAvailableAnimations}/>
+                    </Suspense>
                 </div>
 
                 {/* 🚀 LOGIQUE CORRIGÉE : Si c'est ton profil ET que tu es sur "vestiaire", on affiche le vestiaire. Sinon, on affiche les infos. */}

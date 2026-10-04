@@ -37,9 +37,9 @@ export default function JoinSquadModal({isOpen, onClose}: JoinSquadModalProps) {
             // Redirection directe vers la nouvelle squad !
             navigate(`/squad/${res.data.id}`);
 
-        } catch (err: any) {
+        } catch (err) {
             console.error("Erreur Join Squad:", err);
-            setError(err.response?.data?.detail || "Code invalide ou expiré 🕵️‍♂️");
+            setError((err as { response?: { data?: { detail?: string } } }).response?.data?.detail || "Code invalide ou expiré 🕵️‍♂️");
         } finally {
             setIsLoading(false);
         }

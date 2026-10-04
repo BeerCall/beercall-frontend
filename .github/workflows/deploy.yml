@@ -1,13 +1,44 @@
-name: Deploy Trigger
+name: Test & Deploy Trigger
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  trigger:
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run Unit Tests & Coverage
+        run: npm run coverage
+
+      - name: Run Build
+        run: npm run build
+
+  trigger:
+    name: Trigger App Deployment
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Trigger beercall-app deployment
         uses: peter-evans/repository-dispatch@v3

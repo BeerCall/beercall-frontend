@@ -1,5 +1,7 @@
 # React + TypeScript + Vite
 
+> **Dette Supply-Chain** : Les tags d'images de base Docker (`node:22-alpine`, `nginx:stable-alpine`) restent actuellement mutables. Il conviendra de les remplacer par des digests (`@sha256:...`) ultérieurement.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

@@ -160,10 +160,12 @@ export default function VestiairePanel({
                             const isOwned = (item as any).is_owned;
 
                             return (
-                                <button key={item.id} onClick={() => {
+                                <div key={item.id} onClick={() => {
                                     if (!readonly) handleEquip(activeTab, item.id);
                                 }}
-                                        className={`relative p-4 rounded-3xl border-2 flex flex-col items-center text-center transition-all active:scale-95 ${isEquipped ? 'border-beer bg-amber-50/50 shadow-[0_0_20px_rgba(217,119,6,0.15)] scale-105' : 'border-gray-100 bg-white hover:border-gray-300 hover:shadow-md'}`}>
+                                     role="button"
+                                     tabIndex={0}
+                                     className={`relative p-4 rounded-3xl border-2 flex flex-col items-center text-center transition-all active:scale-95 cursor-pointer ${isEquipped ? 'border-beer bg-amber-50/50 shadow-[0_0_20px_rgba(217,119,6,0.15)] scale-105' : 'border-gray-100 bg-white hover:border-gray-300 hover:shadow-md'}`}>
                                     <div
                                         className="w-16 h-16 bg-gray-100 rounded-2xl mb-3 flex items-center justify-center text-3xl shadow-inner">
                                         {activeTab === 'head' && '🧢'}{activeTab === 'body' && '👕'}{activeTab === 'legs' && '👖'}{activeTab === 'feet' && '👟'}{activeTab === 'accessory' && '🎒'}
@@ -188,7 +190,7 @@ export default function VestiairePanel({
                                                 className="bg-gray-100 text-gray-500 text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest flex items-center justify-center gap-1">Possédé</div>
                                         )}
                                     </div>
-                                </button>
+                                </div>
                             );
                         })}
                     </>

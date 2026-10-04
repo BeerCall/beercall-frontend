@@ -1,23 +1,21 @@
 import {defineConfig} from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-/*
-import basicSsl from '@vitejs/plugin-basic-ssl'
-*/
 import {VitePWA} from 'vite-plugin-pwa'
 
 export default defineConfig({
     plugins: [
         react(),
         tailwindcss(),
-        /*
-        basicSsl(),
-        */
         VitePWA({
             strategies: 'injectManifest',
-            srcDir: 'public',
+            srcDir: 'src',
             filename: 'firebase-messaging-sw.js',
             registerType: 'autoUpdate',
+            devOptions: {
+                enabled: true,
+                type: 'module'
+            },
             includeAssets: ['favicon.svg', 'apple-touch-icon.svg'],
             manifest: {
                 name: 'BeerCall',
@@ -32,12 +30,6 @@ export default defineConfig({
                         src: '/pwa-192x192.svg',
                         sizes: '192x192',
                         type: 'image/svg'
-                    },
-                    {
-                        src: '/pwa-512x512.svg',
-                        sizes: '512x512',
-                        type: 'image/svg',
-                        purpose: 'any maskable'
                     }
                 ]
             }
@@ -46,13 +38,11 @@ export default defineConfig({
     server: {
         host: true,
         proxy: {
-            // Ton proxy pour les requêtes backend
             '/api': {
                 target: 'http://127.0.0.1:8000',
                 changeOrigin: true,
-                secure: false, // Nécessaire car target est en http mais ton dev server est en https (basicSsl)
+                secure: false,
             },
-            // Ton proxy pour les modèles 3D
             '/models': {
                 target: 'http://127.0.0.1:8000',
                 changeOrigin: true,

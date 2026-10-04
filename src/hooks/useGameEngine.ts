@@ -3,7 +3,11 @@ import {useCallback} from 'react';
 import {api} from '../lib/api';
 import type {SduiPayload} from '../types/game';
 
-export const useGameEngine = (aperoId: string | number | undefined) => {
+interface GameEngineOptions {
+    enabled?: boolean;
+}
+
+export const useGameEngine = (aperoId: string | number | undefined, options?: GameEngineOptions) => {
     const queryClient = useQueryClient();
 
     // 🚀 SÉCURITÉ ABSOLUE : On force la string pour que le cache soit unique
@@ -17,7 +21,7 @@ export const useGameEngine = (aperoId: string | number | undefined) => {
             const res = await api.get<SduiPayload>(`/aperos/${stringId}/game/state`);
             return res.data;
         },
-        enabled: !!stringId, // Ne s'exécute QUE si stringId existe
+        enabled: !!stringId && (options?.enabled ?? true), // Ne s'exécute QUE si stringId existe et si c'est autorisé
         refetchOnWindowFocus: false,
     });
 
