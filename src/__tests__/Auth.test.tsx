@@ -1,31 +1,58 @@
-import { describe, it, expect, vi } from 'vitest';
-// Assuming Login component exists based on analysis
-// import Login from '../pages/Login'; 
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { render } from './utils/test-utils';
+import Login from '../pages/Login';
+import React from 'react';
 
-// Mocking useAuth store / hooks
-const mockLogin = vi.fn();
-vi.mock('../store/useAuth', () => ({
-  useAuth: () => ({
-    login: mockLogin,
-    isAuthenticated: false,
-  })
+const mockNavigate = vi.fn();
+const mockLoginAction = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+    const actual = await vi.importActual('react-router-dom');
+    return {
+        ...actual,
+        useNavigate: () => mockNavigate,
+        Link: ({ children }: React.PropsWithChildren) => <a>{children}</a>,
+    };
+});
+
+vi.mock('../store/useUserStore', () => ({
+    useUserStore: (selector: (state: unknown) => unknown) => selector({
+        login: mockLoginAction,
+        isAuthenticated: false,
+    })
 }));
 
 describe('US-1.1 : Inscription et Connexion', () => {
-  it('should authenticate user and redirect on valid credentials', async () => {
-    // Given: an unauthenticated user on the login screen
-    // render(<Login />);
-    
-    // NOTE: This is a placeholder as actual components were not parsed deeply.
-    // The structure enforces the Given/When/Then pattern.
-    
-    // When: credentials are provided and submitted
-    // fireEvent.change(screen.getByPlaceholderText(/email/i), { target: { value: 'test@beercall.com' } });
-    // fireEvent.change(screen.getByPlaceholderText(/password/i), { target: { value: 'password' } });
-    // fireEvent.click(screen.getByRole('button', { name: /se connecter/i }));
-    
-    // Then: login method is called (and routing would redirect)
-    // expect(mockLogin).toHaveBeenCalledWith('test@beercall.com', 'password');
-    expect(true).toBe(true); // Placeholder assertion
-  });
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('should show error on invalid credentials', async () => {
+        const user = userEvent.setup();
+        render(<Login />);
+        
+        await user.type(screen.getByPlaceholderText(/Ton Pseudo/i), 'wrongUser');
+        await user.type(screen.getByPlaceholderText(/Mot de passe/i), 'wrongPass');
+        await user.click(screen.getByRole('button', { name: /SE CONNECTER/i }));
+        
+        expect(await screen.findByText(/Identifiants incorrects ou serveur éméché 🥴/i)).toBeInTheDocument();
+        expect(mockNavigate).not.toHaveBeenCalled();
+        expect(mockLoginAction).not.toHaveBeenCalled();
+    });
+
+    it('should authenticate user and redirect on valid credentials', async () => {
+        const user = userEvent.setup();
+        render(<Login />);
+        
+        await user.type(screen.getByPlaceholderText(/Ton Pseudo/i), 'validUser');
+        await user.type(screen.getByPlaceholderText(/Mot de passe/i), 'validPass');
+        await user.click(screen.getByRole('button', { name: /SE CONNECTER/i }));
+        
+        await waitFor(() => {
+            expect(mockLoginAction).toHaveBeenCalledWith('validUser');
+        });
+        expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
+    });
 });
