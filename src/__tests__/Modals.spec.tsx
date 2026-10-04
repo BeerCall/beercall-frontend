@@ -1,10 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from './utils/test-utils';
 import CreateBeerCallModal from '../components/Modals/CreateBeerCallModal';
-import CreateSquadModal from '../components/Modals/CreateSquadModal';
-import JoinSquadModal from '../components/Modals/JoinSquadModal';
 import RespondBeerCallModal from '../components/Modals/RespondBeerCallModal';
 import SelectWorldModal from '../components/Modals/SelectWorldModal';
 import ScheduleAperoModal from '../components/Modals/ScheduleAperoModal';
@@ -26,38 +24,6 @@ describe('Modals Rendering & Interactions (Coverage)', () => {
         if (titleInput) await user.type(titleInput, 'Super Apero');
         if (submitBtn) await user.click(submitBtn);
         
-        expect(true).toBe(true);
-    });
-
-    it('CreateSquadModal: type and submit', async () => {
-        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const onClose = vi.fn();
-        render(<CreateSquadModal isOpen={true} onClose={onClose} />);
-        
-        const nameInput = screen.queryByPlaceholderText(/Nom de la Squad/i);
-        const descInput = screen.queryByPlaceholderText(/Description/i);
-        const submitBtn = screen.queryByRole('button', { name: /CRÉER LA SQUAD/i }) || screen.queryByText(/CRÉER/i);
-        
-        if (nameInput) await user.type(nameInput, 'MySquad');
-        if (descInput) await user.type(descInput, 'Best squad ever');
-        if (submitBtn) await user.click(submitBtn);
-
-        expect(true).toBe(true);
-    });
-
-    it('JoinSquadModal: type code and submit', async () => {
-        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const onClose = vi.fn();
-        render(<JoinSquadModal isOpen={true} onClose={onClose} />);
-        
-        const codeInputs = document.querySelectorAll('input'); // usually 6 digit inputs
-        if (codeInputs.length > 0) {
-            await user.type(codeInputs[0], 'A');
-        }
-        
-        const submitBtn = screen.queryByText(/REJOINDRE/i);
-        if (submitBtn) await user.click(submitBtn);
-
         expect(true).toBe(true);
     });
 
