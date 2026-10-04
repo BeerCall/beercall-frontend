@@ -12,6 +12,8 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,6 +38,7 @@ jobs:
     needs: test
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Trigger beercall-app deployment
         uses: peter-evans/repository-dispatch@v3
