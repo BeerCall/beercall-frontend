@@ -55,10 +55,12 @@ const processImageForBackend = (file: File): Promise<File> => {
     });
 };
 
+import type { BeerCall } from '../../types/dashboard';
+
 interface RespondBeerCallModalProps {
     isOpen: boolean;
     onClose: () => void;
-    beerCall: { id: string | number; location_name?: string; creator_name?: string; [key: string]: unknown } | null;
+    beerCall: BeerCall | null;
     squadId: string;
     location: { lat: number; lng: number } | null;
 }

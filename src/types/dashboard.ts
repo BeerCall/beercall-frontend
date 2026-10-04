@@ -6,6 +6,7 @@ export interface BeerCall {
     started_at?: string;
     scheduled_for?: string;
     location_name?: string;
+    creator_name?: string;
     participants_count?: number;
     // Any other fields that might be used
 }

@@ -54,11 +54,13 @@ const processImageForBackend = (file: File): Promise<File> => {
     });
 };
 
+import type { BeerCall } from '../../types/dashboard';
+
 interface CreateBeerCallModalProps {
     squadId: string;
     photoFile: File | null;
     location: { lat: number; lng: number } | null;
-    scheduledApero?: { id: string; location_name: string } | null;
+    scheduledApero?: BeerCall | null;
     onClose: () => void;
 }
 
@@ -70,7 +72,7 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
 
     useEffect(() => {
         if (scheduledApero) {
-            setLocationName(scheduledApero.location_name);
+            setLocationName(scheduledApero.location_name || '');
         } else {
             setLocationName('');
         }
