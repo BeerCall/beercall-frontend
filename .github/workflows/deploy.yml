@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   test:
@@ -20,14 +23,18 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps
 
       - name: Run Unit Tests & Coverage
         run: npm run coverage
 
+      - name: Run Build
+        run: npm run build
+
   trigger:
     name: Trigger App Deployment
     needs: test
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger beercall-app deployment
