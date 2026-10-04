@@ -5,9 +5,14 @@ import { cleanup } from '@testing-library/react';
 import { server } from './src/__tests__/mocks/server';
 
 // Create a dummy scene object with clone and traverse methods
-const dummyScene = {
+interface DummyScene {
+    clone: () => DummyScene;
+    traverse: (cb: (node: { isMesh: boolean }) => void) => void;
+}
+
+const dummyScene: DummyScene = {
     clone: () => dummyScene,
-    traverse: (cb: any) => cb({ isMesh: true }),
+    traverse: (cb) => cb({ isMesh: true }),
 };
 
 // Mock WebGL env globally
@@ -17,7 +22,7 @@ vi.mock('@react-three/fiber', () => ({
 }));
 
 vi.mock('@react-three/drei', () => {
-    const useFBXMock = vi.fn().mockReturnValue(dummyScene) as any;
+    const useFBXMock = vi.fn().mockReturnValue(dummyScene) as unknown as { preload: () => void };
     useFBXMock.preload = vi.fn();
     
     return {
@@ -29,7 +34,7 @@ vi.mock('@react-three/drei', () => {
         ContactShadows: () => null,
         Center: () => null,
         PositionalAudio: () => null,
-        Float: ({ children }: any) => React.createElement('div', {}, children),
+        Float: ({ children }: React.PropsWithChildren<unknown>) => React.createElement('div', {}, children),
     };
 });
 
@@ -37,7 +42,7 @@ vi.mock('@react-three/drei', () => {
 global.Notification = {
     requestPermission: vi.fn().mockResolvedValue('granted'),
     permission: 'granted',
-} as unknown as any;
+} as unknown as typeof Notification;
 
 if (!global.navigator.serviceWorker) {
     Object.defineProperty(global.navigator, 'serviceWorker', {
@@ -63,20 +68,16 @@ if (!global.navigator.serviceWorker) {
     });
 }
 
-global.ServiceWorkerRegistration = class ServiceWorkerRegistration {} as any;
+global.ServiceWorkerRegistration = class ServiceWorkerRegistration {} as unknown as typeof ServiceWorkerRegistration;
 
 global.IntersectionObserver = class IntersectionObserver {
     observe() {}
     unobserve() {}
     disconnect() {}
-} as any;
+} as unknown as typeof IntersectionObserver;
 
 beforeAll(() => {
-    try {
-        server.listen({ onUnhandledRequest: 'error' });
-    } catch(e) {
-        // Ignore already started
-    }
+    server.listen({ onUnhandledRequest: 'error' });
 });
 
 afterEach(() => {

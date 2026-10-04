@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from './utils/test-utils';
 import SignUp from '../pages/SignUp';
@@ -7,6 +7,7 @@ import Profile from '../pages/Profile';
 import Connections from '../pages/Connections';
 import ChatPage from '../pages/ChatPage';
 import { useUserStore } from '../store/useUserStore';
+import React from 'react';
 
 const mockNavigate = vi.fn();
 
@@ -16,7 +17,7 @@ vi.mock('react-router-dom', async () => {
         ...actual,
         useNavigate: () => mockNavigate,
         useParams: () => ({ id: '1' }),
-        Link: ({ children }: any) => <a>{children}</a>,
+        Link: ({ children }: React.PropsWithChildren) => <a>{children}</a>,
     };
 });
 
@@ -32,7 +33,10 @@ vi.mock('firebase/database', () => ({
     getDatabase: vi.fn(),
     ref: vi.fn(),
     push: vi.fn().mockReturnValue({ key: 'msg-1', set: vi.fn() }),
-    onValue: vi.fn().mockReturnValue(() => {}),
+    onValue: vi.fn().mockImplementation((ref, callback) => {
+        callback({ val: () => ({}) });
+        return () => {};
+    }),
     query: vi.fn(),
     orderByChild: vi.fn(),
     limitToLast: vi.fn(),
@@ -61,8 +65,14 @@ describe('Pages Rendering & Interactions (Coverage)', () => {
         // Clic sur l'inscription
         await user.click(submitButton);
 
+        const femmeBtn = await screen.findByText('Femme');
+        fireEvent.click(femmeBtn);
+
+        const saveBtn = await screen.findByRole('button', { name: /SAUVEGARDER LE STYLE/i });
+        fireEvent.click(saveBtn);
+
         await waitFor(() => {
-            expect(true).toBe(true);
+            expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
         });
     });
 
@@ -94,7 +104,9 @@ describe('Pages Rendering & Interactions (Coverage)', () => {
             await user.click(saveBtn);
         }
         
-        expect(true).toBe(true);
+        await waitFor(() => {
+            expect(screen.queryByText(/Sauvegarde en cours/i)).not.toBeInTheDocument();
+        });
     });
 
     it('Connections: rend la page des connexions', async () => {
@@ -110,12 +122,9 @@ describe('Pages Rendering & Interactions (Coverage)', () => {
     it('ChatPage: envoie un message', async () => {
         render(<ChatPage />);
 
-        // L'input textarea
-        const input = document.querySelector('textarea');
-        const buttons = document.querySelectorAll('button');
-        const sendBtn = buttons[1];
-
-        // On vérifie juste que l'UI se monte avec l'état de chargement ou erreur Firebase simulé
-        expect(true).toBe(true);
+        // On vérifie juste que l'UI se monte et le composant charge correctement
+        await waitFor(() => {
+            expect(screen.queryByText(/Chargement/i)).not.toBeInTheDocument();
+        });
     });
 });

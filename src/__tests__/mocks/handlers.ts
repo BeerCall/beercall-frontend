@@ -2,6 +2,13 @@ import { http, HttpResponse } from 'msw';
 
 export const handlers = [
     // --- Auth ---
+    http.post('*/auth/signup/', () => {
+        return HttpResponse.json({
+            id: 'newuser1',
+            username: 'NewUser',
+            access_token: 'fake-jwt-token'
+        });
+    }),
     http.post('*/auth/token/', async ({ request }) => {
         const text = await request.text();
         const params = new URLSearchParams(text);
@@ -24,7 +31,23 @@ export const handlers = [
         return HttpResponse.json({
             id: 'u1',
             username: 'validUser',
-            email: 'user@test.com'
+            email: 'user@test.com',
+            shop_items: [
+                { id: 'head1', category: 'head', gender: 'Unisex', name: 'Cap', price: 10, is_owned: true },
+                { id: 'body1', category: 'body', gender: 'Women', name: 'T-Shirt', price: 20, is_owned: true },
+                { id: 'body2', category: 'body', gender: 'Men', name: 'Shirt', price: 20, is_owned: true }
+            ]
+        });
+    }),
+
+    http.get('*/auth/profile/:id/', () => {
+        return HttpResponse.json({
+            id: '1',
+            username: 'validUser',
+            email: 'user@test.com',
+            shop_items: [],
+            avatar: { head: '', body: '', legs: '', feet: '', accessory: '', gender: 'Men' },
+            stats: { aperos_created: 0, aperos_joined: 0, aperos_declined: 0, aperos_missed: 0, fraud_count: 0 }
         });
     }),
 
@@ -81,11 +104,11 @@ export const handlers = [
     }),
 
     http.post('*/squads/', async ({ request }) => {
-        const body: any = await request.json();
+        const body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({
             id: '2',
-            name: body.name || 'New Squad',
-            description: body.description || '',
+            name: (typeof body?.name === 'string') ? body.name : 'New Squad',
+            description: (typeof body?.description === 'string') ? body.description : '',
             join_code: 'NEWCODE'
         });
     }),
