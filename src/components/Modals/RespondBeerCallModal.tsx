@@ -58,7 +58,7 @@ const processImageForBackend = (file: File): Promise<File> => {
 interface RespondBeerCallModalProps {
     isOpen: boolean;
     onClose: () => void;
-    beerCall: any;
+    beerCall: { id: string | number; location_name?: string; creator_name?: string; [key: string]: unknown } | null;
     squadId: string;
     location: { lat: number; lng: number } | null;
 }
@@ -149,9 +149,9 @@ export default function RespondBeerCallModal({
 
             await queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
-        } catch (err: any) {
+        } catch (err) {
             console.error("Erreur Accept:", err);
-            const errorMessage = err.response?.data?.detail || "L'IA a rejeté ta bière (ou le serveur a planté) !";
+            const errorMessage = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail || "L'IA a rejeté ta bière (ou le serveur a planté) !";
             toast.error("Échec", errorMessage);
         } finally {
             setIsSubmitting(false);

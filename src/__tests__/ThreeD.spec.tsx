@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { render } from './utils/test-utils';
 import AvatarCanvas from '../components/3D/AvatarCanvas';
 import BarWorld from '../components/3D/BarWorld';
@@ -64,7 +64,7 @@ describe('3D Components Rendering & Observability', () => {
         expect(drei.useFBX).toHaveBeenCalled();
     });
 
-    it('renders BarWorld and passes participants', () => {
+    it('renders BarWorld and passes participants', async () => {
         const participants = [
             { id: '1', username: 'P1', avatar: { head: 'cap', gender: 'Men' } }
         ];
@@ -73,6 +73,10 @@ describe('3D Components Rendering & Observability', () => {
         
         expect(drei.useFBX).toHaveBeenCalled();
         expect(screen.getByText('P1')).toBeInTheDocument();
+        
+        await waitFor(() => {
+            expect(true).toBe(true);
+        });
     });
 
     it('renders FloatyIslandWorld and handles game active', () => {

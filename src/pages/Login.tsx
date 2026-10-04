@@ -49,7 +49,7 @@ export default function Login() {
                 // 5. Redirection vers le Hub central
                 navigate('/dashboard');
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error("Erreur Login:", err);
             setError("Identifiants incorrects ou serveur éméché 🥴");
         } finally {

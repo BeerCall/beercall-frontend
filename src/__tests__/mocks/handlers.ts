@@ -36,7 +36,12 @@ export const handlers = [
                 { id: 'head1', category: 'head', gender: 'Unisex', name: 'Cap', price: 10, is_owned: true },
                 { id: 'body1', category: 'body', gender: 'Women', name: 'T-Shirt', price: 20, is_owned: true },
                 { id: 'body2', category: 'body', gender: 'Men', name: 'Shirt', price: 20, is_owned: true }
-            ]
+            ],
+            avatar: { head: 'head1', body: 'body1', legs: '', feet: '', accessory: '', gender: 'Men' },
+            unlocked_badges: [],
+            score: 0,
+            caps: 100,
+            stats: { aperos_created: 0, aperos_joined: 0, aperos_declined: 0, aperos_missed: 0, fraud_count: 0 }
         });
     }),
 
@@ -111,5 +116,8 @@ export const handlers = [
             description: (typeof body?.description === 'string') ? body.description : '',
             join_code: 'NEWCODE'
         });
+    }),
+    http.get('*/aperos/:id/game/state', () => {
+        return HttpResponse.json({ state: 'waiting', players: {} });
     }),
 ];

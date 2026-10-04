@@ -109,9 +109,10 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
 
             queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
-        } catch (err: any) {
+        } catch (err) {
             // Utilisation du toast global
-            const errorMessage = err.response?.data?.detail || "Erreur serveur inattendue";
+            const axiosError = err as { response?: { data?: { detail?: string } } };
+            const errorMessage = axiosError.response?.data?.detail || "Erreur serveur inattendue";
             toast.error("Alerte Fraude 🚫", errorMessage);
         } finally {
             setIsSubmitting(false);

@@ -20,7 +20,7 @@ export default function Profile() {
 
     const {data: profile, isLoading} = useProfile(profileId);
 
-    const [previewAvatar, setPreviewAvatar] = useState<any>(null);
+    const [previewAvatar, setPreviewAvatar] = useState<Record<string, string> | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     // 🚀 AJOUT DE L'ÉTAT POUR LE SWITCH VESTIAIRE / TROPHÉES
@@ -38,7 +38,7 @@ export default function Profile() {
         if (profile?.avatar && !previewAvatar) {
             setPreviewAvatar(profile.avatar);
         }
-    }, [profile]);
+    }, [profile, previewAvatar]);
 
     const handleBuyItem = (itemId: string, price: number, itemName: string) => {
         if (!isOwnProfile || !profile) return;
@@ -56,7 +56,7 @@ export default function Profile() {
             await api.post('/auth/buy/', {item_id: purchaseIntent.itemId});
             queryClient.invalidateQueries({queryKey: ['profile', profileId]});
             toast.success("Achat validé", `Félicitations ! "${purchaseIntent.itemName}" acheté. 🛍️`);
-        } catch (e) {
+        } catch {
             toast.error("Erreur", "Le serveur est sûrement ivre.");
         } finally {
             setIsSaving(false);
@@ -71,7 +71,7 @@ export default function Profile() {
             await api.put('/auth/equip/', previewAvatar);
             queryClient.invalidateQueries({queryKey: ['profile', profileId]});
             toast.success("Succès", "Tenue sauvegardée avec succès ! ✨");
-        } catch (e) {
+        } catch {
             toast.error("Erreur", "Erreur lors de la sauvegarde.");
         } finally {
             setIsSaving(false);

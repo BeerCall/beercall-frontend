@@ -16,7 +16,7 @@ vi.mock('react-router-dom', async () => {
     return {
         ...actual,
         useNavigate: () => mockNavigate,
-        useParams: () => ({ id: '1' }),
+        useParams: () => ({ id: 'me' }),
         Link: ({ children }: React.PropsWithChildren) => <a>{children}</a>,
     };
 });
@@ -68,7 +68,7 @@ describe('Pages Rendering & Interactions (Coverage)', () => {
         const femmeBtn = await screen.findByText('Femme');
         fireEvent.click(femmeBtn);
 
-        const saveBtn = await screen.findByRole('button', { name: /SAUVEGARDER LE STYLE/i });
+        const saveBtn = await screen.findByText(/SAUVEGARDER/i);
         fireEvent.click(saveBtn);
 
         await waitFor(() => {
@@ -80,29 +80,20 @@ describe('Pages Rendering & Interactions (Coverage)', () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         render(<Profile />);
         
-        // Attendre le chargement
-        await waitFor(() => {
-            expect(screen.queryByText(/Chargement/i)).not.toBeInTheDocument();
-        });
+        const vestiaireBtn = await screen.findByRole('button', { name: /Vestiaire/i });
+        const infosBtn = await screen.findByRole('button', { name: /Trophées/i });
 
-        // Les boutons de navigation des onglets du profil
-        const vestiaireBtn = screen.queryByText(/Vestiaire/i);
-        const infosBtn = screen.queryByText(/Trophées/i) || screen.queryByText(/Infos/i);
-
-        if (infosBtn) {
-            await user.click(infosBtn);
-        }
-        if (vestiaireBtn) {
-            await user.click(vestiaireBtn);
-        }
-
-        // Click sur sauvegarder (si c'est son profil)
-        const saveBtn = screen.queryByRole('button', { name: /SAUVEGARDER/i }) 
-                     || screen.queryByText(/SAUVEGARDER/i);
+        await user.click(infosBtn);
+        await user.click(vestiaireBtn);
         
-        if (saveBtn) {
-            await user.click(saveBtn);
-        }
+        const accessoryTab = await screen.findByText(/Accessoire/i);
+        await user.click(accessoryTab);
+        
+        const noneBtn = await screen.findByText(/Aucun/i);
+        await user.click(noneBtn);
+
+        const saveBtn = await screen.findByText(/SAUVEGARDER/i);
+        await user.click(saveBtn);
         
         await waitFor(() => {
             expect(screen.queryByText(/Sauvegarde en cours/i)).not.toBeInTheDocument();
@@ -120,11 +111,21 @@ describe('Pages Rendering & Interactions (Coverage)', () => {
     });
 
     it('ChatPage: envoie un message', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         render(<ChatPage />);
 
-        // On vérifie juste que l'UI se monte et le composant charge correctement
         await waitFor(() => {
             expect(screen.queryByText(/Chargement/i)).not.toBeInTheDocument();
         });
+        
+        const input = screen.getByPlaceholderText(/message/i);
+        const buttons = screen.getAllByRole('button');
+        const sendBtn = buttons[1];
+        
+        await user.type(input, 'Hello World');
+        await user.click(sendBtn);
+        
+        const { push } = await import('firebase/database');
+        expect(push).toHaveBeenCalled();
     });
 });

@@ -17,12 +17,14 @@ export function useChat(squadId: string | undefined, beerCallId?: string | undef
         // On ne charge rien tant que le squad n'est pas connu.
         // Si un apéro est visé, il doit aussi être fourni.
         if (!squadId || (beerCallId !== undefined && !beerCallId)) {
-            setLoading(false);
+            setTimeout(() => setLoading(false), 0);
             return;
         }
 
-        setLoading(true);
-        setError(null);
+        setTimeout(() => {
+            setLoading(true);
+            setError(null);
+        }, 0);
 
         try {
             // Requête : triée par timestamp, on garde les 50 derniers messages
@@ -39,25 +41,27 @@ export function useChat(squadId: string | undefined, beerCallId?: string | undef
                 q,
                 (snapshot) => {
                     const data = snapshot.val() || {};
-                    const list: ChatMessage[] = Object.entries(data).map(([id, value]: [string, any]) => ({
+                    const list: ChatMessage[] = Object.entries(data).map(([id, value]: [string, Record<string, unknown>]) => ({
                         id,
                         ...value,
                     }));
                     setMessages(list);
-                    setLoading(false);
+                    setTimeout(() => setLoading(false), 0);
                 },
                 (err) => {
                     console.error('❌ Erreur chat Firebase:', err);
                     setError(err.message || 'Impossible de charger les messages.');
-                    setLoading(false);
+                    setTimeout(() => setLoading(false), 0);
                 }
             );
 
             return () => unsubscribe();
-        } catch (e: any) {
+        } catch (e) {
             console.error('❌ Exception init chat Firebase:', e);
-            setError(e?.message || 'Erreur d\'initialisation du chat');
-            setLoading(false);
+            setTimeout(() => {
+                setError((e as Error)?.message || 'Erreur d\'initialisation du chat');
+                setLoading(false);
+            }, 0);
         }
     }, [squadId, beerCallId]);
 

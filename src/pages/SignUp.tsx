@@ -38,7 +38,7 @@ export default function SignUp() {
         }
     });
 
-    const publicShopItems: ShopItem[] = publicProfile?.shop_items || [];
+    const publicShopItems: ShopItem[] = React.useMemo(() => publicProfile?.shop_items || [], [publicProfile]);
 
     // 🪄 MAGIE DYNAMIQUE : On sélectionne le 1er item de chaque catégorie selon le genre
     useEffect(() => {
@@ -77,9 +77,9 @@ export default function SignUp() {
                 loginAction(res.data.username);
                 navigate('/dashboard');
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error("Erreur lors de l'inscription:", err);
-            const errorMessage = err.response?.data?.detail || "Erreur serveur inattendue";
+            const errorMessage = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail || "Erreur serveur inattendue";
             toast.error("Erreur lors de l'inscription.", errorMessage);
         } finally {
             setIsLoading(false);

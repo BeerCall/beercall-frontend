@@ -6,6 +6,17 @@ import { useScheduledAperoMutations } from '../hooks/useScheduledAperoMutations'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
+vi.mock('firebase/database', () => ({
+    onValue: vi.fn().mockImplementation((ref, callback) => {
+        callback({ val: () => ({}) });
+        return () => {};
+    }),
+    push: vi.fn(),
+    orderByChild: vi.fn(),
+    query: vi.fn(),
+    limitToLast: vi.fn(),
+}));
+
 vi.mock('../lib/firebase', () => ({
     messaging: {},
     getToken: vi.fn(),
@@ -34,8 +45,9 @@ describe('Hooks Coverage', () => {
         expect(result.current.scheduleApero).toBeDefined();
     });
 
-    it('useChat handles messages', () => {
+    it('useChat handles messages', async () => {
         const { result } = renderHook(() => useChat('squad-1'), { wrapper });
+        await waitFor(() => expect(result.current.loading).toBe(false));
         expect(result.current.messages).toEqual([]);
         expect(result.current.sendMessage).toBeDefined();
     });

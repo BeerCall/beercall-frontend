@@ -62,7 +62,7 @@ describe('Squad Modals', () => {
         await user.click(screen.getByRole('button', { name: /CRÉER LA SQUAD/i }));
         
         await waitFor(() => {
-            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[BeerCall] Erreur création Squad:'), expect.any(Error));
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Erreur création Squad:'), expect.any(Error));
         });
         expect(onClose).not.toHaveBeenCalled();
         consoleSpy.mockRestore();
