@@ -1,9 +1,12 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useRef} from 'react';
+import type {AxiosResponse} from 'axios';
 import {X, Send, MapPin} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQueryClient} from '@tanstack/react-query';
 import {api} from '../../lib/api';
 import {toast} from '../../store/useToastStore';
+import type {BeerCall} from '../../types/dashboard';
+import {useBeerCallJob} from '../../hooks/useBeerCallJob';
 
 const processImageForBackend = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
@@ -54,9 +57,6 @@ const processImageForBackend = (file: File): Promise<File> => {
     });
 };
 
-import type { BeerCall } from '../../types/dashboard';
-import { useBeerCallJob } from '../../hooks/useBeerCallJob';
-
 interface CreateBeerCallModalProps {
     squadId: string;
     photoFile: File | null;
@@ -67,55 +67,52 @@ interface CreateBeerCallModalProps {
 
 export default function CreateBeerCallModal({squadId, photoFile, location, scheduledApero, onClose}: CreateBeerCallModalProps) {
     const queryClient = useQueryClient();
-    const [locationName, setLocationName] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [draftLocationName, setLocationName] = useState('');
+    const locationName = scheduledApero?.location_name || draftLocationName;
+    const [isUploading, setIsSubmitting] = useState(false);
+    const [preview, setPreview] = useState<{file: File; url: string} | null>(null);
+    const previewUrl = preview?.file === photoFile ? preview.url : null;
     const [jobId, setJobId] = useState<string | null>(null);
-    const [idempotencyKey, setIdempotencyKey] = useState<string>('');
+    const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+    const handledJob = useRef<string | null>(null);
 
     const { status, rejectReason, trackingUnavailable, trackingPaused, resumeTracking } = useBeerCallJob(squadId, jobId);
 
-    useEffect(() => {
-        setIdempotencyKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'test-id');
-    }, []);
+    const isTerminal = status === 'succeeded' || status === 'rejected' || status === 'failed';
+    const isSubmitting = isUploading || Boolean(jobId && !isTerminal);
 
     useEffect(() => {
+        if (!jobId || !isTerminal || handledJob.current === jobId) return;
+        handledJob.current = jobId;
         if (status === 'succeeded') {
             queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
-            setIsSubmitting(false);
         } else if (status === 'rejected') {
             toast.error("Alerte Fraude 🚨", rejectReason || "Photo refusée !");
-            setIsSubmitting(false);
-            setJobId(null);
-            setIdempotencyKey(crypto.randomUUID());
         } else if (status === 'failed') {
             toast.error("Erreur", "Une erreur technique est survenue.");
-            setIsSubmitting(false);
-            setJobId(null);
-            setIdempotencyKey(crypto.randomUUID());
         }
-    }, [status, rejectReason, onClose, squadId, queryClient]);
-
-    useEffect(() => {
-        if (scheduledApero) {
-            setLocationName(scheduledApero.location_name || '');
-        } else {
-            setLocationName('');
-        }
-    }, [scheduledApero]);
+    }, [jobId, isTerminal, status, rejectReason, onClose, squadId, queryClient]);
 
     useEffect(() => {
         if (photoFile) {
-            const url = URL.createObjectURL(photoFile);
-            setPreviewUrl(url);
-            return () => URL.revokeObjectURL(url); // Cleanup
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result === 'string') setPreview({file: photoFile, url: reader.result});
+            };
+            reader.readAsDataURL(photoFile);
+            return () => { reader.onload = null; reader.abort(); };
         }
     }, [photoFile]);
 
     const handleSubmit = async () => {
         if (!photoFile || !location || !locationName.trim()) return;
         setIsSubmitting(true);
+        const requestKey = isTerminal ? crypto.randomUUID() : idempotencyKey;
+        if (isTerminal) {
+            setIdempotencyKey(requestKey);
+            setJobId(null);
+        }
 
         try {
             const fixedPhoto = await processImageForBackend(photoFile);
@@ -126,20 +123,20 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
             formData.append('longitude', location.lng.toString());
             formData.append('location_name', locationName.trim());
             
-            let res: any;
+            let res: AxiosResponse<{job_id?: string}>;
 
             if (scheduledApero) {
                 res = await api.post(`/squads/${squadId}/beer-calls/${scheduledApero.id}/start/`, formData, {
                     headers: {
                         'Content-Type': 'multipart/form-data',
-                        'Idempotency-Key': idempotencyKey
+                        'Idempotency-Key': requestKey
                     },
                 });
             } else {
                 res = await api.post(`/squads/${squadId}/beer-calls/`, formData, {
                     headers: {
                         'Content-Type': 'multipart/form-data',
-                        'Idempotency-Key': idempotencyKey
+                        'Idempotency-Key': requestKey
                     },
                 });
             }
@@ -151,10 +148,10 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
                 onClose();
             }
         } catch (err) {
-            console.error("DEBUG ERR", err);
             const axiosError = err as { response?: { data?: { detail?: string } } };
             const errorMessage = axiosError.response?.data?.detail || "Erreur serveur inattendue";
             toast.error("Erreur 🚨", errorMessage);
+        } finally {
             setIsSubmitting(false);
         }
     };

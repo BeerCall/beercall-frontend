@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { isAxiosError } from 'axios';
 
 export const useSquadWebSocket = (squadId?: number) => {
   const queryClient = useQueryClient();
@@ -11,6 +12,7 @@ export const useSquadWebSocket = (squadId?: number) => {
   useEffect(() => {
     mountedRef.current = true;
     let isConnecting = false;
+    let cancelled = false;
 
     const connect = async () => {
       if (!squadId || !mountedRef.current || isConnecting) return;
@@ -19,7 +21,7 @@ export const useSquadWebSocket = (squadId?: number) => {
       try {
         const { data } = await api.post(`/squads/${squadId}/ws-ticket`);
         
-        if (!mountedRef.current) return;
+        if (cancelled || !mountedRef.current) return;
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/api/squads/${squadId}/ws`;
@@ -27,6 +29,7 @@ export const useSquadWebSocket = (squadId?: number) => {
         const ws = new WebSocket(wsUrl, ['beercall', `ticket.${data.ticket}`]);
 
         ws.onmessage = (event) => {
+          if (cancelled) return;
           try {
             const message = JSON.parse(event.data);
             if (message.type === 'REFRESH_SQUAD') {
@@ -39,9 +42,9 @@ export const useSquadWebSocket = (squadId?: number) => {
         };
 
         ws.onclose = (e) => {
-          wsRef.current = null;
+          if (wsRef.current === ws) wsRef.current = null;
           isConnecting = false;
-          if (mountedRef.current && e.code !== 1000) {
+          if (!cancelled && mountedRef.current && e.code !== 1000) {
             reconnectTimeoutRef.current = setTimeout(connect, 3000);
           }
         };
@@ -51,14 +54,14 @@ export const useSquadWebSocket = (squadId?: number) => {
         };
 
         wsRef.current = ws;
-      } catch (e: any) {
+      } catch (e: unknown) {
         isConnecting = false;
-        const status = e.response?.status;
+        const status = isAxiosError(e) ? e.response?.status : undefined;
         // Ne pas boucler à l'infini si on n'est pas autorisé (401, 403) ou si la squad n'existe pas (404)
         if (status === 401 || status === 403 || status === 404) {
           return;
         }
-        if (mountedRef.current) {
+        if (!cancelled && mountedRef.current) {
           reconnectTimeoutRef.current = setTimeout(connect, 3000);
         }
       }
@@ -68,6 +71,7 @@ export const useSquadWebSocket = (squadId?: number) => {
     connect();
 
     return () => {
+      cancelled = true;
       mountedRef.current = false;
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (wsRef.current) {

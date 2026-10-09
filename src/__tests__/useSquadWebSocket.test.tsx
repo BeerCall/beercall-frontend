@@ -116,7 +116,7 @@ describe('useSquadWebSocket', () => {
 
   it('does not reconnect on 401 Unauthorized', async () => {
     vi.useFakeTimers();
-    vi.mocked(api.post).mockRejectedValueOnce({ response: { status: 401 } });
+    vi.mocked(api.post).mockRejectedValueOnce({ isAxiosError: true, response: { status: 401 } });
     
     renderHook(() => useSquadWebSocket(401), { wrapper });
     
@@ -148,7 +148,7 @@ describe('useSquadWebSocket', () => {
       .mockResolvedValueOnce({ data: { ticket: 's1' } })
       .mockResolvedValueOnce({ data: { ticket: 's2' } });
 
-    const { rerender } = renderHook(({ id }) => useSquadWebSocket(id), { 
+    const { rerender, result } = renderHook(({ id }) => useSquadWebSocket(id), { 
       initialProps: { id: 1 },
       wrapper 
     });
@@ -158,6 +158,7 @@ describe('useSquadWebSocket', () => {
         expect.anything()
     ));
 
+    const oldSocket = result.current.current;
     rerender({ id: 2 });
     
     await waitFor(() => expect(globalThis.WebSocket).toHaveBeenCalledWith(
@@ -166,5 +167,25 @@ describe('useSquadWebSocket', () => {
     ));
     
     expect(api.post).toHaveBeenCalledTimes(2);
+    const newSocket = result.current.current;
+    oldSocket?.onclose?.({code: 1000} as CloseEvent);
+    expect(result.current.current).toBe(newSocket);
+  });
+
+  it('ignores a stale ticket response after a squad change', async () => {
+    let resolveOld!: (value: {data: {ticket: string}}) => void;
+    vi.mocked(api.post).mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValueOnce({data: {ticket: 'new-squad'}});
+    const {rerender} = renderHook(({id}) => useSquadWebSocket(id), {
+      initialProps: {id: 1}, wrapper,
+    });
+    rerender({id: 2});
+    await waitFor(() => expect(globalThis.WebSocket).toHaveBeenCalledTimes(1));
+    resolveOld({data: {ticket: 'old-squad'}});
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(globalThis.WebSocket).toHaveBeenCalledTimes(1);
+    expect(globalThis.WebSocket).toHaveBeenCalledWith(
+      expect.stringContaining('/api/squads/2/ws'), ['beercall', 'ticket.new-squad'],
+    );
   });
 });

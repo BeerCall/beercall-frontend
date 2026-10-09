@@ -19,12 +19,18 @@ global.URL.revokeObjectURL = vi.fn();
 
 // Mock FileReader and Canvas for processImageForBackend
 global.FileReader = class {
+    result: string | null = null;
+    timer: ReturnType<typeof setTimeout> | null = null;
     onload: ((e: { target: { result: string } }) => void) | null = null;
     onerror: ((e: Error) => void) | null = null;
     readAsDataURL() {
-        setTimeout(() => {
-            if (this.onload) this.onload({ target: { result: 'data:image/jpeg;base64,fake' } });
+        this.timer = setTimeout(() => {
+            this.result = 'data:image/jpeg;base64,fake';
+            if (this.onload) this.onload({ target: { result: this.result } });
         }, 10);
+    }
+    abort() {
+        if (this.timer) clearTimeout(this.timer);
     }
 } as unknown as typeof FileReader;
 
@@ -177,6 +183,13 @@ describe('BeerCall Modals', () => {
             expect(submitBtn).not.toBeDisabled();
         });
         expect(onClose).not.toHaveBeenCalled();
+        const firstKey = vi.mocked(api.post).mock.calls[0][2]?.headers?.['Idempotency-Key'];
+        expect(firstKey).toEqual(expect.any(String));
+        vi.mocked(api.post).mockResolvedValueOnce({ data: {} });
+        await user.click(submitBtn);
+        await vi.runAllTimersAsync();
+        await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+        expect(vi.mocked(api.post).mock.calls[1][2]?.headers?.['Idempotency-Key']).toBe(firstKey);
     });
 
     it('RespondBeerCallModal: accept and submit photo, handles error', async () => {
