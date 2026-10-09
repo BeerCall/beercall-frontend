@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useProfile } from './useProfile';
 import { useSquadDetails } from './useSquadDetails';
 import { usePushNotifications } from './usePushNotifications';
+import { useSquadWebSocket } from './useSquadWebSocket';
 import { useGameUIStore } from '../store/useGameUIStore';
 import { useLocationStore } from '../store/useLocationStore';
 import { toast } from '../store/useToastStore';
@@ -57,6 +58,10 @@ export const useDashboard = () => {
     const [showPushBanner, setShowPushBanner] = useState(() => 'Notification' in window && Notification.permission === 'default');
 
     const { subscribeToNotifications } = usePushNotifications();
+
+    // Init WebSocket
+    const squadIdNumber = id ? parseInt(id, 10) : undefined;
+    useSquadWebSocket(squadIdNumber);
 
     const handleEnableNotifications = async () => {
         const success = await subscribeToNotifications();

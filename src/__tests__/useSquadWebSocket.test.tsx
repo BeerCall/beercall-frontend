@@ -1,0 +1,152 @@
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import axios from 'axios';
+import { useSquadWebSocket } from '../hooks/useSquadWebSocket';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+vi.mock('axios');
+
+describe('useSquadWebSocket', () => {
+  let queryClient: QueryClient;
+  
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    vi.clearAllMocks();
+    
+    vi.stubGlobal('WebSocket', vi.fn().mockImplementation(function (url: string, protocols: string[]) {
+      // @ts-expect-error test mock
+      this.url = url;
+      // @ts-expect-error test mock
+      this.protocols = protocols;
+      // @ts-expect-error test mock
+      this.close = vi.fn();
+      // @ts-expect-error test mock
+      this.send = vi.fn();
+      
+      setTimeout(() => {
+        // @ts-expect-error test mock
+        if (this.onopen) this.onopen();
+      }, 10);
+    }));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+
+  it('does not connect if no squadId is provided', () => {
+    renderHook(() => useSquadWebSocket(undefined), { wrapper });
+    expect(axios.post).not.toHaveBeenCalled();
+    expect(global.WebSocket).not.toHaveBeenCalled();
+  });
+
+  it('fetches a ticket and connects securely', async () => {
+    vi.mocked(axios.post).mockResolvedValueOnce({ data: { ticket: 'secure_ticket_xyz' } });
+    
+    renderHook(() => useSquadWebSocket(42), { wrapper });
+    
+    await waitFor(() => {
+      expect(axios.post).toHaveBeenCalledWith('/api/squads/42/ws-ticket');
+    });
+    
+    await waitFor(() => {
+      expect(global.WebSocket).toHaveBeenCalledWith(
+        expect.stringContaining('/api/squads/42/ws'),
+        ['beercall', 'ticket.secure_ticket_xyz']
+      );
+    });
+    
+    // Assure qu'aucun JWT n'est dans l'URL
+    const wsCallUrl = vi.mocked(global.WebSocket).mock.calls[0][0];
+    expect(wsCallUrl).not.toContain('?token=');
+    expect(wsCallUrl).not.toContain('jwt');
+  });
+
+  it('invalidates queries on REFRESH_SQUAD message', async () => {
+    vi.mocked(axios.post).mockResolvedValueOnce({ data: { ticket: '123' } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    
+    const { result } = renderHook(() => useSquadWebSocket(10), { wrapper });
+    
+    await waitFor(() => expect(result.current.current).not.toBeNull());
+    
+    const wsInstance = result.current.current;
+    
+    // Simulate incoming message
+    if (wsInstance?.onmessage) {
+      wsInstance.onmessage({ data: JSON.stringify({ type: 'REFRESH_SQUAD' }) } as MessageEvent);
+    }
+    
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squad', '10'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squad', 10] });
+  });
+
+  it('attempts to reconnect on abnormal closure', async () => {
+    vi.useFakeTimers();
+    vi.mocked(axios.post)
+      .mockResolvedValueOnce({ data: { ticket: 'tick1' } })
+      .mockResolvedValueOnce({ data: { ticket: 'tick2' } });
+
+    const { result } = renderHook(() => useSquadWebSocket(5), { wrapper });
+    
+    // allow initial promise to resolve
+    await vi.runAllTimersAsync();
+    
+    expect(axios.post).toHaveBeenCalledTimes(1);
+    
+    const wsInstance = result.current.current;
+    if (wsInstance?.onclose) {
+      wsInstance.onclose({ code: 1006 } as CloseEvent);
+    }
+    
+    // advance timer for reconnect
+    await vi.runAllTimersAsync();
+    
+    expect(axios.post).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it('cleans up on unmount', async () => {
+    vi.mocked(axios.post).mockResolvedValueOnce({ data: { ticket: 'xyz' } });
+    const { result, unmount } = renderHook(() => useSquadWebSocket(8), { wrapper });
+    
+    await waitFor(() => expect(result.current.current).not.toBeNull());
+    const wsInstance = result.current.current;
+    
+    unmount();
+    
+    expect(wsInstance?.close).toHaveBeenCalledWith(1000);
+    expect(result.current.current).toBeNull();
+  });
+
+  it('handles squad changes', async () => {
+    vi.mocked(axios.post)
+      .mockResolvedValueOnce({ data: { ticket: 's1' } })
+      .mockResolvedValueOnce({ data: { ticket: 's2' } });
+
+    const { rerender } = renderHook(({ id }) => useSquadWebSocket(id), { 
+      initialProps: { id: 1 },
+      wrapper 
+    });
+    
+    await waitFor(() => expect(globalThis.WebSocket).toHaveBeenCalledWith(
+        expect.stringContaining('/api/squads/1/ws'),
+        expect.anything()
+    ));
+
+    rerender({ id: 2 });
+    
+    await waitFor(() => expect(globalThis.WebSocket).toHaveBeenCalledWith(
+        expect.stringContaining('/api/squads/2/ws'),
+        expect.anything()
+    ));
+    
+    expect(axios.post).toHaveBeenCalledTimes(2);
+  });
+});
