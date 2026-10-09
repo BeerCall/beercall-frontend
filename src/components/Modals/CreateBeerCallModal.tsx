@@ -1,9 +1,12 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useRef} from 'react';
+import type {AxiosResponse} from 'axios';
 import {X, Send, MapPin} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQueryClient} from '@tanstack/react-query';
 import {api} from '../../lib/api';
 import {toast} from '../../store/useToastStore';
+import type {BeerCall} from '../../types/dashboard';
+import {useBeerCallJob} from '../../hooks/useBeerCallJob';
 
 const processImageForBackend = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
@@ -54,8 +57,6 @@ const processImageForBackend = (file: File): Promise<File> => {
     });
 };
 
-import type { BeerCall } from '../../types/dashboard';
-
 interface CreateBeerCallModalProps {
     squadId: string;
     photoFile: File | null;
@@ -66,29 +67,52 @@ interface CreateBeerCallModalProps {
 
 export default function CreateBeerCallModal({squadId, photoFile, location, scheduledApero, onClose}: CreateBeerCallModalProps) {
     const queryClient = useQueryClient();
-    const [locationName, setLocationName] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [draftLocationName, setLocationName] = useState('');
+    const locationName = scheduledApero?.location_name || draftLocationName;
+    const [isUploading, setIsSubmitting] = useState(false);
+    const [preview, setPreview] = useState<{file: File; url: string} | null>(null);
+    const previewUrl = preview?.file === photoFile ? preview.url : null;
+    const [jobId, setJobId] = useState<string | null>(null);
+    const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+    const handledJob = useRef<string | null>(null);
+
+    const { status, rejectReason, trackingUnavailable, trackingPaused, resumeTracking } = useBeerCallJob(squadId, jobId);
+
+    const isTerminal = status === 'succeeded' || status === 'rejected' || status === 'failed';
+    const isSubmitting = isUploading || Boolean(jobId && !isTerminal);
 
     useEffect(() => {
-        if (scheduledApero) {
-            setLocationName(scheduledApero.location_name || '');
-        } else {
-            setLocationName('');
+        if (!jobId || !isTerminal || handledJob.current === jobId) return;
+        handledJob.current = jobId;
+        if (status === 'succeeded') {
+            queryClient.invalidateQueries({queryKey: ['squad', squadId]});
+            onClose();
+        } else if (status === 'rejected') {
+            toast.error("Alerte Fraude 🚨", rejectReason || "Photo refusée !");
+        } else if (status === 'failed') {
+            toast.error("Erreur", "Une erreur technique est survenue.");
         }
-    }, [scheduledApero]);
+    }, [jobId, isTerminal, status, rejectReason, onClose, squadId, queryClient]);
 
     useEffect(() => {
         if (photoFile) {
-            const url = URL.createObjectURL(photoFile);
-            setPreviewUrl(url);
-            return () => URL.revokeObjectURL(url); // Cleanup
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result === 'string') setPreview({file: photoFile, url: reader.result});
+            };
+            reader.readAsDataURL(photoFile);
+            return () => { reader.onload = null; reader.abort(); };
         }
     }, [photoFile]);
 
     const handleSubmit = async () => {
         if (!photoFile || !location || !locationName.trim()) return;
         setIsSubmitting(true);
+        const requestKey = isTerminal ? crypto.randomUUID() : idempotencyKey;
+        if (isTerminal) {
+            setIdempotencyKey(requestKey);
+            setJobId(null);
+        }
 
         try {
             const fixedPhoto = await processImageForBackend(photoFile);
@@ -98,24 +122,35 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
             formData.append('latitude', location.lat.toString());
             formData.append('longitude', location.lng.toString());
             formData.append('location_name', locationName.trim());
+            
+            let res: AxiosResponse<{job_id?: string}>;
 
             if (scheduledApero) {
-                await api.post(`/squads/${squadId}/beer-calls/${scheduledApero.id}/start/`, formData, {
-                    headers: {'Content-Type': 'multipart/form-data'},
+                res = await api.post(`/squads/${squadId}/beer-calls/${scheduledApero.id}/start/`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        'Idempotency-Key': requestKey
+                    },
                 });
             } else {
-                await api.post(`/squads/${squadId}/beer-calls/`, formData, {
-                    headers: {'Content-Type': 'multipart/form-data'},
+                res = await api.post(`/squads/${squadId}/beer-calls/`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        'Idempotency-Key': requestKey
+                    },
                 });
             }
 
-            queryClient.invalidateQueries({queryKey: ['squad', squadId]});
-            onClose();
+            if (res.data?.job_id) {
+                setJobId(res.data.job_id);
+            } else {
+                queryClient.invalidateQueries({queryKey: ['squad', squadId]});
+                onClose();
+            }
         } catch (err) {
-            // Utilisation du toast global
             const axiosError = err as { response?: { data?: { detail?: string } } };
             const errorMessage = axiosError.response?.data?.detail || "Erreur serveur inattendue";
-            toast.error("Alerte Fraude 🚫", errorMessage);
+            toast.error("Erreur 🚨", errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -173,6 +208,13 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
                         </div>
 
                         <div className="absolute bottom-8 left-8 right-8">
+                            {trackingUnavailable && (
+                                <div role="status" className="mb-3 text-sm text-gray-900">
+                                    Suivi indisponible : votre demande est conservée, son résultat reste inconnu.
+                                    {trackingPaused && <button type="button" onClick={resumeTracking}
+                                        className="ml-2 underline">Reprendre le suivi</button>}
+                                </div>
+                            )}
                             <button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting || !isFormValid}
