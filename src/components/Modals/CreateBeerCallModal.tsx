@@ -73,7 +73,7 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
     const [jobId, setJobId] = useState<string | null>(null);
     const [idempotencyKey, setIdempotencyKey] = useState<string>('');
 
-    const { status, rejectReason } = useBeerCallJob(squadId, jobId);
+    const { status, rejectReason, trackingUnavailable, trackingPaused, resumeTracking } = useBeerCallJob(squadId, jobId);
 
     useEffect(() => {
         setIdempotencyKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'test-id');
@@ -88,12 +88,12 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
             toast.error("Alerte Fraude 🚨", rejectReason || "Photo refusée !");
             setIsSubmitting(false);
             setJobId(null);
-            // On conserve la clé pour un potentiel re-jeu identique
+            setIdempotencyKey(crypto.randomUUID());
         } else if (status === 'failed') {
             toast.error("Erreur", "Une erreur technique est survenue.");
             setIsSubmitting(false);
             setJobId(null);
-            // On conserve la clé pour un potentiel re-jeu identique
+            setIdempotencyKey(crypto.randomUUID());
         }
     }, [status, rejectReason, onClose, squadId, queryClient]);
 
@@ -211,6 +211,13 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
                         </div>
 
                         <div className="absolute bottom-8 left-8 right-8">
+                            {trackingUnavailable && (
+                                <div role="status" className="mb-3 text-sm text-gray-900">
+                                    Suivi indisponible : votre demande est conservée, son résultat reste inconnu.
+                                    {trackingPaused && <button type="button" onClick={resumeTracking}
+                                        className="ml-2 underline">Reprendre le suivi</button>}
+                                </div>
+                            )}
                             <button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting || !isFormValid}

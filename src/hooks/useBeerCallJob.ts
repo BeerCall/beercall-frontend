@@ -1,54 +1,50 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { useQueryClient } from '@tanstack/react-query';
 
-export function useBeerCallJob(squadId: string, jobId: string | null) {
-  const [status, setStatus] = useState<'uploading' | 'pending' | 'running' | 'succeeded' | 'rejected' | 'failed' | null>(null);
-  const [rejectReason, setRejectReason] = useState<string | null>(null);
+type JobStatus = 'uploading' | 'pending' | 'running' | 'succeeded' | 'rejected' | 'failed';
+interface JobResult { status: JobStatus; reject_reason?: string }
+const terminal = (status?: JobStatus | null) =>
+  status === 'succeeded' || status === 'rejected' || status === 'failed';
+
+export function useBeerCallJob(squadId: string, jobId: string | null, trackingTimeoutMs = 20 * 60 * 1000) {
   const queryClient = useQueryClient();
+  const [pausedJob, setPausedJob] = useState<string | null>(null);
+  const [resumeCount, setResumeCount] = useState(0);
+  const trackingPaused = jobId !== null && pausedJob === jobId;
+  const query = useQuery({
+    queryKey: ['beer-call-job', squadId, jobId],
+    enabled: Boolean(jobId && squadId) && !trackingPaused,
+    queryFn: async ({ signal }) => {
+      const response = await api.get<JobResult>(
+        `/squads/${squadId}/beer-calls/jobs/${jobId}`, { signal, timeout: 10000 }
+      );
+      return response.data;
+    },
+    retry: false,
+    refetchInterval: (current) => terminal(current.state.data?.status) ? false :
+      (import.meta.env.MODE === 'test' ? 50 : 2000),
+  });
+  const status = jobId ? query.data?.status ?? null : null;
+  const isTerminal = terminal(status);
 
   useEffect(() => {
-    if (!jobId || !squadId) {
-      setStatus(null);
-      setRejectReason(null);
-      return;
+    if (!jobId || isTerminal || trackingPaused) return;
+    const timer = window.setTimeout(() => setPausedJob(jobId), trackingTimeoutMs);
+    return () => window.clearTimeout(timer);
+  }, [jobId, isTerminal, trackingPaused, resumeCount, trackingTimeoutMs]);
+
+  useEffect(() => {
+    if (status === 'succeeded') {
+      void queryClient.invalidateQueries({ queryKey: ['squad', squadId] });
     }
+  }, [status, squadId, queryClient]);
 
-    let intervalId: number;
-    let errorCount = 0;
-
-    const pollJob = async () => {
-      try {
-        const response = await api.get(`/squads/${squadId}/beer-calls/jobs/${jobId}`);
-        const jobStatus = response.data.status;
-        setStatus(jobStatus);
-        errorCount = 0; // reset errors on success
-
-        if (jobStatus === 'rejected') {
-          setRejectReason(response.data.reject_reason || "Rejeté.");
-        }
-
-        if (jobStatus === 'succeeded' || jobStatus === 'rejected' || jobStatus === 'failed') {
-          clearInterval(intervalId);
-          if (jobStatus === 'succeeded') {
-            queryClient.invalidateQueries({ queryKey: ['squad', squadId] });
-          }
-        }
-      } catch (error) {
-        console.error("Erreur polling job:", error);
-        errorCount++;
-        // On ne déclare plus le job failed sur erreur réseau, 
-        // on se contente de ralentir ou d'attendre la reprise.
-      }
-    };
-
-    pollJob();
-    intervalId = window.setInterval(pollJob, import.meta.env?.MODE === 'test' ? 50 : 2000);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [jobId, squadId, queryClient]);
-
-  return { status, rejectReason };
+  return {
+    status,
+    rejectReason: query.data?.reject_reason ?? null,
+    trackingUnavailable: Boolean(jobId) && (query.isError || trackingPaused),
+    trackingPaused,
+    resumeTracking: () => { setPausedJob(null); setResumeCount((count) => count + 1); },
+  };
 }
