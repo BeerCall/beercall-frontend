@@ -37,10 +37,8 @@ export function useBeerCallJob(squadId: string, jobId: string | null) {
       } catch (error) {
         console.error("Erreur polling job:", error);
         errorCount++;
-        if (errorCount > 10) { // 10 retries (~20s) before failing terminal
-          clearInterval(intervalId);
-          setStatus('failed');
-        }
+        // On ne déclare plus le job failed sur erreur réseau, 
+        // on se contente de ralentir ou d'attendre la reprise.
       }
     };
 
