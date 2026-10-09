@@ -89,7 +89,7 @@ describe('BeerCall Modals', () => {
         const formData = vi.mocked(api.post).mock.calls[0][1] as FormData;
         expect(formData.get('location_name')).toBe('Mon super bar');
         expect(formData.get('latitude')).toBe('48.8566');
-        expect(onClose).toHaveBeenCalled();
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
     });
 
     it('RespondBeerCallModal: accept and submit photo', async () => {
@@ -125,7 +125,7 @@ describe('BeerCall Modals', () => {
         });
         const formData = vi.mocked(api.post).mock.calls[0][1] as FormData;
         expect(formData.get('lat')).toBe('48.8');
-        expect(onClose).toHaveBeenCalled();
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
     });
 
     it('ScheduleAperoModal: submit coordinates', async () => {
@@ -153,7 +153,7 @@ describe('BeerCall Modals', () => {
                 location_name: 'Chez Roger',
             }));
         });
-        expect(onClose).toHaveBeenCalled();
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
     });
 
     it('CreateBeerCallModal: submit with photo and location, handles error', async () => {

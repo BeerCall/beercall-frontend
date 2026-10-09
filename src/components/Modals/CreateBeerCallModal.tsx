@@ -55,6 +55,7 @@ const processImageForBackend = (file: File): Promise<File> => {
 };
 
 import type { BeerCall } from '../../types/dashboard';
+import { useBeerCallJob } from '../../hooks/useBeerCallJob';
 
 interface CreateBeerCallModalProps {
     squadId: string;
@@ -69,6 +70,32 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
     const [locationName, setLocationName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [jobId, setJobId] = useState<string | null>(null);
+    const [idempotencyKey, setIdempotencyKey] = useState<string>('');
+
+    const { status, rejectReason } = useBeerCallJob(squadId, jobId);
+
+    useEffect(() => {
+        setIdempotencyKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'test-id');
+    }, []);
+
+    useEffect(() => {
+        if (status === 'succeeded') {
+            queryClient.invalidateQueries({queryKey: ['squad', squadId]});
+            onClose();
+            setIsSubmitting(false);
+        } else if (status === 'rejected') {
+            toast.error("Alerte Fraude 🚨", rejectReason || "Photo refusée !");
+            setIsSubmitting(false);
+            setJobId(null);
+            setIdempotencyKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'test-id');
+        } else if (status === 'failed') {
+            toast.error("Erreur", "Une erreur technique est survenue.");
+            setIsSubmitting(false);
+            setJobId(null);
+            setIdempotencyKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'test-id');
+        }
+    }, [status, rejectReason, onClose, squadId, queryClient]);
 
     useEffect(() => {
         if (scheduledApero) {
@@ -98,25 +125,36 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
             formData.append('latitude', location.lat.toString());
             formData.append('longitude', location.lng.toString());
             formData.append('location_name', locationName.trim());
+            
+            let res: any;
 
             if (scheduledApero) {
-                await api.post(`/squads/${squadId}/beer-calls/${scheduledApero.id}/start/`, formData, {
-                    headers: {'Content-Type': 'multipart/form-data'},
+                res = await api.post(`/squads/${squadId}/beer-calls/${scheduledApero.id}/start/`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        'Idempotency-Key': idempotencyKey
+                    },
                 });
             } else {
-                await api.post(`/squads/${squadId}/beer-calls/`, formData, {
-                    headers: {'Content-Type': 'multipart/form-data'},
+                res = await api.post(`/squads/${squadId}/beer-calls/`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        'Idempotency-Key': idempotencyKey
+                    },
                 });
             }
 
-            queryClient.invalidateQueries({queryKey: ['squad', squadId]});
-            onClose();
+            if (res.data?.job_id) {
+                setJobId(res.data.job_id);
+            } else {
+                queryClient.invalidateQueries({queryKey: ['squad', squadId]});
+                onClose();
+            }
         } catch (err) {
-            // Utilisation du toast global
+            console.error("DEBUG ERR", err);
             const axiosError = err as { response?: { data?: { detail?: string } } };
             const errorMessage = axiosError.response?.data?.detail || "Erreur serveur inattendue";
-            toast.error("Alerte Fraude 🚫", errorMessage);
-        } finally {
+            toast.error("Erreur 🚨", errorMessage);
             setIsSubmitting(false);
         }
     };
