@@ -1,10 +1,12 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import axios from 'axios';
+import { api } from '../lib/api';
 import { useSquadWebSocket } from '../hooks/useSquadWebSocket';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-vi.mock('axios');
+vi.mock('../lib/api', () => ({
+  api: { post: vi.fn() }
+}));
 
 describe('useSquadWebSocket', () => {
   let queryClient: QueryClient;
@@ -42,17 +44,17 @@ describe('useSquadWebSocket', () => {
 
   it('does not connect if no squadId is provided', () => {
     renderHook(() => useSquadWebSocket(undefined), { wrapper });
-    expect(axios.post).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
     expect(global.WebSocket).not.toHaveBeenCalled();
   });
 
   it('fetches a ticket and connects securely', async () => {
-    vi.mocked(axios.post).mockResolvedValueOnce({ data: { ticket: 'secure_ticket_xyz' } });
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: 'secure_ticket_xyz' } });
     
     renderHook(() => useSquadWebSocket(42), { wrapper });
     
     await waitFor(() => {
-      expect(axios.post).toHaveBeenCalledWith('/api/squads/42/ws-ticket');
+      expect(api.post).toHaveBeenCalledWith('/squads/42/ws-ticket');
     });
     
     await waitFor(() => {
@@ -69,7 +71,7 @@ describe('useSquadWebSocket', () => {
   });
 
   it('invalidates queries on REFRESH_SQUAD message', async () => {
-    vi.mocked(axios.post).mockResolvedValueOnce({ data: { ticket: '123' } });
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: '123' } });
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
     
     const { result } = renderHook(() => useSquadWebSocket(10), { wrapper });
@@ -89,7 +91,7 @@ describe('useSquadWebSocket', () => {
 
   it('attempts to reconnect on abnormal closure', async () => {
     vi.useFakeTimers();
-    vi.mocked(axios.post)
+    vi.mocked(api.post)
       .mockResolvedValueOnce({ data: { ticket: 'tick1' } })
       .mockResolvedValueOnce({ data: { ticket: 'tick2' } });
 
@@ -98,7 +100,7 @@ describe('useSquadWebSocket', () => {
     // allow initial promise to resolve
     await vi.runAllTimersAsync();
     
-    expect(axios.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledTimes(1);
     
     const wsInstance = result.current.current;
     if (wsInstance?.onclose) {
@@ -108,12 +110,28 @@ describe('useSquadWebSocket', () => {
     // advance timer for reconnect
     await vi.runAllTimersAsync();
     
-    expect(axios.post).toHaveBeenCalledTimes(2);
+    expect(api.post).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it('does not reconnect on 401 Unauthorized', async () => {
+    vi.useFakeTimers();
+    vi.mocked(api.post).mockRejectedValueOnce({ response: { status: 401 } });
+    
+    renderHook(() => useSquadWebSocket(401), { wrapper });
+    
+    await vi.runAllTimersAsync();
+    
+    expect(api.post).toHaveBeenCalledTimes(1);
+    
+    await vi.runAllTimersAsync();
+    expect(api.post).toHaveBeenCalledTimes(1);
+    
     vi.useRealTimers();
   });
 
   it('cleans up on unmount', async () => {
-    vi.mocked(axios.post).mockResolvedValueOnce({ data: { ticket: 'xyz' } });
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: 'xyz' } });
     const { result, unmount } = renderHook(() => useSquadWebSocket(8), { wrapper });
     
     await waitFor(() => expect(result.current.current).not.toBeNull());
@@ -126,7 +144,7 @@ describe('useSquadWebSocket', () => {
   });
 
   it('handles squad changes', async () => {
-    vi.mocked(axios.post)
+    vi.mocked(api.post)
       .mockResolvedValueOnce({ data: { ticket: 's1' } })
       .mockResolvedValueOnce({ data: { ticket: 's2' } });
 
@@ -147,6 +165,6 @@ describe('useSquadWebSocket', () => {
         expect.anything()
     ));
     
-    expect(axios.post).toHaveBeenCalledTimes(2);
+    expect(api.post).toHaveBeenCalledTimes(2);
   });
 });

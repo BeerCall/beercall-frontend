@@ -15,12 +15,14 @@ export function useBeerCallJob(squadId: string, jobId: string | null) {
     }
 
     let intervalId: number;
+    let errorCount = 0;
 
     const pollJob = async () => {
       try {
         const response = await api.get(`/squads/${squadId}/beer-calls/jobs/${jobId}`);
         const jobStatus = response.data.status;
         setStatus(jobStatus);
+        errorCount = 0; // reset errors on success
 
         if (jobStatus === 'rejected') {
           setRejectReason(response.data.reject_reason || "Rejeté.");
@@ -34,13 +36,16 @@ export function useBeerCallJob(squadId: string, jobId: string | null) {
         }
       } catch (error) {
         console.error("Erreur polling job:", error);
-        clearInterval(intervalId);
-        setStatus('failed');
+        errorCount++;
+        if (errorCount > 10) { // 10 retries (~20s) before failing terminal
+          clearInterval(intervalId);
+          setStatus('failed');
+        }
       }
     };
 
     pollJob();
-    intervalId = window.setInterval(pollJob, process.env.NODE_ENV === 'test' ? 50 : 2000);
+    intervalId = window.setInterval(pollJob, import.meta.env?.MODE === 'test' ? 50 : 2000);
 
     return () => {
       clearInterval(intervalId);

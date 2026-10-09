@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import { api } from '../lib/api';
 
 export const useSquadWebSocket = (squadId?: number) => {
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef<boolean>(true);
 
   useEffect(() => {
@@ -17,7 +17,7 @@ export const useSquadWebSocket = (squadId?: number) => {
       isConnecting = true;
 
       try {
-        const { data } = await axios.post(`/api/squads/${squadId}/ws-ticket`);
+        const { data } = await api.post(`/squads/${squadId}/ws-ticket`);
         
         if (!mountedRef.current) return;
 
@@ -51,8 +51,13 @@ export const useSquadWebSocket = (squadId?: number) => {
         };
 
         wsRef.current = ws;
-      } catch (e) {
+      } catch (e: any) {
         isConnecting = false;
+        const status = e.response?.status;
+        // Ne pas boucler à l'infini si on n'est pas autorisé (401, 403) ou si la squad n'existe pas (404)
+        if (status === 401 || status === 403 || status === 404) {
+          return;
+        }
         if (mountedRef.current) {
           reconnectTimeoutRef.current = setTimeout(connect, 3000);
         }

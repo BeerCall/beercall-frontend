@@ -88,12 +88,12 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
             toast.error("Alerte Fraude 🚨", rejectReason || "Photo refusée !");
             setIsSubmitting(false);
             setJobId(null);
-            setIdempotencyKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'test-id');
+            // On conserve la clé pour un potentiel re-jeu identique
         } else if (status === 'failed') {
             toast.error("Erreur", "Une erreur technique est survenue.");
             setIsSubmitting(false);
             setJobId(null);
-            setIdempotencyKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'test-id');
+            // On conserve la clé pour un potentiel re-jeu identique
         }
     }, [status, rejectReason, onClose, squadId, queryClient]);
 
