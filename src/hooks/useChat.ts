@@ -68,10 +68,10 @@ export function useChat(squadId: string | undefined, beerCallId?: string | undef
     // ✉️ Envoie un message et renvoie true si l'écriture a réussi
     const sendMessage = useCallback(async (payload: Omit<ChatMessage, 'id' | 'timestamp'> & { timestamp?: number }) => {
         if (!squadId) return false;
-        const target = beerCallId
-            ? beerCallChatRef(squadId, beerCallId)
-            : squadChatRef(squadId);
         try {
+            const target = beerCallId
+                ? beerCallChatRef(squadId, beerCallId)
+                : squadChatRef(squadId);
             await push(target, {
                 ...payload,
                 beerCallId: beerCallId || payload.beerCallId,
