@@ -20,12 +20,14 @@ it('lance le vrai contrat API, remplit le cache et ouvre le jeu', async () => {
         http.post('*/aperos/1/game/start', () => { starts++; return HttpResponse.json(payload); }),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(<QueryClientProvider client={queryClient}><SelectWorldModal isOpen onClose={vi.fn()} squadId="1" beerCallId="bc_1" isActiveApero /></QueryClientProvider>);
+    const onClose = vi.fn();
+    render(<QueryClientProvider client={queryClient}><SelectWorldModal isOpen onClose={onClose} squadId="1" beerCallId="bc_1" isActiveApero /></QueryClientProvider>);
     const button = screen.getByRole('button', { name: 'Lancer le jeu' });
     await waitFor(() => expect(button).toBeEnabled());
     fireEvent.click(button);
     await waitFor(() => expect(useGameUIStore.getState().isGameScreenOpen).toBe(true));
     expect(starts).toBe(1);
+    expect(onClose).toHaveBeenCalledOnce();
     expect(useGameUIStore.getState().currentAperoId).toBe('bc_1');
     expect(queryClient.getQueryData(['gameState', '1'])).toEqual(payload);
 });

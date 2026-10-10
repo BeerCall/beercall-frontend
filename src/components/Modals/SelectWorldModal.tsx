@@ -62,6 +62,7 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
         },
         onSuccess: (payload) => {
             queryClient.setQueryData(['gameState', gameId], payload);
+            onClose();
             openGameScreen(beerCallId);
         },
         onError: () => toast.error('Jeu indisponible', 'Il faut être présent au Bar pour lancer le jeu.'),
