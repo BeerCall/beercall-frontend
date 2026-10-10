@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 
-type JobStatus = 'uploading' | 'pending' | 'running' | 'succeeded' | 'rejected' | 'failed';
-interface JobResult { status: JobStatus; reject_reason?: string }
-const terminal = (status?: JobStatus | null) =>
+import type { BeerCallJobStatus, BeerCallJobResult } from '../types/api';
+const terminal = (status?: BeerCallJobStatus | null) =>
   status === 'succeeded' || status === 'rejected' || status === 'failed';
 
 export function useBeerCallJob(squadId: string, jobId: string | null, trackingTimeoutMs = 20 * 60 * 1000) {
@@ -16,7 +15,7 @@ export function useBeerCallJob(squadId: string, jobId: string | null, trackingTi
     queryKey: ['beer-call-job', squadId, jobId],
     enabled: Boolean(jobId && squadId) && !trackingPaused,
     queryFn: async ({ signal }) => {
-      const response = await api.get<JobResult>(
+      const response = await api.get<BeerCallJobResult>(
         `/squads/${squadId}/beer-calls/jobs/${jobId}`, { signal, timeout: 10000 }
       );
       return response.data;

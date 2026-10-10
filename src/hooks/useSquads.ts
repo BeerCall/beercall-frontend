@@ -1,13 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 
-export interface Squad {
-    id: string;
-    name: string;
-    icon?: string;
-    color?: string;
-    inviteCode?: string;
-}
+import type { Squad } from '../types/api';
+export type { Squad } from '../types/api';
 
 export function useSquads() {
     return useQuery({
