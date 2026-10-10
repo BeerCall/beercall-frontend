@@ -1,4 +1,4 @@
-name: Test & Deploy Trigger
+name: CI
 
 on:
   push:
@@ -32,18 +32,3 @@ jobs:
 
       - name: Run Build
         run: npm run build
-
-  trigger:
-    name: Trigger App Deployment
-    needs: test
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions: {}
-    steps:
-      - name: Trigger beercall-app deployment
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.PAT_FOR_DEPLOYMENT }}
-          repository: BeerCall/beercall-app
-          event-type: trigger-deploy
-          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
