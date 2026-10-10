@@ -17,16 +17,18 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(self.clients.claim());
 });
 
-// 4. Ta configuration Firebase d'origine
+// 4. Même configuration optionnelle que l'application, injectée au build.
 const firebaseConfig = {
-    apiKey: "AIzaSyDFbNca0hG9vVpbT0PidxT_Qs0hJuXhXTw",
-    authDomain: "beercall-7be4e.firebaseapp.com",
-    projectId: "beercall-7be4e",
-    storageBucket: "beercall-7be4e.firebasestorage.app",
-    messagingSenderId: "983909265712",
-    appId: "1:983909265712:web:d9f7a5101f9cad43e818f5"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialisation moderne de l'app et du messaging
-const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
+if (firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId && firebaseConfig.messagingSenderId) {
+    const app = initializeApp(firebaseConfig);
+    getMessaging(app);
+}

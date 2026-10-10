@@ -8,7 +8,7 @@ import { useGameUIStore } from '../store/useGameUIStore';
 import { useLocationStore } from '../store/useLocationStore';
 import { toast } from '../store/useToastStore';
 import type { MapRef } from 'react-map-gl/maplibre';
-import type { BeerCall } from '../types/dashboard';
+import type { BeerCall } from '../types/api';
 
 export const useDashboard = () => {
     const { id } = useParams();
@@ -41,10 +41,8 @@ export const useDashboard = () => {
 
     // Fermer l'écran de jeu quand on change de squad
     useEffect(() => {
-        if (isGameScreenOpen) {
-            closeGameScreen();
-        }
-    }, [id, isGameScreenOpen, closeGameScreen]);
+        closeGameScreen();
+    }, [id, closeGameScreen]);
 
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [startingScheduledApero, setStartingScheduledApero] = useState<BeerCall | null>(null);

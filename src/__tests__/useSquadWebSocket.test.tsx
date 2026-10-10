@@ -70,6 +70,20 @@ describe('useSquadWebSocket', () => {
     expect(wsCallUrl).not.toContain('jwt');
   });
 
+  it('does not send application heartbeats while idle', async () => {
+    vi.useFakeTimers();
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: 'idle-ticket' } });
+
+    const { result, unmount } = renderHook(() => useSquadWebSocket(42), { wrapper });
+    await vi.advanceTimersByTimeAsync(70000);
+
+    expect(result.current.current).not.toBeNull();
+    expect(result.current.current?.send).not.toHaveBeenCalled();
+    expect(api.post).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('invalidates queries on REFRESH_SQUAD message', async () => {
     vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: '123' } });
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');

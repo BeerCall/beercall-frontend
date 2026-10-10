@@ -1,10 +1,13 @@
 import {useState, useEffect, Suspense} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
-import {useQuery} from '@tanstack/react-query';
+import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
 import {Canvas} from '@react-three/fiber';
 import {OrbitControls, Html, useProgress} from '@react-three/drei';
 import {api} from '../../lib/api';
+import {useGameUIStore} from '../../store/useGameUIStore';
+import {toast} from '../../store/useToastStore';
+import type {SduiPayload} from '../../types/game';
 
 // 🌍 IMPORT DE TES 3 MONDES
 import BarWorld from '../3D/BarWorld';
@@ -49,6 +52,21 @@ function CanvasLoader() {
 
 export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, isActiveApero}: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
+    const queryClient = useQueryClient();
+    const openGameScreen = useGameUIStore(state => state.openGameScreen);
+    const gameId = beerCallId.replace('bc_', '');
+    const startGame = useMutation({
+        mutationFn: async () => {
+            const response = await api.post<SduiPayload>(`/aperos/${gameId}/game/start`);
+            return response.data;
+        },
+        onSuccess: (payload) => {
+            queryClient.setQueryData(['gameState', gameId], payload);
+            onClose();
+            openGameScreen(beerCallId);
+        },
+        onError: () => toast.error('Jeu indisponible', 'Il faut être présent au Bar pour lancer le jeu.'),
+    });
 
     // 📸 NOUVEAU : STATE POUR LES PHOTOS GÉRÉ ICI
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
@@ -145,6 +163,13 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                         </div>
 
                         {/* 🌟 LA SCÈNE 3D 🌟 */}
+                        {activeTab === 'bar' && isActiveApero && (
+                            <button type="button" onClick={() => startGame.mutate()}
+                                    disabled={startGame.isPending || currentParticipants.length < 2}
+                                    className="mx-6 my-2 rounded-xl bg-amber-500 p-3 font-bold text-white disabled:opacity-50">
+                                {startGame.isPending ? 'Démarrage du jeu...' : 'Lancer le jeu'}
+                            </button>
+                        )}
                         <div className="flex-1 relative transition-colors duration-500"
                              style={{backgroundColor: THEMES[activeTab].bg}}>
                             {isLoading ? (
