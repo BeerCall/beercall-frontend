@@ -41,10 +41,8 @@ export const useDashboard = () => {
 
     // Fermer l'écran de jeu quand on change de squad
     useEffect(() => {
-        if (isGameScreenOpen) {
-            closeGameScreen();
-        }
-    }, [id, isGameScreenOpen, closeGameScreen]);
+        closeGameScreen();
+    }, [id, closeGameScreen]);
 
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [startingScheduledApero, setStartingScheduledApero] = useState<BeerCall | null>(null);

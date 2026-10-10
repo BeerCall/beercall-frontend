@@ -146,7 +146,13 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             {userLocation && (
                 <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
                         style={{zIndex: 50}}>
-                    <div onClick={handlePlayerClick}
+                    <div onClick={handlePlayerClick} role="button" tabIndex={0} aria-label="Créer un Beer Call"
+                         onKeyDown={(event) => {
+                             if (event.key === 'Enter' || event.key === ' ') {
+                                 event.preventDefault();
+                                 handlePlayerClick();
+                             }
+                         }}
                             className="relative flex flex-col items-center cursor-pointer group rounded-full p-2 after:content-[''] after:absolute after:inset-1 after:rounded-full after:animate-soft-pulse after:z-[-1] animate-in fade-in zoom-in-50 duration-500 delay-300 fill-mode-both">
                         <div
                             className="absolute -top-7 px-3 py-1 bg-white/70 backdrop-blur-sm rounded-full shadow-sm border border-gray-100 transition-opacity opacity-100 group-hover:opacity-100 group-hover:scale-105 group-hover:bg-white group-hover:border-beer pointer-events-none whitespace-nowrap">

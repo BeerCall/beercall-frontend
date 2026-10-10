@@ -55,7 +55,7 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                <input type="file" accept="image/*" capture="environment" ref={dashboard.fileInputRef}
+                <input type="file" aria-label="Photo du Beer Call" accept="image/*" capture="environment" ref={dashboard.fileInputRef}
                        onChange={dashboard.handlePhotoCapture} className="hidden"/>
 
                 <div className="absolute inset-0 z-0">
