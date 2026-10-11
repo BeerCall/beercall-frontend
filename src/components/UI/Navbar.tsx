@@ -34,7 +34,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                 </button>
 
                 <button aria-label="Profil" onClick={() => navigate('/profile')}
-                        className="flex flex-col items-center justify-center bg-beer text-white w-[70px] h-[70px] rounded-full shadow-2xl transform -translate-y-5 border-[6px] border-white z-50 hover:scale-105 active:scale-95 transition-all">
+                        className="flex flex-col items-center justify-center bg-beer text-white w-[70px] h-[70px] rounded-full shadow-2xl transform border-[6px] border-white z-50 hover:scale-105 active:scale-95 transition-all">
                     <User size={28}/>
                 </button>
 
