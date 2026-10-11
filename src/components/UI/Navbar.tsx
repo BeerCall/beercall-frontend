@@ -27,7 +27,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                 className="h-[calc(80px_+_env(safe-area-inset-bottom))] bg-white border-t border-gray-100 px-8 flex justify-between items-center pt-4 pb-[calc(16px_+_env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50 pointer-events-auto">
                 <button
                     onClick={() => navigate('/connections')}
-                    className="flex flex-col items-center text-gray-400 hover:text-beer"
+                    className="flex flex-col items-center text-gray-700 hover:text-amber-800"
                 >
                     <Users size={24}/>
                     <span className="text-[10px] font-black uppercase mt-1 tracking-tighter">Connexions</span>
@@ -39,7 +39,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                 </button>
 
                 <button onClick={logout}
-                        className="flex flex-col items-center text-gray-400 hover:text-red-400 transition-colors">
+                        className="flex flex-col items-center text-gray-700 hover:text-red-700 transition-colors">
                     <LogOut size={24}/>
                     <span className="text-[10px] font-black uppercase mt-1 tracking-tighter">Sign Out</span>
                 </button>

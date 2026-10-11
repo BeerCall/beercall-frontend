@@ -75,11 +75,10 @@ export default function Dashboard() {
                         {/* BADGE SQUAD (Seulement si id) */}
                         {dashboard.id && (
                             <div className="absolute top-[calc(15px+env(safe-area-inset-top))] w-full flex justify-center z-10 pointer-events-none">
-                                <div className="bg-white/95 backdrop-blur-md max-w-[calc(100vw_-_32px)] px-4 py-2 rounded-[2rem] shadow-xl pointer-events-auto border-2 flex flex-col items-center gap-1 transition-all"
+                                <div className="bg-white backdrop-blur-md max-w-[calc(100vw_-_32px)] px-4 py-2 rounded-[2rem] shadow-xl pointer-events-auto border-2 flex flex-col items-center gap-1 transition-all"
                                      style={{borderColor: dashboard.squadDetails?.color ? `${dashboard.squadDetails.color}40` : 'rgba(217, 119, 6, 0.25)'}}>
                                     <div className="flex w-full min-w-0 items-center justify-center gap-2">
-                                    {dashboard.squadDetails && <h2 className="min-w-0 truncate font-black tracking-widest uppercase italic text-xl leading-none"
-                                        style={{color: dashboard.squadDetails?.color || '#D97706'}}>
+                                    {dashboard.squadDetails && <h2 className="min-w-0 truncate font-black text-gray-900 tracking-widest uppercase italic text-xl leading-none">
                                         {dashboard.squadDetails.name}
                                     </h2>}
                                     {!dashboard.squadDetails && dashboard.isSquadPending && <p role="status" className="text-sm font-bold text-gray-900">Chargement de la squad…</p>}

@@ -88,7 +88,7 @@ export default function CreateSquadModal({ isOpen, onClose }: { isOpen: boolean,
 
                             {/* CHOIX ICÔNE */}
                             <div className="space-y-3">
-                                <label className="text-[10px] font-black text-gray-300 uppercase tracking-widest ml-1">Choisir un Emblème</label>
+                                <label className="text-[10px] font-black text-gray-700 uppercase tracking-widest ml-1">Choisir un Emblème</label>
                                 <div className="flex justify-between">
                                     {ICONS.map(i => (
                                         <button
@@ -103,7 +103,7 @@ export default function CreateSquadModal({ isOpen, onClose }: { isOpen: boolean,
 
                             {/* CHOIX COULEUR */}
                             <div className="space-y-3">
-                                <label className="text-[10px] font-black text-gray-300 uppercase tracking-widest ml-1">Couleur d'Étendard</label>
+                                <label className="text-[10px] font-black text-gray-700 uppercase tracking-widest ml-1">Couleur d'Étendard</label>
                                 <div className="flex justify-between">
                                     {COLORS.map(c => (
                                         <button
