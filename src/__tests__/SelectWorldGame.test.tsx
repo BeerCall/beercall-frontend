@@ -38,5 +38,6 @@ it('désactive le lancement tant que deux participants ne sont pas présents', a
     render(<QueryClientProvider client={queryClient}><SelectWorldModal isOpen onClose={vi.fn()} squadId="1" beerCallId="bc_1" isActiveApero /></QueryClientProvider>);
     await screen.findByText('1 Soldat(s)');
     expect(screen.getByRole('button', { name: 'Lancer le jeu' })).toBeDisabled();
+    expect(screen.getByText('Au moins 2 participants au Bar sont nécessaires')).toBeInTheDocument();
     expect(useGameUIStore.getState().isGameScreenOpen).toBe(false);
 });

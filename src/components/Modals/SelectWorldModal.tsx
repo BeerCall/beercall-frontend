@@ -76,7 +76,7 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
         silenceWarnings();
     }, []);
 
-    const {data: worldsData, isLoading} = useQuery({
+    const {data: worldsData, isPending, isError, isFetching, refetch} = useQuery({
         queryKey: ['worlds', squadId, beerCallId],
         queryFn: async () => {
             const response = await api.get(`/squads/${squadId}/beer-calls/${beerCallId}/worlds`);
@@ -110,6 +110,8 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
     };
 
     const currentParticipants = worldsData?.[activeTab]?.participants || [];
+    const hasWorldData = worldsData !== undefined && worldsData !== null;
+    const canStartGame = hasWorldData && !isPending && !isError && !isFetching && !startGame.isPending && currentParticipants.length >= 2;
 
     // Handler pour mettre à jour la liste des photos et l'index actuel
     const handleSelectPhoto = (url: string) => {
@@ -164,18 +166,29 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
 
                         {/* 🌟 LA SCÈNE 3D 🌟 */}
                         {activeTab === 'bar' && isActiveApero && (
-                            <button type="button" onClick={() => startGame.mutate()}
-                                    disabled={startGame.isPending || currentParticipants.length < 2}
+                            <button type="button" onClick={() => { if (canStartGame) startGame.mutate(); }}
+                                    disabled={!canStartGame}
                                     className="mx-6 my-2 rounded-xl bg-amber-500 p-3 font-bold text-white disabled:opacity-50">
                                 {startGame.isPending ? 'Démarrage du jeu...' : 'Lancer le jeu'}
                             </button>
                         )}
+                        {activeTab === 'bar' && isActiveApero && hasWorldData && !isError && currentParticipants.length < 2 &&
+                            <p className="mx-6 mb-2 text-xs text-gray-700">Au moins 2 participants au Bar sont nécessaires</p>}
+                        {isError && hasWorldData && <div role="alert" className="mx-6 my-2 text-xs text-gray-900">
+                            Actualisation impossible — dernières données affichées
+                            <button onClick={() => refetch()} className="ml-2 underline font-bold">Réessayer</button>
+                        </div>}
                         <div className="flex-1 relative transition-colors duration-500"
                              style={{backgroundColor: THEMES[activeTab].bg}}>
-                            {isLoading ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center z-50">
-                                    <div
-                                        className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin border-gray-900"></div>
+                             {!hasWorldData ? (
+                                 <div className="absolute inset-0 flex flex-col items-center justify-center z-50">
+                                     {isError ? <div role="alert" className="text-sm text-gray-900 text-center">
+                                         <p>Participants indisponibles</p>
+                                         <button onClick={() => refetch()} className="mt-3 underline font-bold">Réessayer</button>
+                                     </div> : <>
+                                         <div className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin border-gray-900"></div>
+                                         <p role="status" className="mt-3 text-sm text-gray-900">Chargement des participants…</p>
+                                     </>}
                                 </div>
                             ) : (
                                 <Canvas camera={{position: [0, 80, 450], fov: 45}} dpr={[1, 2]}>
@@ -210,7 +223,7 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                             )}
 
                             {/* TITRE EN SURIMPRESSION */}
-                            <div
+                            {hasWorldData && <div
                                 className="absolute top-6 left-0 right-0 pointer-events-none flex flex-col items-center z-20">
                                 <h3 className={`font-black text-2xl uppercase italic drop-shadow-md ${THEMES[activeTab].text}`}>
                                     {THEMES[activeTab].title}
@@ -218,7 +231,8 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                                 <p className="text-gray-900 bg-white/50 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mt-2 border border-white/50 shadow-sm">
                                     {currentParticipants.length} Soldat(s)
                                 </p>
-                            </div>
+                                {!isError && currentParticipants.length === 0 && <p className="mt-3 text-xs text-gray-900 bg-white p-2 rounded-xl">Aucun participant dans ce monde</p>}
+                            </div>}
                         </div>
                     </motion.div>
 
