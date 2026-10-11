@@ -129,7 +129,7 @@ export default function Profile() {
 
                 <div className="flex flex-col items-center flex-1 px-3 pointer-events-none overflow-hidden">
                     <span
-                        className="bg-amber-100 text-amber-600 px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm border border-amber-200 mb-0.5 leading-none whitespace-nowrap">
+                        className="bg-amber-100 text-amber-900 px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm border border-amber-200 mb-0.5 leading-none whitespace-nowrap">
                         {profile.title}
                     </span>
                     <h1 className="text-xl sm:text-2xl font-black text-gray-900 uppercase italic tracking-tight drop-shadow-sm truncate w-full text-center leading-none">

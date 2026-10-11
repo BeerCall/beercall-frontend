@@ -101,16 +101,16 @@ export default function VestiairePanel({
             <div className={`${mode === 'signup' ? 'px-6 pt-4 flex-wrap gap-2' : 'px-8 pt-8'} pb-4 flex justify-between items-center bg-white z-10 shadow-sm shrink-0`}>
                 <div>
                     <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter leading-none">Vestiaire</h2>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Personnalise ton
+                    <p className="text-[10px] font-bold text-gray-700 uppercase tracking-widest mt-1">Personnalise ton
                         style</p>
                 </div>
                 {setGender && !readonly && (
                     <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner shrink-0">
                         <button onClick={() => setGender('Men')}
-                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${gender === 'Men' ? 'bg-white text-beer shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Homme
+                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${gender === 'Men' ? 'bg-white text-amber-800 shadow-sm' : 'text-gray-700 hover:text-gray-600'}`}>Homme
                         </button>
                         <button onClick={() => setGender('Women')}
-                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${gender === 'Women' ? 'bg-white text-beer shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Femme
+                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${gender === 'Women' ? 'bg-white text-amber-800 shadow-sm' : 'text-gray-700 hover:text-gray-600'}`}>Femme
                         </button>
                     </div>
                 )}
@@ -148,7 +148,7 @@ export default function VestiairePanel({
                                     <Play size={24} className={isEquipped ? 'fill-white' : 'fill-gray-300'}/>
                                 </div>
                                 <span
-                                    className={`text-[10px] font-black uppercase tracking-wider text-center leading-tight ${isEquipped ? 'text-beer' : 'text-gray-500'}`}>
+                                    className={`text-[10px] font-black uppercase tracking-wider text-center leading-tight ${isEquipped ? 'text-amber-800' : 'text-gray-500'}`}>
                                     {animName.replace(/_/g, ' ')}
                                 </span>
                                 {isEquipped && <div
@@ -165,7 +165,7 @@ export default function VestiairePanel({
                                     className="w-12 h-12 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center mb-1">
                                     <span className="text-gray-300 text-xl font-black">X</span></div>
                                 <span
-                                    className={`text-[10px] font-black uppercase tracking-wider ${avatarConfig[activeTab] === 'none' ? 'text-beer' : 'text-gray-400'}`}>Aucun</span>
+                                    className={`text-[10px] font-black uppercase tracking-wider ${avatarConfig[activeTab] === 'none' ? 'text-amber-800' : 'text-gray-400'}`}>Aucun</span>
                             </button>
                         )}
 
@@ -185,10 +185,10 @@ export default function VestiairePanel({
                                         {activeTab === 'head' && '🧢'}{activeTab === 'body' && '👕'}{activeTab === 'legs' && '👖'}{activeTab === 'feet' && '👟'}{activeTab === 'accessory' && '🎒'}
                                     </div>
                                     <span
-                                        className={`text-[10px] font-black uppercase tracking-wider mb-2 leading-tight ${isEquipped ? 'text-beer' : 'text-gray-700'}`}>{item.name}</span>
+                                        className={`text-[10px] font-black uppercase tracking-wider mb-2 leading-tight ${isEquipped ? 'text-amber-800' : 'text-gray-700'}`}>{item.name}</span>
                                     <div className="mt-auto w-full">
                                         {mode === 'signup' ? (
-                                            <div className={`${isEquipped ? 'bg-beer text-white' : 'bg-gray-100 text-gray-500'} text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest`}>
+                                            <div className={`${isEquipped ? 'bg-beer text-gray-950' : 'bg-gray-100 text-gray-700'} text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest`}>
                                                 {isEquipped ? 'Tenue initiale' : 'À essayer'}
                                             </div>
                                         ) : !isOwned ? (
@@ -201,11 +201,11 @@ export default function VestiairePanel({
                                             </button>
                                         ) : isEquipped ? (
                                             <div
-                                                className="bg-beer text-white text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest flex items-center justify-center gap-1">
+                                                className="bg-beer text-gray-950 text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest flex items-center justify-center gap-1">
                                                 <Check size={12}/> Équipé</div>
                                         ) : (
                                             <div
-                                                className="bg-gray-100 text-gray-500 text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest flex items-center justify-center gap-1">Possédé</div>
+                                                className="bg-gray-100 text-gray-700 text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest flex items-center justify-center gap-1">Possédé</div>
                                         )}
                                     </div>
                                 </div>
