@@ -12,11 +12,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDashboard } from '../hooks/useDashboard';
 import { MapSection } from '../components/Dashboard/MapSection';
 import { Timeline } from '../components/Dashboard/Timeline';
+import { isAxiosError } from 'axios';
 
 const GameScreen = React.lazy(() => import('./GameScreen'));
 
 export default function Dashboard() {
-    const dashboard = useDashboard();
+    const { fileInputRef, mapRef, ...dashboard } = useDashboard();
+    const squadErrorStatus = isAxiosError(dashboard.squadError) ? dashboard.squadError.response?.status : undefined;
+    const squadErrorMessage = squadErrorStatus === 403 ? 'Accès à cette squad refusé'
+        : squadErrorStatus === 404 ? 'Squad introuvable' : 'Squad indisponible';
 
     return (
         <div className="h-full w-full relative flex flex-col bg-[#f8fafc] overflow-hidden font-sans">
@@ -55,7 +59,7 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                <input type="file" aria-label="Photo du Beer Call" accept="image/*" capture="environment" ref={dashboard.fileInputRef}
+                <input type="file" aria-label="Photo du Beer Call" accept="image/*" capture="environment" ref={fileInputRef}
                        onChange={dashboard.handlePhotoCapture} className="hidden"/>
 
                 <div className="absolute inset-0 z-0">
@@ -73,10 +77,15 @@ export default function Dashboard() {
                             <div className="absolute top-[calc(15px+env(safe-area-inset-top))] w-full flex justify-center z-10 pointer-events-none">
                                 <div className="bg-white/95 backdrop-blur-md px-8 py-3 rounded-[2rem] shadow-xl pointer-events-auto border-2 flex flex-col items-center gap-2 transition-all"
                                     style={{borderColor: dashboard.squadDetails?.color ? `${dashboard.squadDetails.color}40` : 'rgba(217, 119, 6, 0.25)'}}>
-                                    <h2 className="font-black tracking-widest uppercase italic text-xl leading-none"
+                                    {dashboard.squadDetails && <h2 className="font-black tracking-widest uppercase italic text-xl leading-none"
                                         style={{color: dashboard.squadDetails?.color || '#D97706'}}>
-                                        {dashboard.squadDetails?.name || `Squad #${dashboard.id}`}
-                                    </h2>
+                                        {dashboard.squadDetails.name}
+                                    </h2>}
+                                    {!dashboard.squadDetails && dashboard.isSquadPending && <p role="status" className="text-sm font-bold text-gray-900">Chargement de la squad…</p>}
+                                    {dashboard.isSquadError && <div role="alert" className="max-w-[calc(100vw_-_80px)] text-xs text-gray-900 text-center">
+                                        <p>{dashboard.squadDetails ? 'Actualisation impossible — dernières données affichées' : squadErrorMessage}</p>
+                                        <button onClick={() => dashboard.refetchSquad()} className="mt-2 underline font-bold">Réessayer</button>
+                                    </div>}
                                     {dashboard.squadDetails?.invite_code && (
                                         <button onClick={dashboard.handleCopyCode} className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 px-4 py-1.5 rounded-full transition-all group active:scale-95" title="Copier le code">
                                             <Key size={12} style={{color: dashboard.squadDetails?.color || '#D97706'}}/>
@@ -90,7 +99,7 @@ export default function Dashboard() {
                         )}
 
                         <MapSection 
-                            mapRef={dashboard.mapRef}
+                            mapRef={mapRef}
                             userLocation={dashboard.userLocation}
                             isNightMode={dashboard.isNightMode}
                             isMapReady={dashboard.isMapReady}
@@ -104,7 +113,7 @@ export default function Dashboard() {
                             setIsWorldsModalOpen={dashboard.setIsWorldsModalOpen}
                         />
 
-                        {dashboard.id && (
+                        {dashboard.id && dashboard.squadDetails && (
                             <Timeline 
                                 squadDetails={dashboard.squadDetails}
                                 squadId={dashboard.id}

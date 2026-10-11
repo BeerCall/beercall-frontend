@@ -31,7 +31,8 @@ export const useDashboard = () => {
     });
 
     const { data: profile } = useProfile();
-    const { data: squadDetails } = useSquadDetails(id);
+    const squadQuery = useSquadDetails(id);
+    const squadDetails = squadQuery.data;
     // TODO(REV-04): The useSquadWebSocket hook was just a no-op placeholder masking the absence
     // of a real WebSocket implementation. It has been removed. A proper WS hook should be
     // implemented when real-time features are actually supported by the backend and frontend.
@@ -205,6 +206,11 @@ export const useDashboard = () => {
         navigate,
         profile,
         squadDetails,
+        isSquadPending: squadQuery.isPending,
+        isSquadFetching: squadQuery.isFetching,
+        isSquadError: squadQuery.isError,
+        squadError: squadQuery.error,
+        refetchSquad: squadQuery.refetch,
         isActiveApero,
         isGameScreenOpen,
         currentAperoId,

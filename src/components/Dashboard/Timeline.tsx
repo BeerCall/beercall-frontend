@@ -82,7 +82,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({
             ))}
 
             {/* CARTE VIDE (Si aucun apéro) */}
-            {(!squadDetails?.active_beer_call || squadDetails.active_beer_call.length === 0) && (!squadDetails?.past_beer_calls || squadDetails.past_beer_calls.length === 0) && (!squadDetails?.scheduled_beer_calls || squadDetails.scheduled_beer_calls.length === 0) && (
+            {squadDetails && (!squadDetails.active_beer_call || squadDetails.active_beer_call.length === 0) && (!squadDetails.past_beer_calls || squadDetails.past_beer_calls.length === 0) && (!squadDetails.scheduled_beer_calls || squadDetails.scheduled_beer_calls.length === 0) && (
                 <div
                     className="w-[220px] h-[130px] bg-white/60 backdrop-blur-md rounded-3xl p-4 shadow-sm border-2 border-dashed border-gray-300/50 snap-center flex-shrink-0 flex flex-col items-center justify-center">
                     <div
