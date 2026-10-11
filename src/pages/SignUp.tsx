@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useRef} from 'react';
 import {useNavigate, Link} from 'react-router-dom';
 import {ChevronLeft, ArrowRight, User, Lock} from 'lucide-react';
 import React, { Suspense } from 'react';
@@ -15,6 +15,8 @@ export default function SignUp() {
     const loginAction = useUserStore((state) => state.login);
     const [step, setStep] = useState<1 | 2>(1);
     const [isLoading, setIsLoading] = useState(false);
+    const submitting = useRef(false);
+    const [signupError, setSignupError] = useState<string | null>(null);
     const [formData, setFormData] = useState({username: '', password: ''});
     const [gender, setGender] = useState<Gender>('Men');
     const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
@@ -30,7 +32,7 @@ export default function SignUp() {
     });
 
     // 📡 Requête sur le profil anonyme pour récupérer le shop_items
-    const {data: publicProfile} = useQuery({
+    const {data: publicProfile, isPending, isError, refetch} = useQuery<{shop_items: ShopItem[]}>({
         queryKey: ['public-profile'],
         queryFn: async () => {
             const res = await api.get('/auth/profile/');
@@ -66,22 +68,29 @@ export default function SignUp() {
     };
 
     const handleSignup = async () => {
+        if (submitting.current || isPending || isError) return;
+        submitting.current = true;
         setIsLoading(true);
+        setSignupError(null);
         try {
             const res = await api.post('/auth/signup/', {
                 ...formData,
                 avatar: {...avatarConfig, gender}
             });
-            if (res.data.access_token) {
+            if (typeof res.data.access_token === 'string' && res.data.access_token.trim()) {
                 localStorage.setItem('token', res.data.access_token);
                 loginAction(res.data.username);
                 navigate('/dashboard');
+            } else {
+                setSignupError('Création non confirmée, réessaie dans un instant');
             }
         } catch (err) {
             console.error("Erreur lors de l'inscription:", err);
             const errorMessage = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail || "Erreur serveur inattendue";
             toast.error("Erreur lors de l'inscription.", errorMessage);
+            setSignupError(typeof errorMessage === 'string' ? errorMessage : 'Création impossible, réessaie dans un instant');
         } finally {
+            submitting.current = false;
             setIsLoading(false);
         }
     };
@@ -178,15 +187,26 @@ export default function SignUp() {
                         </Suspense>
                     </div>
                     <VestiairePanel
+                        mode="signup"
                         shopItems={publicShopItems}
                         avatarConfig={avatarConfig}
                         setAvatarConfig={setAvatarConfig}
                         gender={gender}
                         setGender={handleGenderChange}
-                        onEquipAndSave={handleSignup}
                         isSubmitting={isLoading}
                         availableAnimations={availableAnimations}
                     />
+                    <footer className="shrink-0 bg-white px-6 pt-3 pb-[calc(12px_+_env(safe-area-inset-bottom))]">
+                        {isPending && <p role="status" className="text-xs text-gray-700 mb-2">Chargement du catalogue…</p>}
+                        {isError && <div role="alert" className="text-xs text-gray-700 mb-2">
+                            Catalogue indisponible. <button onClick={() => refetch()} className="underline font-bold">Réessayer</button>
+                        </div>}
+                        {signupError && <p role="alert" className="text-xs text-red-700 mb-2">{signupError}</p>}
+                        <button onClick={handleSignup} disabled={isLoading || isPending || isError}
+                                className="w-full bg-gray-900 text-white p-4 rounded-2xl font-black text-sm disabled:opacity-50">
+                            {isLoading ? 'Création du compte…' : 'Créer mon compte'}
+                        </button>
+                    </footer>
                 </div>
             )}
         </div>

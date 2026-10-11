@@ -68,7 +68,7 @@ describe('Pages Rendering & Interactions (Coverage)', () => {
         const femmeBtn = await screen.findByText('Femme');
         fireEvent.click(femmeBtn);
 
-        const saveBtn = await screen.findByText(/SAUVEGARDER/i);
+        const saveBtn = await screen.findByText(/Créer mon compte/i);
         fireEvent.click(saveBtn);
 
         await waitFor(() => {

@@ -5,6 +5,7 @@ import type {ShopItem} from "../../hooks/useProfile.ts";
 export type Gender = 'Men' | 'Women' | 'Unisex';
 
 interface VestiairePanelProps {
+    mode?: 'profile' | 'signup';
     shopItems?: ShopItem[]; // 🚀 On autorise undefined ici
     avatarConfig: any;
     setAvatarConfig: (config: any) => void;
@@ -20,6 +21,7 @@ interface VestiairePanelProps {
 }
 
 export default function VestiairePanel({
+                                           mode = 'profile',
                                            shopItems,
                                            avatarConfig,
                                            setAvatarConfig,
@@ -87,8 +89,8 @@ export default function VestiairePanel({
 
     return (
         <div
-            className="flex-1 flex flex-col bg-white rounded-t-[3rem] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] overflow-hidden relative z-20">
-            <div className="px-8 pt-8 pb-4 flex justify-between items-center bg-white z-10 shadow-sm shrink-0">
+            className={`flex-1 flex flex-col bg-white rounded-t-[3rem] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] overflow-hidden relative z-20 ${mode === 'signup' ? 'min-h-0' : ''}`}>
+            <div className={`${mode === 'signup' ? 'px-6 pt-4 flex-wrap gap-2' : 'px-8 pt-8'} pb-4 flex justify-between items-center bg-white z-10 shadow-sm shrink-0`}>
                 <div>
                     <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter leading-none">Vestiaire</h2>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Personnalise ton
@@ -105,6 +107,10 @@ export default function VestiairePanel({
                     </div>
                 )}
             </div>
+
+            {mode === 'signup' && <p className="px-6 pb-3 text-[10px] font-bold text-gray-700 shrink-0">
+                Essayage — seule la tenue choisie est offerte à la création du compte
+            </p>}
 
             {!hideTabs && (
                 <div
@@ -173,7 +179,11 @@ export default function VestiairePanel({
                                     <span
                                         className={`text-[10px] font-black uppercase tracking-wider mb-2 leading-tight ${isEquipped ? 'text-beer' : 'text-gray-700'}`}>{item.name}</span>
                                     <div className="mt-auto w-full">
-                                        {!isOwned ? (
+                                        {mode === 'signup' ? (
+                                            <div className={`${isEquipped ? 'bg-beer text-white' : 'bg-gray-100 text-gray-500'} text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest`}>
+                                                {isEquipped ? 'Tenue initiale' : 'À essayer'}
+                                            </div>
+                                        ) : !isOwned ? (
                                             <button onClick={(e) => {
                                                 e.stopPropagation();
                                                 if (!readonly && onBuy) onBuy(item.id, item.price, item.name);
@@ -197,7 +207,7 @@ export default function VestiairePanel({
                 )}
             </div>
 
-            {!readonly && hasChanges && (
+            {mode === 'profile' && !readonly && hasChanges && (
                 <div
                     className="absolute bottom-6 left-6 right-6 z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
                     <button onClick={handleSave} disabled={isSubmitting || hasUnownedItemsEquipped}
