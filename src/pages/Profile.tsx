@@ -64,15 +64,17 @@ export default function Profile() {
         }
     };
 
-    const handleSaveOutfit = async () => {
-        if (!isOwnProfile) return;
+    const handleSaveOutfit = async (): Promise<boolean> => {
+        if (!isOwnProfile || !previewAvatar) return false;
         setIsSaving(true);
         try {
             await api.put('/auth/equip/', previewAvatar);
             queryClient.invalidateQueries({queryKey: ['profile', profileId]});
             toast.success("Succès", "Tenue sauvegardée avec succès ! ✨");
+            return true;
         } catch {
             toast.error("Erreur", "Erreur lors de la sauvegarde.");
+            return false;
         } finally {
             setIsSaving(false);
         }

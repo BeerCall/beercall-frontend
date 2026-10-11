@@ -13,7 +13,7 @@ interface VestiairePanelProps {
     setGender?: (gender: Gender) => void;
     badges?: any[];
     onBuy?: (itemId: string, price: number, itemName: string) => void;
-    onEquipAndSave?: () => void;
+    onEquipAndSave?: () => Promise<boolean>;
     isSubmitting?: boolean;
     readonly?: boolean;
     hideTabs?: boolean;
@@ -36,6 +36,7 @@ export default function VestiairePanel({
                                        }: VestiairePanelProps) {
     const [activeTab, setActiveTab] = useState('head');
     const [hasChanges, setHasChanges] = useState(false);
+    const [isSavingStyle, setIsSavingStyle] = useState(false);
     const [initialConfig, setInitialConfig] = useState<any>(null);
 
     useEffect(() => {
@@ -65,11 +66,18 @@ export default function VestiairePanel({
         setAvatarConfig({...avatarConfig, [category]: itemId});
     };
 
-    const handleSave = () => {
-        if (onEquipAndSave) {
-            onEquipAndSave();
-            setInitialConfig(JSON.parse(JSON.stringify(avatarConfig)));
-            setHasChanges(false);
+    const handleSave = async () => {
+        if (!onEquipAndSave || isSavingStyle || isSubmitting) return;
+        const submittedConfig = JSON.parse(JSON.stringify(avatarConfig));
+        setIsSavingStyle(true);
+        try {
+            if (await onEquipAndSave()) {
+                setInitialConfig(submittedConfig);
+            }
+        } catch {
+            // A rejected save must leave the submitted outfit dirty and retryable.
+        } finally {
+            setIsSavingStyle(false);
         }
     };
 
@@ -210,9 +218,9 @@ export default function VestiairePanel({
             {mode === 'profile' && !readonly && hasChanges && (
                 <div
                     className="absolute bottom-6 left-6 right-6 z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
-                    <button onClick={handleSave} disabled={isSubmitting || hasUnownedItemsEquipped}
+                    <button onClick={handleSave} disabled={isSubmitting || isSavingStyle || hasUnownedItemsEquipped}
                             className={`w-full text-white p-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl flex justify-center items-center gap-2 transition-all ${hasUnownedItemsEquipped ? 'bg-gray-400 opacity-90' : 'bg-gray-900 hover:scale-[1.02] active:scale-95 shadow-black/20'} ${isSubmitting ? 'opacity-50' : ''}`}>
-                        {isSubmitting ? <div
+                        {isSubmitting || isSavingStyle ? <div
                             className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : hasUnownedItemsEquipped ? <>ACHETEZ
                             POUR SAUVEGARDER <ShoppingBag size={18}/></> : <>SAUVEGARDER LE STYLE <Check size={18}/></>}
                     </button>
