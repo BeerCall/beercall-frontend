@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { X, Check, Beer, Martini, Pizza, Rocket, Ghost, Flame } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
@@ -21,10 +21,14 @@ export default function CreateSquadModal({ isOpen, onClose }: { isOpen: boolean,
     const [selectedIcon, setSelectedIcon] = useState('beer');
     const [selectedColor, setSelectedColor] = useState(COLORS[0]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const submitting = useRef(false);
 
     const handleCreate = async () => {
-        if (!name) return;
+        if (!name || submitting.current) return;
+        submitting.current = true;
         setIsSubmitting(true);
+        setError(null);
         try {
             await api.post('/squads/', {
                 name,
@@ -37,7 +41,10 @@ export default function CreateSquadModal({ isOpen, onClose }: { isOpen: boolean,
             setName('');
         } catch (err) {
             console.error("Erreur création Squad:", err);
+            const detail = (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
+            setError(typeof detail === 'string' ? detail : 'Création impossible, réessaie dans un instant');
         } finally {
+            submitting.current = false;
             setIsSubmitting(false);
         }
     };
@@ -108,6 +115,7 @@ export default function CreateSquadModal({ isOpen, onClose }: { isOpen: boolean,
                                 </div>
                             </div>
 
+                            {error && <p role="alert" className="text-sm font-bold text-red-700">{error}</p>}
                             <button
                                 onClick={handleCreate}
                                 disabled={!name || isSubmitting}
