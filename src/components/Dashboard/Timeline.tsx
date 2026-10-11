@@ -38,7 +38,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({
 }) => {
     return (
         <div
-            className="absolute bottom-[calc(130px_+_env(safe-area-inset-top))] w-full px-4 z-[70] pointer-events-none">
+            className="absolute bottom-[calc(248px_+_env(safe-area-inset-bottom))] w-full px-4 z-[70] pointer-events-none">
             <div
                 className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto items-center">
 

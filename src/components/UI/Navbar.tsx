@@ -1,5 +1,5 @@
-import {Users, User, LogOut, Plus, Key, Beer, Martini, Pizza, Rocket, Ghost, Flame} from 'lucide-react';
-import {motion, useMotionValue, useTransform} from 'framer-motion';
+import {Users, User, LogOut} from 'lucide-react';
+import SquadWheel from './SquadWheel';
 import {useUserStore} from '../../store/useUserStore';
 import {useSquads} from '../../hooks/useSquads';
 import {useNavigate, useParams} from 'react-router-dom';
@@ -9,126 +9,22 @@ interface NavbarProps {
     onJoinClick: () => void;
 }
 
-const SQUAD_ICONS: Record<string, React.ReactNode> = {
-    beer: <Beer size={24}/>,
-    cocktail: <Martini size={24}/>,
-    pizza: <Pizza size={24}/>,
-    rocket: <Rocket size={24}/>,
-    ghost: <Ghost size={24}/>,
-    fire: <Flame size={24}/>,
-};
-
-const WheelItem = ({angle, children}: { angle: number; children: React.ReactNode }) => (
-    <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center"
-        style={{transformOrigin: '50% 250px', transform: `rotate(${angle}deg)`}}
-    >
-        {children}
-    </div>
-);
-
 export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
     const navigate = useNavigate();
     const logout = useUserStore((state) => state.logout);
     const {data: squads, isLoading} = useSquads();
     const {id: currentSquadId} = useParams();
 
-    const dragX = useMotionValue(0);
-    const negateX = useTransform(dragX, (v) => -v);
-    const wheelRotation = useTransform(dragX, [-150, 150], [-35, 35]);
-
-// 🎯 CALCUL DYNAMIQUE DES ANGLES CORRIGÉ
-    const squadsCount = squads?.length || 0;
-    const spacing = 24; // Espace en degrés entre chaque élément
-
-    // 1. Calcul de l'angle naturel de la liste
-    const baseCreateAngle = (-1 - (squadsCount - 1) / 2) * spacing;
-    const baseJoinAngle = (squadsCount - (squadsCount - 1) / 2) * spacing;
-
-    // 🚀 2. LE FIX IPHONE : On force un écartement MINIMUM vers les bords !
-    // Si la liste est vide ou courte, ça reste cloué à -45° et +45° (bords de l'écran).
-    // Si tu as 10 squads, Math.min/max laissera l'angle grandir naturellement (-60°, +60°...)
-    const createAngle = Math.min(-45, baseCreateAngle);
-    const joinAngle = Math.max(45, baseJoinAngle);
-
     return (
         <div className="absolute bottom-0 w-full z-50 pointer-events-none">
 
             {/* 🎡 LA ROULETTE (Boutons + Squads) */}
-            <div className="relative h-26 flex justify-center overflow-hidden pointer-events-none">
-                <div className="absolute top-10 w-[500px] h-[500px] rounded-full border-t-[3px] border-beer/20"/>
-
-                <motion.div
-                    drag="x"
-                    dragConstraints={{left: -150, right: 150}}
-                    style={{x: dragX}}
-                    className="absolute top-10 w-[500px] h-[500px] cursor-grab active:cursor-grabbing z-40 pointer-events-auto"
-                >
-                    <motion.div style={{x: negateX, rotate: wheelRotation, originX: "50%", originY: "50%"}}
-                                className="w-full h-full relative">
-
-                        {/* 🟢 BOUTON CRÉER (Dynamique) */}
-                        <WheelItem angle={createAngle}>
-                            <button
-                                onClick={onCreateClick}
-                                className="relative flex flex-col items-center group pointer-events-auto hover:-translate-y-1 transition-transform mt-2"
-                            >
-                                {/* 🚀 Le label passe AU-DESSUS de l'icône */}
-                                <span
-                                    className="absolute -top-6 text-[9px] font-black uppercase tracking-widest text-gray-700 bg-white/95 px-2.5 py-1 ml-1 rounded-full shadow-sm border border-gray-200">
-                                    Créer
-                                </span>
-                                <div
-                                    className="w-14 h-14 bg-white/95 backdrop-blur-md rounded-full border-4 border-orange-100 shadow-[0_8px_20px_rgb(217,119,6,0.2)] flex items-center justify-center text-beer group-active:scale-95 transition-all">
-                                    <Plus size={26}/>
-                                </div>
-                            </button>
-                        </WheelItem>
-
-                        {/* 🍻 LES SQUADS */}
-                        {!isLoading && squads?.map((squad, index) => {
-                            const angle = (index - (squadsCount - 1) / 2) * spacing;
-                            const IconComponent = SQUAD_ICONS[squad.icon || 'beer'] || <Beer size={24}/>;
-                            const isActive = currentSquadId && +squad.id === +currentSquadId;
-
-                            return (
-                                <WheelItem key={squad.id} angle={angle}>
-                                    <button
-                                        onClick={() => navigate(`/squad/${squad.id}`)}
-                                        className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-white transition-all pointer-events-auto ${isActive ? 'scale-110 ring-4 ring-beer ring-opacity-50' : 'border-4 border-white hover:scale-110'}`}
-                                        style={{backgroundColor: squad.color || '#F59E0B'}}
-                                    >
-                                        {IconComponent}
-                                    </button>
-                                </WheelItem>
-                            );
-                        })}
-
-                        {/* 🔵 BOUTON REJOINDRE (Dynamique) */}
-                        <WheelItem angle={joinAngle}>
-                            <button
-                                onClick={onJoinClick}
-                                className="relative flex flex-col items-center group pointer-events-auto hover:-translate-y-1 transition-transform mt-2"
-                            >
-                                {/* 🚀 Le label passe AU-DESSUS de l'icône */}
-                                <span
-                                    className="absolute -top-6 text-[9px] font-black uppercase tracking-widest text-gray-700 bg-white/95 px-2.5 py-1 rounded-full shadow-sm border border-gray-200">
-                                    Rejoindre
-                                </span>
-                                <div
-                                    className="w-14 h-14 bg-white/95 backdrop-blur-md rounded-full border-4 border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.2)] flex items-center justify-center text-blue-500 group-active:scale-95 transition-all">
-                                    <Key size={24}/>
-                                </div>
-                            </button>
-                        </WheelItem>
-
-                    </motion.div>
-                </motion.div>
-            </div>
+            <SquadWheel squads={squads ?? []} currentSquadId={currentSquadId} isLoading={isLoading}
+                        onCreate={onCreateClick} onJoin={onJoinClick} onSelect={id => navigate(`/squad/${id}`)} />
 
             {/* 🔽 BARRE DE NAVIGATION INFÉRIEURE */}
             <div
-                className="h-20 bg-white border-t border-gray-100 px-8 flex justify-between items-center pt-4 pb-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50 pointer-events-auto">
+                className="h-[calc(80px_+_env(safe-area-inset-bottom))] bg-white border-t border-gray-100 px-8 flex justify-between items-center pt-4 pb-[calc(16px_+_env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50 pointer-events-auto">
                 <button
                     onClick={() => navigate('/connections')}
                     className="flex flex-col items-center text-gray-400 hover:text-beer"
@@ -137,7 +33,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
                     <span className="text-[10px] font-black uppercase mt-1 tracking-tighter">Connexions</span>
                 </button>
 
-                <button onClick={() => navigate('/profile')}
+                <button aria-label="Profil" onClick={() => navigate('/profile')}
                         className="flex flex-col items-center justify-center bg-beer text-white w-[70px] h-[70px] rounded-full shadow-2xl transform -translate-y-5 border-[6px] border-white z-50 hover:scale-105 active:scale-95 transition-all">
                     <User size={28}/>
                 </button>
