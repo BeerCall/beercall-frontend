@@ -56,6 +56,8 @@ vi.mock('../hooks/useDashboard', () => ({
     useDashboard: vi.fn(),
 }));
 
+
+
 describe('Dashboard & Squads', () => {
     beforeEach(() => {
         useUserStore.setState({ user: { username: 'validUser' }, isAuthenticated: true });
@@ -100,6 +102,45 @@ describe('Dashboard & Squads', () => {
 
         render(<Dashboard />);
         expect(screen.getByTestId('mock-map')).toBeInTheDocument();
+    });
+
+    it('ferme la modale des mondes quand l’écran de jeu est ouvert', () => {
+        vi.mocked(useDashboard).mockReturnValue({
+            id: '1',
+            profile: { username: 'validUser' },
+            squadDetails: null,
+            userLocation: null,
+            isSquadModalOpen: false,
+            isJoinModalOpen: false,
+            selectedBeerCall: null,
+            isWorldsModalOpen: 'apero-1',
+            isGameScreenOpen: true,
+            currentAperoId: 'apero-1',
+            isActiveApero: true,
+            scheduleCoordinates: null,
+            isScheduleModalOpen: false,
+            scheduledToStart: null,
+            isNightMode: false,
+            photoFile: null,
+            fileInputRef: { current: null },
+            mapRef: { current: null },
+            showPushBanner: false,
+            copied: false,
+            handleSquadCreated: vi.fn(),
+            handleCopyCode: vi.fn(),
+            requestPushPermission: vi.fn(),
+            dismissPushBanner: vi.fn(),
+            handleBeerCallRespond: vi.fn(),
+            centerToUser: vi.fn(),
+            triggerPhotoCapture: vi.fn(),
+            handleFileChange: vi.fn(),
+            closeCreateModal: vi.fn(),
+            handleScheduleModalSubmit: vi.fn(),
+        } as unknown as ReturnType<typeof useDashboard>);
+
+        render(<Dashboard />);
+
+        expect(screen.queryByText('Les 3 Mondes')).not.toBeInTheDocument();
     });
 
     it('Comportement temporel: Vérification des compteurs avec de faux timers', async () => {

@@ -148,8 +148,10 @@ export default function Dashboard() {
                                   beerCall={dashboard.selectedBeerCall} squadId={dashboard.id || ''} location={dashboard.userLocation}/>
             <ScheduleAperoModal isOpen={dashboard.isScheduleModalOpen} onClose={() => dashboard.setIsScheduleModalOpen(false)}
                                 squadId={dashboard.id || ''} coordinates={dashboard.scheduleCoordinates}/>
-            <SelectWorldModal isOpen={!!dashboard.isWorldsModalOpen} onClose={() => dashboard.setIsWorldsModalOpen(null)}
-                              squadId={dashboard.id || ''} beerCallId={dashboard.isWorldsModalOpen || ''} isActiveApero={!!dashboard.isActiveApero}/>
+            {!dashboard.isGameScreenOpen && (
+                <SelectWorldModal isOpen={!!dashboard.isWorldsModalOpen} onClose={() => dashboard.setIsWorldsModalOpen(null)}
+                                  squadId={dashboard.id || ''} beerCallId={dashboard.isWorldsModalOpen || ''} isActiveApero={!!dashboard.isActiveApero}/>
+            )}
         </div>
     );
 }
