@@ -70,16 +70,82 @@ describe('useSquadWebSocket', () => {
     expect(wsCallUrl).not.toContain('jwt');
   });
 
-  it('does not send application heartbeats while idle', async () => {
+  it('aucun envoi avant ouverture, PING à 25 s après ouverture (CHAL-06)', async () => {
     vi.useFakeTimers();
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: 'idle-ticket' } });
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: 'hb-ticket' } });
 
     const { result, unmount } = renderHook(() => useSquadWebSocket(42), { wrapper });
-    await vi.advanceTimersByTimeAsync(70000);
-
-    expect(result.current.current).not.toBeNull();
+    
+    // Avant onopen (qui intervient à 10ms dans notre mock) : aucun ping envoyé
+    await vi.advanceTimersByTimeAsync(5);
     expect(result.current.current?.send).not.toHaveBeenCalled();
-    expect(api.post).toHaveBeenCalledTimes(1);
+
+    // Laisser passer le onopen (10ms)
+    await vi.advanceTimersByTimeAsync(10);
+    expect(result.current.current?.send).not.toHaveBeenCalled();
+
+    // 24.9 s après onopen : toujours rien
+    await vi.advanceTimersByTimeAsync(24900);
+    expect(result.current.current?.send).not.toHaveBeenCalled();
+
+    // À 25 s après onopen : PING est envoyé
+    await vi.advanceTimersByTimeAsync(100);
+    expect(result.current.current?.send).toHaveBeenCalledTimes(1);
+    expect(result.current.current?.send).toHaveBeenCalledWith('PING');
+
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('la réponse PONG maintient la socket ouverte et réarme les timers', async () => {
+    vi.useFakeTimers();
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: 'hb-ticket' } });
+
+    const { result, unmount } = renderHook(() => useSquadWebSocket(42), { wrapper });
+    await vi.advanceTimersByTimeAsync(25010);
+    expect(result.current.current?.send).toHaveBeenCalledTimes(1);
+
+    // Simuler la réception de PONG dans les 10 s
+    result.current.current?.onmessage?.({ data: 'PONG' } as MessageEvent);
+
+    // Avancer de 10 s : la socket n'a PAS été fermée
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(result.current.current?.close).not.toHaveBeenCalled();
+
+    // Avancer jusqu'au prochain intervalle (50 s) : deuxième PING
+    await vi.advanceTimersByTimeAsync(15000);
+    expect(result.current.current?.send).toHaveBeenCalledTimes(2);
+
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('l’absence de PONG pendant 10 s après PING déclenche fermeture et reconnexion', async () => {
+    vi.useFakeTimers();
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: { ticket: 'hb-ticket-1' } })
+      .mockResolvedValueOnce({ data: { ticket: 'hb-ticket-2' } });
+
+    const { result, unmount } = renderHook(() => useSquadWebSocket(42), { wrapper });
+    await vi.advanceTimersByTimeAsync(25010);
+    expect(result.current.current?.send).toHaveBeenCalledWith('PING');
+
+    const oldWs = result.current.current;
+
+    // Aucun PONG reçu pendant 10 s -> timeout déclenche fermeture
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(oldWs?.close).toHaveBeenCalledWith(4000, 'Heartbeat timeout');
+
+    // Déclencher onclose sur la fermeture
+    oldWs?.onclose?.({ code: 4000 } as CloseEvent);
+
+    // Avancer de 3 s pour la reconnexion
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(api.post).toHaveBeenCalledTimes(2);
+
+    // Laisser le onopen du nouveau WebSocket s'exécuter
+    await vi.advanceTimersByTimeAsync(50);
+
     unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -297,10 +363,10 @@ describe('useSquadWebSocket', () => {
       .mockResolvedValueOnce({ data: { ticket: 'tick1' } })
       .mockResolvedValueOnce({ data: { ticket: 'tick2' } });
 
-    const { result } = renderHook(() => useSquadWebSocket(5), { wrapper });
+    const { result, unmount } = renderHook(() => useSquadWebSocket(5), { wrapper });
     
-    // allow initial promise to resolve
-    await vi.runAllTimersAsync();
+    // allow initial ticket and onopen
+    await vi.advanceTimersByTimeAsync(50);
     
     expect(api.post).toHaveBeenCalledTimes(1);
     
@@ -309,10 +375,11 @@ describe('useSquadWebSocket', () => {
       wsInstance.onclose({ code: 1006 } as CloseEvent);
     }
     
-    // advance timer for reconnect
-    await vi.runAllTimersAsync();
+    // advance timer for reconnect (3000ms)
+    await vi.advanceTimersByTimeAsync(3000);
     
     expect(api.post).toHaveBeenCalledTimes(2);
+    unmount();
     vi.useRealTimers();
   });
 
@@ -322,13 +389,14 @@ describe('useSquadWebSocket', () => {
       vi.mocked(api.post).mockReset();
       vi.mocked(api.post).mockRejectedValueOnce({ isAxiosError: true, response: { status } });
       
-      renderHook(() => useSquadWebSocket(status), { wrapper });
+      const { unmount } = renderHook(() => useSquadWebSocket(status), { wrapper });
       
-      await vi.runAllTimersAsync();
+      await vi.advanceTimersByTimeAsync(100);
       expect(api.post).toHaveBeenCalledTimes(1);
       
       await vi.advanceTimersByTimeAsync(10000);
       expect(api.post).toHaveBeenCalledTimes(1);
+      unmount();
     }
     vi.useRealTimers();
   });

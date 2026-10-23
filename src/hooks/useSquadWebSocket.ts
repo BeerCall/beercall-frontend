@@ -5,17 +5,32 @@ import { isAxiosError } from 'axios';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PROFILE_REFRESH_ACTIONS = ['CREATE', 'JOIN', 'START'];
+const PING_INTERVAL_MS = 25000;
+const PONG_TIMEOUT_MS = 10000;
 
 export const useSquadWebSocket = (squadId?: number) => {
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pongTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef<boolean>(true);
 
   useEffect(() => {
     mountedRef.current = true;
     let isConnecting = false;
     let cancelled = false;
+
+    const clearHeartbeatTimers = () => {
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = null;
+      }
+      if (pongTimeoutRef.current) {
+        clearTimeout(pongTimeoutRef.current);
+        pongTimeoutRef.current = null;
+      }
+    };
 
     const resyncActiveQueries = () => {
       if (!squadId) return;
@@ -43,10 +58,36 @@ export const useSquadWebSocket = (squadId?: number) => {
         ws.onopen = () => {
           if (cancelled || !mountedRef.current) return;
           resyncActiveQueries();
+
+          clearHeartbeatTimers();
+          pingIntervalRef.current = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN || (ws as unknown as { readyState?: number }).readyState === undefined) {
+              try {
+                ws.send('PING');
+                if (!pongTimeoutRef.current) {
+                  pongTimeoutRef.current = setTimeout(() => {
+                    // PONG absent après 10 s -> fermer la connexion pour déclencher la reconnexion
+                    ws.close(4000, 'Heartbeat timeout');
+                  }, PONG_TIMEOUT_MS);
+                }
+              } catch {
+                // socket fermée
+              }
+            }
+          }, PING_INTERVAL_MS);
         };
 
         ws.onmessage = (event) => {
           if (cancelled) return;
+          // Ignorer PONG dans le parseur JSON et réarmer le timeout
+          if (event.data === 'PONG') {
+            if (pongTimeoutRef.current) {
+              clearTimeout(pongTimeoutRef.current);
+              pongTimeoutRef.current = null;
+            }
+            return;
+          }
+
           try {
             const message = JSON.parse(event.data);
             if (!message || typeof message !== 'object') return;
@@ -74,6 +115,7 @@ export const useSquadWebSocket = (squadId?: number) => {
         };
 
         ws.onclose = (e) => {
+          clearHeartbeatTimers();
           if (wsRef.current === ws) wsRef.current = null;
           isConnecting = false;
           if (!cancelled && mountedRef.current && e.code !== 1000) {
@@ -126,6 +168,7 @@ export const useSquadWebSocket = (squadId?: number) => {
     return () => {
       cancelled = true;
       mountedRef.current = false;
+      clearHeartbeatTimers();
       window.removeEventListener('online', handleOnline);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
