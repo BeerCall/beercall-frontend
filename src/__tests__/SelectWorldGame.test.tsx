@@ -23,7 +23,7 @@ vi.mock('../components/3D/BarWorld', () => ({
 vi.mock('../components/3D/PiscineWorld', () => ({ default: () => null }));
 vi.mock('../components/3D/FloatyIslandWorld', () => ({ default: () => null }));
 
-describe('SelectWorldModal sans bouton HTML et délégation au Bar (T06)', () => {
+describe('SelectWorldModal avec contrôle accessible masqué et délégation au Bar (T06)', () => {
     beforeEach(() => {
         barWorldCaptor.mockClear();
     });
@@ -54,8 +54,10 @@ describe('SelectWorldModal sans bouton HTML et délégation au Bar (T06)', () =>
             </QueryClientProvider>
         );
 
-        // Absence systématique du bouton HTML
+        // Absence systématique du bouton HTML visible
         expect(screen.queryByRole('button', { name: /Lancer le jeu/i })).not.toBeInTheDocument();
+        // Contrôle accessible masqué pour les lecteurs d'écran et les tests E2E
+        expect(screen.getByRole('button', { name: 'Démarrer la partie' })).toBeInTheDocument();
 
         // Les données arrivent, BarWorld est monté avec les props requises
         await waitFor(() => expect(screen.getByTestId('bar-world-mock')).toBeInTheDocument());

@@ -1,4 +1,5 @@
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
+import {isAxiosError} from 'axios';
 import {useCallback} from 'react';
 import {api} from '../lib/api';
 import type {SduiPayload} from '../types/game';
@@ -28,6 +29,11 @@ export const useGameEngine = (aperoId: string | number | undefined, options?: Ga
         },
         enabled: !!stringId && (options?.enabled ?? true), // Ne s'exécute QUE si stringId existe et si c'est autorisé
         refetchOnWindowFocus: false,
+        // Un 404 signifie « aucune partie en cours » : inutile de réessayer 3 fois.
+        retry: (failureCount, error) => {
+            if (isAxiosError(error) && error.response?.status === 404) return false;
+            return failureCount < 3;
+        },
     });
 
     const {mutate: sendActionMutation, isPending: isSending} = useMutation({
