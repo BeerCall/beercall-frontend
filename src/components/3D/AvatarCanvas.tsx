@@ -12,6 +12,7 @@ import {
 import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
 import {MODELS_URL} from "../../lib/api.ts";
+import type {AvatarConfig, AvatarTransform} from "../../types/avatar.ts";
 
 const silenceWarnings = () => {
     const originalWarn = console.warn;
@@ -29,11 +30,7 @@ const CONFIG = {
 };
 
 // 🍺 LE RECTIFICATEUR D'OBJETS PERSONNALISÉS
-const CUSTOM_ITEMS_CONFIG: Record<string, {
-    position?: [number, number, number],
-    scale?: [number, number, number],
-    rotation?: [number, number, number]
-}> = {
+const CUSTOM_ITEMS_CONFIG: Record<string, AvatarTransform> = {
     'Men_accessory_Beer_500': {
         position: [75, 150, 10],
         scale: [100, 100, 100],
@@ -281,7 +278,7 @@ function CanvasLoader() {
 // 🚀 NOUVEAU COMPOSANT AVATAR PART : Chaque partie s'anime TOUTE SEULE
 function AvatarPart({path, customTransform, animations, currentAnim}: {
     path: string,
-    customTransform?: any,
+    customTransform?: AvatarTransform,
     animations?: THREE.AnimationClip[],
     currentAnim?: string
 }) {
@@ -335,7 +332,7 @@ function AvatarPart({path, customTransform, animations, currentAnim}: {
 }
 
 export function ModularAvatar({config, onAnimationsLoaded}: {
-    config: any,
+    config: AvatarConfig,
     onAnimationsLoaded?: (animations: string[]) => void
 }) {
     const accessoryTransform = config.accessory ? CUSTOM_ITEMS_CONFIG[config.accessory] : undefined;
@@ -383,7 +380,7 @@ export function ModularAvatar({config, onAnimationsLoaded}: {
 }
 
 interface AvatarCanvasProps {
-    config: any;
+    config: AvatarConfig;
     disableZoom?: boolean;
     disablePan?: boolean;
     onAnimationsLoaded?: (animations: string[]) => void;

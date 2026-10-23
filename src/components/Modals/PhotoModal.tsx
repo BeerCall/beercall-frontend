@@ -9,6 +9,11 @@ interface Props {
     onIndexChange: (index: number) => void; // Callback for index changes
 }
 
+type SwipeTarget = HTMLElement & {
+    touchStartX?: number;
+    touchStartY?: number;
+};
+
 export default function PhotoModal({imageUrls, currentIndex, onClose, onIndexChange}: Props) {
     // Sécurité pour le SSR (Next.js/Remix) pour s'assurer que 'document' existe
     if (typeof document === 'undefined') return null;
@@ -16,14 +21,14 @@ export default function PhotoModal({imageUrls, currentIndex, onClose, onIndexCha
     // Handle touch events for swipe gestures
     const handleTouchStart = (e: React.TouchEvent) => {
         if (e.touches.length === 1) {
-            const target = e.target as any;
+            const target = e.target as SwipeTarget;
             target.touchStartX = e.touches[0].clientX;
             target.touchStartY = e.touches[0].clientY;
         }
     };
 
     const handleTouchEnd = (e: React.TouchEvent) => {
-        const target = e.target as any;
+        const target = e.target as SwipeTarget;
         if (!target.touchStartX || !target.touchStartY) return;
         
         const touchEndX = e.changedTouches[0].clientX;
@@ -59,8 +64,8 @@ export default function PhotoModal({imageUrls, currentIndex, onClose, onIndexCha
         }
         
         // Reset touch coordinates
-        target.touchStartX = null;
-        target.touchStartY = null;
+        target.touchStartX = undefined;
+        target.touchStartY = undefined;
     };
 
     return createPortal(

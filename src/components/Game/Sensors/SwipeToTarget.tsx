@@ -1,7 +1,7 @@
 import {useState, useRef} from 'react';
 import {motion, useAnimation} from 'framer-motion';
 
-interface SwipeToTargetPayload {
+export interface SwipeToTargetPayload {
     type: string;
     wind_force: number; // ex: -2 (gauche) à 2 (droite)
     target_size: 'small' | 'medium' | 'large';

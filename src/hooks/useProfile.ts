@@ -23,6 +23,20 @@ export interface UserStats {
     fraud_count: number;
 }
 
+export interface Badge {
+    id: string;
+    name: string;
+    description?: string | null;
+    icon?: string | null;
+}
+
+export interface ProfileSquad {
+    id: number;
+    name: string;
+    icon: string;
+    color: string;
+}
+
 export interface UserProfile {
     id: number;
     username: string;
@@ -38,9 +52,9 @@ export interface UserProfile {
         animation?: string;
         gender: Gender;
     };
-    unlocked_badges: any[];
+    unlocked_badges: Badge[];
     shop_items: ShopItem[];
-    squads: any[];
+    squads: ProfileSquad[];
     stats: UserStats;
 }
 

@@ -1,7 +1,7 @@
 import {useState, useEffect, useRef} from 'react';
 import {motion} from 'framer-motion';
 
-interface DuelPayload {
+export interface DuelPayload {
     type: string;
     player_top: string;
     player_bottom: string;

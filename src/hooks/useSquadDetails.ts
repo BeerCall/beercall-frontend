@@ -1,11 +1,13 @@
-import {useQuery} from '@tanstack/react-query';
-import {api} from '../lib/api';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from '../lib/api';
 
-import type {SquadDetails} from '../types/api';
-export type {AperoStatus, BeerCall, SquadDetails} from '../types/api';
+import type { SquadDetails } from '../types/api';
+export type { AperoStatus, BeerCall, SquadDetails } from '../types/api';
 
 export function useSquadDetails(id: string | undefined) {
-    return useQuery({
+    const queryClient = useQueryClient();
+    const query = useQuery({
         queryKey: ['squad', id],
         queryFn: async () => {
             if (!id) return null;
@@ -13,6 +15,32 @@ export function useSquadDetails(id: string | undefined) {
             return response.data;
         },
         enabled: !!id,
-        refetchInterval: 10000,
     });
+
+    useEffect(() => {
+        if (!id || !query.data?.active_beer_call?.length) {
+            return;
+        }
+
+        const endedAtTimestamps = query.data.active_beer_call
+            .map((call) => (call.ended_at ? new Date(call.ended_at).getTime() : NaN))
+            .filter((t) => !isNaN(t));
+
+        if (!endedAtTimestamps.length) {
+            return;
+        }
+
+        const minEndedAt = Math.min(...endedAtTimestamps);
+        const delay = Math.max(0, minEndedAt - Date.now());
+
+        const timer = setTimeout(() => {
+            void queryClient.invalidateQueries({ queryKey: ['squad', id] });
+        }, delay);
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [id, query.data, queryClient]);
+
+    return query;
 }

@@ -4,6 +4,7 @@ import {useNavigate, useParams} from 'react-router-dom';
 import {motion, AnimatePresence, useInView} from 'framer-motion';
 import {ChevronLeft, Send, MessageCircle, User as UserIcon} from 'lucide-react';
 import {useSquadDetails} from '../hooks/useSquadDetails';
+import {useSquadWebSocket} from '../hooks/useSquadWebSocket';
 import {useChat} from '../hooks/useChat';
 import {useProfile} from '../hooks/useProfile';
 import type {ChatMessage} from '../types/chat';
@@ -67,6 +68,8 @@ export default function ChatPage() {
     const {id, squadId, beerCallId} = useParams();
     const navigate = useNavigate();
     const currentSquadId = squadId || id;
+    const squadIdNumber = currentSquadId ? parseInt(currentSquadId, 10) : undefined;
+    useSquadWebSocket(Number.isNaN(squadIdNumber) ? undefined : squadIdNumber);
 
     const {data: squad} = useSquadDetails(currentSquadId);
     const {data: profile} = useProfile(); // profil du user courant

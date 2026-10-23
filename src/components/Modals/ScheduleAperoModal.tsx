@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {X, MapPin, Clock, CalendarClock, Info} from 'lucide-react';
+import {isAxiosError} from 'axios';
 import {useScheduledAperoMutations} from '../../hooks/useScheduledAperoMutations';
 
 import {toast} from '../../store/useToastStore';
@@ -17,9 +18,11 @@ export default function ScheduleAperoModal({isOpen, onClose, squadId, coordinate
             {location_name: locationName.trim(), latitude: coordinates!.lat, longitude: coordinates!.lng, scheduled_for: date.toISOString()},
             {
                 onSuccess: onClose,
-                onError: (err: any) => {
-                    const errorMessage = err.response?.data?.detail || "Erreur lors de la programmation.";
-                    toast.error("Impossible de programmer 🚫", errorMessage);
+                onError: (err: unknown) => {
+                    const errorMessage = isAxiosError<{detail?: string}>(err)
+                        ? err.response?.data?.detail
+                        : undefined;
+                    toast.error("Impossible de programmer 🚫", errorMessage || "Erreur lors de la programmation.");
                 }
             }
         );

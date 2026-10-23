@@ -1,5 +1,5 @@
 import {useRef, useState, useMemo} from 'react';
-import {useFrame} from '@react-three/fiber';
+import {useFrame, type ThreeEvent} from '@react-three/fiber';
 import {useFBX, Float, ContactShadows, Html, Text} from '@react-three/drei';
 import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
@@ -7,6 +7,9 @@ import {useNavigate} from 'react-router-dom';
 import {ModularAvatar} from "./AvatarCanvas";
 import {useGameEngine} from "../../hooks/useGameEngine";
 import {useGameUIStore} from '../../store/useGameUIStore';
+import {toast} from '../../store/useToastStore';
+import type {WorldParticipant} from '../../types/api.ts';
+import type {AvatarConfig, AvatarTransform} from '../../types/avatar.ts';
 
 // --- FILTRE ANTI-WARNINGS ---
 const silenceWarnings = () => {
@@ -18,27 +21,38 @@ const silenceWarnings = () => {
     };
 };
 
+type LegacyMaterial = THREE.Material & {
+    color?: THREE.Color;
+    map?: THREE.Texture & { colorSpace?: string; encoding?: number };
+    shininess?: number;
+    specular?: THREE.Color;
+    roughness?: number;
+    metalness?: number;
+};
+
 // --- CHARGEUR DE PARTIE 3D ---
-function ModelPart({path, customTransform, isBar = false}: { path: string, customTransform?: any, isBar?: boolean }) {
+function ModelPart({path, customTransform, isBar = false}: { path: string, customTransform?: AvatarTransform, isBar?: boolean }) {
     const fbx = useFBX(path);
 
     const clonedFbx = useMemo(() => {
         const clone = isBar ? fbx.clone() : SkeletonUtils.clone(fbx);
-        clone.traverse((child: any) => {
-            if (child.isMesh) {
-                const materials = Array.isArray(child.material) ? child.material : [child.material];
-                materials.forEach((mat: any) => {
-                    if (mat) {
-                        if (isBar && mat.color && mat.map) mat.color.set(0xffffff);
-                        if (mat.map) {
-                            if (THREE.SRGBColorSpace) mat.map.colorSpace = THREE.SRGBColorSpace;
-                            else mat.map.encoding = 3001;
+        clone.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+                const mesh = child as THREE.Mesh;
+                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                materials.forEach((mat) => {
+                    const material = mat as LegacyMaterial;
+                    if (material) {
+                        if (isBar && material.color && material.map) material.color.set(0xffffff);
+                        if (material.map) {
+                            if (THREE.SRGBColorSpace) material.map.colorSpace = THREE.SRGBColorSpace;
+                            else material.map.encoding = 3001;
                         }
-                        if (mat.shininess !== undefined) mat.shininess = 0;
-                        if (mat.specular) mat.specular.set(0x000000);
-                        if (mat.roughness !== undefined) mat.roughness = 1;
-                        if (mat.metalness !== undefined) mat.metalness = 0;
-                        mat.needsUpdate = true;
+                        if (material.shininess !== undefined) material.shininess = 0;
+                        if (material.specular) material.specular.set(0x000000);
+                        if (material.roughness !== undefined) material.roughness = 1;
+                        if (material.metalness !== undefined) material.metalness = 0;
+                        material.needsUpdate = true;
                     }
                 });
             }
@@ -65,7 +79,7 @@ const SlotMachine = ({isGameInProgress, onPull, isLocked}: {
     const leverRef = useRef<THREE.Group>(null);
     const [isPulled, setIsPulled] = useState(false);
 
-    const handlePull = (e: any) => {
+    const handlePull = (e: ThreeEvent<MouseEvent>) => {
         e.stopPropagation();
         if (isPulled || isLocked) return;
 
@@ -163,9 +177,13 @@ const Computer = ({onClick}: { onClick: () => void }) => {
     // Léger effet de "scintillement" de l'écran pour attirer l'œil
     useFrame(({clock}) => {
         if (groupRef.current) {
-            const mat = groupRef.current.getObjectByName('screen-glow');
-            if (mat && (mat as any).material) {
-                (mat as any).material.opacity = 0.7 + Math.sin(clock.getElapsedTime() * 2) * 0.2;
+            const screen = groupRef.current.getObjectByName('screen-glow') as THREE.Mesh | undefined;
+            const material = screen?.material;
+            if (material) {
+                const materials = Array.isArray(material) ? material : [material];
+                materials.forEach((mat) => {
+                    mat.opacity = 0.7 + Math.sin(clock.getElapsedTime() * 2) * 0.2;
+                });
             }
         }
     });
@@ -258,20 +276,37 @@ const getDynamicPlacement = (index: number, totalParticipants: number) => {
 };
 
 // 📸 ON AJOUTE onSelectPhoto AUX PARAMÈTRES DU COMPOSANT
-export default function BarWorld({aperoId, squadId, participants, isActiveApero, onSelectPhoto}: {
-    aperoId: string,
-    squadId: string,
-    participants: any[],
-    isActiveApero: boolean,
-    onSelectPhoto: (url: string) => void
+export default function BarWorld({
+    aperoId,
+    squadId,
+    participants,
+    isActiveApero,
+    onSelectPhoto,
+    participantsReliable = true,
+}: {
+    aperoId: string;
+    squadId: string;
+    participants: WorldParticipant[];
+    isActiveApero: boolean;
+    onSelectPhoto: (url: string) => void;
+    participantsReliable?: boolean;
 }) {
     // 🛡️ On désactive le check du gameState si l'apéro n'est pas actif pour éviter le 409 Conflict
     const {gameState, startGame, isLocked} = useGameEngine(aperoId, { enabled: isActiveApero });
     const openGameScreen = useGameUIStore((state) => state.openGameScreen);
 
+    const canLaunchGame = isActiveApero && participantsReliable && (participants?.length ?? 0) >= 2;
+
     const handlePullLever = () => {
-        startGame();
-        openGameScreen(aperoId);
+        if (!canLaunchGame || isLocked) return;
+        startGame({
+            onSuccess: () => {
+                openGameScreen(aperoId);
+            },
+            onError: () => {
+                toast.error('Jeu indisponible', 'Le serveur a refusé le démarrage.');
+            },
+        });
     };
 
     useMemo(() => silenceWarnings(), []);
@@ -286,8 +321,8 @@ export default function BarWorld({aperoId, squadId, participants, isActiveApero,
             </group>
 
             {/* 🎰 LA MACHINE À SOUS EN LÉVITATION AU-DESSUS DU BAR */}
-            {/* 🚀 Elle ne s'affiche que si l'apéro est en cours ! */}
-            {isActiveApero && (
+            {/* 🚀 Elle ne s'affiche que si l'apéro est en cours ET au moins 2 participants fiables ! */}
+            {canLaunchGame && (
                 <SlotMachine
                     isGameInProgress={!!gameState}
                     onPull={handlePullLever}
@@ -299,8 +334,9 @@ export default function BarWorld({aperoId, squadId, participants, isActiveApero,
             <Computer onClick={() => navigate(`/squad/${squadId}/beer-call/${aperoId}/chat`)}/>
 
             {/* 🧍‍♂️ LES AVATARS */}
-            {participants.map((participant: any, index: number) => {
-                const config = participant.avatar_config || {};
+            {participants.map((participant, index) => {
+                const config: AvatarConfig = participant.avatar_config || {};
+                const photoUrl = participant.proof_photo_url;
                 const {position, rotationY} = getDynamicPlacement(index, participants.length);
 
                 return (
@@ -333,18 +369,18 @@ export default function BarWorld({aperoId, squadId, participants, isActiveApero,
 
                         <Html position={[0, GLOBAL_CONFIG.htmlY + 25, 0]} center zIndexRange={[100, 0]}>
                             <div className="flex flex-col items-center">
-                                {participant.proof_photo_url && (
+                                {photoUrl && (
                                     <div
                                         className="mb-2 p-1.5 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/50 transform rotate-3 hover:rotate-0 transition-transform origin-bottom cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             // 📸 L'APPEL VERS LE PARENT
-                                            onSelectPhoto(participant.proof_photo_url);
+                                            onSelectPhoto(photoUrl);
                                         }}
                                     >
                                         <div
                                             className="w-16 h-20 relative rounded-xl overflow-hidden bg-gray-900 shadow-inner">
-                                            <img src={participant.proof_photo_url} alt="Preuve"
+                                            <img src={photoUrl} alt="Preuve"
                                                  className="w-full h-full object-cover"/>
                                             <div className="absolute bottom-1 left-0 right-0 flex justify-center">
                                                 <span

@@ -1,18 +1,20 @@
 import {useState, useEffect} from 'react';
 import {Check, Play, ShoppingBag} from 'lucide-react';
-import type {ShopItem} from "../../hooks/useProfile.ts";
+import type {ShopItem, Badge} from "../../hooks/useProfile.ts";
+import type {AvatarConfig} from "../../types/avatar.ts";
 
 export type Gender = 'Men' | 'Women' | 'Unisex';
 
 interface VestiairePanelProps {
+    mode?: 'profile' | 'signup';
     shopItems?: ShopItem[]; // 🚀 On autorise undefined ici
-    avatarConfig: any;
-    setAvatarConfig: (config: any) => void;
+    avatarConfig: AvatarConfig;
+    setAvatarConfig: (config: AvatarConfig) => void;
     gender: Gender;
     setGender?: (gender: Gender) => void;
-    badges?: any[];
+    badges?: Badge[];
     onBuy?: (itemId: string, price: number, itemName: string) => void;
-    onEquipAndSave?: () => void;
+    onEquipAndSave?: () => Promise<boolean>;
     isSubmitting?: boolean;
     readonly?: boolean;
     hideTabs?: boolean;
@@ -20,6 +22,7 @@ interface VestiairePanelProps {
 }
 
 export default function VestiairePanel({
+                                           mode = 'profile',
                                            shopItems,
                                            avatarConfig,
                                            setAvatarConfig,
@@ -34,7 +37,8 @@ export default function VestiairePanel({
                                        }: VestiairePanelProps) {
     const [activeTab, setActiveTab] = useState('head');
     const [hasChanges, setHasChanges] = useState(false);
-    const [initialConfig, setInitialConfig] = useState<any>(null);
+    const [isSavingStyle, setIsSavingStyle] = useState(false);
+    const [initialConfig, setInitialConfig] = useState<AvatarConfig | null>(null);
 
     useEffect(() => {
         if (!initialConfig && avatarConfig) {
@@ -63,11 +67,18 @@ export default function VestiairePanel({
         setAvatarConfig({...avatarConfig, [category]: itemId});
     };
 
-    const handleSave = () => {
-        if (onEquipAndSave) {
-            onEquipAndSave();
-            setInitialConfig(JSON.parse(JSON.stringify(avatarConfig)));
-            setHasChanges(false);
+    const handleSave = async () => {
+        if (!onEquipAndSave || isSavingStyle || isSubmitting) return;
+        const submittedConfig = JSON.parse(JSON.stringify(avatarConfig));
+        setIsSavingStyle(true);
+        try {
+            if (await onEquipAndSave()) {
+                setInitialConfig(submittedConfig);
+            }
+        } catch {
+            // A rejected save must leave the submitted outfit dirty and retryable.
+        } finally {
+            setIsSavingStyle(false);
         }
     };
 
@@ -82,29 +93,33 @@ export default function VestiairePanel({
         const equippedId = avatarConfig[cat];
         if (equippedId === 'none') return false;
         const item = (shopItems || []).find(i => i.id === equippedId);
-        return item && !(item as any).is_owned;
+        return item && !item.is_owned;
     });
 
     return (
         <div
-            className="flex-1 flex flex-col bg-white rounded-t-[3rem] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] overflow-hidden relative z-20">
-            <div className="px-8 pt-8 pb-4 flex justify-between items-center bg-white z-10 shadow-sm shrink-0">
+            className={`flex-1 flex flex-col bg-white rounded-t-[3rem] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] overflow-hidden relative z-20 ${mode === 'signup' ? 'min-h-0' : ''}`}>
+            <div className={`${mode === 'signup' ? 'px-6 pt-4 flex-wrap gap-2' : 'px-8 pt-8'} pb-4 flex justify-between items-center bg-white z-10 shadow-sm shrink-0`}>
                 <div>
                     <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter leading-none">Vestiaire</h2>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Personnalise ton
+                    <p className="text-[10px] font-bold text-gray-700 uppercase tracking-widest mt-1">Personnalise ton
                         style</p>
                 </div>
                 {setGender && !readonly && (
                     <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner shrink-0">
                         <button onClick={() => setGender('Men')}
-                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${gender === 'Men' ? 'bg-white text-beer shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Homme
+                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${gender === 'Men' ? 'bg-white text-amber-800 shadow-sm' : 'text-gray-700 hover:text-gray-600'}`}>Homme
                         </button>
                         <button onClick={() => setGender('Women')}
-                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${gender === 'Women' ? 'bg-white text-beer shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Femme
+                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${gender === 'Women' ? 'bg-white text-amber-800 shadow-sm' : 'text-gray-700 hover:text-gray-600'}`}>Femme
                         </button>
                     </div>
                 )}
             </div>
+
+            {mode === 'signup' && <p className="px-6 pb-3 text-[10px] font-bold text-gray-700 shrink-0">
+                Essayage — seule la tenue choisie est offerte à la création du compte
+            </p>}
 
             {!hideTabs && (
                 <div
@@ -134,7 +149,7 @@ export default function VestiairePanel({
                                     <Play size={24} className={isEquipped ? 'fill-white' : 'fill-gray-300'}/>
                                 </div>
                                 <span
-                                    className={`text-[10px] font-black uppercase tracking-wider text-center leading-tight ${isEquipped ? 'text-beer' : 'text-gray-500'}`}>
+                                    className={`text-[10px] font-black uppercase tracking-wider text-center leading-tight ${isEquipped ? 'text-amber-800' : 'text-gray-500'}`}>
                                     {animName.replace(/_/g, ' ')}
                                 </span>
                                 {isEquipped && <div
@@ -151,13 +166,13 @@ export default function VestiairePanel({
                                     className="w-12 h-12 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center mb-1">
                                     <span className="text-gray-300 text-xl font-black">X</span></div>
                                 <span
-                                    className={`text-[10px] font-black uppercase tracking-wider ${avatarConfig[activeTab] === 'none' ? 'text-beer' : 'text-gray-400'}`}>Aucun</span>
+                                    className={`text-[10px] font-black uppercase tracking-wider ${avatarConfig[activeTab] === 'none' ? 'text-amber-800' : 'text-gray-400'}`}>Aucun</span>
                             </button>
                         )}
 
                         {itemsToDisplay.map(item => {
                             const isEquipped = avatarConfig[activeTab] === item.id;
-                            const isOwned = (item as any).is_owned;
+                            const isOwned = item.is_owned;
 
                             return (
                                 <div key={item.id} onClick={() => {
@@ -171,9 +186,13 @@ export default function VestiairePanel({
                                         {activeTab === 'head' && '🧢'}{activeTab === 'body' && '👕'}{activeTab === 'legs' && '👖'}{activeTab === 'feet' && '👟'}{activeTab === 'accessory' && '🎒'}
                                     </div>
                                     <span
-                                        className={`text-[10px] font-black uppercase tracking-wider mb-2 leading-tight ${isEquipped ? 'text-beer' : 'text-gray-700'}`}>{item.name}</span>
+                                        className={`text-[10px] font-black uppercase tracking-wider mb-2 leading-tight ${isEquipped ? 'text-amber-800' : 'text-gray-700'}`}>{item.name}</span>
                                     <div className="mt-auto w-full">
-                                        {!isOwned ? (
+                                        {mode === 'signup' ? (
+                                            <div className={`${isEquipped ? 'bg-beer text-gray-950' : 'bg-gray-100 text-gray-700'} text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest`}>
+                                                {isEquipped ? 'Tenue initiale' : 'À essayer'}
+                                            </div>
+                                        ) : !isOwned ? (
                                             <button onClick={(e) => {
                                                 e.stopPropagation();
                                                 if (!readonly && onBuy) onBuy(item.id, item.price, item.name);
@@ -183,11 +202,11 @@ export default function VestiairePanel({
                                             </button>
                                         ) : isEquipped ? (
                                             <div
-                                                className="bg-beer text-white text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest flex items-center justify-center gap-1">
+                                                className="bg-beer text-gray-950 text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest flex items-center justify-center gap-1">
                                                 <Check size={12}/> Équipé</div>
                                         ) : (
                                             <div
-                                                className="bg-gray-100 text-gray-500 text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest flex items-center justify-center gap-1">Possédé</div>
+                                                className="bg-gray-100 text-gray-700 text-[9px] font-black px-2 py-1.5 rounded-xl uppercase tracking-widest flex items-center justify-center gap-1">Possédé</div>
                                         )}
                                     </div>
                                 </div>
@@ -197,12 +216,12 @@ export default function VestiairePanel({
                 )}
             </div>
 
-            {!readonly && hasChanges && (
+            {mode === 'profile' && !readonly && hasChanges && (
                 <div
                     className="absolute bottom-6 left-6 right-6 z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
-                    <button onClick={handleSave} disabled={isSubmitting || hasUnownedItemsEquipped}
+                    <button onClick={handleSave} disabled={isSubmitting || isSavingStyle || hasUnownedItemsEquipped}
                             className={`w-full text-white p-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl flex justify-center items-center gap-2 transition-all ${hasUnownedItemsEquipped ? 'bg-gray-400 opacity-90' : 'bg-gray-900 hover:scale-[1.02] active:scale-95 shadow-black/20'} ${isSubmitting ? 'opacity-50' : ''}`}>
-                        {isSubmitting ? <div
+                        {isSubmitting || isSavingStyle ? <div
                             className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : hasUnownedItemsEquipped ? <>ACHETEZ
                             POUR SAUVEGARDER <ShoppingBag size={18}/></> : <>SAUVEGARDER LE STYLE <Check size={18}/></>}
                     </button>

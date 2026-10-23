@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Users, MessageCircle, Camera } from 'lucide-react';
+import { MapPin, Users, MessageCircle, Camera, Waves } from 'lucide-react';
 import type { BeerCall } from '../../types/dashboard';
 
 interface ActiveBeerCallCardProps {
@@ -21,23 +21,36 @@ export const ActiveBeerCallCard: React.FC<ActiveBeerCallCardProps> = ({
     setIsWorldsModalOpen,
     timeAgo
 }) => {
+    const participation = call.user_status === 'joined' ? {
+        label: 'REJOINT', frame: 'bg-gradient-to-br from-blue-50 to-white border border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.15)]',
+        badge: 'bg-blue-100 text-blue-800', dot: 'bg-blue-600', icon: 'text-blue-500',
+    } : call.user_status === 'declined' ? {
+        label: 'ABSENT', frame: 'bg-cyan-50 border border-cyan-200',
+        badge: 'bg-cyan-100 text-cyan-900', dot: 'bg-cyan-700', icon: 'text-cyan-700',
+    } : call.has_responded ? {
+        label: 'RÉPONSE ENREGISTRÉE', frame: 'bg-gray-50 border border-gray-200',
+        badge: 'bg-gray-100 text-gray-800', dot: 'bg-gray-700', icon: 'text-gray-700',
+    } : {
+        label: 'EN COURS', frame: 'bg-gradient-to-br from-orange-50 to-white border border-orange-100 shadow-[0_8px_20px_rgb(217,119,6,0.15)]',
+        badge: 'bg-orange-100 text-amber-800', dot: 'bg-beer animate-pulse', icon: 'text-beer',
+    };
+    const StatusIcon = call.user_status === 'declined' ? Waves : MapPin;
     return (
         <div onClick={() => focusOnLocation(call.longitude, call.latitude)}
-             className={`w-[220px] h-[130px] relative overflow-hidden rounded-3xl p-3.5 snap-center flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between ${call.has_responded ? 'bg-gradient-to-br from-blue-50 to-white border border-blue-100 shadow-[0_8px_20px_rgb(59,130,246,0.15)]' : 'bg-gradient-to-br from-orange-50 to-white border border-orange-100 shadow-[0_8px_20px_rgb(217,119,6,0.15)]'} group`}>
+             className={`w-[220px] h-[130px] relative overflow-hidden rounded-3xl p-3.5 snap-center flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between ${participation.frame} group`}>
             <div>
                 <div className="flex justify-between items-center mb-1.5">
                     <span
-                        className={`flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-full tracking-widest leading-none ${call.has_responded ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-beer'}`}>
+                        className={`min-w-0 flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-full tracking-widest leading-tight ${participation.badge}`}>
                         <span
-                            className={`w-1.5 h-1.5 rounded-full ${call.has_responded ? 'bg-blue-600' : 'bg-beer animate-pulse'}`}></span>
-                        {call.has_responded ? "REJOINT" : "EN COURS"}
+                            className={`w-1.5 h-1.5 shrink-0 rounded-full ${participation.dot}`}></span>
+                        <span>{participation.label}</span>
                     </span>
                     <span
                         className="text-gray-400 text-[9px] font-bold uppercase tracking-wider bg-gray-100 px-1.5 py-0.5 rounded-md leading-none">{timeAgo(call.started_at)}</span>
                 </div>
                 <h3 className="font-black text-gray-900 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
-                    <MapPin size={14}
-                            className={call.has_responded ? 'text-blue-500' : 'text-beer'}/>
+                    <StatusIcon size={14} className={participation.icon}/>
                     {call.location_name}
                 </h3>
             </div>

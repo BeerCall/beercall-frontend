@@ -9,6 +9,7 @@ const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
 import VestiairePanel from '../components/Profile/VestiairePanel';
 import {motion, AnimatePresence} from 'framer-motion';
 import {toast} from "../store/useToastStore.ts";
+import type {AvatarConfig} from '../types/avatar';
 
 export default function Profile() {
     const {id} = useParams();
@@ -20,7 +21,7 @@ export default function Profile() {
 
     const {data: profile, isLoading} = useProfile(profileId);
 
-    const [previewAvatar, setPreviewAvatar] = useState<Record<string, string> | null>(null);
+    const [previewAvatar, setPreviewAvatar] = useState<AvatarConfig | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     // 🚀 AJOUT DE L'ÉTAT POUR LE SWITCH VESTIAIRE / TROPHÉES
@@ -64,15 +65,17 @@ export default function Profile() {
         }
     };
 
-    const handleSaveOutfit = async () => {
-        if (!isOwnProfile) return;
+    const handleSaveOutfit = async (): Promise<boolean> => {
+        if (!isOwnProfile || !previewAvatar) return false;
         setIsSaving(true);
         try {
             await api.put('/auth/equip/', previewAvatar);
             queryClient.invalidateQueries({queryKey: ['profile', profileId]});
             toast.success("Succès", "Tenue sauvegardée avec succès ! ✨");
+            return true;
         } catch {
             toast.error("Erreur", "Erreur lors de la sauvegarde.");
+            return false;
         } finally {
             setIsSaving(false);
         }
@@ -127,7 +130,7 @@ export default function Profile() {
 
                 <div className="flex flex-col items-center flex-1 px-3 pointer-events-none overflow-hidden">
                     <span
-                        className="bg-amber-100 text-amber-600 px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm border border-amber-200 mb-0.5 leading-none whitespace-nowrap">
+                        className="bg-amber-100 text-amber-900 px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm border border-amber-200 mb-0.5 leading-none whitespace-nowrap">
                         {profile.title}
                     </span>
                     <h1 className="text-xl sm:text-2xl font-black text-gray-900 uppercase italic tracking-tight drop-shadow-sm truncate w-full text-center leading-none">

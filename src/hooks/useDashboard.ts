@@ -10,6 +10,19 @@ import { toast } from '../store/useToastStore';
 import type { MapRef } from 'react-map-gl/maplibre';
 import type { BeerCall } from '../types/api';
 
+function gpsMessage(location: Pick<ReturnType<typeof useLocationStore.getState>, 'userLocation' | 'acquiredAt' | 'hasSessionFix' | 'locationStatus'>): string | null {
+    if (location.hasSessionFix && location.locationStatus === 'available' && location.userLocation) return null;
+    const messages = {
+        idle: '', searching: 'Recherche de la position GPS…', available: '',
+        denied: 'Autorise la localisation dans les réglages du navigateur',
+        timeout: 'La recherche GPS a expiré. Réessaie.', unavailable: 'Position GPS indisponible. Réessaie.',
+        unsupported: 'Localisation non supportée par ce navigateur.',
+    };
+    const status = messages[location.locationStatus] ?? '';
+    const cache = location.userLocation ? `Position mémorisée — ${location.acquiredAt === null ? 'ancienneté inconnue' : new Date(location.acquiredAt).toLocaleString()}. ` : '';
+    return `${status}${status && cache ? ' ' : ''}${cache}${cache || !status ? 'Une nouvelle position GPS est nécessaire pour créer.' : ''}`;
+}
+
 export const useDashboard = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -31,12 +44,16 @@ export const useDashboard = () => {
     });
 
     const { data: profile } = useProfile();
-    const { data: squadDetails } = useSquadDetails(id);
+    const squadQuery = useSquadDetails(id);
+    const squadDetails = squadQuery.data;
     // TODO(REV-04): The useSquadWebSocket hook was just a no-op placeholder masking the absence
     // of a real WebSocket implementation. It has been removed. A proper WS hook should be
     // implemented when real-time features are actually supported by the backend and frontend.
     const { isGameScreenOpen, currentAperoId, closeGameScreen } = useGameUIStore();
-    const { userLocation, startTracking, stopTracking } = useLocationStore();
+    const { userLocation, acquiredAt, hasSessionFix, locationStatus, startTracking, stopTracking } = useLocationStore();
+    const canCreateFromLocation = hasSessionFix && locationStatus === 'available' && userLocation !== null;
+    const locationMessage = gpsMessage({ userLocation, acquiredAt, hasSessionFix, locationStatus });
+    const retryGPS = useCallback(() => { stopTracking(); startTracking(); }, [startTracking, stopTracking]);
     const isActiveApero = squadDetails?.active_beer_call?.some((call: { id: string }) => call.id === isWorldsModalOpen);
 
     // Fermer l'écran de jeu quand on change de squad
@@ -112,7 +129,16 @@ export const useDashboard = () => {
     }, [cancelLongPress]);
 
     const openCamera = useCallback((location = userLocation, apero: BeerCall | null = null) => {
-        setPhotoLocation(location);
+        let captureLocation = location;
+        if (apero === null) {
+            const current = useLocationStore.getState();
+            if (!current.hasSessionFix || current.locationStatus !== 'available' || !current.userLocation) {
+                toast.error('GPS actuel nécessaire', gpsMessage(current) ?? 'Une nouvelle position GPS est nécessaire pour créer.');
+                return;
+            }
+            captureLocation = current.userLocation;
+        }
+        setPhotoLocation(captureLocation);
         setStartingScheduledApero(apero);
         if (fileInputRef.current) fileInputRef.current.click();
     }, [userLocation]);
@@ -147,10 +173,11 @@ export const useDashboard = () => {
                 duration: 1000,
                 essential: true
             });
+            if (!hasSessionFix || locationStatus !== 'available') toast.error('Position mémorisée', gpsMessage({ userLocation, acquiredAt, hasSessionFix, locationStatus }) ?? undefined);
         } else if (!userLocation) {
-            toast.error("Recherche en cours 🛰️", "Le GPS cherche encore votre position... 📡");
+            toast.error('Localisation GPS', gpsMessage({ userLocation, acquiredAt, hasSessionFix, locationStatus }) ?? undefined);
         }
-    }, [userLocation]);
+    }, [userLocation, acquiredAt, hasSessionFix, locationStatus]);
 
     useEffect(() => {
         const handleFirstInteraction = () => {
@@ -205,10 +232,21 @@ export const useDashboard = () => {
         navigate,
         profile,
         squadDetails,
+        isSquadPending: squadQuery.isPending,
+        isSquadFetching: squadQuery.isFetching,
+        isSquadError: squadQuery.isError,
+        squadError: squadQuery.error,
+        refetchSquad: squadQuery.refetch,
         isActiveApero,
         isGameScreenOpen,
         currentAperoId,
         userLocation,
+        acquiredAt,
+        hasSessionFix,
+        locationStatus,
+        canCreateFromLocation,
+        locationMessage,
+        retryGPS,
         isNightMode,
         isMapReady,
         copied,

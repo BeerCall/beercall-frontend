@@ -2,7 +2,7 @@ import {useState, useEffect, useRef, useCallback} from 'react';
 import {motion} from 'framer-motion';
 import {Eraser} from 'lucide-react';
 
-interface CanvasDrawPayload {
+export interface CanvasDrawPayload {
     type: string;
     duration_ms: number;
     stroke_color: string;
@@ -11,7 +11,7 @@ interface CanvasDrawPayload {
 
 interface Props {
     sensorPayload: CanvasDrawPayload;
-    onAction: (actionId: string, payload?: any) => void;
+    onAction: (actionId: string, payload?: Record<string, unknown>) => void;
     disabled: boolean;
 }
 
@@ -21,6 +21,7 @@ export default function CanvasDraw({sensorPayload, onAction, disabled}: Props) {
 
     const [isDrawing, setIsDrawing] = useState(false);
     const [timeLeft, setTimeLeft] = useState(sensorPayload.duration_ms / 1000);
+    const [hasSubmitted, setHasSubmitted] = useState(false);
 
     // Refs de sécurité pour le timer et la soumission
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -53,6 +54,25 @@ export default function CanvasDraw({sensorPayload, onAction, disabled}: Props) {
         ctxRef.current = ctx;
     }, [sensorPayload.stroke_color, sensorPayload.stroke_width]);
 
+    // 🚀 SOUMISSION DE L'IMAGE
+    const submitDrawing = useCallback(() => {
+        if (hasSubmittedRef.current || !canvasRef.current) return;
+        hasSubmittedRef.current = true;
+        setHasSubmitted(true);
+
+        // On bloque le dessin
+        setIsDrawing(false);
+
+        // On convertit en Base64 (PNG)
+        const base64Image = canvasRef.current.toDataURL('image/png');
+
+        // Petite vibration de fin
+        if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+
+        // On envoie l'image au backend
+        onAction('DRAWING_FINISHED', {image_base64: base64Image});
+    }, [onAction]);
+
     // ⏱️ GESTION DU CHRONOMÈTRE
     useEffect(() => {
         if (!hasSubmittedRef.current) {
@@ -71,25 +91,7 @@ export default function CanvasDraw({sensorPayload, onAction, disabled}: Props) {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, []);
-
-    // 🚀 SOUMISSION DE L'IMAGE
-    const submitDrawing = useCallback(() => {
-        if (hasSubmittedRef.current || !canvasRef.current) return;
-        hasSubmittedRef.current = true;
-
-        // On bloque le dessin
-        setIsDrawing(false);
-
-        // On convertit en Base64 (PNG)
-        const base64Image = canvasRef.current.toDataURL('image/png');
-
-        // Petite vibration de fin
-        if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
-
-        // On envoie l'image au backend
-        onAction('DRAWING_FINISHED', {image_base64: base64Image});
-    }, [onAction]);
+    }, [submitDrawing]);
 
     // 🧹 EFFACER LE DESSIN
     const handleClear = () => {
@@ -166,7 +168,7 @@ export default function CanvasDraw({sensorPayload, onAction, disabled}: Props) {
 
                 <button
                     onClick={handleClear}
-                    disabled={disabled || hasSubmittedRef.current}
+                    disabled={disabled || hasSubmitted}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-300 rounded-xl font-bold text-xs uppercase tracking-wider active:scale-95 disabled:opacity-50"
                 >
                     <Eraser size={16}/> Effacer
@@ -188,11 +190,11 @@ export default function CanvasDraw({sensorPayload, onAction, disabled}: Props) {
                     onTouchMove={draw}
                     onTouchEnd={stopDrawing}
                     onTouchCancel={stopDrawing}
-                    className={`w-full h-full ${disabled || hasSubmittedRef.current ? 'opacity-80 pointer-events-none' : 'cursor-crosshair'}`}
+                    className={`w-full h-full ${disabled || hasSubmitted ? 'opacity-80 pointer-events-none' : 'cursor-crosshair'}`}
                 />
 
                 {/* Overlay de fin */}
-                {hasSubmittedRef.current && (
+                {hasSubmitted && (
                     <motion.div
                         initial={{opacity: 0}}
                         animate={{opacity: 1}}

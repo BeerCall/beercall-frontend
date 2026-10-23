@@ -12,11 +12,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDashboard } from '../hooks/useDashboard';
 import { MapSection } from '../components/Dashboard/MapSection';
 import { Timeline } from '../components/Dashboard/Timeline';
+import { isAxiosError } from 'axios';
 
 const GameScreen = React.lazy(() => import('./GameScreen'));
 
 export default function Dashboard() {
-    const dashboard = useDashboard();
+    const { fileInputRef, mapRef, ...dashboard } = useDashboard();
+    const squadErrorStatus = isAxiosError(dashboard.squadError) ? dashboard.squadError.response?.status : undefined;
+    const squadErrorMessage = squadErrorStatus === 403 ? 'Accès à cette squad refusé'
+        : squadErrorStatus === 404 ? 'Squad introuvable' : 'Squad indisponible';
 
     return (
         <div className="h-full w-full relative flex flex-col bg-[#f8fafc] overflow-hidden font-sans">
@@ -55,7 +59,7 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                <input type="file" aria-label="Photo du Beer Call" accept="image/*" capture="environment" ref={dashboard.fileInputRef}
+                <input type="file" aria-label="Photo du Beer Call" accept="image/*" capture="environment" ref={fileInputRef}
                        onChange={dashboard.handlePhotoCapture} className="hidden"/>
 
                 <div className="absolute inset-0 z-0">
@@ -71,27 +75,38 @@ export default function Dashboard() {
                         {/* BADGE SQUAD (Seulement si id) */}
                         {dashboard.id && (
                             <div className="absolute top-[calc(15px+env(safe-area-inset-top))] w-full flex justify-center z-10 pointer-events-none">
-                                <div className="bg-white/95 backdrop-blur-md px-8 py-3 rounded-[2rem] shadow-xl pointer-events-auto border-2 flex flex-col items-center gap-2 transition-all"
-                                    style={{borderColor: dashboard.squadDetails?.color ? `${dashboard.squadDetails.color}40` : 'rgba(217, 119, 6, 0.25)'}}>
-                                    <h2 className="font-black tracking-widest uppercase italic text-xl leading-none"
-                                        style={{color: dashboard.squadDetails?.color || '#D97706'}}>
-                                        {dashboard.squadDetails?.name || `Squad #${dashboard.id}`}
-                                    </h2>
+                                <div className="bg-white backdrop-blur-md max-w-[calc(100vw_-_32px)] px-4 py-2 rounded-[2rem] shadow-xl pointer-events-auto border-2 flex flex-col items-center gap-1 transition-all"
+                                     style={{borderColor: dashboard.squadDetails?.color ? `${dashboard.squadDetails.color}40` : 'rgba(217, 119, 6, 0.25)'}}>
+                                    <div className="flex w-full min-w-0 items-center justify-center gap-2">
+                                    {dashboard.squadDetails && <h2 className="min-w-0 truncate font-black text-gray-900 tracking-widest uppercase italic text-xl leading-none">
+                                        {dashboard.squadDetails.name}
+                                    </h2>}
+                                    {!dashboard.squadDetails && dashboard.isSquadPending && <p role="status" className="text-sm font-bold text-gray-900">Chargement de la squad…</p>}
+                                    {dashboard.isSquadError && <div role="alert" className="max-w-[calc(100vw_-_80px)] text-xs text-gray-900 text-center">
+                                        <p>{dashboard.squadDetails ? 'Actualisation impossible — dernières données affichées' : squadErrorMessage}</p>
+                                        <button onClick={() => dashboard.refetchSquad()} className="mt-2 underline font-bold">Réessayer</button>
+                                    </div>}
                                     {dashboard.squadDetails?.invite_code && (
-                                        <button onClick={dashboard.handleCopyCode} className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 px-4 py-1.5 rounded-full transition-all group active:scale-95" title="Copier le code">
+                                        <button onClick={dashboard.handleCopyCode} className="shrink-0 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 px-4 py-1.5 rounded-full transition-all group active:scale-95" title="Copier le code">
                                             <Key size={12} style={{color: dashboard.squadDetails?.color || '#D97706'}}/>
                                             <span className="font-black tracking-[0.25em] text-gray-700 text-xs pt-[2px]">{dashboard.squadDetails.invite_code}</span>
                                             {dashboard.copied ? <Check size={14} className="text-green-500 animate-in zoom-in duration-300"/> :
                                                 <Copy size={12} className="text-gray-400 group-hover:text-gray-700 transition-colors"/>}
                                         </button>
                                     )}
+                                    </div>
+                                    {dashboard.locationMessage && <>
+                                        <p role="status" className="w-full text-xs leading-[14px] text-gray-900 [overflow-wrap:anywhere]">{dashboard.locationMessage}</p>
+                                        <button onClick={dashboard.retryGPS} className="text-xs leading-[14px] py-1 underline font-bold text-gray-900">Réessayer le GPS</button>
+                                    </>}
                                 </div>
                             </div>
                         )}
 
                         <MapSection 
-                            mapRef={dashboard.mapRef}
+                            mapRef={mapRef}
                             userLocation={dashboard.userLocation}
+                            canCreateFromLocation={dashboard.canCreateFromLocation}
                             isNightMode={dashboard.isNightMode}
                             isMapReady={dashboard.isMapReady}
                             squadDetails={dashboard.squadDetails}
@@ -104,7 +119,7 @@ export default function Dashboard() {
                             setIsWorldsModalOpen={dashboard.setIsWorldsModalOpen}
                         />
 
-                        {dashboard.id && (
+                        {dashboard.id && dashboard.squadDetails && (
                             <Timeline 
                                 squadDetails={dashboard.squadDetails}
                                 squadId={dashboard.id}

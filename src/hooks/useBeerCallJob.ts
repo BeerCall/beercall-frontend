@@ -21,8 +21,6 @@ export function useBeerCallJob(squadId: string, jobId: string | null, trackingTi
       return response.data;
     },
     retry: false,
-    refetchInterval: (current) => terminal(current.state.data?.status) ? false :
-      (import.meta.env.MODE === 'test' ? 50 : 2000),
   });
   const status = jobId ? query.data?.status ?? null : null;
   const isTerminal = terminal(status);
@@ -39,11 +37,19 @@ export function useBeerCallJob(squadId: string, jobId: string | null, trackingTi
     }
   }, [status, squadId, queryClient]);
 
+  const resumeTracking = () => {
+    setPausedJob(null);
+    setResumeCount((count) => count + 1);
+    if (jobId && squadId) {
+      void queryClient.invalidateQueries({ queryKey: ['beer-call-job', squadId, jobId] });
+    }
+  };
+
   return {
     status,
     rejectReason: query.data?.reject_reason ?? null,
     trackingUnavailable: Boolean(jobId) && (query.isError || trackingPaused),
     trackingPaused,
-    resumeTracking: () => { setPausedJob(null); setResumeCount((count) => count + 1); },
+    resumeTracking,
   };
 }

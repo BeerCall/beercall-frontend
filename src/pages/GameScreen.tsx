@@ -3,15 +3,15 @@ import {motion, AnimatePresence} from 'framer-motion';
 import {AlertTriangle, Loader2, X} from 'lucide-react';
 import {useGameEngine} from '../hooks/useGameEngine';
 import StandardButtons from '../components/Game/Sensors/StandardButtons';
-import TimeBombButton from '../components/Game/Sensors/TimeBombButton';
-import DuelSplitScreen from '../components/Game/Sensors/DuelSplitScreen';
-import MultiTouchTracker from '../components/Game/Sensors/MultiTouchTracker';
-import GyroscopeTracker from '../components/Game/Sensors/GyroscopeTracker';
-import AccelerometerTracker from '../components/Game/Sensors/AccelerometerTracker';
-import SwipeToTarget from '../components/Game/Sensors/SwipeToTarget';
-import CameraCapture from '../components/Game/Sensors/CameraCapture';
-import ImageDisplay from '../components/Game/Sensors/ImageDisplay';
-import CanvasDraw from '../components/Game/Sensors/CanvasDraw';
+import TimeBombButton, {type TimeBombPayload} from '../components/Game/Sensors/TimeBombButton';
+import DuelSplitScreen, {type DuelPayload} from '../components/Game/Sensors/DuelSplitScreen';
+import MultiTouchTracker, {type MultiTouchPayload} from '../components/Game/Sensors/MultiTouchTracker';
+import GyroscopeTracker, {type GyroscopePayload} from '../components/Game/Sensors/GyroscopeTracker';
+import AccelerometerTracker, {type AccelerometerPayload} from '../components/Game/Sensors/AccelerometerTracker';
+import SwipeToTarget, {type SwipeToTargetPayload} from '../components/Game/Sensors/SwipeToTarget';
+import CameraCapture, {type CameraPayload} from '../components/Game/Sensors/CameraCapture';
+import ImageDisplay, {type ImageDisplayPayload} from '../components/Game/Sensors/ImageDisplay';
+import CanvasDraw, {type CanvasDrawPayload} from '../components/Game/Sensors/CanvasDraw';
 import {useGameUIStore} from '../store/useGameUIStore';
 
 // 🚀 AJOUT DE LA PROP OPTIONNELLE 'aperoIdProp'
@@ -130,57 +130,57 @@ export default function GameScreen({aperoIdProp}: { aperoIdProp: string | null }
                             />
                         ) : gameState.required_sensor?.type === 'CANVAS_DRAW' ? (
                             <CanvasDraw
-                                sensorPayload={gameState.required_sensor as any}
+                                sensorPayload={gameState.required_sensor as unknown as CanvasDrawPayload}
                                 onAction={sendAction}
                                 disabled={isLocked}
                             />
                         ) : gameState.required_sensor?.type === 'IMAGE_DISPLAY' ? (
                             // 🚀 LE NOUVEAU CAPTEUR EST ICI
                             <ImageDisplay
-                                sensorPayload={gameState.required_sensor as any}
+                                sensorPayload={gameState.required_sensor as unknown as ImageDisplayPayload}
                                 actions={gameState.actions || []}
                                 onAction={sendAction}
                                 disabled={isLocked}
                             />
                         ) : gameState.required_sensor?.type === 'CAMERA_CAPTURE' ? (
                             <CameraCapture
-                                sensorPayload={gameState.required_sensor as any}
+                                sensorPayload={gameState.required_sensor as unknown as CameraPayload}
                                 onAction={sendAction}
                                 disabled={isLocked}
                             />
                         ) : gameState.required_sensor?.type === 'SWIPE_TO_TARGET' ? (
                             <SwipeToTarget
-                                sensorPayload={gameState.required_sensor as any}
+                                sensorPayload={gameState.required_sensor as unknown as SwipeToTargetPayload}
                                 onAction={sendAction}
                                 disabled={isLocked}
                             />
                         ) : gameState.required_sensor?.type === 'ACCELEROMETER' ? (
                             <AccelerometerTracker
-                                sensorPayload={gameState.required_sensor as any}
+                                sensorPayload={gameState.required_sensor as unknown as AccelerometerPayload}
                                 onAction={sendAction}
                                 disabled={isLocked}
                             />
                         ) : gameState.required_sensor?.type === 'GYROSCOPE' ? (
                             <GyroscopeTracker
-                                sensorPayload={gameState.required_sensor as any}
+                                sensorPayload={gameState.required_sensor as unknown as GyroscopePayload}
                                 onAction={sendAction}
                                 disabled={isLocked}
                             />
                         ) : gameState.required_sensor?.type === 'TIME_BOMB_BUTTON' ? (
                             <TimeBombButton
-                                sensorPayload={gameState.required_sensor as any}
+                                sensorPayload={gameState.required_sensor as unknown as TimeBombPayload}
                                 onAction={sendAction}
                                 disabled={isLocked}
                             />
                         ) : gameState.required_sensor?.type === 'DUEL_SPLIT_SCREEN' ? (
                             <DuelSplitScreen
-                                sensorPayload={gameState.required_sensor as any}
+                                sensorPayload={gameState.required_sensor as unknown as DuelPayload}
                                 onAction={sendAction}
                                 disabled={isLocked}
                             />
                         ) : gameState.required_sensor?.type === 'MULTI_TOUCH_TRACKER' ? (
                             <MultiTouchTracker
-                                sensorPayload={gameState.required_sensor as any}
+                                sensorPayload={gameState.required_sensor as unknown as MultiTouchPayload}
                                 onAction={sendAction}
                                 disabled={isLocked}
                             />

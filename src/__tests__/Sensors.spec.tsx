@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from './utils/test-utils';
 
@@ -51,7 +51,9 @@ describe('Sensors Rendering & Interactions', () => {
         const startBtn = screen.getByRole('button', { name: /Démarrer/i });
         await userEvent.click(startBtn);
         
-        const event = new Event('devicemotion') as any;
+        const event = new Event('devicemotion') as Event & {
+            accelerationIncludingGravity: { x: number; y: number; z: number };
+        };
         event.accelerationIncludingGravity = { x: 20, y: 0, z: 0 };
         
         // Shake 1

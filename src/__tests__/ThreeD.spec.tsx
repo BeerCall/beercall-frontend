@@ -75,7 +75,8 @@ describe('3D Components Rendering & Observability', () => {
     it('renders BarWorld and passes participants', async () => {
         const onSelectPhotoMock = vi.fn();
         const participants = [
-            { id: '1', username: 'P1', proof_photo_url: 'http://test.com/photo.jpg', avatar: { head: 'cap', gender: 'Men' } }
+            { id: '1', username: 'P1', proof_photo_url: 'http://test.com/photo.jpg', avatar: { head: 'cap', gender: 'Men' } },
+            { id: '2', username: 'P2', avatar: { head: 'cap', gender: 'Men' } },
         ];
         
         render(<BarWorld participants={participants} isActiveApero={true} aperoId="apero-1" squadId="sq-1" onSelectPhoto={onSelectPhotoMock} />);

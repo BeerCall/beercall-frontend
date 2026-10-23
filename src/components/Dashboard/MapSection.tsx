@@ -9,6 +9,7 @@ const AvatarCanvas = React.lazy(() => import('../3D/AvatarCanvas'));
 interface MapSectionProps {
     mapRef: React.RefObject<MapRef | null>;
     userLocation: { lat: number; lng: number } | null;
+    canCreateFromLocation?: boolean;
     isNightMode: boolean;
     isMapReady: boolean;
     squadDetails: SquadDetails | null | undefined;
@@ -24,6 +25,7 @@ interface MapSectionProps {
 export const MapSection: React.FC<MapSectionProps> = React.memo(({
     mapRef,
     userLocation,
+    canCreateFromLocation = false,
     isNightMode,
     isMapReady,
     squadDetails,
@@ -146,7 +148,9 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             {userLocation && (
                 <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
                         style={{zIndex: 50}}>
-                    <div onClick={handlePlayerClick} role="button" tabIndex={0} aria-label="Créer un Beer Call"
+                    <div onClick={handlePlayerClick} role="button" tabIndex={0}
+                         aria-disabled={!canCreateFromLocation}
+                         aria-label={canCreateFromLocation ? 'Créer un Beer Call' : 'Position mémorisée — création indisponible'}
                          onKeyDown={(event) => {
                              if (event.key === 'Enter' || event.key === ' ') {
                                  event.preventDefault();

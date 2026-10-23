@@ -10,6 +10,6 @@ export type SduiPayload = {
     instruction_header: string;
     title: string;
     description: string;
-    required_sensor: { type: string; [key: string]: any };
+    required_sensor: { type: string; [key: string]: unknown };
     actions: ActionButton[];
 };

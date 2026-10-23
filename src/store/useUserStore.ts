@@ -1,5 +1,6 @@
 import {create} from 'zustand';
 import {persist} from 'zustand/middleware';
+import {clearTokens} from '../lib/authTokens';
 
 interface UserState {
     isAuthenticated: boolean;
@@ -15,6 +16,7 @@ export const useUserStore = create<UserState>()(
             username: null,
             login: (username) => set({isAuthenticated: true, username}),
             logout: () => {
+                clearTokens();
                 set({isAuthenticated: false, username: null});
             },
         }),

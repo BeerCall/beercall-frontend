@@ -6,6 +6,7 @@ import {api} from '../lib/api';
 const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
 import {motion, useInView} from 'framer-motion';
 import {useRef} from "react";
+import type {AvatarConfig} from '../types/avatar';
 
 // Interface basée sur l'objet que tu m'as fourni
 interface Connection {
@@ -24,7 +25,7 @@ interface Connection {
     };
 }
 
-const AvatarThumbnail = ({config}: { config: any }) => {
+const AvatarThumbnail = ({config}: { config: AvatarConfig }) => {
     const ref = useRef(null);
     // margin: "100px" permet de charger l'avatar juste avant qu'il n'entre dans l'écran
     const isInView = useInView(ref, {margin: "100px"});

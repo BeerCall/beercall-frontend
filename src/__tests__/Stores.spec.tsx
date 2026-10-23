@@ -11,7 +11,7 @@ describe('Zustand Stores', () => {
         useUserStore.setState({ username: null, isAuthenticated: false });
         useToastStore.setState({ toasts: [] });
         useGameUIStore.setState({ isGameScreenOpen: false, currentAperoId: null });
-        useLocationStore.setState({ userLocation: null, isTracking: false });
+        useLocationStore.setState({ userLocation: null, isTracking: false, acquiredAt: null, hasSessionFix: false, locationStatus: 'idle', error: null });
     });
 
     it('useUserStore: login and logout', () => {
@@ -72,11 +72,11 @@ describe('Zustand Stores', () => {
 
     it('useLocationStore: start and stop tracking', () => {
         const mockWatchPosition = vi.fn().mockImplementation((success) => {
-            success({ coords: { latitude: 48, longitude: 2 } });
+            success({ coords: { latitude: 48, longitude: 2 }, timestamp: 1000 });
             return 1;
         });
         const mockGetCurrentPosition = vi.fn().mockImplementation((success) => {
-            success({ coords: { latitude: 48, longitude: 2 } });
+            success({ coords: { latitude: 48, longitude: 2 }, timestamp: 1000 });
         });
         const mockClearWatch = vi.fn();
         
@@ -84,7 +84,7 @@ describe('Zustand Stores', () => {
             watchPosition: mockWatchPosition,
             getCurrentPosition: mockGetCurrentPosition,
             clearWatch: mockClearWatch
-        } as any;
+        } as unknown as Geolocation;
 
         const { result } = renderHook(() => useLocationStore());
         act(() => {

@@ -38,7 +38,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({
 }) => {
     return (
         <div
-            className="absolute bottom-[calc(130px_+_env(safe-area-inset-top))] w-full px-4 z-[70] pointer-events-none">
+            className="absolute bottom-[calc(248px_+_env(safe-area-inset-bottom))] w-full px-4 z-[70] pointer-events-none">
             <div
                 className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto items-center">
 
@@ -82,14 +82,14 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({
             ))}
 
             {/* CARTE VIDE (Si aucun apéro) */}
-            {(!squadDetails?.active_beer_call || squadDetails.active_beer_call.length === 0) && (!squadDetails?.past_beer_calls || squadDetails.past_beer_calls.length === 0) && (!squadDetails?.scheduled_beer_calls || squadDetails.scheduled_beer_calls.length === 0) && (
+            {squadDetails && (!squadDetails.active_beer_call || squadDetails.active_beer_call.length === 0) && (!squadDetails.past_beer_calls || squadDetails.past_beer_calls.length === 0) && (!squadDetails.scheduled_beer_calls || squadDetails.scheduled_beer_calls.length === 0) && (
                 <div
-                    className="w-[220px] h-[130px] bg-white/60 backdrop-blur-md rounded-3xl p-4 shadow-sm border-2 border-dashed border-gray-300/50 snap-center flex-shrink-0 flex flex-col items-center justify-center">
+                    className="w-[220px] h-[130px] bg-white backdrop-blur-md rounded-3xl p-4 shadow-sm border-2 border-dashed border-gray-300/50 snap-center flex-shrink-0 flex flex-col items-center justify-center">
                     <div
                         className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                        <BellRing size={16} className="text-gray-400"/>
+                        <BellRing size={16} className="text-gray-700"/>
                     </div>
-                    <p className="text-xs font-bold text-gray-500 text-center uppercase tracking-wider leading-tight">
+                    <p className="text-xs font-bold text-gray-700 text-center uppercase tracking-wider leading-tight">
                         Aucun événement.<br/>Lance le premier !
                     </p>
                 </div>

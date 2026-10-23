@@ -3,10 +3,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { isAxiosError } from 'axios';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PROFILE_REFRESH_ACTIONS = ['CREATE', 'JOIN', 'START'];
+const PING_INTERVAL_MS = 25000;
+const PONG_TIMEOUT_MS = 10000;
+
 export const useSquadWebSocket = (squadId?: number) => {
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pongTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef<boolean>(true);
 
   useEffect(() => {
@@ -14,13 +21,33 @@ export const useSquadWebSocket = (squadId?: number) => {
     let isConnecting = false;
     let cancelled = false;
 
+    const clearHeartbeatTimers = () => {
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = null;
+      }
+      if (pongTimeoutRef.current) {
+        clearTimeout(pongTimeoutRef.current);
+        pongTimeoutRef.current = null;
+      }
+    };
+
+    const resyncActiveQueries = () => {
+      if (!squadId) return;
+      const strSquadId = String(squadId);
+      queryClient.invalidateQueries({ queryKey: ['squad', strSquadId], type: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['squad', squadId], type: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['worlds', strSquadId], type: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['beer-call-job', strSquadId], type: 'active' });
+    };
+
     const connect = async () => {
       if (!squadId || !mountedRef.current || isConnecting) return;
       isConnecting = true;
 
       try {
         const { data } = await api.post(`/squads/${squadId}/ws-ticket`);
-        
+
         if (cancelled || !mountedRef.current) return;
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -28,20 +55,67 @@ export const useSquadWebSocket = (squadId?: number) => {
 
         const ws = new WebSocket(wsUrl, ['beercall', `ticket.${data.ticket}`]);
 
+        ws.onopen = () => {
+          if (cancelled || !mountedRef.current) return;
+          resyncActiveQueries();
+
+          clearHeartbeatTimers();
+          pingIntervalRef.current = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN || (ws as unknown as { readyState?: number }).readyState === undefined) {
+              try {
+                ws.send('PING');
+                if (!pongTimeoutRef.current) {
+                  pongTimeoutRef.current = setTimeout(() => {
+                    // PONG absent après 10 s -> fermer la connexion pour déclencher la reconnexion
+                    ws.close(4000, 'Heartbeat timeout');
+                  }, PONG_TIMEOUT_MS);
+                }
+              } catch {
+                // socket fermée
+              }
+            }
+          }, PING_INTERVAL_MS);
+        };
+
         ws.onmessage = (event) => {
           if (cancelled) return;
+          // Ignorer PONG dans le parseur JSON et réarmer le timeout
+          if (event.data === 'PONG') {
+            if (pongTimeoutRef.current) {
+              clearTimeout(pongTimeoutRef.current);
+              pongTimeoutRef.current = null;
+            }
+            return;
+          }
+
           try {
             const message = JSON.parse(event.data);
+            if (!message || typeof message !== 'object') return;
+
             if (message.type === 'REFRESH_SQUAD') {
-              queryClient.invalidateQueries({ queryKey: ['squad', squadId.toString()] });
+              const strSquadId = String(squadId);
+              queryClient.invalidateQueries({ queryKey: ['squad', strSquadId] });
               queryClient.invalidateQueries({ queryKey: ['squad', squadId] });
+              queryClient.invalidateQueries({ queryKey: ['worlds', strSquadId] });
+              queryClient.invalidateQueries({ queryKey: ['squads'] });
+
+              if (!message.action || PROFILE_REFRESH_ACTIONS.includes(message.action)) {
+                queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+              }
+            } else if (message.type === 'BEER_CALL_JOB_UPDATED') {
+              if (typeof message.job_id === 'string' && UUID_REGEX.test(message.job_id)) {
+                queryClient.invalidateQueries({
+                  queryKey: ['beer-call-job', String(squadId), message.job_id],
+                });
+              }
             }
-          } catch (e) {
-            console.error('Invalid WS message', e);
+          } catch {
+            // Ignorer les messages malformés
           }
         };
 
         ws.onclose = (e) => {
+          clearHeartbeatTimers();
           if (wsRef.current === ws) wsRef.current = null;
           isConnecting = false;
           if (!cancelled && mountedRef.current && e.code !== 1000) {
@@ -68,11 +142,35 @@ export const useSquadWebSocket = (squadId?: number) => {
       isConnecting = false;
     };
 
+    const handleRevalidate = () => {
+      if (!mountedRef.current || !squadId) return;
+      resyncActiveQueries();
+      if (!wsRef.current) {
+        connect();
+      }
+    };
+
+    const handleOnline = () => {
+      handleRevalidate();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleRevalidate();
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     connect();
 
     return () => {
       cancelled = true;
       mountedRef.current = false;
+      clearHeartbeatTimers();
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (wsRef.current) {
         wsRef.current.close(1000);

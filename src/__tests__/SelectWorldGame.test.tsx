@@ -1,42 +1,107 @@
+import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SelectWorldModal from '../components/Modals/SelectWorldModal';
 import { useGameUIStore } from '../store/useGameUIStore';
 import { server } from './mocks/server';
 
-vi.mock('../components/3D/BarWorld', () => ({ default: () => null }));
+const barWorldCaptor = vi.fn();
+
+vi.mock('@react-three/fiber', () => ({
+    Canvas: ({ children }: React.PropsWithChildren<unknown>) => <div data-testid="world-canvas">{children}</div>,
+    useFrame: vi.fn(),
+}));
+
+vi.mock('../components/3D/BarWorld', () => ({
+    default: (props: unknown) => {
+        barWorldCaptor(props);
+        return <div data-testid="bar-world-mock" />;
+    },
+}));
 vi.mock('../components/3D/PiscineWorld', () => ({ default: () => null }));
 vi.mock('../components/3D/FloatyIslandWorld', () => ({ default: () => null }));
 
-afterEach(() => useGameUIStore.getState().closeGameScreen());
+describe('SelectWorldModal sans bouton HTML et délégation au Bar (T06)', () => {
+    beforeEach(() => {
+        barWorldCaptor.mockClear();
+    });
 
-it('lance le vrai contrat API, remplit le cache et ouvre le jeu', async () => {
-    const payload = { game_id: 'TURN_TRANSITION', title: 'Nouveau défi', turn_of: 'User', required_sensor: { type: 'BUTTONS' }, actions: [] };
-    let starts = 0;
-    server.use(
-        http.get('*/squads/1/beer-calls/bc_1/worlds', () => HttpResponse.json({ worlds: { bar: { participants: [{ user_id: 'u_1' }, { user_id: 'u_2' }] } } })),
-        http.post('*/aperos/1/game/start', () => { starts++; return HttpResponse.json(payload); }),
-    );
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const onClose = vi.fn();
-    render(<QueryClientProvider client={queryClient}><SelectWorldModal isOpen onClose={onClose} squadId="1" beerCallId="bc_1" isActiveApero /></QueryClientProvider>);
-    const button = screen.getByRole('button', { name: 'Lancer le jeu' });
-    await waitFor(() => expect(button).toBeEnabled());
-    fireEvent.click(button);
-    await waitFor(() => expect(useGameUIStore.getState().isGameScreenOpen).toBe(true));
-    expect(starts).toBe(1);
-    expect(onClose).toHaveBeenCalledOnce();
-    expect(useGameUIStore.getState().currentAperoId).toBe('bc_1');
-    expect(queryClient.getQueryData(['gameState', '1'])).toEqual(payload);
-});
+    afterEach(() => {
+        useGameUIStore.getState().closeGameScreen();
+    });
 
-it('désactive le lancement tant que deux participants ne sont pas présents', async () => {
-    server.use(http.get('*/squads/1/beer-calls/bc_1/worlds', () => HttpResponse.json({ worlds: { bar: { participants: [{ user_id: 'u_1' }] } } })));
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(<QueryClientProvider client={queryClient}><SelectWorldModal isOpen onClose={vi.fn()} squadId="1" beerCallId="bc_1" isActiveApero /></QueryClientProvider>);
-    await screen.findByText('1 Soldat(s)');
-    expect(screen.getByRole('button', { name: 'Lancer le jeu' })).toBeDisabled();
-    expect(useGameUIStore.getState().isGameScreenOpen).toBe(false);
+    it('supprime le bouton HTML et transmet participantsReliable=true à BarWorld', async () => {
+        server.use(
+            http.get('*/squads/1/beer-calls/bc_1/worlds', () =>
+                HttpResponse.json({
+                    worlds: {
+                        bar: {
+                            participants: [{ user_id: 'u_1' }, { user_id: 'u_2' }],
+                        },
+                    },
+                })
+            )
+        );
+
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const onClose = vi.fn();
+
+        render(
+            <QueryClientProvider client={queryClient}>
+                <SelectWorldModal isOpen onClose={onClose} squadId="1" beerCallId="bc_1" isActiveApero />
+            </QueryClientProvider>
+        );
+
+        // Absence systématique du bouton HTML
+        expect(screen.queryByRole('button', { name: /Lancer le jeu/i })).not.toBeInTheDocument();
+
+        // Les données arrivent, BarWorld est monté avec les props requises
+        await waitFor(() => expect(screen.getByTestId('bar-world-mock')).toBeInTheDocument());
+        expect(screen.queryByRole('button', { name: /Lancer le jeu/i })).not.toBeInTheDocument();
+
+        expect(barWorldCaptor).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                isActiveApero: true,
+                aperoId: 'bc_1',
+                squadId: '1',
+                participantsReliable: true,
+                participants: [{ user_id: 'u_1' }, { user_id: 'u_2' }],
+            })
+        );
+    });
+
+    it('affiche le message d’aide sans bouton HTML avec moins de 2 participants', async () => {
+        server.use(
+            http.get('*/squads/1/beer-calls/bc_1/worlds', () =>
+                HttpResponse.json({
+                    worlds: {
+                        bar: {
+                            participants: [{ user_id: 'u_1' }],
+                        },
+                    },
+                })
+            )
+        );
+
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+        render(
+            <QueryClientProvider client={queryClient}>
+                <SelectWorldModal isOpen onClose={vi.fn()} squadId="1" beerCallId="bc_1" isActiveApero />
+            </QueryClientProvider>
+        );
+
+        await screen.findByText('1 Soldat(s)');
+        expect(screen.getByText('Au moins 2 participants au Bar sont nécessaires')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Lancer le jeu/i })).not.toBeInTheDocument();
+
+        expect(barWorldCaptor).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                participantsReliable: true,
+                participants: [{ user_id: 'u_1' }],
+            })
+        );
+    });
 });
