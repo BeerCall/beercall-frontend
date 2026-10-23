@@ -4,6 +4,7 @@ import {ChevronLeft, ArrowRight, User, Lock} from 'lucide-react';
 import React, { Suspense } from 'react';
 import {useUserStore} from '../store/useUserStore';
 import {api} from '../lib/api';
+import {saveTokens} from '../lib/authTokens';
 const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
 import VestiairePanel, {type Gender} from '../components/Profile/VestiairePanel';
 import {useQuery} from '@tanstack/react-query';
@@ -73,12 +74,18 @@ export default function SignUp() {
         setIsLoading(true);
         setSignupError(null);
         try {
-            const res = await api.post('/auth/signup/', {
+            const res = await api.post<{ access_token?: string; refresh_token?: string; username: string }>('/auth/signup/', {
                 ...formData,
                 avatar: {...avatarConfig, gender}
             });
-            if (typeof res.data.access_token === 'string' && res.data.access_token.trim()) {
-                localStorage.setItem('token', res.data.access_token);
+            if (
+                typeof res.data.access_token === 'string' &&
+                typeof res.data.refresh_token === 'string' &&
+                saveTokens({
+                    access_token: res.data.access_token,
+                    refresh_token: res.data.refresh_token,
+                })
+            ) {
                 loginAction(res.data.username);
                 navigate('/dashboard');
             } else {

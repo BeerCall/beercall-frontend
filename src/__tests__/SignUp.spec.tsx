@@ -20,6 +20,7 @@ vi.mock('react-router-dom', async () => {
 
 describe('Page SignUp (Coverage)', () => {
     beforeEach(() => {
+        localStorage.clear();
         useUserStore.setState({ username: null, isAuthenticated: false });
         vi.clearAllMocks();
     });
@@ -37,6 +38,7 @@ describe('Page SignUp (Coverage)', () => {
             http.post('*/auth/signup/', () => {
                 return HttpResponse.json({
                     access_token: 'fake-token',
+                    refresh_token: 'fake-refresh',
                     token_type: 'bearer',
                     username: 'NewUser',
                     user: { id: '123', username: 'NewUser' }
@@ -70,6 +72,7 @@ describe('Page SignUp (Coverage)', () => {
         
         const token = localStorage.getItem('token');
         expect(token).toBe('fake-token');
+        expect(localStorage.getItem('refresh_token')).toBe('fake-refresh');
     });
 
     async function enterAvatar() {
@@ -87,7 +90,11 @@ describe('Page SignUp (Coverage)', () => {
             http.get('*/auth/profile/', () => { profileLoaded = true; return HttpResponse.json({ shop_items: [] }); }),
             http.post('*/auth/signup/', async ({ request }) => {
                 payload = await request.json();
-                return HttpResponse.json({ access_token: 'default-token', username: 'NewUser' });
+                return HttpResponse.json({
+                    access_token: 'default-token',
+                    refresh_token: 'default-refresh',
+                    username: 'NewUser',
+                });
             }),
         );
         render(<SignUp />);
@@ -101,6 +108,7 @@ describe('Page SignUp (Coverage)', () => {
             head: 'none', body: 'none', legs: 'none', feet: 'none', accessory: 'none', animation: 'Idle', gender: 'Men',
         } });
         expect(localStorage.getItem('token')).toBe('default-token');
+        expect(localStorage.getItem('refresh_token')).toBe('default-refresh');
     });
 
     it('garde le bouton présent mais désactivé tant que le catalogue est retardé', async () => {
@@ -129,7 +137,7 @@ describe('Page SignUp (Coverage)', () => {
                 payloads.push(await request.json());
                 return payloads.length === 1
                     ? HttpResponse.json({ detail: 'Panne test' }, { status: 500 })
-                    : HttpResponse.json({ access_token: 'retry-token', username: 'NewUser' });
+                    : HttpResponse.json({ access_token: 'retry-token', refresh_token: 'retry-refresh', username: 'NewUser' });
             }),
         );
         render(<SignUp />);
@@ -147,11 +155,12 @@ describe('Page SignUp (Coverage)', () => {
         expect(payloads[1]).toEqual(payloads[0]);
         expect(payloads[0]).toMatchObject({ username: 'NewUser', password: 'password123', avatar: { gender: 'Women', head: 'none' } });
         expect(localStorage.getItem('token')).toBe('retry-token');
+        expect(localStorage.getItem('refresh_token')).toBe('retry-refresh');
         expect(purchases).toBe(0);
     });
 
     it('ne confirme pas une réponse sans token et permet de réessayer', async () => {
-        localStorage.removeItem('token');
+        localStorage.clear();
         server.use(
             http.get('*/auth/profile/', () => HttpResponse.json({ shop_items: [] })),
             http.post('*/auth/signup/', () => HttpResponse.json({ username: 'NewUser' })),
@@ -164,6 +173,25 @@ describe('Page SignUp (Coverage)', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent('Création non confirmée');
         expect(mockedNavigate).not.toHaveBeenCalled();
         expect(localStorage.getItem('token')).toBeNull();
+        expect(localStorage.getItem('refresh_token')).toBeNull();
+        expect(button).toBeEnabled();
+    });
+
+    it('ne confirme pas une réponse avec refresh_token vide ou manquant', async () => {
+        localStorage.clear();
+        server.use(
+            http.get('*/auth/profile/', () => HttpResponse.json({ shop_items: [] })),
+            http.post('*/auth/signup/', () => HttpResponse.json({ access_token: 'good-access', refresh_token: '', username: 'NewUser' })),
+        );
+        render(<SignUp />);
+        const user = await enterAvatar();
+        const button = screen.getByRole('button', { name: 'Créer mon compte' });
+        await waitFor(() => expect(button).toBeEnabled());
+        await user.click(button);
+        expect(await screen.findByRole('alert')).toHaveTextContent('Création non confirmée');
+        expect(mockedNavigate).not.toHaveBeenCalled();
+        expect(localStorage.getItem('token')).toBeNull();
+        expect(localStorage.getItem('refresh_token')).toBeNull();
         expect(button).toBeEnabled();
     });
 });

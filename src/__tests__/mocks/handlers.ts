@@ -6,7 +6,8 @@ export const handlers = [
         return HttpResponse.json({
             id: 'newuser1',
             username: 'NewUser',
-            access_token: 'fake-jwt-token'
+            access_token: 'fake-jwt-token',
+            refresh_token: 'fake-refresh-token'
         });
     }),
     http.post('*/auth/token/', async ({ request }) => {
@@ -16,6 +17,7 @@ export const handlers = [
         if (params.get('username') === 'validUser' && params.get('password') === 'validPass') {
             return HttpResponse.json({
                 access_token: 'fake-jwt-token',
+                refresh_token: 'fake-refresh-token',
                 token_type: 'bearer',
                 username: 'validUser'
             });

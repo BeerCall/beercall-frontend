@@ -3,10 +3,12 @@ import {useNavigate, Link} from 'react-router-dom';
 import {LogIn, User, Lock, ChevronRight} from 'lucide-react';
 import {useUserStore} from '../store/useUserStore';
 import {api} from '../lib/api';
+import {saveTokens} from '../lib/authTokens';
 
 // Interface pour la réponse OAuth2 standard + ton champ username personnalisé
 interface LoginResponse {
     access_token: string;
+    refresh_token: string;
     token_type: string;
     username: string;
 }
@@ -38,17 +40,21 @@ export default function Login() {
                 },
             });
 
-            if (res.data.access_token) {
-                // 3. Stockage du token
-                localStorage.setItem('token', res.data.access_token);
+            if (res.data.access_token && res.data.refresh_token) {
+                const saved = saveTokens({
+                    access_token: res.data.access_token,
+                    refresh_token: res.data.refresh_token,
+                });
+                if (saved) {
+                    // 4. Mise à jour du store Zustand
+                    loginAction(username);
 
-                // 4. Mise à jour du store Zustand
-                // On considère que loginAction() gère le passage à isAuthenticated: true
-                loginAction(username);
-
-                // 5. Redirection vers le Hub central
-                navigate('/dashboard');
+                    // 5. Redirection vers le Hub central
+                    navigate('/dashboard');
+                    return;
+                }
             }
+            setError("Authentification incomplète reçue du serveur.");
         } catch (err) {
             console.error("Erreur Login:", err);
             setError("Identifiants incorrects ou serveur éméché 🥴");
