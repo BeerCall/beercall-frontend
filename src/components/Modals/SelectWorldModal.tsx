@@ -5,6 +5,8 @@ import {useQuery} from '@tanstack/react-query';
 import {Canvas} from '@react-three/fiber';
 import {OrbitControls, Html, useProgress} from '@react-three/drei';
 import {api} from '../../lib/api';
+import {useGameEngine} from '../../hooks/useGameEngine';
+import {useGameUIStore} from '../../store/useGameUIStore';
 import type {WorldsResponse} from '../../types/api';
 
 // 🌍 IMPORT DE TES 3 MONDES
@@ -94,6 +96,13 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
 
     const currentParticipants = worldsData?.[activeTab]?.participants || [];
     const hasWorldData = worldsData !== undefined && worldsData !== null;
+    const participantsReliable = hasWorldData && !isPending && !isError;
+    const canLaunchGame = isActiveApero && participantsReliable && currentParticipants.length >= 2;
+
+    // Contrôle accessible de lancement : le levier 3D reste le contrôle visuel,
+    // mais un bouton masqué permet aux lecteurs d'écran et aux tests E2E de démarrer la partie.
+    const {startGame, isLocked} = useGameEngine(beerCallId, {enabled: isActiveApero});
+    const openGameScreen = useGameUIStore((state) => state.openGameScreen);
 
     // Handler pour mettre à jour la liste des photos et l'index actuel
     const handleSelectPhoto = (url: string) => {
@@ -145,6 +154,21 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                                 </button>
                             ))}
                         </div>
+
+                        <button
+                            type="button"
+                            aria-label="Démarrer la partie"
+                            className="sr-only"
+                            disabled={!canLaunchGame || isLocked}
+                            onClick={() => startGame({
+                                onSuccess: () => {
+                                    openGameScreen(beerCallId);
+                                    onClose();
+                                },
+                            })}
+                        >
+                            Démarrer la partie
+                        </button>
 
                         {/* 🌟 LA SCÈNE 3D 🌟 */}
                         {activeTab === 'bar' && isActiveApero && hasWorldData && !isError && currentParticipants.length < 2 &&
