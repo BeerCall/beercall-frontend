@@ -84,23 +84,211 @@ describe('useSquadWebSocket', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('invalidates queries on REFRESH_SQUAD message', async () => {
+  it('invalidates squad, worlds, squads and profile queries on REFRESH_SQUAD message', async () => {
     vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: '123' } });
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
     
     const { result } = renderHook(() => useSquadWebSocket(10), { wrapper });
     
     await waitFor(() => expect(result.current.current).not.toBeNull());
-    
     const wsInstance = result.current.current;
     
-    // Simulate incoming message
+    invalidateSpy.mockClear();
+
+    // Simulate incoming REFRESH_SQUAD message without action (security fallback)
     if (wsInstance?.onmessage) {
       wsInstance.onmessage({ data: JSON.stringify({ type: 'REFRESH_SQUAD' }) } as MessageEvent);
     }
     
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squad', '10'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squad', 10] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['worlds', '10'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squads'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['profile', 'me'] });
+  });
+
+  it('invalidation profil présente sur CREATE, JOIN, START et sans action (CHAL-11)', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: '123' } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    
+    const { result } = renderHook(() => useSquadWebSocket(10), { wrapper });
+    await waitFor(() => expect(result.current.current).not.toBeNull());
+    const wsInstance = result.current.current;
+    
+    for (const action of ['CREATE', 'JOIN', 'START', undefined]) {
+      invalidateSpy.mockClear();
+      wsInstance?.onmessage?.({
+        data: JSON.stringify({ type: 'REFRESH_SQUAD', ...(action ? { action } : {}) })
+      } as MessageEvent);
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['profile', 'me'] });
+    }
+  });
+
+  it('invalidation profil ABSENTE sur une action non pertinente comme DECLINE ou REJECTED (CHAL-11)', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: '123' } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    
+    const { result } = renderHook(() => useSquadWebSocket(10), { wrapper });
+    await waitFor(() => expect(result.current.current).not.toBeNull());
+    const wsInstance = result.current.current;
+    
+    for (const action of ['DECLINE', 'REJECTED', 'OTHER']) {
+      invalidateSpy.mockClear();
+      wsInstance?.onmessage?.({
+        data: JSON.stringify({ type: 'REFRESH_SQUAD', action })
+      } as MessageEvent);
+      expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ['profile', 'me'] });
+      // Les caches squad et worlds restent invalidés
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squad', '10'] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['worlds', '10'] });
+    }
+  });
+
+  it('invalide uniquement le job concerné sur BEER_CALL_JOB_UPDATED valide', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: '123' } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    
+    const { result } = renderHook(() => useSquadWebSocket(10), { wrapper });
+    await waitFor(() => expect(result.current.current).not.toBeNull());
+    const wsInstance = result.current.current;
+    
+    invalidateSpy.mockClear();
+    const testJobId = '12345678-1234-1234-1234-123456789abc';
+
+    wsInstance?.onmessage?.({
+      data: JSON.stringify({ type: 'BEER_CALL_JOB_UPDATED', job_id: testJobId })
+    } as MessageEvent);
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['beer-call-job', '10', testJobId]
+    });
+    // Ne touche pas à squad, worlds ou profile
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ['squad', '10'] });
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ['profile', 'me'] });
+  });
+
+  it('ignore BEER_CALL_JOB_UPDATED si le job_id n’est pas un UUID valide', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: '123' } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    
+    const { result } = renderHook(() => useSquadWebSocket(10), { wrapper });
+    await waitFor(() => expect(result.current.current).not.toBeNull());
+    const wsInstance = result.current.current;
+    
+    invalidateSpy.mockClear();
+
+    // job_id non UUID
+    wsInstance?.onmessage?.({
+      data: JSON.stringify({ type: 'BEER_CALL_JOB_UPDATED', job_id: '123' })
+    } as MessageEvent);
+    expect(invalidateSpy).not.toHaveBeenCalled();
+
+    // job_id manquant
+    wsInstance?.onmessage?.({
+      data: JSON.stringify({ type: 'BEER_CALL_JOB_UPDATED' })
+    } as MessageEvent);
+    expect(invalidateSpy).not.toHaveBeenCalled();
+  });
+
+  it('tolère les JSON invalides, types inconnus, messages non-objets et doublons', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: '123' } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    
+    const { result } = renderHook(() => useSquadWebSocket(10), { wrapper });
+    await waitFor(() => expect(result.current.current).not.toBeNull());
+    const wsInstance = result.current.current;
+    
+    invalidateSpy.mockClear();
+
+    // JSON corrompu
+    expect(() => {
+      wsInstance?.onmessage?.({ data: '{bad-json' } as MessageEvent);
+    }).not.toThrow();
+    expect(invalidateSpy).not.toHaveBeenCalled();
+
+    // Type inconnu
+    wsInstance?.onmessage?.({ data: JSON.stringify({ type: 'SOME_UNKNOWN_EVENT' }) } as MessageEvent);
+    expect(invalidateSpy).not.toHaveBeenCalled();
+
+    // Primitif ou null
+    wsInstance?.onmessage?.({ data: JSON.stringify('hello') } as MessageEvent);
+    wsInstance?.onmessage?.({ data: JSON.stringify(null) } as MessageEvent);
+    expect(invalidateSpy).not.toHaveBeenCalled();
+
+    // Doublons tolérés
+    const validEvent = JSON.stringify({ type: 'REFRESH_SQUAD' });
+    wsInstance?.onmessage?.({ data: validEvent } as MessageEvent);
+    wsInstance?.onmessage?.({ data: validEvent } as MessageEvent);
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squad', '10'] });
+  });
+
+  it('onopen déclenche un rattrapage ponctuel des caches actifs', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: '123' } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    
+    renderHook(() => useSquadWebSocket(10), { wrapper });
+    
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squad', '10'], type: 'active' });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squad', 10], type: 'active' });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['worlds', '10'], type: 'active' });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['beer-call-job', '10'], type: 'active' });
+    });
+  });
+
+  it('retour online déclenche le rattrapage et reconnecte si la socket est fermée', async () => {
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: { ticket: 'ticket-1' } })
+      .mockResolvedValueOnce({ data: { ticket: 'ticket-2' } });
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useSquadWebSocket(10), { wrapper });
+    
+    await waitFor(() => expect(result.current.current).not.toBeNull());
+    const wsInstance = result.current.current;
+    
+    // Fermer la socket
+    wsInstance?.onclose?.({ code: 1006 } as CloseEvent);
+    expect(result.current.current).toBeNull();
+
+    invalidateSpy.mockClear();
+
+    // Dispatcher event online
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledTimes(2);
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squad', '10'], type: 'active' });
+    });
+  });
+
+  it('retour visibilitychange vers visible déclenche le rattrapage et reconnecte si fermée', async () => {
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: { ticket: 'ticket-1' } })
+      .mockResolvedValueOnce({ data: { ticket: 'ticket-2' } });
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useSquadWebSocket(10), { wrapper });
+    
+    await waitFor(() => expect(result.current.current).not.toBeNull());
+    const wsInstance = result.current.current;
+    
+    wsInstance?.onclose?.({ code: 1006 } as CloseEvent);
+    invalidateSpy.mockClear();
+
+    // Visibility hidden ne fait rien
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(invalidateSpy).not.toHaveBeenCalled();
+
+    // Visibility visible déclenche rattrapage et reconnexion
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledTimes(2);
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squad', '10'], type: 'active' });
+    });
   });
 
   it('attempts to reconnect on abnormal closure', async () => {
@@ -128,23 +316,27 @@ describe('useSquadWebSocket', () => {
     vi.useRealTimers();
   });
 
-  it('does not reconnect on 401 Unauthorized', async () => {
+  it('does not reconnect on 401, 403 or 404', async () => {
     vi.useFakeTimers();
-    vi.mocked(api.post).mockRejectedValueOnce({ isAxiosError: true, response: { status: 401 } });
-    
-    renderHook(() => useSquadWebSocket(401), { wrapper });
-    
-    await vi.runAllTimersAsync();
-    
-    expect(api.post).toHaveBeenCalledTimes(1);
-    
-    await vi.runAllTimersAsync();
-    expect(api.post).toHaveBeenCalledTimes(1);
-    
+    for (const status of [401, 403, 404]) {
+      vi.mocked(api.post).mockReset();
+      vi.mocked(api.post).mockRejectedValueOnce({ isAxiosError: true, response: { status } });
+      
+      renderHook(() => useSquadWebSocket(status), { wrapper });
+      
+      await vi.runAllTimersAsync();
+      expect(api.post).toHaveBeenCalledTimes(1);
+      
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(api.post).toHaveBeenCalledTimes(1);
+    }
     vi.useRealTimers();
   });
 
-  it('cleans up on unmount', async () => {
+  it('cleans up listeners and socket on unmount', async () => {
+    const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
+    const docRemoveEventListenerSpy = vi.spyOn(document, 'removeEventListener');
+
     vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: 'xyz' } });
     const { result, unmount } = renderHook(() => useSquadWebSocket(8), { wrapper });
     
@@ -155,6 +347,8 @@ describe('useSquadWebSocket', () => {
     
     expect(wsInstance?.close).toHaveBeenCalledWith(1000);
     expect(result.current.current).toBeNull();
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('online', expect.any(Function));
+    expect(docRemoveEventListenerSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
   });
 
   it('handles squad changes', async () => {
