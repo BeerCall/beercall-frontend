@@ -1,7 +1,7 @@
 import {useState, useEffect, useRef, useCallback} from 'react';
 import {motion, AnimatePresence} from 'framer-motion';
 
-interface CameraPayload {
+export interface CameraPayload {
     type: string;
     facing_mode: 'user' | 'environment';
     auto_capture_ms: number;
@@ -10,7 +10,7 @@ interface CameraPayload {
 interface Props {
     sensorPayload: CameraPayload;
     // On type correctement onAction pour accepter le payload de l'image
-    onAction: (actionId: string, payload?: unknown) => void;
+    onAction: (actionId: string, payload?: Record<string, unknown>) => void;
     disabled: boolean;
 }
 
@@ -18,6 +18,7 @@ export default function CameraCapture({sensorPayload, onAction, disabled}: Props
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
     const [timeLeft, setTimeLeft] = useState(sensorPayload.auto_capture_ms / 1000);
     const [isFlashing, setIsFlashing] = useState(false);
+    const [hasCaptured, setHasCaptured] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -34,7 +35,7 @@ export default function CameraCapture({sensorPayload, onAction, disabled}: Props
     }, []);
 
     // 🟢 Démarrer la caméra
-    const startCamera = async () => {
+    const startCamera = useCallback(async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
@@ -56,12 +57,13 @@ export default function CameraCapture({sensorPayload, onAction, disabled}: Props
             console.error("Erreur d'accès à la caméra :", err);
             setHasPermission(false);
         }
-    };
+    }, [sensorPayload.facing_mode]);
 
     // 📸 Prendre la photo
     const takePhoto = useCallback(() => {
         if (hasCapturedRef.current || disabled || !videoRef.current || !canvasRef.current) return;
         hasCapturedRef.current = true;
+        setHasCaptured(true);
 
         // 1. Déclencher le flash visuel
         setIsFlashing(true);
@@ -102,14 +104,16 @@ export default function CameraCapture({sensorPayload, onAction, disabled}: Props
 
     // ⏱️ Lancer la caméra au montage et gérer le chrono
     useEffect(() => {
-        startCamera();
+        // Démarrage asynchrone : le setState intervient après l'await getUserMedia.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void startCamera();
 
         // Cleanup au démontage du composant
         return () => {
             stopCamera();
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, []);
+    }, [startCamera, stopCamera]);
 
     // ⏱️ Gestion du chronomètre une fois la permission accordée
     useEffect(() => {
@@ -186,7 +190,7 @@ export default function CameraCapture({sensorPayload, onAction, disabled}: Props
                 <div className="absolute bottom-6 left-0 right-0 flex justify-center z-20">
                     <button
                         onClick={takePhoto}
-                        disabled={disabled || hasCapturedRef.current}
+                        disabled={disabled || hasCaptured}
                         className="w-16 h-16 rounded-full bg-white/20 p-1.5 flex items-center justify-center active:scale-95 transition-transform"
                     >
                         <div className="w-full h-full bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.5)]"/>

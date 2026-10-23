@@ -2,7 +2,7 @@ import {motion} from 'framer-motion';
 import StandardButtons from './StandardButtons';
 import type {ActionButton} from '../../../types/game';
 
-interface ImageDisplayPayload {
+export interface ImageDisplayPayload {
     type: string;
     image_data: string; // L'URL ou le Base64 de la photo renvoyée par le serveur
 }

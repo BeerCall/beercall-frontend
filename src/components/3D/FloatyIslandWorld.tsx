@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
 import {useNavigate} from 'react-router-dom';
 import {ModularAvatar} from "./AvatarCanvas.tsx";
+import type {WorldParticipant} from '../../types/api.ts';
+import type {AvatarConfig, AvatarTransform} from '../../types/avatar.ts';
 
 // --- FILTRE ANTI-WARNINGS ---
 const silenceWarnings = () => {
@@ -17,7 +19,7 @@ const silenceWarnings = () => {
 
 function ModelPart({path, customTransform, isEnvironment = false}: {
     path: string,
-    customTransform?: any,
+    customTransform?: AvatarTransform,
     isEnvironment?: boolean
 }) {
     const fbx = useFBX(path);
@@ -75,7 +77,7 @@ const getDynamicPlacement = (index: number, totalParticipants: number) => {
 };
 
 interface FloatyIslandWorldProps {
-    participants: any[];
+    participants: WorldParticipant[];
 }
 
 export default function FloatyIslandWorld({participants}: FloatyIslandWorldProps) {
@@ -98,8 +100,8 @@ export default function FloatyIslandWorld({participants}: FloatyIslandWorldProps
             </group>
 
             {/* LES AVATARS PLACÉS EN CERCLE */}
-            {participants.map((participant: any, index: number) => {
-                const config = participant.avatar_config || {};
+            {participants.map((participant, index) => {
+                const config: AvatarConfig = participant.avatar_config || {};
 
                 // 🚀 Fonction dynamique
                 const {position, rotationY} = getDynamicPlacement(index, participants.length);

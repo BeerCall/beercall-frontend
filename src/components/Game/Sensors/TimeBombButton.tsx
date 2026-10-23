@@ -1,7 +1,7 @@
 import {useEffect, useRef} from 'react';
 import {motion} from 'framer-motion';
 
-interface TimeBombPayload {
+export interface TimeBombPayload {
     type: string;
     remaining_ms: number;
 }
@@ -34,7 +34,7 @@ export default function TimeBombButton({sensorPayload, onAction, disabled}: Prop
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [sensorPayload.remaining_ms, onAction]);
+    }, [sensorPayload.remaining_ms, onAction, disabled]);
 
     // ✋ GESTION DU CLIC (Patate passée)
     const handleTap = () => {

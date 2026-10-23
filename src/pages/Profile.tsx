@@ -9,6 +9,7 @@ const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
 import VestiairePanel from '../components/Profile/VestiairePanel';
 import {motion, AnimatePresence} from 'framer-motion';
 import {toast} from "../store/useToastStore.ts";
+import type {AvatarConfig} from '../types/avatar';
 
 export default function Profile() {
     const {id} = useParams();
@@ -20,7 +21,7 @@ export default function Profile() {
 
     const {data: profile, isLoading} = useProfile(profileId);
 
-    const [previewAvatar, setPreviewAvatar] = useState<Record<string, string> | null>(null);
+    const [previewAvatar, setPreviewAvatar] = useState<AvatarConfig | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     // 🚀 AJOUT DE L'ÉTAT POUR LE SWITCH VESTIAIRE / TROPHÉES

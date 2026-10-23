@@ -1,7 +1,7 @@
 import {useState, useEffect, useRef, useCallback} from 'react';
 import {motion} from 'framer-motion';
 
-interface AccelerometerPayload {
+export interface AccelerometerPayload {
     type: string;
     target_shakes: number;
     duration_ms: number;
@@ -33,8 +33,9 @@ export default function AccelerometerTracker({sensorPayload, onAction, disabled}
 
         try {
             // Vérification spécifique pour iOS 13+ (DeviceMotionEvent)
-            if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
-                const permissionState = await (DeviceMotionEvent as any).requestPermission();
+            const motionEvent = DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> };
+            if (typeof motionEvent.requestPermission === 'function') {
+                const permissionState = await motionEvent.requestPermission();
                 if (permissionState !== 'granted') {
                     setPermissionError("Tu dois autoriser l'accès aux capteurs pour jouer !");
                     return;

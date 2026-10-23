@@ -84,7 +84,7 @@ describe('Zustand Stores', () => {
             watchPosition: mockWatchPosition,
             getCurrentPosition: mockGetCurrentPosition,
             clearWatch: mockClearWatch
-        } as any;
+        } as unknown as Geolocation;
 
         const { result } = renderHook(() => useLocationStore());
         act(() => {

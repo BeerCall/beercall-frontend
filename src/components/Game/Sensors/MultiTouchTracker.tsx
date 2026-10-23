@@ -2,7 +2,7 @@ import {useState, useEffect, useRef, useCallback} from 'react';
 import {motion, AnimatePresence} from 'framer-motion';
 
 // --- TYPES DU BACKEND ---
-interface MultiTouchPayload {
+export interface MultiTouchPayload {
     type: string;
     hold_duration_ms: number;
 }
@@ -62,26 +62,6 @@ export default function MultiTouchTracker({sensorPayload, onAction, disabled}: P
         touchesRef.current = touches;
     }, [touches]);
 
-    // 3. LOGIQUE DU TIMER DE MAINTIEN (hold_duration_ms)
-    // À chaque fois que le nombre de doigts change, on réinitialise ou on lance le timer.
-    useEffect(() => {
-        if (disabled || phase !== 'GATHERING') return;
-
-        // On nettoie le timer précédent
-        if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
-
-        // Il faut au moins 2 doigts pour démarrer le décompte
-        if (touches.length >= 2) {
-            holdTimerRef.current = setTimeout(() => {
-                startSelectionRoulette();
-            }, sensorPayload.hold_duration_ms);
-        }
-
-        return () => {
-            if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
-        };
-    }, [touches.length, phase, disabled, sensorPayload.hold_duration_ms]);
-
     // 4. L'ANIMATION DE LA ROULETTE (La sélection)
     const startSelectionRoulette = useCallback(() => {
         setPhase('SELECTING');
@@ -112,6 +92,26 @@ export default function MultiTouchTracker({sensorPayload, onAction, disabled}: P
 
         }, 1500); // Durée de l'animation de sélection (le clignotement)
     }, [onAction]);
+
+    // 3. LOGIQUE DU TIMER DE MAINTIEN (hold_duration_ms)
+    // À chaque fois que le nombre de doigts change, on réinitialise ou on lance le timer.
+    useEffect(() => {
+        if (disabled || phase !== 'GATHERING') return;
+
+        // On nettoie le timer précédent
+        if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+
+        // Il faut au moins 2 doigts pour démarrer le décompte
+        if (touches.length >= 2) {
+            holdTimerRef.current = setTimeout(() => {
+                startSelectionRoulette();
+            }, sensorPayload.hold_duration_ms);
+        }
+
+        return () => {
+            if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+        };
+    }, [touches.length, phase, disabled, sensorPayload.hold_duration_ms, startSelectionRoulette]);
 
     // 5. GESTION DES ÉVÉNEMENTS TACTILES (Les TouchEvents natifs)
 

@@ -5,6 +5,7 @@ import {useQuery} from '@tanstack/react-query';
 import {Canvas} from '@react-three/fiber';
 import {OrbitControls, Html, useProgress} from '@react-three/drei';
 import {api} from '../../lib/api';
+import type {WorldsResponse} from '../../types/api';
 
 // 🌍 IMPORT DE TES 3 MONDES
 import BarWorld from '../3D/BarWorld';
@@ -61,7 +62,7 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
     const {data: worldsData, isPending, isError, refetch} = useQuery({
         queryKey: ['worlds', squadId, beerCallId],
         queryFn: async () => {
-            const response = await api.get(`/squads/${squadId}/beer-calls/${beerCallId}/worlds`);
+            const response = await api.get<WorldsResponse>(`/squads/${squadId}/beer-calls/${beerCallId}/worlds`);
             return response.data.worlds;
         },
         enabled: isOpen && !!squadId && !!beerCallId,
@@ -98,8 +99,8 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
     const handleSelectPhoto = (url: string) => {
         // Récupérer toutes les preuves de photos des participants de l'onglet actuel
         const allPhotos = currentParticipants
-            .map((p: any) => p.proof_photo_url)
-            .filter((url: string | null): url is string => url !== null);
+            .map((p) => p.proof_photo_url)
+            .filter((url): url is string => url !== null && url !== undefined);
         
         setSelectedPhotos(allPhotos);
         // Trouver l'index de la photo cliquée

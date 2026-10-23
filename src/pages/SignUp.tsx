@@ -10,6 +10,7 @@ import VestiairePanel, {type Gender} from '../components/Profile/VestiairePanel'
 import {useQuery} from '@tanstack/react-query';
 import {toast} from "../store/useToastStore.ts";
 import type {ShopItem} from "../hooks/useProfile.ts";
+import type {AvatarConfig} from '../types/avatar';
 
 export default function SignUp() {
     const navigate = useNavigate();
@@ -23,7 +24,7 @@ export default function SignUp() {
     const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
 
     // On initialise à 'none' en attendant le chargement du backend
-    const [avatarConfig, setAvatarConfig] = useState({
+    const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>({
         head: 'none',
         body: 'none',
         legs: 'none',

@@ -1,17 +1,18 @@
 import {useState, useEffect} from 'react';
 import {Check, Play, ShoppingBag} from 'lucide-react';
-import type {ShopItem} from "../../hooks/useProfile.ts";
+import type {ShopItem, Badge} from "../../hooks/useProfile.ts";
+import type {AvatarConfig} from "../../types/avatar.ts";
 
 export type Gender = 'Men' | 'Women' | 'Unisex';
 
 interface VestiairePanelProps {
     mode?: 'profile' | 'signup';
     shopItems?: ShopItem[]; // 🚀 On autorise undefined ici
-    avatarConfig: any;
-    setAvatarConfig: (config: any) => void;
+    avatarConfig: AvatarConfig;
+    setAvatarConfig: (config: AvatarConfig) => void;
     gender: Gender;
     setGender?: (gender: Gender) => void;
-    badges?: any[];
+    badges?: Badge[];
     onBuy?: (itemId: string, price: number, itemName: string) => void;
     onEquipAndSave?: () => Promise<boolean>;
     isSubmitting?: boolean;
@@ -37,7 +38,7 @@ export default function VestiairePanel({
     const [activeTab, setActiveTab] = useState('head');
     const [hasChanges, setHasChanges] = useState(false);
     const [isSavingStyle, setIsSavingStyle] = useState(false);
-    const [initialConfig, setInitialConfig] = useState<any>(null);
+    const [initialConfig, setInitialConfig] = useState<AvatarConfig | null>(null);
 
     useEffect(() => {
         if (!initialConfig && avatarConfig) {
@@ -92,7 +93,7 @@ export default function VestiairePanel({
         const equippedId = avatarConfig[cat];
         if (equippedId === 'none') return false;
         const item = (shopItems || []).find(i => i.id === equippedId);
-        return item && !(item as any).is_owned;
+        return item && !item.is_owned;
     });
 
     return (
@@ -171,7 +172,7 @@ export default function VestiairePanel({
 
                         {itemsToDisplay.map(item => {
                             const isEquipped = avatarConfig[activeTab] === item.id;
-                            const isOwned = (item as any).is_owned;
+                            const isOwned = item.is_owned;
 
                             return (
                                 <div key={item.id} onClick={() => {

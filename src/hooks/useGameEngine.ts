@@ -32,7 +32,7 @@ export const useGameEngine = (aperoId: string | number | undefined, options?: Ga
 
     const {mutate: sendActionMutation, isPending: isSending} = useMutation({
         // 🚀 On accepte maintenant un objet avec actionId ET un payload optionnel
-        mutationFn: async ({actionId, payload}: { actionId: string, payload?: any }) => {
+        mutationFn: async ({actionId, payload}: { actionId: string, payload?: Record<string, unknown> }) => {
             const body = payload ? {action_id: actionId, ...payload} : {action_id: actionId};
             const res = await api.post<SduiPayload>(`/aperos/${stringId}/game/action`, body);
             return res.data;
@@ -43,7 +43,7 @@ export const useGameEngine = (aperoId: string | number | undefined, options?: Ga
     });
 
     // 🚀 Un wrapper mémorisé pour garder une référence stable et sauver les timers
-    const sendAction = useCallback((actionId: string, payload?: any) => {
+    const sendAction = useCallback((actionId: string, payload?: Record<string, unknown>) => {
         sendActionMutation({actionId, payload});
     }, [sendActionMutation]);
 

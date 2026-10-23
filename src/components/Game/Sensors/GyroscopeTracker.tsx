@@ -1,7 +1,7 @@
 import {useState, useEffect, useRef, useCallback} from 'react';
 import {motion} from 'framer-motion';
 
-interface GyroscopePayload {
+export interface GyroscopePayload {
     type: string;
     max_tilt_angle: number;
     duration_ms: number;
@@ -31,8 +31,9 @@ export default function GyroscopeTracker({sensorPayload, onAction, disabled}: Pr
 
         try {
             // Vérification spécifique pour iOS 13+
-            if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-                const permissionState = await (DeviceOrientationEvent as any).requestPermission();
+            const orientationEvent = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+            if (typeof orientationEvent.requestPermission === 'function') {
+                const permissionState = await orientationEvent.requestPermission();
                 if (permissionState !== 'granted') {
                     setPermissionError("Tu dois autoriser l'accès aux capteurs pour jouer !");
                     return;
@@ -71,13 +72,14 @@ export default function GyroscopeTracker({sensorPayload, onAction, disabled}: Pr
         const handleOrientation = (event: DeviceOrientationEvent) => {
             if (hasTriggeredRef.current || disabled) return;
 
-            let {beta, gamma} = event;
+            const {beta: rawBeta, gamma} = event;
 
             // Si le téléphone est posé à plat sur une table, beta et gamma sont proches de 0.
             // S'il n'y a pas de capteur (ex: PC), ça renvoie null.
-            if (beta === null || gamma === null) return;
+            if (rawBeta === null || gamma === null) return;
 
             // Fix pour quand on tient le téléphone complètement à l'envers
+            let beta = rawBeta;
             if (beta > 90) beta = 90;
             if (beta < -90) beta = -90;
 
