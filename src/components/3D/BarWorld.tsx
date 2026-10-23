@@ -7,6 +7,7 @@ import {useNavigate} from 'react-router-dom';
 import {ModularAvatar} from "./AvatarCanvas";
 import {useGameEngine} from "../../hooks/useGameEngine";
 import {useGameUIStore} from '../../store/useGameUIStore';
+import {toast} from '../../store/useToastStore';
 
 // --- FILTRE ANTI-WARNINGS ---
 const silenceWarnings = () => {
@@ -258,20 +259,37 @@ const getDynamicPlacement = (index: number, totalParticipants: number) => {
 };
 
 // 📸 ON AJOUTE onSelectPhoto AUX PARAMÈTRES DU COMPOSANT
-export default function BarWorld({aperoId, squadId, participants, isActiveApero, onSelectPhoto}: {
-    aperoId: string,
-    squadId: string,
-    participants: any[],
-    isActiveApero: boolean,
-    onSelectPhoto: (url: string) => void
+export default function BarWorld({
+    aperoId,
+    squadId,
+    participants,
+    isActiveApero,
+    onSelectPhoto,
+    participantsReliable = true,
+}: {
+    aperoId: string;
+    squadId: string;
+    participants: any[];
+    isActiveApero: boolean;
+    onSelectPhoto: (url: string) => void;
+    participantsReliable?: boolean;
 }) {
     // 🛡️ On désactive le check du gameState si l'apéro n'est pas actif pour éviter le 409 Conflict
     const {gameState, startGame, isLocked} = useGameEngine(aperoId, { enabled: isActiveApero });
     const openGameScreen = useGameUIStore((state) => state.openGameScreen);
 
+    const canLaunchGame = isActiveApero && participantsReliable && (participants?.length ?? 0) >= 2;
+
     const handlePullLever = () => {
-        startGame();
-        openGameScreen(aperoId);
+        if (!canLaunchGame || isLocked) return;
+        startGame({
+            onSuccess: () => {
+                openGameScreen(aperoId);
+            },
+            onError: () => {
+                toast.error('Jeu indisponible', 'Le serveur a refusé le démarrage.');
+            },
+        });
     };
 
     useMemo(() => silenceWarnings(), []);
@@ -286,8 +304,8 @@ export default function BarWorld({aperoId, squadId, participants, isActiveApero,
             </group>
 
             {/* 🎰 LA MACHINE À SOUS EN LÉVITATION AU-DESSUS DU BAR */}
-            {/* 🚀 Elle ne s'affiche que si l'apéro est en cours ! */}
-            {isActiveApero && (
+            {/* 🚀 Elle ne s'affiche que si l'apéro est en cours ET au moins 2 participants fiables ! */}
+            {canLaunchGame && (
                 <SlotMachine
                     isGameInProgress={!!gameState}
                     onPull={handlePullLever}
