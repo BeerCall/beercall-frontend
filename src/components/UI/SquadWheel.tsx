@@ -1,5 +1,4 @@
-import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { Beer, Martini, Pizza, Rocket, Ghost, Flame, Plus, Key } from 'lucide-react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import type { Squad } from '../../types/api';
@@ -19,43 +18,6 @@ interface SquadWheelProps {
     onJoin: () => void;
 }
 
-function SquadConfirmation({ squad, trigger, onClose, onConfirm }: {
-    squad: Squad; trigger: HTMLButtonElement; onClose: () => void; onConfirm: () => void;
-}) {
-    const titleId = useId();
-    const cancelRef = useRef<HTMLButtonElement>(null);
-    const confirmed = useRef(false);
-    useEffect(() => {
-        cancelRef.current?.focus();
-        return () => { if (trigger.isConnected) trigger.focus(); };
-    }, [trigger]);
-    return createPortal(<>
-        <div className="fixed inset-0 z-[100] bg-black/60" onClick={onClose} />
-        <div role="dialog" aria-modal="true" aria-labelledby={titleId}
-             className="fixed z-[101] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%_-_32px)] max-w-96 max-h-[calc(100dvh_-_32px)] overflow-y-auto bg-white rounded-3xl p-6 shadow-2xl"
-             onKeyDown={event => {
-                 if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
-                 if (event.key === 'Tab') {
-                     const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>('button');
-                     const first = buttons[0], last = buttons[buttons.length - 1];
-                     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-                     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-                 }
-             }}>
-            <h2 id={titleId} className="text-xl font-black text-gray-900">Ouvrir cette squad ?</h2>
-            <p className="my-5 font-bold text-gray-900 [overflow-wrap:anywhere]">{squad.name}</p>
-            <div className="flex flex-wrap gap-3">
-                <button ref={cancelRef} onClick={onClose} className="flex-1 rounded-2xl p-3 bg-gray-100 text-gray-900 font-bold">Annuler</button>
-                <button onClick={() => {
-                    if (confirmed.current) return;
-                    confirmed.current = true;
-                    onConfirm();
-                }} className="flex-1 rounded-2xl p-3 bg-gray-900 text-white font-bold">Ouvrir la squad</button>
-            </div>
-        </div>
-    </>, document.body);
-}
-
 export default function SquadWheel({ squads, currentSquadId, isLoading = false, onSelect, onCreate, onJoin }: SquadWheelProps) {
     const currentId = currentSquadId ?? '';
     const [pageState, setPageState] = useState(() => ({
@@ -67,12 +29,6 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
         setPageState({ currentId, count: squads.length, index: page });
     }
     const wheel = squadWheelPage(squads, page);
-    const [confirmation, setConfirmation] = useState<{
-        id: number; page: number; currentId: string; trigger: HTMLButtonElement;
-    } | null>(null);
-    const selected = confirmation && confirmation.page === page && confirmation.currentId === currentId
-        ? squads.find(squad => squad.id === confirmation.id) : undefined;
-    if (confirmation && !selected) setConfirmation(null);
     const active = squads.find(squad => String(squad.id) === currentId);
     const suppressClick = useRef(false);
     const dragX = useMotionValue(0);
@@ -80,7 +36,6 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
     const rotation = useTransform(dragX, [-150, 150], [-16, 16]);
     const counterRotation = useTransform(rotation, value => -value);
     const changePage = (index: number) => {
-        setConfirmation(null);
         setPageState({ currentId, count: squads.length, index: clampSquadPage(index, squads.length) });
     };
     const isTap = (event: MouseEvent<HTMLButtonElement>) => event.detail === 0 || !suppressClick.current;
@@ -92,7 +47,6 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
     return <div role="region" aria-label="Navigation des squads"
                 className="relative h-[160px] overflow-hidden pointer-events-none"
                 onKeyDown={event => {
-                    if ((event.target as HTMLElement).closest('[role="dialog"]')) return;
                     if (event.key === 'ArrowLeft') { event.preventDefault(); changePage(wheel.previous); }
                     if (event.key === 'ArrowRight') { event.preventDefault(); changePage(wheel.next); }
                 }}>
@@ -117,7 +71,7 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
                     className="absolute w-[48px] -translate-x-1/2 -translate-y-6 flex flex-col items-center">
                     <button aria-label={squad.name} aria-current={String(squad.id) === currentId ? 'page' : undefined}
                             onClick={event => {
-                                if (isTap(event)) setConfirmation({ id: squad.id, page, currentId, trigger: event.currentTarget });
+                                if (isTap(event)) onSelect(squad.id);
                             }}
                             className={`w-12 h-12 rounded-full text-white flex items-center justify-center shadow-lg ${String(squad.id) === currentId ? 'ring-4 ring-beer' : 'border-4 border-white'}`}
                             style={{ backgroundColor: squad.color || '#F59E0B' }}>
@@ -139,7 +93,5 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
             <span aria-live="polite">Page {page + 1}/{wheel.pageCount}</span>
             <button aria-label="Page suivante" disabled={page === wheel.pageCount - 1} onClick={() => changePage(wheel.next)} className="h-7 px-3 rounded-lg bg-white disabled:opacity-50">→</button>
         </div>}
-        {selected && confirmation && <SquadConfirmation squad={selected} trigger={confirmation.trigger}
-            onClose={() => setConfirmation(null)} onConfirm={() => { setConfirmation(null); onSelect(selected.id); }} />}
     </div>;
 }

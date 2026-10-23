@@ -27,7 +27,7 @@ function mountWheel(list = squads(12), currentSquadId = '1') {
     return { ...view, props, onSelect, onCreate, onJoin, user: userEvent.setup() };
 }
 
-describe('Roue paginée et confirmation de squad', () => {
+describe('Roue paginée sans popup de confirmation', () => {
     it('garde Créer/Rejoindre directs et accessibles sur chaque page', async () => {
         const { user, onCreate, onJoin } = mountWheel();
         for (let i = 0; i < 4; i++) {
@@ -40,41 +40,28 @@ describe('Roue paginée et confirmation de squad', () => {
         expect(screen.getByRole('button', { name: 'Page suivante' })).toBeDisabled();
     });
 
-    it('présente le nom intégral au tap et ne navigue qu’après confirmation', async () => {
+    it('présente le libellé accessible au tap et navigue directement sans dialogue', async () => {
         const { user, onSelect } = mountWheel();
         const trigger = screen.getByRole('button', { name: squads(1)[0].name });
         expect(trigger).toHaveAttribute('aria-current', 'page');
         await user.click(trigger);
-        expect(onSelect).not.toHaveBeenCalled();
-        expect(screen.getByRole('dialog', { name: 'Ouvrir cette squad ?' })).toHaveTextContent(squads(1)[0].name);
-        expect(screen.getByRole('button', { name: 'Annuler' })).toHaveFocus();
-        await user.click(screen.getByRole('button', { name: 'Ouvrir la squad' }));
         expect(onSelect).toHaveBeenCalledExactlyOnceWith(1);
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('annule via bouton, Escape et backdrop puis restitue le focus', async () => {
-        const { user, onSelect } = mountWheel();
+    it('déclenche la navigation directe au clavier via Entrée et Espace sans dialogue', () => {
+        const { onSelect } = mountWheel();
         const trigger = screen.getByRole('button', { name: squads(1)[0].name });
-        await user.click(trigger);
-        await user.click(screen.getByRole('button', { name: 'Annuler' }));
-        expect(trigger).toHaveFocus();
-        await user.click(trigger);
-        await user.keyboard('{Escape}');
-        expect(trigger).toHaveFocus();
-        await user.click(trigger);
-        fireEvent.click(screen.getByRole('dialog').previousElementSibling!);
+        fireEvent.keyDown(trigger, { key: 'Enter', code: 'Enter' });
+        fireEvent.click(trigger, { detail: 0 }); // Keyboard activation
+        expect(onSelect).toHaveBeenCalledWith(1);
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(onSelect).not.toHaveBeenCalled();
-    });
 
-    it('confine la tabulation entre Annuler et Ouvrir', async () => {
-        const { user } = mountWheel();
-        await user.click(screen.getByRole('button', { name: squads(1)[0].name }));
-        await user.tab({ shift: true });
-        expect(screen.getByRole('button', { name: 'Ouvrir la squad' })).toHaveFocus();
-        await user.tab();
-        expect(screen.getByRole('button', { name: 'Annuler' })).toHaveFocus();
+        onSelect.mockClear();
+        fireEvent.keyDown(trigger, { key: ' ', code: 'Space' });
+        fireEvent.click(trigger, { detail: 0 });
+        expect(onSelect).toHaveBeenCalledWith(1);
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('ouvre la page 4 pour l’ID actif et préserve une page lors d’un refetch identique', async () => {
@@ -88,13 +75,11 @@ describe('Roue paginée et confirmation de squad', () => {
         expect(screen.getByText('Page 1/4')).toBeInTheDocument();
     });
 
-    it('recale la page et ferme une confirmation lors de la réduction de liste', async () => {
-        const { user, rerender, props, onSelect } = mountWheel(squads(12), '12');
-        await user.click(screen.getByRole('button', { name: squads(12)[11].name }));
+    it('recale la page lors de la réduction de liste et n’affiche aucun dialogue', () => {
+        const { rerender, props } = mountWheel(squads(12), '12');
         rerender(<SquadWheel {...props} squads={squads(4)} />);
         expect(screen.getByText('Page 2/2')).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(onSelect).not.toHaveBeenCalled();
     });
 
     it('neutralise le click suivant un drag et pagine dans les deux sens', () => {
@@ -110,12 +95,10 @@ describe('Roue paginée et confirmation de squad', () => {
         expect(screen.getByText('Page 1/4')).toBeInTheDocument();
     });
 
-    it('offre les flèches clavier et ferme le dialogue au changement de page', async () => {
-        const { user } = mountWheel();
+    it('offre les flèches clavier pour paginer sans dialogue', () => {
+        mountWheel();
         fireEvent.keyDown(screen.getByRole('region'), { key: 'ArrowRight' });
         expect(screen.getByText('Page 2/4')).toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: squads(6)[3].name }));
-        fireEvent.click(screen.getByRole('button', { name: 'Page suivante' }));
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
