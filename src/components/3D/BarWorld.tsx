@@ -1,4 +1,4 @@
-import {useRef, useState, useMemo} from 'react';
+import {useRef, useState, useMemo, useEffect, useCallback} from 'react';
 import {useFrame, type ThreeEvent} from '@react-three/fiber';
 import {useFBX, Float, ContactShadows, Html, Text} from '@react-three/drei';
 import * as THREE from 'three';
@@ -283,6 +283,7 @@ export default function BarWorld({
     isActiveApero,
     onSelectPhoto,
     participantsReliable = true,
+    onReadinessChange,
 }: {
     aperoId: string;
     squadId: string;
@@ -290,6 +291,7 @@ export default function BarWorld({
     isActiveApero: boolean;
     onSelectPhoto: (url: string) => void;
     participantsReliable?: boolean;
+    onReadinessChange?: (isReady: boolean) => void;
 }) {
     // 🛡️ On désactive le check du gameState si l'apéro n'est pas actif pour éviter le 409 Conflict
     const {gameState, startGame, isLocked} = useGameEngine(aperoId, { enabled: isActiveApero });
@@ -311,6 +313,102 @@ export default function BarWorld({
 
     useMemo(() => silenceWarnings(), []);
     const navigate = useNavigate();
+
+    // 🌟 Agrégation de la readiness du décor et des avatars (T12B / REV-04 / REV-06)
+    const onReadinessChangeRef = useRef(onReadinessChange);
+    useEffect(() => {
+        onReadinessChangeRef.current = onReadinessChange;
+    }, [onReadinessChange]);
+
+    const decorMountedRef = useRef(false);
+    const lastReportedReadyRef = useRef<boolean | null>(null);
+
+    // Clés techniques stables pour chaque avatar attendu, incluant l'empreinte de configuration
+    const expectedKeys = useMemo(() => {
+        return (participants || []).map((p, idx) => {
+            const uid = p.user_id ?? p.id ?? `participant-${idx}`;
+            const cfg = p.avatar_config || {};
+            return `${uid}-${idx}-${JSON.stringify(cfg)}`;
+        });
+    }, [participants]);
+
+    const readyAvatarsRef = useRef<Map<string, { ready: boolean; meshCount: number; partsCount: number }>>(new Map());
+
+    const checkReadiness = useCallback(() => {
+        if (!decorMountedRef.current) {
+            if (lastReportedReadyRef.current !== false) {
+                lastReportedReadyRef.current = false;
+                onReadinessChangeRef.current?.(false);
+            }
+            return;
+        }
+
+        // Un monde vide qualifie son décor explicitement, jamais un avatar absent
+        if (!participants || participants.length === 0) {
+            if (lastReportedReadyRef.current !== true) {
+                lastReportedReadyRef.current = true;
+                onReadinessChangeRef.current?.(true);
+            }
+            return;
+        }
+
+        // Variantes peuplées : exigent au moins un mesh animé et toutes les pièces configurées
+        let allReady = true;
+        let totalMeshes = 0;
+
+        for (const key of expectedKeys) {
+            const status = readyAvatarsRef.current.get(key);
+            if (!status || !status.ready || status.meshCount <= 0 || status.partsCount <= 0) {
+                allReady = false;
+                break;
+            }
+            totalMeshes += status.meshCount;
+        }
+
+        const isReady = allReady && totalMeshes > 0;
+        if (lastReportedReadyRef.current !== isReady) {
+            lastReportedReadyRef.current = isReady;
+            onReadinessChangeRef.current?.(isReady);
+        }
+    }, [participants, expectedKeys]);
+
+    // Invalidation et nettoyage des clés lors d'un changement de participants ou de configuration
+    useEffect(() => {
+        const currentKeySet = new Set(expectedKeys);
+        for (const key of readyAvatarsRef.current.keys()) {
+            if (!currentKeySet.has(key)) {
+                readyAvatarsRef.current.delete(key);
+            }
+        }
+        checkReadiness();
+    }, [expectedKeys, checkReadiness]);
+
+    useEffect(() => {
+        decorMountedRef.current = true;
+        checkReadiness();
+        return () => {
+            decorMountedRef.current = false;
+            lastReportedReadyRef.current = null;
+            onReadinessChangeRef.current?.(false);
+        };
+    }, [checkReadiness]);
+
+    const handleAvatarReadinessChange = useCallback((key: string, isReady: boolean, details?: { parts: string[]; meshCount: number }) => {
+        if (isReady && details) {
+            readyAvatarsRef.current.set(key, {
+                ready: true,
+                meshCount: details.meshCount,
+                partsCount: details.parts.length,
+            });
+        } else {
+            readyAvatarsRef.current.set(key, {
+                ready: false,
+                meshCount: 0,
+                partsCount: 0,
+            });
+        }
+        checkReadiness();
+    }, [checkReadiness]);
 
     return (
         <group position={[0, 0, 0]}>
@@ -338,6 +436,7 @@ export default function BarWorld({
                 const config: AvatarConfig = participant.avatar_config || {};
                 const photoUrl = participant.proof_photo_url;
                 const {position, rotationY} = getDynamicPlacement(index, participants.length);
+                const avatarKey = expectedKeys[index];
 
                 return (
                     <group
@@ -359,7 +458,10 @@ export default function BarWorld({
                         >
                             <group scale={[GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale]}>
                                 <Float speed={1} rotationIntensity={0.02} floatIntensity={0.02}>
-                                    <ModularAvatar config={config}/>
+                                    <ModularAvatar
+                                        config={config}
+                                        onReadinessChange={(isReady, details) => handleAvatarReadinessChange(avatarKey, isReady, details)}
+                                    />
                                 </Float>
                             </group>
                         </group>

@@ -1,4 +1,4 @@
-import {useState, useEffect, Suspense} from 'react';
+import {useState, useEffect, useCallback, Suspense} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
@@ -53,6 +53,21 @@ function CanvasLoader() {
 
 export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, isActiveApero}: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
+    const [tabGeneration, setTabGeneration] = useState(0);
+    const [worldReadiness, setWorldReadiness] = useState<{ tab: WorldTab; generation: number; ready: boolean }>({
+        tab: 'bar',
+        generation: 0,
+        ready: false,
+    });
+
+    // Le passage d'onglet réarme une nouvelle génération ; les callbacks de l'ancien monde sont ignorés (T12B / REV-04)
+    const isWorldReady = worldReadiness.tab === activeTab && worldReadiness.generation === tabGeneration && worldReadiness.ready;
+
+    const handleTabClick = (tab: WorldTab) => {
+        if (tab === activeTab) return;
+        setActiveTab(tab);
+        setTabGeneration((prev) => prev + 1);
+    };
 
     // 📸 NOUVEAU : STATE POUR LES PHOTOS GÉRÉ ICI
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
@@ -60,6 +75,15 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
 
     useEffect(() => {
         silenceWarnings();
+    }, []);
+
+    const handleWorldReadinessChange = useCallback((tab: WorldTab, generation: number, isReady: boolean) => {
+        setWorldReadiness((prev) => {
+            if (prev.tab === tab && prev.generation === generation && prev.ready === isReady) {
+                return prev;
+            }
+            return { tab, generation, ready: isReady };
+        });
     }, []);
 
     const {data: worldsData, isPending, isError, refetch} = useQuery({
@@ -147,7 +171,7 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                         <div className="flex bg-white px-6 py-2 border-b border-gray-100 z-20 gap-2 shadow-md">
                             {(Object.keys(THEMES) as WorldTab[]).map((tab) => (
                                 <button
-                                    key={tab} onClick={() => setActiveTab(tab)}
+                                    key={tab} onClick={() => handleTabClick(tab)}
                                     className={`flex-1 flex flex-col items-center p-3 rounded-2xl transition-all ${activeTab === tab ? THEMES[tab].color + ' text-white shadow-lg' : 'bg-gray-50 text-gray-400'}`}
                                 >
                                     {THEMES[tab].icon}
@@ -206,17 +230,28 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                                                 squadId={squadId}
                                                 participants={currentParticipants}
                                                 onSelectPhoto={handleSelectPhoto}
-                                                participantsReliable={hasWorldData && !isPending && !isError}
+                                                participantsReliable={participantsReliable}
+                                                onReadinessChange={(ready) => handleWorldReadinessChange('bar', tabGeneration, ready)}
                                             />
                                         )}
-                                        {activeTab === 'piscine' && <PiscineWorld participants={currentParticipants}/>}
-                                        {activeTab === 'dodo' && <FloatyIslandWorld participants={currentParticipants}/>}
+                                        {activeTab === 'piscine' && (
+                                            <PiscineWorld
+                                                participants={currentParticipants}
+                                                onReadinessChange={(ready) => handleWorldReadinessChange('piscine', tabGeneration, ready)}
+                                            />
+                                        )}
+                                        {activeTab === 'dodo' && (
+                                            <FloatyIslandWorld
+                                                participants={currentParticipants}
+                                                onReadinessChange={(ready) => handleWorldReadinessChange('dodo', tabGeneration, ready)}
+                                            />
+                                        )}
                                         <SceneReadyProbe
-                                            key={`world-probe-${activeTab}`}
+                                            key={`world-probe-${activeTab}-${tabGeneration}`}
                                             kind="world"
                                             id={activeTab}
                                             view={`world-${activeTab}`}
-                                            ready={hasWorldData && !isPending && !isError}
+                                            ready={participantsReliable && isWorldReady}
                                         />
                                     </Suspense>
 
