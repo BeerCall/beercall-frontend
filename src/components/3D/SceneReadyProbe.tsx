@@ -1,6 +1,6 @@
-import { useEffect, useRef, useId } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, type SceneSignalKind } from '../../lib/sceneMetrics';
+import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId, type SceneSignalKind } from '../../lib/sceneMetrics';
 
 /**
  * LIMITATION TECHNIQUE IMPORTANTE (Proxy de soumission vs Présentation physique) :
@@ -33,8 +33,8 @@ export function SceneReadyProbe({
     const submittedRef = useRef(false);
     const frameRequest = useRef<number | undefined>(undefined);
     const identity = useRef<{ view: string; id: string; generation: number } | undefined>(undefined);
-    const generatedId = useId();
-    const instanceId = id ?? generatedId;
+    const [generatedId] = useState(() => allocateSceneInstanceId('probe'));
+    const instanceId = `${kind}:${id ?? 'root'}:${generatedId}`;
     const sceneView = view ?? kind;
     const callback = useRef(onFrameSubmitted);
     useEffect(() => { callback.current = onFrameSubmitted; }, [onFrameSubmitted]);

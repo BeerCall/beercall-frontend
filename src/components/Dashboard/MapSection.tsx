@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { User as UserIcon } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
 import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
-import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance } from '../../lib/sceneMetrics';
+import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
 const AvatarCanvas = React.lazy(() => import('../3D/AvatarCanvas'));
 
 interface MapSectionProps {
@@ -52,18 +52,20 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         openCamera();
     }, [openCamera]);
 
-    const mapId = React.useId();
-    const lifecycle = React.useRef<{ generation?: number; loaded: boolean; submitted: boolean }>({ loaded: false, submitted: false });
+    const [mapId] = React.useState(() => allocateSceneInstanceId('map'));
+    const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; submitted: boolean }>({ mounted: false, loaded: false, submitted: false });
     React.useLayoutEffect(() => {
         const state = lifecycle.current;
+        state.mounted = true;
         state.generation = registerSceneInstance('dashboard', mapId);
         return () => {
             if (state.generation !== undefined) unregisterSceneInstance('dashboard', mapId, state.generation);
-            state.generation = undefined; state.loaded = false; state.submitted = false;
+            state.generation = undefined; state.mounted = false; state.loaded = false; state.submitted = false;
         };
     }, [mapId]);
     const handleMapLoad = React.useCallback(() => {
         const state = lifecycle.current;
+        if (!state.mounted) return;
         if (state.generation === undefined) state.generation = registerSceneInstance('dashboard', mapId);
         state.loaded = true;
     }, [mapId]);
@@ -89,8 +91,8 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             }}
             mapStyle={mapStyle} interactive={true}
             onLoad={handleMapLoad}
-             onIdle={handleMapIdle}
-             onError={handleMapError}
+            onIdle={handleMapIdle}
+            onError={handleMapError}
             onMouseDown={handleMapPointerDown} onMouseUp={cancelLongPress}
             onMouseLeave={cancelLongPress}
             onTouchStart={handleMapPointerDown} onTouchMove={cancelLongPress}

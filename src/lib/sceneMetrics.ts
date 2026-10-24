@@ -39,8 +39,14 @@ export interface SceneMetricsRecord {
 const MAX_RECORDS = 50;
 const records: SceneMetricsRecord[] = [];
 let nextGeneration = 0;
+let nextInstanceId = 0;
 const instances = new Map<string, { generation: number; ids: Set<string> }>();
 const kinds: SceneSignalKind[] = ['avatarFrameSubmitted', 'mapInteractive', 'worldFrameSubmitted', 'sceneUsable'];
+
+// React DOM and R3F use different reconcilers: their useId counters can collide.
+export function allocateSceneInstanceId(prefix: string): string {
+    return `${prefix}:${++nextInstanceId}`;
+}
 
 export function registerSceneInstance(view: string, instanceId: string): number {
     let current = instances.get(view);
