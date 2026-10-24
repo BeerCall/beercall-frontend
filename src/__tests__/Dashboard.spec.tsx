@@ -105,6 +105,19 @@ vi.mock('../hooks/useDashboard', () => ({
     useDashboard: vi.fn(),
 }));
 
+vi.mock('../hooks/useAvatarAnimations', () => ({
+    useAvatarAnimations: vi.fn().mockReturnValue({
+        clipNames: ['Idle'],
+        activeClip: { name: 'Idle' },
+        isLoading: false,
+        deferredStatus: 'ready',
+        error: null,
+        notifyInitialFrame: vi.fn(),
+        getClip: vi.fn(),
+        retry: vi.fn(),
+    }),
+}));
+
 
 
 describe('Dashboard & Squads', () => {

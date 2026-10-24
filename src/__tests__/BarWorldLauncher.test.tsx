@@ -83,6 +83,19 @@ vi.mock('../hooks/useGameEngine', () => ({
     useGameEngine: vi.fn(),
 }));
 
+vi.mock('../hooks/useAvatarAnimations', () => ({
+    useAvatarAnimations: vi.fn().mockReturnValue({
+        clipNames: ['Idle'],
+        activeClip: { name: 'Idle' },
+        isLoading: false,
+        deferredStatus: 'ready',
+        error: null,
+        notifyInitialFrame: vi.fn(),
+        getClip: vi.fn(),
+        retry: vi.fn(),
+    }),
+}));
+
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual('react-router-dom');
     return {

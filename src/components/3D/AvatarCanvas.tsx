@@ -1,5 +1,5 @@
 import {Suspense, useMemo, useEffect, useRef, useState, useCallback} from 'react';
-import {Canvas} from '@react-three/fiber';
+import {Canvas, useFrame} from '@react-three/fiber';
 import {
     OrbitControls,
     ContactShadows,
@@ -14,6 +14,7 @@ import {SkeletonUtils} from 'three-stdlib';
 import {MODELS_URL} from "../../lib/api.ts";
 import type {AvatarConfig, AvatarTransform} from "../../types/avatar.ts";
 import SceneReadyProbe from './SceneReadyProbe';
+import {useAvatarAnimations} from '../../hooks/useAvatarAnimations';
 
 const silenceWarnings = () => {
     const originalWarn = console.warn;
@@ -276,6 +277,58 @@ function CanvasLoader() {
     );
 }
 
+// 🚀 NOUVEAU COMPOSANT AVATAR FRAME NOTIFIER : Raccorde notifyInitialFrame à un probe de frame
+function AvatarFrameNotifier({
+    ready,
+    isIdle,
+    onFrameSubmitted,
+}: {
+    ready: boolean;
+    isIdle: boolean;
+    onFrameSubmitted: () => void;
+}) {
+    const armedRef = useRef(false);
+    const submittedRef = useRef(false);
+    const frameRequest = useRef<number | undefined>(undefined);
+    const callbackRef = useRef(onFrameSubmitted);
+    useEffect(() => {
+        callbackRef.current = onFrameSubmitted;
+    }, [onFrameSubmitted]);
+
+    useEffect(() => {
+        if (ready && isIdle && !submittedRef.current) {
+            armedRef.current = true;
+        } else if (!ready) {
+            armedRef.current = false;
+            submittedRef.current = false;
+        } else {
+            armedRef.current = false;
+        }
+        return () => {
+            armedRef.current = false;
+            if (frameRequest.current !== undefined) {
+                cancelAnimationFrame(frameRequest.current);
+                frameRequest.current = undefined;
+            }
+        };
+    }, [ready, isIdle]);
+
+    useFrame((state) => {
+        if (!armedRef.current || submittedRef.current || frameRequest.current !== undefined) return;
+        const before = state.gl.info.render.frame;
+        frameRequest.current = requestAnimationFrame(() => {
+            frameRequest.current = undefined;
+            const { calls, frame } = state.gl.info.render;
+            if (!armedRef.current || submittedRef.current || document.hidden || frame <= before || calls <= 0) return;
+            submittedRef.current = true;
+            armedRef.current = false;
+            callbackRef.current();
+        });
+    });
+
+    return null;
+}
+
 // 🚀 NOUVEAU COMPOSANT AVATAR PART : Chaque partie s'anime TOUTE SEULE
 function AvatarPart({
     path,
@@ -317,11 +370,23 @@ function AvatarPart({
 
     // On crée un AnimationMixer isolé pour CE vêtement
     const {actions} = useAnimations(animations || [], groupRef);
+    const lastAnimRef = useRef<string | null>(null);
+    const lastActionRef = useRef<THREE.AnimationAction | null>(null);
+    const unmountCbRef = useRef(onPartUnmount);
+    useEffect(() => { unmountCbRef.current = onPartUnmount; }, [onPartUnmount]);
 
     useEffect(() => {
         let isActionPlaying = false;
         if (currentAnim && actions[currentAnim]) {
-            actions[currentAnim].reset().fadeIn(0.2).play(); // Fondu rapide pour plus de réactivité
+            const action = actions[currentAnim];
+            if (lastAnimRef.current !== currentAnim) {
+                if (lastActionRef.current && lastActionRef.current !== action) {
+                    lastActionRef.current.fadeOut(0.2);
+                }
+                action.reset().fadeIn(0.2).play();
+                lastAnimRef.current = currentAnim;
+                lastActionRef.current = action;
+            }
             isActionPlaying = true;
         } else if (!animations || animations.length === 0 || !currentAnim) {
             isActionPlaying = true;
@@ -339,16 +404,19 @@ function AvatarPart({
         if (partKey && onPartReady) {
             onPartReady(partKey, meshCount, isActionPlaying);
         }
+    }, [currentAnim, actions, clonedFbx, partKey, onPartReady, animations]);
 
+    useEffect(() => {
         return () => {
-            if (currentAnim && actions[currentAnim]) {
-                actions[currentAnim].fadeOut(0.2);
+            if (lastActionRef.current) {
+                lastActionRef.current.fadeOut(0.2);
+                lastActionRef.current.stop();
             }
-            if (partKey && onPartUnmount) {
-                onPartUnmount(partKey);
+            if (partKey) {
+                unmountCbRef.current?.(partKey);
             }
         };
-    }, [currentAnim, actions, clonedFbx, partKey, onPartReady, onPartUnmount, animations]);
+    }, [partKey]);
 
     if (!clonedFbx) return null;
 
@@ -375,8 +443,21 @@ export function ModularAvatar({
 }) {
     const accessoryTransform = config.accessory ? CUSTOM_ITEMS_CONFIG[config.accessory] : undefined;
 
-    const animFbx = useFBX(`${MODELS_URL}/Animations.fbx`);
     const targetAnimation = config.animation || "Idle";
+    const {
+        clipNames,
+        activeClip,
+        deferredStatus,
+        error,
+        notifyInitialFrame,
+        retry,
+    } = useAvatarAnimations(targetAnimation);
+
+    // Protection contre le glitch d'animation (CHAL-01, REV-06) :
+    // ModularAvatar ne transmet à AvatarPart que le clip actif, via un useMemo stable.
+    // Ne JAMAIS utiliser [activeClip] inline dans le JSX.
+    const activeAnimations = useMemo(() => activeClip ? [activeClip] : [], [activeClip]);
+    const currentAnim = activeClip?.name;
 
     const expectedParts = useMemo(() => {
         if (!config) return [];
@@ -390,11 +471,12 @@ export function ModularAvatar({
     }, [config]);
 
     const readyPartsRef = useRef<Map<string, { meshCount: number; actionPlaying: boolean }>>(new Map());
+    const [isAvatarReady, setIsAvatarReady] = useState(false);
 
     const checkReadiness = useCallback(() => {
-        if (!onReadinessChange) return;
         if (expectedParts.length === 0) {
-            onReadinessChange(false);
+            setIsAvatarReady(false);
+            onReadinessChange?.(false);
             return;
         }
 
@@ -416,7 +498,8 @@ export function ModularAvatar({
         }
 
         const isReady = allPresent && totalMeshes > 0 && allActionsPlaying;
-        onReadinessChange(isReady, isReady ? { parts: expectedParts, meshCount: totalMeshes } : undefined);
+        setIsAvatarReady(isReady);
+        onReadinessChange?.(isReady, isReady ? { parts: expectedParts, meshCount: totalMeshes } : undefined);
     }, [expectedParts, onReadinessChange]);
 
     const handlePartReady = useCallback((partKey: string, meshCount: number, actionPlaying: boolean) => {
@@ -429,35 +512,75 @@ export function ModularAvatar({
         checkReadiness();
     }, [checkReadiness]);
 
+    // Appeler onAnimationsLoaded avec les 25 noms du manifeste dès sa réception
     useEffect(() => {
-        if (onAnimationsLoaded && animFbx.animations) {
-            const names = animFbx.animations.map(anim => anim.name);
-            onAnimationsLoaded(names);
+        if (onAnimationsLoaded && clipNames.length > 0) {
+            onAnimationsLoaded([...clipNames]);
         }
-    }, [animFbx, onAnimationsLoaded]);
+    }, [clipNames, onAnimationsLoaded]);
+
+    const isIdle = currentAnim === 'Idle';
 
     return (
         <group>
+            {/* Raccorder notifyInitialFrame du hook T10 à un probe de frame, armé après readiness des pièces ET action Idle */}
+            <AvatarFrameNotifier
+                ready={isAvatarReady}
+                isIdle={isIdle}
+                onFrameSubmitted={notifyInitialFrame}
+            />
+
+            {/* UI Html de chargement/erreur avec bouton « Réessayer les animations » ; différé en échec n'efface pas l'avatar */}
+            {error && !activeClip && (
+                <Html center>
+                    <div className="flex flex-col items-center bg-white/90 p-4 rounded-2xl shadow-xl backdrop-blur-md text-center max-w-xs">
+                        <p className="text-xs font-bold text-red-600 mb-2">Erreur de chargement des animations</p>
+                        <button
+                            type="button"
+                            onClick={() => { void retry(); }}
+                            className="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 cursor-pointer"
+                        >
+                            Réessayer les animations
+                        </button>
+                    </div>
+                </Html>
+            )}
+
+            {deferredStatus === 'error' && (
+                <Html position={[0, -20, 0]} center>
+                    <div className="bg-amber-100/90 border border-amber-300 text-amber-900 px-3 py-1 rounded-lg text-xs flex items-center gap-2 shadow-md">
+                        <span>Animations différées indisponibles</span>
+                        <button
+                            type="button"
+                            onClick={() => { void retry(); }}
+                            className="underline font-bold text-amber-700 hover:text-amber-900 cursor-pointer"
+                        >
+                            Réessayer les animations
+                        </button>
+                    </div>
+                </Html>
+            )}
+
             {/* Le paramètre key force React à recréer la pièce et relancer l'animation */}
             {config.head && config.head !== 'none' &&
                 <AvatarPart key={`head-${config.head}`} path={`${MODELS_URL}/${config.head}.fbx`}
                             partKey="head" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
-                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
+                            animations={activeAnimations} currentAnim={currentAnim}/>}
 
             {config.body && config.body !== 'none' &&
                 <AvatarPart key={`body-${config.body}`} path={`${MODELS_URL}/${config.body}.fbx`}
                             partKey="body" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
-                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
+                            animations={activeAnimations} currentAnim={currentAnim}/>}
 
             {config.legs && config.legs !== 'none' &&
                 <AvatarPart key={`legs-${config.legs}`} path={`${MODELS_URL}/${config.legs}.fbx`}
                             partKey="legs" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
-                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
+                            animations={activeAnimations} currentAnim={currentAnim}/>}
 
             {config.feet && config.feet !== 'none' &&
                 <AvatarPart key={`feet-${config.feet}`} path={`${MODELS_URL}/${config.feet}.fbx`}
                             partKey="feet" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
-                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
+                            animations={activeAnimations} currentAnim={currentAnim}/>}
 
             {config.accessory && config.accessory !== 'none' && (
                 <AvatarPart
@@ -467,8 +590,8 @@ export function ModularAvatar({
                     onPartReady={handlePartReady}
                     onPartUnmount={handlePartUnmount}
                     customTransform={accessoryTransform}
-                    animations={animFbx.animations}
-                    currentAnim={targetAnimation}
+                    animations={activeAnimations}
+                    currentAnim={currentAnim}
                 />
             )}
         </group>
@@ -498,10 +621,8 @@ export default function AvatarCanvas({
         silenceWarnings();
     }, []);
 
-    // 🚀 PRÉCHARGEMENT MASSIF
+    // 🚀 PRÉCHARGEMENT CIBLÉ DES VÊTEMENTS
     useEffect(() => {
-        useFBX.preload(`${MODELS_URL}/Animations.fbx`);
-
         if (config) {
             if (config.head && config.head !== 'none') useFBX.preload(`${MODELS_URL}/${config.head}.fbx`);
             if (!headOnly && config.body && config.body !== 'none') useFBX.preload(`${MODELS_URL}/${config.body}.fbx`);

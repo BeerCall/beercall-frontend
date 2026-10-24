@@ -82,7 +82,22 @@ vi.mock('@react-three/drei', () => {
     return {
         useGLTF: vi.fn().mockReturnValue({ scene: dummyScene }),
         useFBX: useFBXMock,
-        useAnimations: vi.fn().mockReturnValue({ actions: {}, names: [] }),
+        useAnimations: vi.fn((animations: Array<{ name: string }> = []) => {
+            const actions: Record<string, unknown> = {};
+            for (const anim of (animations || [])) {
+                if (anim?.name) {
+                    actions[anim.name] = {
+                        reset: vi.fn().mockReturnThis(),
+                        fadeIn: vi.fn().mockReturnThis(),
+                        fadeOut: vi.fn().mockReturnThis(),
+                        play: vi.fn().mockReturnThis(),
+                        stop: vi.fn().mockReturnThis(),
+                        isRunning: vi.fn().mockReturnValue(true),
+                    };
+                }
+            }
+            return { actions, names: (animations || []).map(a => a?.name) };
+        }),
         Environment: () => null,
         OrbitControls: () => null,
         ContactShadows: () => null,
