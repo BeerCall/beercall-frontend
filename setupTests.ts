@@ -16,9 +16,63 @@ const dummyScene: DummyScene = {
 };
 
 // Mock WebGL env globally
+const { globalMockState, globalFrameCallbacks, globalFiberMock } = vi.hoisted(() => {
+    const gl = {
+        domElement: document.createElement('canvas'),
+        render: vi.fn(),
+        info: {
+            render: { calls: 0, frame: 0, lines: 0, points: 0, triangles: 0 },
+            memory: { geometries: 0, textures: 0 },
+        },
+    };
+    const scene = {};
+    const camera = {};
+    const invalidate = vi.fn();
+    const state = {
+        gl,
+        scene,
+        camera,
+        invalidate,
+        get: vi.fn(),
+        advance: vi.fn(),
+        clock: { getElapsedTime: () => 0, getDelta: () => 1 / 60 },
+    };
+    state.get.mockReturnValue(state);
+
+    const callbacks = new Set<(state: unknown, delta: number) => void>();
+    const fiberMock = {
+        state,
+        callbacks,
+        advance: (delta = 1 / 60) => {
+            gl.info.render.frame += 1;
+            gl.info.render.calls += 1;
+            callbacks.forEach((cb) => cb(state, delta));
+        },
+        clear: () => callbacks.clear(),
+    };
+
+    return { globalMockState: state, globalFrameCallbacks: callbacks, globalFiberMock: fiberMock };
+});
+
+export { globalFiberMock };
+
 vi.mock('@react-three/fiber', () => ({
     Canvas: () => null,
-    useFrame: vi.fn(),
+    useFrame: Object.assign(
+        vi.fn((cb: (state: unknown, delta: number) => void) => {
+            if (typeof cb === 'function') {
+                globalFrameCallbacks.add(cb);
+            }
+        }),
+        {
+            advance: globalFiberMock.advance,
+            clear: globalFiberMock.clear,
+            callbacks: globalFrameCallbacks,
+        }
+    ),
+    useThree: vi.fn((selector?: (state: unknown) => unknown) => {
+        return typeof selector === 'function' ? selector(globalMockState) : globalMockState;
+    }),
 }));
 
 vi.mock('@react-three/drei', () => {
@@ -83,6 +137,7 @@ beforeAll(() => {
 afterEach(() => {
     server.resetHandlers();
     cleanup();
+    globalFiberMock.clear();
 });
 
 afterAll(() => server.close());

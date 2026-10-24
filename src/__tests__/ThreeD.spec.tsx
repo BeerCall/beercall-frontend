@@ -13,9 +13,58 @@ vi.mock('three-stdlib', () => ({
     }
 }));
 
+const { threeUseFrameMock, threeUseThreeMock } = vi.hoisted(() => {
+    const frameCallbacks = new Set<(state: unknown, delta: number) => void>();
+    const gl = {
+        domElement: document.createElement('canvas'),
+        render: vi.fn(),
+        info: {
+            render: { calls: 0, frame: 0, lines: 0, points: 0, triangles: 0 },
+            memory: { geometries: 0, textures: 0 },
+        },
+    };
+    const scene = {};
+    const camera = {};
+    const invalidate = vi.fn();
+    const state = {
+        gl,
+        scene,
+        camera,
+        invalidate,
+        get: vi.fn(),
+        advance: vi.fn(),
+        clock: { getElapsedTime: () => 0, getDelta: () => 1 / 60 },
+    };
+    state.get.mockReturnValue(state);
+
+    const useFrame = Object.assign(
+        vi.fn((cb: (s: unknown, d: number) => void) => {
+            if (typeof cb === 'function') {
+                frameCallbacks.add(cb);
+            }
+        }),
+        {
+            advance: (delta = 1 / 60) => {
+                gl.info.render.frame += 1;
+                gl.info.render.calls += 1;
+                frameCallbacks.forEach((cb) => cb(state, delta));
+            },
+            clear: () => frameCallbacks.clear(),
+            callbacks: frameCallbacks,
+        }
+    );
+
+    const useThree = vi.fn((selector?: (s: unknown) => unknown) => {
+        return typeof selector === 'function' ? selector(state) : state;
+    });
+
+    return { threeMockState: state, threeUseFrameMock: useFrame, threeUseThreeMock: useThree };
+});
+
 vi.mock('@react-three/fiber', () => ({
     Canvas: vi.fn(({ children }: React.PropsWithChildren<unknown>) => <div data-testid="canvas-mock">{children}</div>),
-    useFrame: vi.fn(),
+    useFrame: threeUseFrameMock,
+    useThree: threeUseThreeMock,
 }));
 
 vi.mock('@react-three/drei', () => {
@@ -52,6 +101,7 @@ import * as fiber from '@react-three/fiber';
 describe('3D Components Rendering & Observability', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        threeUseFrameMock.clear();
     });
 
     it('renders AvatarCanvas and calls useFBX', () => {
@@ -113,5 +163,35 @@ describe('3D Components Rendering & Observability', () => {
         
         expect(drei.useFBX).toHaveBeenCalled();
         expect(screen.getByText('P1')).toBeInTheDocument();
+    });
+
+    it('pilots useFrame callbacks: does not certify or run callback before explicit frame trigger', () => {
+        const frameCallback = vi.fn();
+        const TestHook = () => {
+            fiber.useFrame(frameCallback);
+            return null;
+        };
+
+        render(<TestHook />);
+
+        // Callback must not certify or run before explicit frame trigger
+        expect(frameCallback).not.toHaveBeenCalled();
+
+        // Trigger explicit frame
+        (fiber.useFrame as unknown as { advance: (delta?: number) => void }).advance(1 / 60);
+
+        expect(frameCallback).toHaveBeenCalledTimes(1);
+        expect(frameCallback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                gl: expect.objectContaining({
+                    info: expect.objectContaining({
+                        render: expect.objectContaining({ frame: 1, calls: 1 }),
+                    }),
+                }),
+                invalidate: expect.any(Function),
+                get: expect.any(Function),
+            }),
+            1 / 60
+        );
     });
 });
