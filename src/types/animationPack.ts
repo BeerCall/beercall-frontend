@@ -19,21 +19,21 @@ export interface SerializedClip {
 }
 
 export interface PackMetadata {
-  name: string;
-  file: string;
-  url: string;
-  sha256: string;
-  byteLength: number;
-  clips: string[];
+  readonly name: 'idle' | 'deferred';
+  readonly file: string;
+  readonly url: string;
+  readonly sha256: string;
+  readonly byteLength: number;
+  readonly clips: readonly string[];
 }
 
 export interface AnimationManifest {
-  formatVersion: 1;
-  sourceHash: string;
-  threeVersion: string;
-  clips: string[];
-  critical: PackMetadata;
-  deferred: PackMetadata;
+  readonly formatVersion: 1;
+  readonly sourceHash: string;
+  readonly threeVersion: string;
+  readonly clips: readonly string[];
+  readonly critical: PackMetadata;
+  readonly deferred: PackMetadata;
 }
 
 export interface SerializedPack {
@@ -55,6 +55,17 @@ export interface AnimationPackManager {
   hasClip(name: string): boolean;
   getClip(name: string): THREE.AnimationClip;
   isClipDecoded(name: string): boolean;
-  loadDeferredPack(rawBytes: Uint8Array | ArrayBuffer): void;
+  loadDeferredPack(rawBytes: Uint8Array | ArrayBuffer, subtle?: SubtleCrypto): Promise<void>;
   isDeferredLoaded(): boolean;
+}
+
+export interface AvatarAnimationsResult {
+  readonly clipNames: readonly string[];
+  readonly activeClip: THREE.AnimationClip | undefined;
+  readonly isLoading: boolean;
+  readonly deferredStatus: 'idle' | 'loading' | 'ready' | 'error';
+  readonly error: Error | null;
+  notifyInitialFrame(): void;
+  getClip(name: string): Promise<THREE.AnimationClip>;
+  retry(): Promise<void>;
 }

@@ -9,9 +9,38 @@ import type {
 } from '../types/animationPack';
 
 const EXPECTED_CLIP_COUNT = 25;
-const HEX_64_REGEX = /^[0-9a-f]{64}$/i;
+const HEX_64_REGEX = /^[0-9a-f]{64}$/;
+export const ANIMATION_SOURCE_HASH = 'b455d642cd874130c3aba3ae03b207cc67c1817af3881cfbc3877e0921748d6e';
+export const ANIMATION_CLIP_NAMES: readonly string[] = Object.freeze([
+  'Punch_Right', 'Idle_Gun', 'Sword_Slash', 'Punch_Left', 'Idle_Gun_Pointing',
+  'Idle_Gun_Shoot', 'Interact', 'Idle_Neutral', 'Kick_Left', 'HitRecieve_2',
+  'Run_Back', 'Idle_Sword', 'Run_Right', 'Wave', 'Kick_Right', 'HitRecieve',
+  'Run', 'Gun_Shoot', 'Walk', 'Sitting', 'Death', 'Roll', 'Run_Shoot', 'Run_Left', 'Idle',
+]);
+export const ANIMATION_BYTE_LIMITS = Object.freeze({ manifest: 64 * 1024, idle: 1024 * 1024, deferred: 8 * 1024 * 1024 });
+const UUID_REGEX = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
+
+function base64ByteLength(value: string): number {
+  if (!value || value.length % 4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
+    throw new Error('Invalid canonical base64 payload');
+  }
+  const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0;
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  if ((padding === 2 && (alphabet.indexOf(value.at(-3)!) & 15)) ||
+      (padding === 1 && (alphabet.indexOf(value.at(-2)!) & 3))) {
+    throw new Error('Invalid canonical base64 padding');
+  }
+  const length = value.length / 4 * 3 - padding;
+  if (length % 4) throw new Error(`Invalid f32le-base64 payload length: ${length} bytes is not a multiple of 4`);
+  return length;
+}
+
+function sameNames(actual: readonly string[], expected: readonly string[]): boolean {
+  return actual.length === expected.length && actual.every((name, i) => name === expected[i]);
+}
 
 export function decodeFloat32Array(base64Str: string): Float32Array {
+  base64ByteLength(base64Str);
   const binaryString = atob(base64Str);
   const len = binaryString.length;
   if (len % 4 !== 0) {
@@ -45,7 +74,7 @@ export function validateUrl(url: string, expectedFileName: string): void {
   if (url.includes('..') || url.includes(':') || url.includes('//')) {
     throw new Error(`URL contains invalid path traversal or protocol: "${url}"`);
   }
-  if (!url.endsWith(`/${expectedFileName}`)) {
+  if (url !== `/animations/${expectedFileName}` || /[%\\?#]/.test(url)) {
     throw new Error(`URL does not match expected file name "${expectedFileName}": "${url}"`);
   }
 }
@@ -73,8 +102,11 @@ export function validatePackMetadata(meta: unknown, expectedName: 'idle' | 'defe
   if (typeof m.sha256 !== 'string' || !HEX_64_REGEX.test(m.sha256)) {
     throw new Error(`Invalid pack sha256 for "${expectedName}": "${m.sha256}"`);
   }
+  if (m.file !== `${expectedName}.${m.sha256}.json`) {
+    throw new Error(`Pack file name does not match sha256 for "${expectedName}"`);
+  }
 
-  if (typeof m.byteLength !== 'number' || !Number.isInteger(m.byteLength) || m.byteLength <= 0) {
+  if (typeof m.byteLength !== 'number' || !Number.isSafeInteger(m.byteLength) || m.byteLength <= 0 || m.byteLength > ANIMATION_BYTE_LIMITS[expectedName]) {
     throw new Error(`Invalid pack byteLength for "${expectedName}": "${m.byteLength}"`);
   }
 
@@ -101,14 +133,14 @@ export function validatePackMetadata(meta: unknown, expectedName: 'idle' | 'defe
     }
   }
 
-  return {
+  return Object.freeze({
     name: expectedName,
     file: m.file,
     url: m.url,
     sha256: m.sha256,
     byteLength: m.byteLength,
-    clips: m.clips as string[],
-  };
+    clips: Object.freeze([...m.clips] as string[]),
+  });
 }
 
 export function validateManifest(data: unknown): AnimationManifest {
@@ -122,11 +154,11 @@ export function validateManifest(data: unknown): AnimationManifest {
     throw new Error(`Unsupported manifest formatVersion: expected 1, got ${m.formatVersion}`);
   }
 
-  if (typeof m.sourceHash !== 'string' || !HEX_64_REGEX.test(m.sourceHash)) {
+  if (m.sourceHash !== ANIMATION_SOURCE_HASH) {
     throw new Error(`Invalid sourceHash: expected 64-hex SHA-256, got "${m.sourceHash}"`);
   }
 
-  if (typeof m.threeVersion !== 'string' || m.threeVersion.trim().length === 0) {
+  if (m.threeVersion !== THREE.REVISION) {
     throw new Error(`Invalid threeVersion: expected non-empty string, got "${m.threeVersion}"`);
   }
 
@@ -168,15 +200,18 @@ export function validateManifest(data: unknown): AnimationManifest {
       throw new Error(`Manifest clip "${name}" is missing from critical and deferred packs`);
     }
   }
+  if (!sameNames(m.clips, ANIMATION_CLIP_NAMES) || !sameNames(deferred.clips, ANIMATION_CLIP_NAMES.filter(name => name !== 'Idle'))) {
+    throw new Error('Manifest clip catalogue/order does not match animation format v1');
+  }
 
-  return {
+  return Object.freeze({
     formatVersion: 1,
     sourceHash: m.sourceHash,
     threeVersion: m.threeVersion,
-    clips: m.clips as string[],
+    clips: Object.freeze([...m.clips] as string[]),
     critical,
     deferred,
-  };
+  });
 }
 
 export async function computeSha256Hex(
@@ -188,7 +223,9 @@ export async function computeSha256Hex(
     throw new Error('Web Crypto API (SubtleCrypto.digest) is required for SHA-256 verification');
   }
 
-  const hashBuffer = await cryptoSubtle.digest('SHA-256', data as BufferSource);
+  // Own ArrayBuffer, including when the input view starts at a nonzero offset.
+  const bytes = new Uint8Array(data instanceof Uint8Array ? data : new Uint8Array(data));
+  const hashBuffer = await cryptoSubtle.digest('SHA-256', bytes);
   const hashBytes = new Uint8Array(hashBuffer);
 
   let hex = '';
@@ -222,7 +259,7 @@ export function validateSerializedTrack(track: unknown, clipName: string): Seria
     throw new Error(`Unsupported track type "${t.type}" in clip "${clipName}", track "${t.name}"`);
   }
 
-  if (typeof t.interpolation !== 'number' || !Number.isFinite(t.interpolation)) {
+  if (t.interpolation !== THREE.InterpolateLinear) {
     throw new Error(`Invalid track interpolation in clip "${clipName}", track "${t.name}"`);
   }
 
@@ -232,6 +269,11 @@ export function validateSerializedTrack(track: unknown, clipName: string): Seria
 
   if (typeof t.values !== 'string' || t.values.length === 0) {
     throw new Error(`Missing values base64 in clip "${clipName}", track "${t.name}"`);
+  }
+  const timeBytes = base64ByteLength(t.times);
+  const valueBytes = base64ByteLength(t.values);
+  if (valueBytes !== timeBytes * (t.type === 'vector' ? 3 : 4)) {
+    throw new Error(`Truncated track values in clip "${clipName}", track "${t.name}"`);
   }
 
   return {
@@ -258,16 +300,17 @@ export function validateSerializedClip(clip: unknown): SerializedClip {
     throw new Error(`Invalid clip duration for "${c.name}": ${c.duration}`);
   }
 
-  if (typeof c.blendMode !== 'number' || !Number.isFinite(c.blendMode)) {
+  if (c.blendMode !== THREE.NormalAnimationBlendMode) {
     throw new Error(`Invalid clip blendMode for "${c.name}": ${c.blendMode}`);
   }
 
-  if (typeof c.uuid !== 'string' || c.uuid.length === 0) {
+  if (typeof c.uuid !== 'string' || !UUID_REGEX.test(c.uuid)) {
     throw new Error(`Missing or invalid uuid for clip "${c.name}"`);
   }
 
-  if (!Array.isArray(c.tracks) || c.tracks.length === 0) {
-    throw new Error(`Clip "${c.name}" must contain a non-empty tracks array`);
+  if ('fps' in c) throw new Error('fps must not be serialized');
+  if (!Array.isArray(c.tracks) || c.tracks.length !== 252) {
+    throw new Error(`Clip "${c.name}" must contain exactly 252 tracks`);
   }
 
   const tracks: SerializedTrack[] = [];
@@ -297,6 +340,7 @@ export function parseAndValidatePack(
   expectedSourceHash: string
 ): SerializedPack {
   const bytes = rawBytes instanceof Uint8Array ? rawBytes : new Uint8Array(rawBytes);
+  if (bytes.byteLength > ANIMATION_BYTE_LIMITS[expectedType]) throw new Error('Pack exceeds byte limit');
   const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   let parsed: unknown;
   try {
@@ -346,6 +390,8 @@ export function parseAndValidatePack(
     clipNames.add(validClip.name);
     clips.push(validClip);
   }
+  const expectedNames = expectedType === 'idle' ? ['Idle'] : ANIMATION_CLIP_NAMES.filter(name => name !== 'Idle');
+  if (!sameNames(clips.map(clip => clip.name), expectedNames)) throw new Error('Pack clip catalogue/order mismatch');
 
   return {
     pack: expectedType,
@@ -356,9 +402,15 @@ export function parseAndValidatePack(
 }
 
 export function decodeSingleClip(serialized: SerializedClip): THREE.AnimationClip {
-  const parsedTracks = serialized.tracks.map(t => {
+  const valid = validateSerializedClip(serialized);
+  const parsedTracks = valid.tracks.map(t => {
     const times = decodeFloat32Array(t.times);
     const values = decodeFloat32Array(t.values);
+    for (let i = 0; i < times.length; i++) {
+      if (times[i] < 0 || times[i] > valid.duration + 1e-6 || (i > 0 && times[i] < times[i - 1])) {
+        throw new Error(`Invalid track times in "${valid.name}"`);
+      }
+    }
     return {
       name: t.name,
       type: t.type,
@@ -425,6 +477,8 @@ export class AnimationPackManagerImpl implements AnimationPackManager {
     }
 
     const pack = parseAndValidatePack(bytes, 'deferred', this.manifest.sourceHash);
+    if (!sameNames(pack.clips.map(clip => clip.name), this.manifest.deferred.clips)) throw new Error('Deferred catalogue mismatch');
+    if (this.deferredLoaded) return;
 
     // CHAL-05 Lazy Decoding: store serialized clips in memory, DO NOT decode them all now!
     for (const clip of pack.clips) {

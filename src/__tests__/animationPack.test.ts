@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { webcrypto, createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import * as THREE from 'three';
@@ -11,12 +12,16 @@ import {
   parseAndValidatePack,
   decodeSingleClip,
   createAnimationPackManager,
+  validateSerializedTrack,
+  ANIMATION_BYTE_LIMITS,
 } from '../lib/animationPack';
 import type { AnimationManifest } from '../types/animationPack';
 
 const ANIMATIONS_DIR = resolve(__dirname, '../../public/animations');
 
 describe('animationPack', () => {
+  beforeAll(() => vi.stubGlobal('crypto', webcrypto));
+  afterAll(() => vi.unstubAllGlobals());
   describe('decodeFloat32Array', () => {
     it('preserves -0.0 and distinguishes it from +0.0', () => {
       // Build a buffer with -0.0, +0.0, 1.25, -42.5
@@ -175,6 +180,7 @@ describe('animationPack', () => {
       const hashHex = await computeSha256Hex(testData, globalThis.crypto.subtle);
 
       expect(hashHex).toMatch(/^[0-9a-f]{64}$/);
+      expect(hashHex).toBe(createHash('sha256').update(testData).digest('hex'));
 
       const isValid = await verifySha256(testData, hashHex, globalThis.crypto.subtle);
       expect(isValid).toBe(true);
@@ -330,5 +336,90 @@ describe('animationPack', () => {
         /SHA-256 verification failed/
       );
     });
+  });
+});
+
+describe('strict animation format v1 regressions', () => {
+  const subtle = webcrypto.subtle as unknown as SubtleCrypto;
+  async function fixture() {
+    const manifest: AnimationManifest = JSON.parse(await readFile(resolve(ANIMATIONS_DIR, 'manifest.json'), 'utf8'));
+    const idleBytes = new Uint8Array(await readFile(resolve(ANIMATIONS_DIR, manifest.critical.file)));
+    const deferredBytes = new Uint8Array(await readFile(resolve(ANIMATIONS_DIR, manifest.deferred.file)));
+    return { manifest, idleBytes, deferredBytes };
+  }
+  it('rejects encoded/traversal/nested URLs, non-hashed names and unreasonable byte declarations', async () => {
+    const { manifest } = await fixture();
+    for (const url of [`/animations/%2e%2e/${manifest.critical.file}`, `/animations/nested/${manifest.critical.file}`, `/animations/${manifest.critical.file}?x=1`]) {
+      expect(() => validateManifest({ ...manifest, critical: { ...manifest.critical, url } })).toThrow();
+    }
+    expect(() => validateManifest({ ...manifest, critical: { ...manifest.critical, file: 'idle.anything.json', url: '/animations/idle.anything.json' } })).toThrow(/file name/);
+    expect(() => validateManifest({ ...manifest, critical: { ...manifest.critical, byteLength: ANIMATION_BYTE_LIMITS.idle + 1 } })).toThrow(/byteLength/);
+    expect(() => validateManifest({ ...manifest, threeVersion: '0' })).toThrow(/threeVersion/);
+    expect(() => validateManifest({ ...manifest, clips: [...manifest.clips].reverse() })).toThrow(/catalogue/);
+  });
+  it('takes immutable defensive copies of the catalogue', async () => {
+    const { manifest } = await fixture();
+    const result = validateManifest(manifest);
+    expect(Object.isFrozen(result.clips)).toBe(true);
+    expect(result.clips).not.toBe(manifest.clips);
+    expect(Object.isFrozen(result.critical)).toBe(true);
+  });
+  it('rejects unknown interpolation, non-canonical base64 and whole-Float32 truncation', async () => {
+    const { manifest, idleBytes } = await fixture();
+    const pack = parseAndValidatePack(idleBytes, 'idle', manifest.sourceHash);
+    const track = pack.clips[0].tracks[0];
+    expect(() => validateSerializedTrack({ ...track, interpolation: 9999 }, 'Idle')).toThrow(/interpolation/);
+    expect(() => decodeFloat32Array('AAAAAB==')).toThrow(/canonical/);
+    const values = atob(track.values).slice(0, -4);
+    expect(() => validateSerializedTrack({ ...track, values: btoa(values) }, 'Idle')).toThrow(/Truncated/);
+    expect(() => decodeSingleClip({ ...pack.clips[0], tracks: pack.clips[0].tracks.slice(1) })).toThrow(/252/);
+  });
+  it('rejects substituted names and fps even if JSON is otherwise valid', async () => {
+    const { manifest, idleBytes } = await fixture();
+    const pack = JSON.parse(new TextDecoder().decode(idleBytes));
+    pack.clips[0].name = 'FakeIdle';
+    expect(() => parseAndValidatePack(new TextEncoder().encode(JSON.stringify(pack)), 'idle', manifest.sourceHash)).toThrow(/catalogue/);
+    pack.clips[0].name = 'Idle'; pack.clips[0].fps = 30;
+    expect(() => parseAndValidatePack(new TextEncoder().encode(JSON.stringify(pack)), 'idle', manifest.sourceHash)).toThrow(/fps/);
+  });
+  it('verifies SHA before JSON and leaves the previous cache unchanged on failure/reload', async () => {
+    const { manifest, idleBytes, deferredBytes } = await fixture();
+    const manager = await createAnimationPackManager(manifest, idleBytes, subtle);
+    const idle = manager.getClip('Idle');
+    const bad = new Uint8Array(deferredBytes); bad[0] = 0;
+    await expect(manager.loadDeferredPack(bad, subtle)).rejects.toThrow(/SHA-256/);
+    expect(manager.isDeferredLoaded()).toBe(false);
+    const promise = manager.loadDeferredPack(deferredBytes, subtle);
+    expect(promise).toBeInstanceOf(Promise);
+    expect(manager.isDeferredLoaded()).toBe(false);
+    await promise;
+    const walk = manager.getClip('Walk');
+    await manager.loadDeferredPack(deferredBytes, subtle);
+    expect(manager.getClip('Walk')).toBe(walk);
+    expect(manager.getClip('Idle')).toBe(idle);
+    expect(manager.isClipDecoded('Death')).toBe(false);
+  });
+  it('validates deferred numeric values only when the affected clip is selected', async () => {
+    const { manifest, idleBytes, deferredBytes } = await fixture();
+    const pack = JSON.parse(new TextDecoder().decode(deferredBytes));
+    const bytes = new Uint8Array(4); new DataView(bytes.buffer).setFloat32(0, Infinity, true);
+    const track = pack.clips.find((clip: { name: string }) => clip.name === 'Walk').tracks[0];
+    // Re-encode full values to retain canonical base64 and the exact component count.
+    const originalValues = atob(JSON.parse(new TextDecoder().decode(deferredBytes)).clips.find((clip: { name: string }) => clip.name === 'Walk').tracks[0].values);
+    track.values = btoa(String.fromCharCode(...bytes) + originalValues.slice(4));
+    const changed = new TextEncoder().encode(JSON.stringify(pack));
+    const hash = await computeSha256Hex(changed, subtle);
+    const modifiedManifest = { ...manifest, deferred: { ...manifest.deferred, sha256: hash, file: `deferred.${hash}.json`, url: `/animations/deferred.${hash}.json`, byteLength: changed.byteLength } };
+    const manager = await createAnimationPackManager(modifiedManifest, idleBytes, subtle);
+    await manager.loadDeferredPack(changed, subtle);
+    expect(manager.isClipDecoded('Walk')).toBe(false);
+    expect(() => manager.getClip('Walk')).toThrow(/non-finite/);
+    expect(manager.isClipDecoded('Walk')).toBe(false);
+    expect(manager.getClip('Idle').name).toBe('Idle');
+  });
+  it('fails closed when Web Crypto is unavailable', async () => {
+    vi.stubGlobal('crypto', {});
+    try { await expect(computeSha256Hex(new Uint8Array(4))).rejects.toThrow(/Web Crypto/); }
+    finally { vi.unstubAllGlobals(); }
   });
 });
