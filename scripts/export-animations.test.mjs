@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { readFile, mkdtemp, rm, writeFile, readdir, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
+import test from 'node:test';
 import * as THREE from 'three';
 import {
   EXPECTED_SOURCE_HASH,
@@ -16,23 +16,7 @@ import {
   runCli,
 } from './export-animations.mjs';
 
-let testRunner;
-if (process.env.VITEST) {
-  const vitest = await import('vitest');
-  testRunner = vitest.test;
-} else {
-  const nodeTest = await import('node:test');
-  testRunner = nodeTest.default;
-}
-
-function test(name, optsOrFn, maybeFn) {
-  const fn = typeof optsOrFn === 'function' ? optsOrFn : maybeFn;
-  const timeout = typeof optsOrFn === 'object' && optsOrFn?.timeout ? optsOrFn.timeout : 60000;
-  if (process.env.VITEST) {
-    return testRunner(name, fn, timeout);
-  }
-  return testRunner(name, { timeout }, fn);
-}
+const TEMP_ROOT = resolve(process.env.LOCALAPPDATA || 'C:/Users/Migz3rrr/AppData/Local', 'Temp/opencode');
 
 const FBX_SOURCE_PATH = resolve('../beercall-backend/static/models/Animations.fbx');
 
@@ -240,7 +224,7 @@ test('round-trip reconstructs all 25 clips with bit-for-bit Float32 equality on 
 });
 
 test('CLI generate and --check pass in temporary directory', async () => {
-  const tmpDir = await mkdtemp(join(tmpdir(), 'beercall-anim-test-'));
+  const tmpDir = await mkdtemp(join(TEMP_ROOT, 'beercall-anim-test-'));
   try {
     // Initial export
     await runCli(['--source', FBX_SOURCE_PATH, '--out', tmpDir]);
@@ -260,7 +244,7 @@ test('CLI generate and --check pass in temporary directory', async () => {
 });
 
 test('CLI refuses destination directory with foreign files', async () => {
-  const tmpDir = await mkdtemp(join(tmpdir(), 'beercall-anim-foreign-'));
+  const tmpDir = await mkdtemp(join(TEMP_ROOT, 'beercall-anim-foreign-'));
   try {
     await writeFile(join(tmpDir, 'unauthorized_file.txt'), 'hello', 'utf8');
     await assert.rejects(
@@ -269,5 +253,37 @@ test('CLI refuses destination directory with foreign files', async () => {
     );
   } finally {
     await rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('spoofed source hash and unauthorized destinations are rejected', async () => {
+  const bytes = await readFile(FBX_SOURCE_PATH);
+  bytes[0] ^= 1;
+  assert.throws(() => generatePacks(bytes, EXPECTED_SOURCE_HASH), /Source hash mismatch/);
+  await assert.rejects(runCli(['--source', FBX_SOURCE_PATH, '--out', resolve('.')]), /Unauthorized/);
+});
+
+test('two on-disk generations match; check is read-only and hashed packs are never replaced', async () => {
+  const first = await mkdtemp(join(TEMP_ROOT, 'beercall-anim-generation-'));
+  const second = await mkdtemp(join(TEMP_ROOT, 'beercall-anim-generation-'));
+  try {
+    await runCli(['--source', FBX_SOURCE_PATH, '--out', first]);
+    await runCli(['--source', FBX_SOURCE_PATH, '--out', second]);
+    const files = await readdir(first);
+    assert.deepEqual(files, await readdir(second));
+    const timestamps = new Map();
+    for (const name of files) {
+      assert.deepEqual(await readFile(join(first, name)), await readFile(join(second, name)));
+      timestamps.set(name, (await stat(join(first, name))).mtimeMs);
+    }
+    await runCli(['--source', FBX_SOURCE_PATH, '--out', first, '--check']);
+    for (const name of files) assert.equal((await stat(join(first, name))).mtimeMs, timestamps.get(name));
+    const pack = files.find(name => name.startsWith('idle.'));
+    await writeFile(join(first, pack), 'corrupt');
+    await assert.rejects(runCli(['--source', FBX_SOURCE_PATH, '--out', first]), /Existing hashed pack differs/);
+    assert.equal(await readFile(join(first, pack), 'utf8'), 'corrupt');
+  } finally {
+    await rm(first, { recursive: true, force: true });
+    await rm(second, { recursive: true, force: true });
   }
 });

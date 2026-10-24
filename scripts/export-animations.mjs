@@ -1,5 +1,5 @@
-import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
-import { resolve, join, basename } from 'node:path';
+import { readFile, writeFile, mkdir, readdir, lstat } from 'node:fs/promises';
+import { resolve, join, basename, dirname, relative, isAbsolute, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as THREE from 'three';
@@ -87,8 +87,8 @@ export function decodeFloat32ArrayBrowser(base64Str) {
 }
 
 export function parseFbxAnimations(sourceBuffer) {
-  const prevWindow = globalThis.window;
-  globalThis.window = { innerWidth: 800, innerHeight: 600 };
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { value: { innerWidth: 800, innerHeight: 600 }, configurable: true, writable: true });
   try {
     const loader = new FBXLoader();
     const group = loader.parse(
@@ -97,16 +97,13 @@ export function parseFbxAnimations(sourceBuffer) {
     );
     return group.animations || [];
   } finally {
-    if (prevWindow === undefined) {
-      delete globalThis.window;
-    } else {
-      globalThis.window = prevWindow;
-    }
+    if (previous) Object.defineProperty(globalThis, 'window', previous);
+    else delete globalThis.window;
   }
 }
 
-export function generatePacks(sourceBuffer, sourceHash) {
-  if (sourceHash !== EXPECTED_SOURCE_HASH) {
+export function generatePacks(sourceBuffer, sourceHash = sha256Hex(sourceBuffer)) {
+  if (sourceHash !== EXPECTED_SOURCE_HASH || sha256Hex(sourceBuffer) !== sourceHash) {
     throw new Error(`Source hash mismatch: expected ${EXPECTED_SOURCE_HASH}, got ${sourceHash}`);
   }
 
@@ -243,6 +240,24 @@ export async function runCli(argv = process.argv.slice(2)) {
 
   const resolvedSource = resolve(sourcePath);
   const resolvedOut = resolve(outDir);
+  const frontend = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  const approvedTemporaryRoots = [
+    resolve(frontend, '../bench/.runtime/remediation'),
+    resolve(process.env.LOCALAPPDATA || 'C:/Users/Migz3rrr/AppData/Local', 'Temp/opencode'),
+  ];
+  const isWithin = (parent, child) => {
+    const rel = relative(parent, child);
+    return !!rel && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+  };
+  if (resolvedOut !== join(frontend, 'public/animations') && !approvedTemporaryRoots.some(root => isWithin(root, resolvedOut))) {
+    throw new Error('Unauthorized destination directory');
+  }
+  // Inspect existing ancestors as well as leaves; junctions must not escape an approved root.
+  for (let path = resolvedOut; ; path = dirname(path)) {
+    try { if ((await lstat(path)).isSymbolicLink()) throw new Error(`Destination contains a symbolic link/junction: ${path}`); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (path === dirname(path)) break;
+  }
 
   const sourceBuffer = await readFile(resolvedSource);
   const sourceHash = sha256Hex(sourceBuffer);
@@ -289,16 +304,24 @@ export async function runCli(argv = process.argv.slice(2)) {
   const isAllowedFile = name =>
     name === 'manifest.json' ||
     name === '.gitkeep' ||
-    (name.startsWith('idle.') && name.endsWith('.json')) ||
-    (name.startsWith('deferred.') && name.endsWith('.json'));
+    /^(idle|deferred)\.[a-f0-9]{64}\.json$/.test(name);
 
   const foreign = dirEntries.filter(name => !isAllowedFile(name));
   if (foreign.length > 0) {
     throw new Error(`Destination directory contains foreign files: ${foreign.join(', ')}`);
   }
+  for (const name of dirEntries) {
+    if (!(await lstat(join(resolvedOut, name))).isFile()) throw new Error(`Destination entry is not a regular file: ${name}`);
+  }
 
-  await writeFile(join(resolvedOut, idleFileName), idleJson, 'utf8');
-  await writeFile(join(resolvedOut, deferredFileName), deferredJson, 'utf8');
+  for (const [name, content] of [[idleFileName, idleJson], [deferredFileName, deferredJson]]) {
+    try {
+      await writeFile(join(resolvedOut, name), content, { encoding: 'utf8', flag: 'wx' });
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      if ((await readFile(join(resolvedOut, name), 'utf8')) !== content) throw new Error(`Existing hashed pack differs: ${name}`);
+    }
+  }
   await writeFile(join(resolvedOut, 'manifest.json'), manifestJson, 'utf8');
 
   console.log(`Generated animation packs in ${resolvedOut}:`);

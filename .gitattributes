@@ -1,0 +1,2 @@
+# The SHA in each published filename identifies these exact bytes, on every OS.
+public/animations/*.json -text

@@ -4,6 +4,8 @@ import viteConfig from './vite.config.ts'
 export default mergeConfig(viteConfig, defineConfig({
   test: {
     globals: true,
+    // Source-FBX export tests use node:test and run separately from R/F.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     // Éviter la contention des environnements jsdom sans assouplir les timeouts.
     maxWorkers: 2,
     environment: 'jsdom',
