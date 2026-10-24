@@ -16,6 +16,9 @@ export default defineConfig({
                 enabled: true,
                 type: 'module'
             },
+            injectManifest: {
+                globIgnores: ['**/node_modules/**/*', '**/animations/**', 'animations/**'],
+            },
             includeAssets: ['favicon.svg', 'apple-touch-icon.svg'],
             manifest: {
                 name: 'BeerCall',
