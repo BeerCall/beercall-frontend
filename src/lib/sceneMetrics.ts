@@ -3,7 +3,7 @@
  *
  * Les signaux de frame ('avatarFrameSubmitted', 'worldFrameSubmitted') mesurent la
  * soumission effective d'une frame au contexte WebGL par le pipeline de rendu React-Three-Fiber / Three.js
- * (fin de la passe d'animation et de dessin des géométries dans le callback useFrame).
+ * (callback de suivi après une progression du compteur de rendu du root concerné).
  *
  * Il s'agit d'un proxy logiciel de soumission (frame submission proxy) et en aucun
  * cas d'une preuve physique de présentation sur l'écran (display scanout / photon presentation / VSync hardware).
@@ -23,6 +23,7 @@ export interface SceneSignalOptions {
     timestamp?: number;
     drawCalls?: number;
     frames?: number;
+    generation?: number;
 }
 
 export interface SceneMetricsRecord {
@@ -32,16 +33,67 @@ export interface SceneMetricsRecord {
     view?: string;
     drawCalls?: number;
     frames?: number;
+    generation: number;
 }
 
 const MAX_RECORDS = 50;
 const records: SceneMetricsRecord[] = [];
+let nextGeneration = 0;
+const instances = new Map<string, { generation: number; ids: Set<string> }>();
+const kinds: SceneSignalKind[] = ['avatarFrameSubmitted', 'mapInteractive', 'worldFrameSubmitted', 'sceneUsable'];
+
+export function registerSceneInstance(view: string, instanceId: string): number {
+    let current = instances.get(view);
+    if (!current) {
+        current = { generation: ++nextGeneration, ids: new Set() };
+        instances.set(view, current);
+    }
+    current.ids.add(instanceId);
+    return current.generation;
+}
+
+export function invalidateSceneInstance(view: string, instanceId: string, generation: number): void {
+    const w = typeof window === 'undefined' ? undefined : window as unknown as {
+        __bench?: { marks: Record<string, unknown>; sceneMetrics?: Record<string, SceneMetricsRecord> };
+        __beercall_scene_metrics?: Record<string, SceneMetricsRecord>;
+    };
+    for (const record of new Set([...records, ...Object.values(w?.__beercall_scene_metrics ?? {})])) {
+        if (record.view !== view || record.generation !== generation ||
+            (record.instanceId !== instanceId && record.kind !== 'sceneUsable')) continue;
+        const index = records.indexOf(record);
+        if (index >= 0) records.splice(index, 1);
+        if (w?.__beercall_scene_metrics?.[record.kind] === record) {
+            delete w.__beercall_scene_metrics[record.kind];
+            if (w.__bench?.marks[record.kind] === record.timestamp) delete w.__bench.marks[record.kind];
+            if (w.__bench?.sceneMetrics) delete w.__bench.sceneMetrics[record.kind];
+            performance.clearMarks?.(`beercall:${record.kind}`);
+            performance.clearMarks?.(record.kind);
+        }
+    }
+    if (view === 'dashboard' && latestDashboardSignals.generation === generation) {
+        delete latestDashboardSignals.sceneUsable;
+        if (latestDashboardSignals.mapId === instanceId) delete latestDashboardSignals.mapInteractive;
+        if (latestDashboardSignals.avatarId === instanceId) delete latestDashboardSignals.avatarFrameSubmitted;
+    }
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('beercall:scene-invalidate', { detail: { view, instanceId, generation } }));
+}
+
+export function unregisterSceneInstance(view: string, instanceId: string, generation: number): void {
+    invalidateSceneInstance(view, instanceId, generation);
+    const current = instances.get(view);
+    if (current?.generation !== generation) return;
+    current.ids.delete(instanceId);
+    if (!current.ids.size) instances.delete(view);
+}
 
 // Derniers signaux par vue pour calculer sceneUsable = max(mapInteractive, avatarFrameSubmitted)
 const latestDashboardSignals: {
     mapInteractive?: number;
     avatarFrameSubmitted?: number;
     sceneUsable?: number;
+    generation?: number;
+    mapId?: string;
+    avatarId?: string;
 } = {};
 
 /**
@@ -51,9 +103,12 @@ const latestDashboardSignals: {
 export function recordSceneSignal(
     kind: SceneSignalKind,
     options: SceneSignalOptions = {}
-): SceneMetricsRecord {
+): SceneMetricsRecord | undefined {
     const timestamp = options.timestamp ?? (typeof performance !== 'undefined' ? performance.now() : Date.now());
     const view = options.view ?? (kind === 'mapInteractive' ? 'dashboard' : undefined);
+    const current = view ? instances.get(view) : undefined;
+    if (!current || current.generation !== options.generation || !options.instanceId || !current.ids.has(options.instanceId) ||
+        !Number.isFinite(timestamp) || timestamp <= 0) return;
 
     const record: SceneMetricsRecord = {
         kind,
@@ -62,6 +117,7 @@ export function recordSceneSignal(
         view,
         drawCalls: options.drawCalls,
         frames: options.frames,
+        generation: current.generation,
     };
 
     records.push(record);
@@ -72,8 +128,10 @@ export function recordSceneSignal(
     // 1. Performance Mark standard (aucun identifiant utilisateur)
     if (typeof performance !== 'undefined' && typeof performance.mark === 'function') {
         try {
-            performance.mark(`beercall:${kind}`);
-            performance.mark(kind);
+            performance.clearMarks?.(`beercall:${kind}`);
+            performance.clearMarks?.(kind);
+            performance.mark(`beercall:${kind}`, { startTime: timestamp });
+            performance.mark(kind, { startTime: timestamp });
         } catch {
             // Ignoré si doublon ou non supporté
         }
@@ -84,7 +142,7 @@ export function recordSceneSignal(
         try {
             window.dispatchEvent(
                 new CustomEvent('beercall:scene-metric', {
-                    detail: { kind, timestamp, view },
+                    detail: record,
                 })
             );
         } catch {
@@ -118,21 +176,23 @@ export function recordSceneSignal(
         }
 
         w.__beercall_scene_metrics = w.__beercall_scene_metrics || {};
-        w.__beercall_scene_metrics[kind] = {
-            timestamp,
-            instanceId: options.instanceId,
-            view,
-            ...(options.drawCalls !== undefined ? { drawCalls: options.drawCalls } : {}),
-            ...(options.frames !== undefined ? { frames: options.frames } : {}),
-        };
+        w.__beercall_scene_metrics[kind] = record;
     }
 
     // 4. Calcul de sceneUsable = max(mapInteractive, avatarFrameSubmitted) sur dashboard
     if (view === 'dashboard' || kind === 'mapInteractive' || (kind === 'avatarFrameSubmitted' && view === 'dashboard')) {
+        if (latestDashboardSignals.generation !== current.generation) {
+            delete latestDashboardSignals.mapInteractive;
+            delete latestDashboardSignals.avatarFrameSubmitted;
+            delete latestDashboardSignals.sceneUsable;
+            latestDashboardSignals.generation = current.generation;
+        }
         if (kind === 'mapInteractive') {
             latestDashboardSignals.mapInteractive = timestamp;
+            latestDashboardSignals.mapId = options.instanceId;
         } else if (kind === 'avatarFrameSubmitted') {
             latestDashboardSignals.avatarFrameSubmitted = timestamp;
+            latestDashboardSignals.avatarId = options.instanceId;
         }
 
         if (
@@ -150,6 +210,7 @@ export function recordSceneSignal(
                     view: 'dashboard',
                     timestamp: usableTimestamp,
                     instanceId: options.instanceId,
+                    generation: current.generation,
                 });
             }
         }
@@ -186,7 +247,20 @@ export function getLatestSceneSignal(
  */
 export function clearSceneMetrics(): void {
     records.length = 0;
+    instances.clear();
     delete latestDashboardSignals.mapInteractive;
     delete latestDashboardSignals.avatarFrameSubmitted;
     delete latestDashboardSignals.sceneUsable;
+    delete latestDashboardSignals.generation;
+    delete latestDashboardSignals.mapId;
+    delete latestDashboardSignals.avatarId;
+    for (const kind of kinds) {
+        performance.clearMarks?.(kind);
+        performance.clearMarks?.(`beercall:${kind}`);
+    }
+    if (typeof window !== 'undefined') {
+        const w = window as unknown as { __beercall_scene_metrics?: Record<string, unknown>; __bench?: { marks: Record<string, unknown> } };
+        delete w.__beercall_scene_metrics;
+        for (const kind of kinds) if (w.__bench?.marks) delete w.__bench.marks[kind];
+    }
 }

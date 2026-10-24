@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { User as UserIcon } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
 import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
-import { recordSceneSignal } from '../../lib/sceneMetrics';
+import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance } from '../../lib/sceneMetrics';
 const AvatarCanvas = React.lazy(() => import('../3D/AvatarCanvas'));
 
 interface MapSectionProps {
@@ -52,19 +52,32 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         openCamera();
     }, [openCamera]);
 
+    const mapId = React.useId();
+    const lifecycle = React.useRef<{ generation?: number; loaded: boolean; submitted: boolean }>({ loaded: false, submitted: false });
+    React.useLayoutEffect(() => {
+        const state = lifecycle.current;
+        state.generation = registerSceneInstance('dashboard', mapId);
+        return () => {
+            if (state.generation !== undefined) unregisterSceneInstance('dashboard', mapId, state.generation);
+            state.generation = undefined; state.loaded = false; state.submitted = false;
+        };
+    }, [mapId]);
     const handleMapLoad = React.useCallback(() => {
-        recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: 'map' });
-    }, []);
-
+        const state = lifecycle.current;
+        if (state.generation === undefined) state.generation = registerSceneInstance('dashboard', mapId);
+        state.loaded = true;
+    }, [mapId]);
     const handleMapIdle = React.useCallback(() => {
-        recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: 'map' });
-    }, []);
-
-    React.useEffect(() => {
-        if (isMapReady) {
-            recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: 'map' });
+        const state = lifecycle.current;
+        if (state.loaded && !state.submitted && state.generation !== undefined) {
+            state.submitted = !!recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: mapId, generation: state.generation });
         }
-    }, [isMapReady]);
+    }, [mapId]);
+    const handleMapError = React.useCallback(() => {
+        const state = lifecycle.current;
+        if (state.generation !== undefined) unregisterSceneInstance('dashboard', mapId, state.generation);
+        state.generation = undefined; state.loaded = false; state.submitted = false;
+    }, [mapId]);
 
     return (
         <Map ref={mapRef}
@@ -76,7 +89,8 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             }}
             mapStyle={mapStyle} interactive={true}
             onLoad={handleMapLoad}
-            onIdle={handleMapIdle}
+             onIdle={handleMapIdle}
+             onError={handleMapError}
             onMouseDown={handleMapPointerDown} onMouseUp={cancelLongPress}
             onMouseLeave={cancelLongPress}
             onTouchStart={handleMapPointerDown} onTouchMove={cancelLongPress}

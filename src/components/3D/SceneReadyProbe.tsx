@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useId } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { recordSceneSignal, type SceneSignalKind } from '../../lib/sceneMetrics';
+import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, type SceneSignalKind } from '../../lib/sceneMetrics';
 
 /**
  * LIMITATION TECHNIQUE IMPORTANTE (Proxy de soumission vs Présentation physique) :
  *
- * SceneReadyProbe capture la fin de soumission de la frame via useFrame de React-Three-Fiber.
+ * useFrame précède gl.render : le signal est différé à un callback de suivi,
+ * après une progression effective du compteur de rendu du même root.
  * Ce signal certifie que les draw calls correspondants ont été émis vers le contexte WebGL.
  * Il constitue un proxy logiciel de soumission de frame, et NON une preuve physique de
  * présentation de photons sur la dalle d'affichage.
@@ -30,23 +31,43 @@ export function SceneReadyProbe({
 }: SceneReadyProbeProps) {
     const armedRef = useRef(false);
     const submittedRef = useRef(false);
+    const frameRequest = useRef<number | undefined>(undefined);
+    const identity = useRef<{ view: string; id: string; generation: number } | undefined>(undefined);
+    const generatedId = useId();
+    const instanceId = id ?? generatedId;
+    const sceneView = view ?? kind;
+    const callback = useRef(onFrameSubmitted);
+    useEffect(() => { callback.current = onFrameSubmitted; }, [onFrameSubmitted]);
 
     useEffect(() => {
+        const generation = registerSceneInstance(sceneView, instanceId);
+        identity.current = { view: sceneView, id: instanceId, generation };
+        return () => {
+            unregisterSceneInstance(sceneView, instanceId, generation);
+            identity.current = undefined;
+        };
+    }, [sceneView, instanceId]);
+
+    useEffect(() => {
+        submittedRef.current = false;
+        if (identity.current) invalidateSceneInstance(sceneView, instanceId, identity.current.generation);
         // Le probe n'est armé que si les conditions de readiness sont remplies :
         // Pour un avatar : au moins une pièce configurée non-none et action prête.
         // Si expectedParts est spécifié et vide, le probe ne s'arme jamais.
         if (expectedParts && expectedParts.length === 0) {
             armedRef.current = false;
-            return;
-        }
-
-        if (ready) {
+        } else if (ready) {
             armedRef.current = true;
         } else {
             armedRef.current = false;
             submittedRef.current = false;
         }
-    }, [ready, expectedParts]);
+        return () => {
+            armedRef.current = false;
+            if (frameRequest.current !== undefined) cancelAnimationFrame(frameRequest.current);
+            frameRequest.current = undefined;
+        };
+    }, [ready, expectedParts, sceneView, instanceId]);
 
     // Nettoyage au démontage
     useEffect(() => {
@@ -57,26 +78,24 @@ export function SceneReadyProbe({
     }, []);
 
     useFrame((state) => {
-        if (!armedRef.current || submittedRef.current) return;
-
-        submittedRef.current = true;
-
-        const calls = state.gl?.info?.render?.calls ?? 0;
-        const frame = state.gl?.info?.render?.frame ?? 0;
-        const timestamp = typeof performance !== 'undefined' ? performance.now() : Date.now();
-
-        const signalKind: SceneSignalKind =
-            kind === 'avatar' ? 'avatarFrameSubmitted' : 'worldFrameSubmitted';
-
-        recordSceneSignal(signalKind, {
-            instanceId: id,
-            view,
-            timestamp,
-            drawCalls: calls,
-            frames: frame,
+        if (!armedRef.current || submittedRef.current || frameRequest.current !== undefined || !identity.current) return;
+        const token = identity.current;
+        const before = state.gl.info.render.frame;
+        frameRequest.current = requestAnimationFrame(() => {
+            frameRequest.current = undefined;
+            const { calls, frame } = state.gl.info.render;
+            if (!armedRef.current || submittedRef.current || identity.current !== token || document.hidden || frame <= before || calls <= 0) return;
+            const timestamp = performance.now();
+            const signalKind: SceneSignalKind = kind === 'avatar' ? 'avatarFrameSubmitted' : 'worldFrameSubmitted';
+            const record = recordSceneSignal(signalKind, {
+                instanceId: token.id, view: token.view, generation: token.generation,
+                timestamp, drawCalls: calls, frames: frame,
+            });
+            if (record) {
+                submittedRef.current = true;
+                callback.current?.({ timestamp, frame, calls });
+            }
         });
-
-        onFrameSubmitted?.({ timestamp, frame, calls });
     });
 
     return null;
