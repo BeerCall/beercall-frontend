@@ -13,6 +13,7 @@ import type {WorldsResponse} from '../../types/api';
 import BarWorld from '../3D/BarWorld';
 import PiscineWorld from '../3D/PiscineWorld';
 import FloatyIslandWorld from '../3D/FloatyIslandWorld.tsx';
+import SceneReadyProbe from '../3D/SceneReadyProbe';
 
 // 📸 IMPORT DE TA MODALE
 import PhotoModal from '../Modals/PhotoModal';
@@ -210,6 +211,13 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                                         )}
                                         {activeTab === 'piscine' && <PiscineWorld participants={currentParticipants}/>}
                                         {activeTab === 'dodo' && <FloatyIslandWorld participants={currentParticipants}/>}
+                                        <SceneReadyProbe
+                                            key={`world-probe-${activeTab}`}
+                                            kind="world"
+                                            id={activeTab}
+                                            view={`world-${activeTab}`}
+                                            ready={hasWorldData && !isPending && !isError}
+                                        />
                                     </Suspense>
 
                                     <OrbitControls

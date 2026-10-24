@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { User as UserIcon } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
 import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
+import { recordSceneSignal } from '../../lib/sceneMetrics';
 const AvatarCanvas = React.lazy(() => import('../3D/AvatarCanvas'));
 
 interface MapSectionProps {
@@ -51,6 +52,20 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         openCamera();
     }, [openCamera]);
 
+    const handleMapLoad = React.useCallback(() => {
+        recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: 'map' });
+    }, []);
+
+    const handleMapIdle = React.useCallback(() => {
+        recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: 'map' });
+    }, []);
+
+    React.useEffect(() => {
+        if (isMapReady) {
+            recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: 'map' });
+        }
+    }, [isMapReady]);
+
     return (
         <Map ref={mapRef}
             initialViewState={{
@@ -60,6 +75,8 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                 pitch: 45
             }}
             mapStyle={mapStyle} interactive={true}
+            onLoad={handleMapLoad}
+            onIdle={handleMapIdle}
             onMouseDown={handleMapPointerDown} onMouseUp={cancelLongPress}
             onMouseLeave={cancelLongPress}
             onTouchStart={handleMapPointerDown} onTouchMove={cancelLongPress}
@@ -168,7 +185,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                                 {profile?.avatar ? (
                                     isMapReady ? (
                                         <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
-                                            <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true}/>
+                                            <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard"/>
                                         </Suspense>
                                     ) : (
                                         <div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>
