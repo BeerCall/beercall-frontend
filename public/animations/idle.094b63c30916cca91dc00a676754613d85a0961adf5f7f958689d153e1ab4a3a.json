@@ -1,0 +1,1779 @@
+{
+  "pack": "idle",
+  "formatVersion": 1,
+  "sourceHash": "b455d642cd874130c3aba3ae03b207cc67c1817af3881cfbc3877e0921748d6e",
+  "clips": [
+    {
+      "name": "Idle",
+      "duration": 1.6666666269302368,
+      "blendMode": 2500,
+      "uuid": "c0747213-2f33-352e-6acb-547769703c91",
+      "tracks": [
+        {
+          "name": "Camera.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "6Pg3RFzq90MQJS1E6Pg3RFzq90MQJS1E"
+        },
+        {
+          "name": "Camera.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "n6hZvsagZz9L1Ky97uu3Pp+oWb7GoGc/S9Ssve7rtz4="
+        },
+        {
+          "name": "Camera.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADIQgEAyEL//8dCAADIQgEAyEL//8dC"
+        },
+        {
+          "name": "Camera001.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "6Pg3RFzq90MQJS1E6Pg3RFzq90MQJS1E"
+        },
+        {
+          "name": "Camera001.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "nqhZvsagZz9I1Ky97uu3Pp6oWb7GoGc/SNSsve7rtz4="
+        },
+        {
+          "name": "Camera001.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "///HQgIAyEIAAMhC///HQgIAyEIAAMhC"
+        },
+        {
+          "name": "CharacterArmature.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        {
+          "name": "CharacterArmature.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "9QQ1vwAAAIAAAAAA8gQ1P/UENb8AAACAAAAAAPIENT8="
+        },
+        {
+          "name": "CharacterArmature.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADIQgAAyEIAAMhCAADIQgAAyEIAAMhC"
+        },
+        {
+          "name": "Light.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "8c/LQ7iYE0Q+F8nC8c/LQ7iYE0Q+F8nC"
+        },
+        {
+          "name": "Light.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "MSItPmCBQT8MWou+nSkSPzEiLT5ggUE/DFqLvp0pEj8="
+        },
+        {
+          "name": "Light.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQDIQgAAyEIAAMhCAQDIQgAAyEIAAMhC"
+        },
+        {
+          "name": "Light001.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "8c/LQ7iYE0Q+F8nC8c/LQ7iYE0Q+F8nC"
+        },
+        {
+          "name": "Light001.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "MSItPmCBQT8MWou+nSkSPzEiLT5ggUE/DFqLvp0pEj8="
+        },
+        {
+          "name": "Light001.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQDIQgAAyEIBAMhCAQDIQgAAyEIBAMhC"
+        },
+        {
+          "name": "Root.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAABMMlL0AAMAYAAAAABMMlL0AAMAY"
+        },
+        {
+          "name": "Root.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "9QQ1PwAAAAAAAAAA8gQ1P/UENT8AAAAAAAAAAPIENT8="
+        },
+        {
+          "name": "Root.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        },
+        {
+          "name": "Body.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAImIiD7e3d0+ERERP97dnT/v7q4/iYjIP1VV1T8=",
+          "values": "qpztOdLobz9u54K7qpztOWRscD9u54K7qpztOS0DcT9u54K7qpztOVyEcT9u54K7qpztOS0DcT9u54K7qpztOdZ8cD9u54K7qpztOcT5bz9u54K7qpztOdLobz9u54K7"
+        },
+        {
+          "name": "Body.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "L7rHMtEucT6LcIQyR8x4Py+6xzLRLnE+i3CEMkfMeD8="
+        },
+        {
+          "name": "Body.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P///fz///38///9/P///fz///38/"
+        },
+        {
+          "name": "Hips.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "8uxQupAR6zzkkhs88uxQupAR6zzkkhs8"
+        },
+        {
+          "name": "Hips.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "BjGOvfOXnDMga5uy2mF/PwYxjr3zl5wzIGubstphfz8="
+        },
+        {
+          "name": "Hips.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        },
+        {
+          "name": "Abdomen.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AICyMWtN2T0AAPQyAICyMWtN2T0AAPQy"
+        },
+        {
+          "name": "Abdomen.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "emOevGyMRLPVv38xwPN/P3pjnrxsjESz1b9/McDzfz8="
+        },
+        {
+          "name": "Abdomen.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD///38/AACAPwAAgD///38/"
+        },
+        {
+          "name": "Torso.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "kBwgsiAxET4AAL6zkBwgsiAxET4AAL6z"
+        },
+        {
+          "name": "Torso.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "lI8dPiZpc75ecq271oR1P5SPHT4maXO+XnKtu9aEdT8="
+        },
+        {
+          "name": "Torso.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8BAIA/AACAPwAAgD8BAIA/"
+        },
+        {
+          "name": "Chest.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACGMQCIBT4AkO+yAACGMQCIBT4AkO+y"
+        },
+        {
+          "name": "Chest.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+",
+          "values": "rRFZuQKAeLIDIMAyAACAP0iPhLkDr281KzJrNf//fz9iIc25dSz4NdzdAjb//38/uEwjurjygDVPzmc2/f9/PwdoeLrVdFQzWoa0Nvj/fz9PtLK6jorWsuNmATfw/38/"
+        },
+        {
+          "name": "Chest.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P/7/fz/+/38///9/P/7/fz/+/38/"
+        },
+        {
+          "name": "Neck.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACPMdFyCD4AQMWxAACPMdFyCD4AQMWx"
+        },
+        {
+          "name": "Neck.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "kywbvCSSOjKfQQ0yEP1/P5MsG7wkkjoyn0ENMhD9fz8="
+        },
+        {
+          "name": "Neck.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP/7/fz///38/AACAP/7/fz///38/"
+        },
+        {
+          "name": "Head.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAmssojnT0AgDoxAAAmssojnT0AgDox"
+        },
+        {
+          "name": "Head.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj4=",
+          "values": "+srIvG2VzLGoNgU5T+x/PxoCyLz9JXO1dasEOXfsfz9mo8W8RVzxtTgTAznt7H8/lqvBvFjANLbCawA5r+1/P2AcvLyfTNy16oT5OLjufz9Z/bS8QEkVtVIf8DgB8H8/dl2svNfeMjWKu+Q4fvF/PwBUoryf94811G3XOCLzfz8="
+        },
+        {
+          "name": "Head.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/f9/P/3/fz/+/38//f9/P/3/fz/+/38/"
+        },
+        {
+          "name": "Head_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAA4sO4jnT0AQCyyAAA4sO4jnT0AQCyy"
+        },
+        {
+          "name": "Head_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AE+CsQAAgS8AAFAvAACAPwBPgrEAAIEvAABQLwAAgD8="
+        },
+        {
+          "name": "Head_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        },
+        {
+          "name": "ShoulderL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "h1CMPbNQHD2gTfw8h1CMPbNQHD2gTfw8"
+        },
+        {
+          "name": "ShoulderL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "GiWKvpbQ1b56zdG+zMhDPxolir6W0NW+es3RvszIQz8="
+        },
+        {
+          "name": "ShoulderL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD/+/38/AACAPwAAgD/+/38/"
+        },
+        {
+          "name": "UpperArmL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACwM2Iigj0AACw0AACwM2Iigj0AACw0"
+        },
+        {
+          "name": "UpperArmL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAKuqKj7v7m4+mpmZPry7uz7e3d0+AAAAPxERET8zMzM/7+5uP0REhD/NzIw/VVWVPw==",
+          "values": "T+49vyOMKb12pDS+REIlPxycPb//mSq9mC00vo+nJT//Tz2/OCgrvUnBM75KBSY/SvA8v+OJLL0QQzO+QnkmP8CFPL+5Ny69n7Myvrz5Jj+SGjy/wiQwvXcfMr5Leic/o7k7vyriMb3IeTG+C/AnP61oO7+UbDW9BFcxvuNIKD92FDu/Plk5vT08Mb76oyg/S1k7v4LVOr0jRzG+JFUoPymxO7/f9Du9pE8xvlTxJz/I+Tu/KE09vXBSMb5Wnic/kUo8vw//Pb3MODG+ekQnPw=="
+        },
+        {
+          "name": "UpperArmL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwEAgD8AAIA/AQCAPwEAgD8AAIA/"
+        },
+        {
+          "name": "LowerArmL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADds0U3Xj4AwC+0AADds0U3Xj4AwC+0"
+        },
+        {
+          "name": "LowerArmL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD4=",
+          "values": "IHT1vXKyq7ze80a+vi55PyD69b10R6u8T/VGvq0seT8="
+        },
+        {
+          "name": "LowerArmL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/PwAAgD/+/38//v9/PwAAgD/+/38/"
+        },
+        {
+          "name": "WristL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAASM3dScT4AAMiwAAASM3dScT4AAMiw"
+        },
+        {
+          "name": "WristL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "4mAYPESWzjuh+708POp/P+JgGDxEls47ofu9PDzqfz8="
+        },
+        {
+          "name": "WristL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/f9/P/7/fz/+/38//f9/P/7/fz/+/38/"
+        },
+        {
+          "name": "Index1L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAARshLS3jwAgBazAAARshLS3jwAgBaz"
+        },
+        {
+          "name": "Index1L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "hcBbvYrkbr3U6rm9cCJ+P4XAW72K5G691Oq5vXAifj8="
+        },
+        {
+          "name": "Index1L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P///fz/+/38///9/P///fz/+/38/"
+        },
+        {
+          "name": "Index2L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACEM+va9z0AAJKzAACEM+va9z0AAJKz"
+        },
+        {
+          "name": "Index2L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAM3MzD7e3d0+7+7uPg==",
+          "values": "NTeQu2pmFT51or49dyJ8P44qkrt8tBU+Ogq/PVMefD9yQSi75T8WPq4Nvj2RHHw//IWkOp32Fj5607w9mhl8Pw=="
+        },
+        {
+          "name": "Index2L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD///38/AACAPwAAgD///38/"
+        },
+        {
+          "name": "Index3L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACgMwMmAj0AADCzAACgMwMmAj0AADCz"
+        },
+        {
+          "name": "Index3L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAALy7uz7NzMw+3t3dPu/u7j4AAAA/iYgIPxERET+amRk/IiIiP6uqKj8zMzM/vLs7P0RERD/NzEw/VVVVP97dXT9mZmY/",
+          "values": "L3iovVNfN7v2QKs8QxN/PzJ4qL0kXze780CrPEMTfz/ILqa9gXQ1u8GtqzwyGX8/WRihvZMwMbuan6w8GiZ/P4O4mr0a2Su7J86tPLE1fz+Q9pO9dS4mu1sOrzyFRX8/8ZWNvZDVILsGPLA8zFN/P1d+iL0xkBy7hSyxPL1efz9GNIa946Qau46YsTyFY38/siSHvaNuG7s+bLE8kWF/PwH2ib0xyx27Q+ewPKBbfz8XfI69VpYhu4gRsDzTUX8/GT2Uvd5pJrtXAa885ER/P/1xmr2cnSu7OtutPFo2fz9aMqC9AXAwu0PKrDxWKH8/gLekvZ05NLt786s89Rx/Pw6Ip72ClTa7nG2rPLUVfz8seKi9Il83u/ZAqzxDE38/"
+        },
+        {
+          "name": "Index3L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/P/7/fz///38//v9/P/7/fz///38/"
+        },
+        {
+          "name": "Index4L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABAs0yw6jwAAOAxAABAs0yw6jwAAOAx"
+        },
+        {
+          "name": "Index4L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "47r3vOB8UDx/SsU7iNt/P+O697zgfFA8f0rFO4jbfz8="
+        },
+        {
+          "name": "Index4L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/PwEAgD/+/38///9/PwEAgD/+/38/"
+        },
+        {
+          "name": "Index4L_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAAHOw6jwAAACxAAAAAHOw6jwAAACx"
+        },
+        {
+          "name": "Index4L_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQA4sv//HzEAAIozAACAPwEAOLL//x8xAACKMwAAgD8="
+        },
+        {
+          "name": "Index4L_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAP///fz8AAIA/AQCAP///fz8AAIA/"
+        },
+        {
+          "name": "Middle1L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAARshLS3jwAgBazAAARshLS3jwAgBaz"
+        },
+        {
+          "name": "Middle1L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "O1A+vKw+QbxXMYc8GO5/PztQPrysPkG8VzGHPBjufz8="
+        },
+        {
+          "name": "Middle1L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD///38/AACAPwAAgD///38/"
+        },
+        {
+          "name": "Middle2L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABcMpVy9T0AQDwzAABcMpVy9T0AQDwz"
+        },
+        {
+          "name": "Middle2L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAERERD/NzEw/VVVVP97dXT9mZmY/7+5uP3d3dz8AAIA/RESEP4mIiD/NzIw/ERGRP1VVlT+amZk/3t2dPyIioj9mZqY/q6qqP+/urj8=",
+          "values": "yndbvUwNcT1O9F25GzB/P853W71PDXE9M/RduRswfz8ibFW9QrhvPQMlnzd9Nn8/wdJDvbfWaz017TQ6M0h/P9CDKr1GQGY9ZfHYOmFffz8iMxG9aKdgPea0Kzvgc38/0Cz/vFfBXD3vr1c7jIB/P0gS87wtals9F8xmO5mEfz9LFfa8lb9bPX8JYzubg38/xiz/vFXBXD3vr1c7jIB/P00VB704al49avhEO1B7fz8jMxG9Y6dgPeW0Kzvgc38/PVAdvU9VYz0Ycw07Z2p/P9KDKr1DQGY9lvHYOmFffz/qtje9kSppPYH7ljqgU38/udJDvbPWaz1a7TQ6M0h/P9/uTb2QEW49grWfOS8+fz8ebFW9PrhvPdUanzd9Nn8/ufZZvWu4cD3OxCG5tTF/P8l3W71MDXE9gvRduRswfz8="
+        },
+        {
+          "name": "Middle2L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAP/z/fz8BAIA/AQCAP/z/fz8BAIA/"
+        },
+        {
+          "name": "Middle3L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABIM2SBID0AAO6yAABIM2SBID0AAO6y"
+        },
+        {
+          "name": "Middle3L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAERERD/NzEw/VVVVP97dXT9mZmY/7+5uP3d3dz8AAIA/RESEP4mIiD/NzIw/ERGRP1VVlT+amZk/3t2dPw==",
+          "values": "88b1vaM9j7uoM6y8JRd+P/vG9b34K4+7A1isvB8Xfj+6/fC9/n6hu3dJrbwgKX4/FQ3jvfsi17sGb6+8dVt+PxH9zr2yOhK8uxiyvDqefj9X57q9ff44vPkqtLxn2n4/seusvfMJVLzYArW8aQB/P9ccqL27bV28c6i0vNUMfz+RTqm93DJbvB0ctLzkCX8/XOqsve5QVLwGYLO8swB/P6fdsr3D6Ei8mYKyvALxfj9r5bq9eHg5vOCRsbzb2n4/goLEvXHyJrwsmbC85b5+P6X7zr0JuxK8QaGvvKiefj84c9m9cBT9u6V+rryffH4/XQzjvWDo17v/tK28wVt+Pw=="
+        },
+        {
+          "name": "Middle3L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+v9/P/7/fz8CAIA/+v9/P/7/fz8CAIA/"
+        },
+        {
+          "name": "Middle4L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABAsfNqID0AAFazAABAsfNqID0AAFaz"
+        },
+        {
+          "name": "Middle4L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "oQucvJ1hED0wsPO7kMl/P6ELnLydYRA9MLDzu5DJfz8="
+        },
+        {
+          "name": "Middle4L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwAAgD8BAIA/AQCAPwAAgD8BAIA/"
+        },
+        {
+          "name": "Middle4L_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAMOZqID0AALYyAAAAMOZqID0AALYy"
+        },
+        {
+          "name": "Middle4L_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AgCwse//v68BAICwAACAPwIAsLHv/7+vAQCAsAAAgD8="
+        },
+        {
+          "name": "Middle4L_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P/7/fz8AAIA///9/P/7/fz8AAIA/"
+        },
+        {
+          "name": "Ring1L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAARshLS3jwAgBazAAARshLS3jwAgBaz"
+        },
+        {
+          "name": "Ring1L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "fn75vHNF7bzZaAM+uqd9P35++bxzRe282WgDPrqnfT8="
+        },
+        {
+          "name": "Ring1L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz8AAIA/AACAP///fz8AAIA/"
+        },
+        {
+          "name": "Ring2L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AICOM9I89D0AAG6yAICOM9I89D0AAG6y"
+        },
+        {
+          "name": "Ring2L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz8=",
+          "values": "vfAzvVz32T1ZTCe9FxV+P7/wM71c99k9W0wnvRcVfj8DvSy9LXDYPV97IL21I34/fsQXvYH70z1uogy93kt+P7oz87wojs09PSvgvFp/fj+E17a83xrHPRULp7x1q34/LtmMvPyawj0Fmn68x8V+Py/XfLygDsE90UpjvP/Nfj+tAoK8SnHBPWIWarz9y34/MtmMvPuawj0emn68x8V+P2u4nryIhcQ9+jaQvAO7fj+A17a82xrHPRQLp7x1q34/vbnTvLIxyj0DYcK8R5d+P7Mz87wnjs09PyvgvFp/fj/rVQm9+OjQPaPz/bxsZX4/eMQXvXn70z1sogy93kt+P6fQI70fi9Y9YwkYvTw1fj8CvSy9K3DYPVZ7IL22I34/BSYyvROW2T0ymiW9xBh+P7/wM71c99k9U0wnvRcVfj8="
+        },
+        {
+          "name": "Ring2L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwEAgD8AAIA/AACAPwEAgD8AAIA/"
+        },
+        {
+          "name": "Ring3L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADQs2/bBj0AgBgzAADQs2/bBj0AgBgz"
+        },
+        {
+          "name": "Ring3L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz9VVdU/",
+          "values": "+lD0va+Gaj2xYSO9F4t9P/hQ9L2whmo9s2EjvReLfT9vW/G9CPdnPZWRH701m30/Wr3ovYmBYD2odxS93sh9P65W3L1jxVU9+38EvTkHfj+c7M+99QVLPXQM6by0QX4/N0jHvVWKQz0R0dK8F2h+P8FPxL3Y90A9XC3LvNh0fj8DDcW9tptBPf8TzbyxcX4/NEjHvVKKQz0P0dK8F2h+P/L1yr3EuUY9XkfcvPtXfj+g7M+9+AVLPXIM6by0QX4/pt3VvdgqUD2qVvi8NSZ+P69W3L1jxVU99n8EvTkHfj++zuK9AF9bPQ3UDL0w530/X73ovZSBYD2pdxS93ch9P8uw7b2ZymQ9Rdgavd6ufT9yW/G9DfdnPZKRH701m30/iZTzvZXjaT3ZbiK9Ho99P/dQ9L2vhmo9t2EjvReLfT/6UPS9r4ZqPbFhI70Xi30/"
+        },
+        {
+          "name": "Ring3L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP/7/fz8AAIA/AACAP/7/fz8AAIA/"
+        },
+        {
+          "name": "Ring4L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADgMfTUAz0AABazAADgMfTUAz0AABaz"
+        },
+        {
+          "name": "Ring4L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "CzWZvab/5Dyf+Pm7xSx/Pws1mb2m/+Q8n/j5u8Usfz8="
+        },
+        {
+          "name": "Ring4L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD///38/AACAPwAAgD///38/"
+        },
+        {
+          "name": "Ring4L_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAsQXVAz0AAGgyAADAsQXVAz0AAGgy"
+        },
+        {
+          "name": "Ring4L_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABqNACAQDT///cyAACAPwAAajQAgEA0///3MgAAgD8="
+        },
+        {
+          "name": "Ring4L_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAP///fz8AAIA/AQCAP///fz8AAIA/"
+        },
+        {
+          "name": "Pinky1L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAARshLS3jwAgBazAAARshLS3jwAgBaz"
+        },
+        {
+          "name": "Pinky1L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "jbH+vAsU4LxGh2g+PhZ5P42x/rwLFOC8RodoPj4WeT8="
+        },
+        {
+          "name": "Pinky1L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/PwAAgD8AAIA///9/PwAAgD8AAIA/"
+        },
+        {
+          "name": "Pinky2L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABAsuR87T0AgMeyAABAsuR87T0AgMey"
+        },
+        {
+          "name": "Pinky2L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "IOKcvWwXeT1WdDq+1nh6PyDinL1sF3k9VnQ6vtZ4ej8="
+        },
+        {
+          "name": "Pinky2L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwEAgD8AAIA/AQCAPwEAgD8AAIA/"
+        },
+        {
+          "name": "Pinky3L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACMsxQb0zwAAJCwAACMsxQb0zwAAJCw"
+        },
+        {
+          "name": "Pinky3L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "OkS3vSdbG73bvra8WLl+PzpEt70nWxu92762vFi5fj8="
+        },
+        {
+          "name": "Pinky3L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/f9/PwEAgD/+/38//f9/PwEAgD/+/38/"
+        },
+        {
+          "name": "Pinky4L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABAM5802zwAALqyAABAM5802zwAALqy"
+        },
+        {
+          "name": "Pinky4L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "oIfvvdUtHrxxtVO7zDp+P6CH773VLR68cbVTu8w6fj8="
+        },
+        {
+          "name": "Pinky4L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+v9/P/r/fz/7/38/+v9/P/r/fz/7/38/"
+        },
+        {
+          "name": "Pinky4L_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAMIc02zwAAJ6yAACAMIc02zwAAJ6y"
+        },
+        {
+          "name": "Pinky4L_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/z9IMwAAYLIAABAyAACAP/8/SDMAAGCyAAAQMgAAgD8="
+        },
+        {
+          "name": "Pinky4L_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwEAgD8AAIA/AACAPwEAgD8AAIA/"
+        },
+        {
+          "name": "Thumb1L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAARshLS3jwAgBazAAARshLS3jwAgBaz"
+        },
+        {
+          "name": "Thumb1L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "zVqivt/Cor62DDm+IQRgP81aor7fwqK+tgw5viEEYD8="
+        },
+        {
+          "name": "Thumb1L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwEAgD8AAIA/AACAPwEAgD8AAIA/"
+        },
+        {
+          "name": "Thumb2L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAws9i+qT0AAKk0AAAws9i+qT0AAKk0"
+        },
+        {
+          "name": "Thumb2L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamPw==",
+          "values": "/v8GPlWfjD6DPDG8kNBzP8ncBj4oUow+/fAtvAvdcz8RagY+HvGLPhZAKbwl73M/tJkFPi+0iz5eByO8S/9zP1hzBD4Db4s+acIavIwTdD9L9wI+AiKLPkJ3ELy+K3Q/qSYBPsjNij5OMQS8n0d0P+4G/j0Ec4o+FwPsu+FmdD+XIfk9hBKKPp8AzLsgiXQ/dKXzPTKtiT5Slai77K10P4Wd7T0YRIk+aw2Cu8TUdD8pF+c9VtiIPvyHMbsb/XQ/RSLgPQ9riD4tgLS6XiZ1PyjR2D2C/Yc+u7pUN/VPdT9wONE96ZCHPh9qvTpJeXU/YG7JPW4mhz7sTD47y6F1P4aKwT1Bv4Y+E0GPO/bIdT86pbk9eFyGPokZvztT7nU/z9axPRD/hT5rH+47fRF2P+k2qj33p4U+i+QNPCMydj8j3KI9AViFPmPKIzwFUHY/S9ubPc4PhT7nhDg8+2p2PzxTlT2xm4Q+fH5MPNGJdj9IQY892kyEPo6MXjzUoXY/v6aJPUZbhD4B8208w6t2P2GXhD2fo4Q+dAl7PFKsdj+UIoA9vAmFPlsGgzxHp3Y/Op54PS+MhT7Hd4c845x2P+NDcj0nKIY+Q9aKPJONdj/zPG09ddmGPnsijTz0eXY/45dpPTSahz4GFY4822J2P2Z0Zz3LYog+/d2MPF1Jdj9Dv2Y9MiyJPpgVijx0LnY/MuBoPWzviT4QCIU83hF2P3lMbz3/pYo+q/t5PBrzdT9aA3o9YUmLPs8wZDyu0nU/BHOEPUvUiz4cJkk817B1P7nXjT3FQow+QYspPJqNdT+J9pg9HpKMPkFLBjzpaHU/dnqlPWvQjD6gpsA7m0B1Pw=="
+        },
+        {
+          "name": "Thumb2L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz8AAIA/AACAP///fz8AAIA/"
+        },
+        {
+          "name": "Thumb3L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAgs7zx/jwAAMCwAAAgs7zx/jwAAMCw"
+        },
+        {
+          "name": "Thumb3L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "doV0vfiIAj2kvPA9YKJ9P4U/db1zjgI9Ov7wPbCgfT8ZcXe98J4CPTjE8T2Vm30/ix17vYG6Aj2xD/M995J9P9AigL0l4QI98+D0PbuGfT+vc4O9txIDPSs39z3Edn0/k36HvQBPAz0/EPo99GJ9P6c+jL2alQM9tGj9PSxLfT+4rJG9+uUDPaCdAD5VL30/Mb+XvXc/BD2CwAI+Xg99P6lpnr0yoQQ9mxgFPkTrfD/+nKW9MgoFPXKgBz4Uw3w/UketvVZ5BT2tUQo+75Z8PxxUtb1Q7QU9CiUNPhFnfD+YrL29wWQGPYASED7MM3w/JTjGvT7eBj1UERM+k/17P8Pczr0/WAc9bRgWPvHEez/9f9e9UtEHPXoeGT6Mins/QQfgvfRHCD01Ghw+IE97P9VY6L3kugg9qwIfPngTez9/XPC93ygJPWXPIT5p2Ho/tfv3vbyQCT2ZeCQ+zJ56P5oi/72g8Qk9YfcmPnRnej/h3wK+oUoKPc9FKT4oM3o/T+IFvjebCj3WXis+pAJ6P7OSCL7e4go9cD4tPorWeT9k7Aq+OCELPXjhLj5pr3k/IewMvgJWCz29RTA+tY15P6iPDr4sgQs9uWkxPshxeT+61Q++maILPZ5MMj7lW3k/7r0Qvmq6Cz0l7jI+Nkx5P4tIEb6PyAs9jk4zPtBCeT99dhG+RM0LPYJuMz6wP3k/0OQQvmG+Cz0tCTM+lEl5PyosD747kQs9odYxPkxneT+zSwy+gkULPQ/WLz5RmHk/Z0oIvmDbCj0ZDC0+NNt5P185A74GVAo9MoQpPpEtej9FbPq93bEJPYhSJT4PjHo/udfsvan4CD3HlCA+iPJ6P9Al3r3aLQg92XEbPmFcez/J3M69OVgHPW0YFj7xxHs/MY+/vaB/Bj26uxA+/Cd8P2LQsL1arAU9bI8LPhqCfD9qKKO9duYEPY3DBj7s0Hw/uQqXvRM1BD0MgQI+HxN9P6jQjL0QngM9d8/9PUhIfT8wuIS9qSUDPcob+D2ZcH0/Fcx9vZzOAj2vAfQ9n4x9P6/Tdr1MmgI9uIzxPQSdfT92hXS9+IgCPaS88D1gon0/"
+        },
+        {
+          "name": "Thumb3L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz8AAIA/AACAP///fz8AAIA/"
+        },
+        {
+          "name": "Thumb3L_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADwMa7x/jwAAIAxAADwMa7x/jwAAIAx"
+        },
+        {
+          "name": "Thumb3L_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AgCnMgEAjDICAHSyAACAPwIApzIBAIwyAgB0sgAAgD8="
+        },
+        {
+          "name": "Thumb3L_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P///fz/+/38///9/P///fz/+/38/"
+        },
+        {
+          "name": "ShoulderR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "leyKvfRUHD0FPvw8leyKvfRUHD0FPvw8"
+        },
+        {
+          "name": "ShoulderR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "BSWKvo7Q1T5szdE+1shDPwUlir6O0NU+bM3RPtbIQz8="
+        },
+        {
+          "name": "ShoulderR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/PwAAgD8AAIA///9/PwAAgD8AAIA/"
+        },
+        {
+          "name": "UpperArmR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACoM2Yigj0AAI40AACoM2Yigj0AAI40"
+        },
+        {
+          "name": "UpperArmR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAKuqKj7v7m4+mpmZPry7uz7e3d0+AAAAPxERET8iIiI/vLs7PwAAgD/NzIw/",
+          "values": "h7s9v/s5Lz4s4N49JdYjP4VhPb+q1y8+57DePZ80JD8GDT2/8WIwPhSg3j3qjCQ/yKA8v8EcMT6hX9493/0kP2ckPL836TE+mOrdPWaAJT8soTu/xrMyPpIw3T1mCyY/lyk7v4H8Mj4qKds9/ZcmP968Or/YQTM+5SfZPaYXJz9XYzq/v3MzPuIl1z2Egic/Rgk6v4usMz7/INU9B+0nP1laOr/LhzM+1qLUPQGYJz8tvTq/C3kzPt+X1D0RKyc/"
+        },
+        {
+          "name": "UpperArmR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwAAgD///38/AQCAPwAAgD///38/"
+        },
+        {
+          "name": "LowerArmR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABgszw3Xj4AAIEzAABgszw3Xj4AAIEz"
+        },
+        {
+          "name": "LowerArmR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAKuqKj4=",
+          "values": "CeBPvpsfUL4S6Kk+HAZmP6J7UL7TF1C+fuKpPsf+ZT8="
+        },
+        {
+          "name": "LowerArmR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz///38/AACAP///fz///38/"
+        },
+        {
+          "name": "WristR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAMphScT4AAICyAACAMphScT4AAICy"
+        },
+        {
+          "name": "WristR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "T8QGPPnhILwFBVW97qF/P0/EBjz54SC8BQVVve6hfz8="
+        },
+        {
+          "name": "WristR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz///38/AACAP///fz///38/"
+        },
+        {
+          "name": "Index1R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAACPS3jwAAACyAAAAACPS3jwAAACy"
+        },
+        {
+          "name": "Index1R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "2sBbvQbkbj3s6rk9cCJ+P9rAW70G5G497Oq5PXAifj8="
+        },
+        {
+          "name": "Index1R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/P/7/fz///38//v9/P/7/fz///38/"
+        },
+        {
+          "name": "Index2R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACgMg7b9z0AAEAyAACgMg7b9z0AAEAy"
+        },
+        {
+          "name": "Index2R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "BRqFvJOME77k2MG9+CF8PwUahbyTjBO+5NjBvfghfD8="
+        },
+        {
+          "name": "Index2R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwEAgD8AAIA/AACAPwEAgD8AAIA/"
+        },
+        {
+          "name": "Index3R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAsuElAj0AAFCzAAAAsuElAj0AAFCz"
+        },
+        {
+          "name": "Index3R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "3la8vYT+RzvAjKe8N9x+P95WvL2E/kc7wIynvDfcfj8="
+        },
+        {
+          "name": "Index3R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAP///fz///38/AQCAP///fz///38/"
+        },
+        {
+          "name": "Index4R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAMkyw6jwAACAzAAAAMkyw6jwAACAz"
+        },
+        {
+          "name": "Index4R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "87n3vEh7ULxnSMW7iNt/P/O597xIe1C8Z0jFu4jbfz8="
+        },
+        {
+          "name": "Index4R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/PwAAgD8AAIA//v9/PwAAgD8AAIA/"
+        },
+        {
+          "name": "Index4R_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACQM0Ww6jwAAMAyAACQM0Ww6jwAAMAy"
+        },
+        {
+          "name": "Index4R_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQAAsgAA2LIBAEAyAACAPwEAALIAANiyAQBAMgAAgD8="
+        },
+        {
+          "name": "Index4R_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz///38/AACAP///fz///38/"
+        },
+        {
+          "name": "Middle1R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAACPS3jwAAACyAAAAACPS3jwAAACy"
+        },
+        {
+          "name": "Middle1R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "5lA+vNk8QTz/MIe8GO5/P+ZQPrzZPEE8/zCHvBjufz8="
+        },
+        {
+          "name": "Middle1R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/f9/P///fz8AAIA//f9/P///fz8AAIA/"
+        },
+        {
+          "name": "Middle2R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABgM6Jy9T0AAKAyAABgM6Jy9T0AAKAy"
+        },
+        {
+          "name": "Middle2R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "LFuGvfoea70FZpq9Tkt+Pyxbhr36Hmu9BWaavU5Lfj8="
+        },
+        {
+          "name": "Middle2R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+/9/P/7/fz/9/38/+/9/P/7/fz/9/38/"
+        },
+        {
+          "name": "Middle3R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABAs2GBID0AACCyAABAs2GBID0AACCy"
+        },
+        {
+          "name": "Middle3R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "3Mb1vWBAjztqM6w8Jhd+P9zG9b1gQI87ajOsPCYXfj8="
+        },
+        {
+          "name": "Middle3R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD/9/38/AACAPwAAgD/9/38/"
+        },
+        {
+          "name": "Middle4R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAMtdqID0AAOCyAADAMtdqID0AAOCy"
+        },
+        {
+          "name": "Middle4R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "9AqcvIdhEL3ZsPM7kMl/P/QKnLyHYRC92bDzO5DJfz8="
+        },
+        {
+          "name": "Middle4R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwEAgD/+/38/AACAPwEAgD/+/38/"
+        },
+        {
+          "name": "Middle4R_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAsgBrID0AACgzAAAAsgBrID0AACgz"
+        },
+        {
+          "name": "Middle4R_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQASsgEAUDICACAyAACAPwEAErIBAFAyAgAgMgAAgD8="
+        },
+        {
+          "name": "Middle4R_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P///fz8AAIA///9/P///fz8AAIA/"
+        },
+        {
+          "name": "Ring1R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAACPS3jwAAACyAAAAACPS3jwAAACy"
+        },
+        {
+          "name": "Ring1R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "yn75vMVE7TzPaAO+u6d9P8p++bzFRO08z2gDvrunfT8="
+        },
+        {
+          "name": "Ring1R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz8AAIA/AACAP///fz8AAIA/"
+        },
+        {
+          "name": "Ring2R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABAMrU89D0AAJizAABAMrU89D0AAJiz"
+        },
+        {
+          "name": "Ring2R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "FPEzvUv32b1lTCc9FxV+PxTxM71L99m9ZUwnPRcVfj8="
+        },
+        {
+          "name": "Ring2R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P///fz///38///9/P///fz///38/"
+        },
+        {
+          "name": "Ring3R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACwM3rbBj0AAAgzAACwM3rbBj0AAAgz"
+        },
+        {
+          "name": "Ring3R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "pFD0vUGHar2rYSM9F4t9P6RQ9L1Bh2q9q2EjPReLfT8="
+        },
+        {
+          "name": "Ring3R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P///fz8AAIA///9/P///fz8AAIA/"
+        },
+        {
+          "name": "Ring4R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAgM+LUAz0AAOCyAAAgM+LUAz0AAOCy"
+        },
+        {
+          "name": "Ring4R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "bzWZvcv/5Lxz+Pk7xCx/P281mb3L/+S8c/j5O8Qsfz8="
+        },
+        {
+          "name": "Ring4R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwEAgD///38/AACAPwEAgD///38/"
+        },
+        {
+          "name": "Ring4R_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAAPDUAz0AAAAyAAAAAPDUAz0AAAAy"
+        },
+        {
+          "name": "Ring4R_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAMP//j7IAALAyAACAPwAAwDD//4+yAACwMgAAgD8="
+        },
+        {
+          "name": "Ring4R_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        },
+        {
+          "name": "Pinky1R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAACPS3jwAAACyAAAAACPS3jwAAACy"
+        },
+        {
+          "name": "Pinky1R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "z7H+vEkT4DxHh2i+PhZ5P8+x/rxJE+A8R4dovj4WeT8="
+        },
+        {
+          "name": "Pinky1R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/P///fz/+/38//v9/P///fz/+/38/"
+        },
+        {
+          "name": "Pinky2R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAQM+587T0AADCzAAAQM+587T0AADCz"
+        },
+        {
+          "name": "Pinky2R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "TuKcvUgXeb1jdDo+1Xh6P07inL1IF3m9Y3Q6PtV4ej8="
+        },
+        {
+          "name": "Pinky2R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P///fz///38///9/P///fz///38/"
+        },
+        {
+          "name": "Pinky3R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAstMa0zwAABAzAAAAstMa0zwAABAz"
+        },
+        {
+          "name": "Pinky3R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "M0S3va1aGz1bv7Y8WLl+PzNEt72tWhs9W7+2PFi5fj8="
+        },
+        {
+          "name": "Pinky3R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/PwAAgD///38///9/PwAAgD///38/"
+        },
+        {
+          "name": "Pinky4R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACQM5U02zwAANgyAACQM5U02zwAANgy"
+        },
+        {
+          "name": "Pinky4R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "X4fvvawrHjzlrVM7zTp+P1+H772sKx485a1TO806fj8="
+        },
+        {
+          "name": "Pinky4R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        },
+        {
+          "name": "Pinky4R_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAsr402zwAAOCyAAAAsr402zwAAOCy"
+        },
+        {
+          "name": "Pinky4R_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "DAAAMQAAwDICAJiyAACAPwwAADEAAMAyAgCYsgAAgD8="
+        },
+        {
+          "name": "Pinky4R_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P/7/fz8BAIA///9/P/7/fz8BAIA/"
+        },
+        {
+          "name": "Thumb1R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAACPS3jwAAACyAAAAACPS3jwAAACy"
+        },
+        {
+          "name": "Thumb1R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "GzKCvjz+sz42Nn4+abhdPxsygr48/rM+NjZ+Pmm4XT8="
+        },
+        {
+          "name": "Thumb1R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAP///fz///38/AQCAP///fz///38/"
+        },
+        {
+          "name": "Thumb2R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAtMW+qT0AAICxAAAAtMW+qT0AAICx"
+        },
+        {
+          "name": "Thumb2R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/",
+          "values": "BwAHPlifjL7aOjE8j9BzP1HFBj5QW4y+cp8tPI3ccz8iBwY+LjqMvn7uKDwS6HM/78oEPn3si77zRCA8Zv5zPzESAz57iou+WpMUPMgbdD+F5AA+VBaLviYTBjxtP3Q/np38PTmTir41Qeo7MWh0P7jH9j1dBYq+Gn3EO52UdD8fePA9qnGJvvwgnDv9wnQ/gOjpPZzdiL7FTmU7gfF0P7RX4z2qToi+e0ETO2MedT/RBN098MmHvhVXijoPSHU/1SnXPdxTh74Q/g24Om11PxL40T3p74a+okeBuvCMdT+ulc09jKCGvgnH6LqXpnU/1CXKPYxEhr5Xcx67fb51P6iKxz3fh4a+6yM1u769dT/rBMY9B8qGvu6rObuYuXU/ZHrFPQYkh75RrzO7/q51P2yMxT0un4e+oNkmu9addT99/cU9O+aHvgSiGbugknU/77/GPeYxiL7drwi7u4V1PwPUxz1cgYi+ajHoujx3dT9cOck9wdOIvqfxt7o/Z3U/zO7KPRsoib4J94C64FV1P1ryzD1kfYm+r04HukRDdT8KQc89lNKJvldbfLaQL3U/xNbRPZ0mir5k3w867xp1P2Ou1D2AeIq+CfqUOosFdT+Xwdc9PceKviHk5TqX73Q/wQjbPf0Ri76N7Bw7Qtl0Pz573j3oV4u+cvtHO8LCdD9u/+E9INWLvl25dzvXo3Q/3Z/lPZ04jL7gMJM744d0P1pS6T25f4y+TKSpO3RvdD/3B+096LeMvoVqvzvYWHQ/"
+        },
+        {
+          "name": "Thumb2R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P///fz/9/38///9/P///fz/9/38/"
+        },
+        {
+          "name": "Thumb3R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AIB2M5rx/jwAAECyAIB2M5rx/jwAAECy"
+        },
+        {
+          "name": "Thumb3R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD8=",
+          "values": "boV0vbaHAr2MvPC9YaJ9P8Uld70yeQK9EgTxvc2efT8SFn+9Lk0CvR3c8b3Rk30/FS+GvS8DAr0kRfO924B9P3d2j701mwG9hTz1vShlfT+7SJu9nBUBvR28973RP30/tHmpvaNzAL1gufq99A99P0nHub2vbv+8CSX+veHUfD8F2Mu9/cf9vIz1AL5Ljnw/BDzfvdH7+7xy+QK+hDx8P+9w871FFfq8RxAFvqjgez8c9AO+GCH4vAwrB76wfHs/ywcOvjAt9ry9Ogm+ZBN7PwWtF77iR/S8HDELvjeoej/noyC+/X7yvKIBDb77Pno/W7YovnPe8Lz6oQ6+j9t5P6C5L77ScO+8MQoQvpaBeT+SjjW+AT7uvKI0Eb41NHk/4CA6vr5L7bzrHRK+6/V4P4llPb6dney8UsQSvoLIeD9LWT++QTXsvI0nE74JrXg/oPk/vuVb7Lwk1RK+Uqh4P56dP76VF+y8DHMSvm+weD/pkj6+UvbrvHztEb4uwng/0dc8vrX467yQRBG+eN14PxRsOr4hH+y833gQvgoCeT8YUTe+eGnsvG+LD75sL3k/RYozvkvX7LzzfQ6+9mR5P28dL74daO28r1INvsmheT8yEyq+ixruvLAMDL7S5Hk/PnckvvPs7ryrrwq+0ix6Pz9YHr573e+8C0AJvml4ej9TyBe+jOnwvN3CB74Zxno/htwQvk8O8ryWPQa+XhR7P5isCb56SPO8AbYEvr1hez99UgK+VJT0vBAyA77PrHs/+dL1vcvt9byTtwG+WvR7P+Ia571xUPe8G0wAvlU3fD+rs9i9ebf4vGjp/b33dHw/otHKvW8e+rzIa/u9tax8P0mlvb1wgPu8KCf5vUHefD/DWbG939j8vMMh972GCX0/IBSmvZsj/ryaYPW9ni59PzDzm72SXP+8WefzvcNNfT86D5O9OEAAvWW48r1KZ30/dnqLvQvGAL0q1fG9j3t9P2hAhb20QgG9Ix/xvWuLfT8="
+        },
+        {
+          "name": "Thumb3R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/P/7/fz///38//v9/P/7/fz///38/"
+        },
+        {
+          "name": "Thumb3R_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACUs6zx/jwAAAAyAACUs6zx/jwAAAAy"
+        },
+        {
+          "name": "Thumb3R_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/M///P7IBADg0AACAP///fzP//z+yAQA4NAAAgD8="
+        },
+        {
+          "name": "Thumb3R_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8BAIA/AACAPwAAgD8BAIA/"
+        },
+        {
+          "name": "UpperLegL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "ZHDFPei1gT3FTL68ZHDFPei1gT3FTL68"
+        },
+        {
+          "name": "UpperLegL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAO/ubj68u7s+",
+          "values": "T8Z3P50Qnj3+YGO+Vci2PX/gdz/uSZw95C9jvo1FsD2i7Xc/HXmaPeHtY746SKk9"
+        },
+        {
+          "name": "UpperLegL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "FgCAPwIAgD8MAIA/FgCAPwIAgD8MAIA/"
+        },
+        {
+          "name": "LowerLegL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAgsn2w9j4AABCyAAAgsn2w9j4AABCy"
+        },
+        {
+          "name": "LowerLegL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImIiD0=",
+          "values": "fGV9Psij9bPhGwQywAl4P/TyfD6vpfWzDDkDMg4ReD8="
+        },
+        {
+          "name": "LowerLegL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        },
+        {
+          "name": "LowerLegL_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACIsnmw9j4AACAyAACIsnmw9j4AACAy"
+        },
+        {
+          "name": "LowerLegL_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADgMv//R7P//7+xAACAPwAA4DL//0ez//+/sQAAgD8="
+        },
+        {
+          "name": "LowerLegL_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwAAgD8AAIA/AQCAPwAAgD8AAIA/"
+        },
+        {
+          "name": "UpperLegR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "nUvHvf21gT25TL68nUvHvf21gT25TL68"
+        },
+        {
+          "name": "UpperLegR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAM3MTD4=",
+          "values": "SRB3Pwu0lrzxGy8+ykNKPmg1dz/X8ZK8zycvPrNpRz4="
+        },
+        {
+          "name": "UpperLegR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/PwAAgD/7/38//v9/PwAAgD/7/38/"
+        },
+        {
+          "name": "LowerLegR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAMYGw9j4AANSyAACAMYGw9j4AANSy"
+        },
+        {
+          "name": "LowerLegR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImIiD0=",
+          "values": "01ZkPusydjAa28Cx5I15PxTXYz5Y+HYwKNfAsTCVeT8="
+        },
+        {
+          "name": "LowerLegR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP/7/fz///38/AACAP/7/fz///38/"
+        },
+        {
+          "name": "LowerLegR_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAsYWw9j4AAEAwAAAAsYWw9j4AAEAw"
+        },
+        {
+          "name": "LowerLegR_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACUMQCAUjIBAOgxAACAPwAAlDEAgFIyAQDoMQAAgD8="
+        },
+        {
+          "name": "LowerLegR_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz8AAIA/AACAP///fz8AAIA/"
+        },
+        {
+          "name": "FootL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "Cl7GPcBhujwwhD++Cl7GPcBhujwwhD++"
+        },
+        {
+          "name": "FootL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "2kodP44wsj5BPbG+NiAeP9pKHT+OMLI+QT2xvjYgHj8="
+        },
+        {
+          "name": "FootL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz8BAIA/AACAP///fz8BAIA/"
+        },
+        {
+          "name": "FootL_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "4Ii2MtmqGj8AAMCw4Ii2MtmqGj8AAMCw"
+        },
+        {
+          "name": "FootL_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AICXMgBkkzI8ZAAzAACAPwCAlzIAZJMyPGQAMwAAgD8="
+        },
+        {
+          "name": "FootL_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz8AAIA/AACAP///fz8AAIA/"
+        },
+        {
+          "name": "PTL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "hWULP3B2Jj+xjmg+hWULP3B2Jj+xjmg+"
+        },
+        {
+          "name": "PTL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "2TovuwAAAAAAAAAAxP9/P9k6L7sAAAAAAAAAAMT/fz8="
+        },
+        {
+          "name": "PTL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        },
+        {
+          "name": "PTL_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAM9mqGj8AAJgyAACAM9mqGj8AAJgy"
+        },
+        {
+          "name": "PTL_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACwMQAAAAAAAAAAAACAPwAAsDEAAAAAAAAAAAAAgD8="
+        },
+        {
+          "name": "PTL_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        },
+        {
+          "name": "FootR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "fmU3vQBoujye2jE+fmU3vQBoujye2jE+"
+        },
+        {
+          "name": "FootR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "bDs0P9/jJz1s/ia9IjM1P2w7ND/f4yc9bP4mvSIzNT8="
+        },
+        {
+          "name": "FootR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz/+/38/AACAP///fz/+/38/"
+        },
+        {
+          "name": "FootR_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "ZwB5styqGj8AAJIxZwB5styqGj8AAJIx"
+        },
+        {
+          "name": "FootR_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AGDWMaY1uLOUG1uvAACAPwBg1jGmNbizlBtbrwAAgD8="
+        },
+        {
+          "name": "FootR_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD///38/AACAPwAAgD///38/"
+        },
+        {
+          "name": "PTR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "IFu2O8bc5D7fryg/IFu2O8bc5D7fryg/"
+        },
+        {
+          "name": "PTR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "nDkvuwAAAAAAAAAAxP9/P5w5L7sAAAAAAAAAAMT/fz8="
+        },
+        {
+          "name": "PTR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        },
+        {
+          "name": "PTR_end.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAANqqGj8AAIiyAAAAANqqGj8AAIiy"
+        },
+        {
+          "name": "PTR_end.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACwMQAAAAAAAAAAAACAPwAAsDEAAAAAAAAAAAAAgD8="
+        },
+        {
+          "name": "PTR_end.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        }
+      ]
+    }
+  ]
+}
