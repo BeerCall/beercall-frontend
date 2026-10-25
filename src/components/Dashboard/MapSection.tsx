@@ -56,6 +56,25 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         openCamera();
     }, [openCamera]);
 
+    // WebGL absent (jsdom, navigateur bridé) : inutile de télécharger le chunk 3D.
+    const canWarm3d = React.useMemo(
+        () => typeof WebGL2RenderingContext !== 'undefined' || typeof WebGLRenderingContext !== 'undefined',
+        []
+    );
+
+    // Prépare les FBX pendant l'initialisation de la carte : sans cela, le
+    // Canvas attend `onLoad`, puis télécharge et parse encore les modèles.
+    React.useEffect(() => {
+        if (!canWarm3d || !profile?.avatar) return;
+        let cancelled = false;
+        void import('../3D/warmupAvatar')
+            .then(module => {
+                if (!cancelled) module.warmAvatarModels(profile.avatar);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [canWarm3d, profile?.avatar]);
+
     const [mapId] = React.useState(() => allocateSceneInstanceId('map'));
     const [mapLoaded, setMapLoaded] = React.useState(false);
     const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; submitted: boolean }>({ mounted: false, loaded: false, submitted: false });
@@ -90,8 +109,19 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         setMapLoaded(false);
     }, [mapId]);
 
+    // Sur iPhone (DPR 3), MapLibre rendrait sinon 9 fois plus de pixels que le
+    // nécessaire. On plafonne le ratio comme les Canvas 3D et on supprime les
+    // fondus de tuiles qui relancent des rendus après chaque interaction.
+    const mapRuntimeOptions = React.useMemo(() => ({
+        pixelRatio: typeof window === 'undefined' ? 1 : Math.min(window.devicePixelRatio || 1, 1.5),
+        fadeDuration: 0,
+        renderWorldCopies: false,
+        refreshExpiredTiles: false,
+    }), []);
+
     return (
         <Map ref={mapRef}
+            {...mapRuntimeOptions}
             initialViewState={{
                 longitude: userLocation?.lng || 2.3522,
                 latitude: userLocation?.lat || 48.8566,

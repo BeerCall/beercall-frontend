@@ -59,9 +59,10 @@ const {
         }),
         {
             advance: (delta = 1 / 60) => {
+                // Fiber subscribers run BEFORE gl.render; emulate the same order.
+                frameCallbacks.forEach((cb) => cb(state, delta));
                 gl.info.render.frame += 1;
                 gl.info.render.calls += 1;
-                frameCallbacks.forEach((cb) => cb(state, delta));
             },
             clear: () => frameCallbacks.clear(),
             callbacks: frameCallbacks,
@@ -364,6 +365,58 @@ describe('WorldReadiness — Attente des avatars réellement animés dans les mo
     });
 
     describe('3. Changement d’onglet et isolation des générations', () => {
+        it('ignores a retained world callback even after the active world has become ready', async () => {
+            const callbacks = new Map<string, (ready: boolean) => void>();
+            const loader = async (tab: string) => ({
+                default: function ControlledWorld({ onReadinessChange }: { onReadinessChange?: (ready: boolean) => void }) {
+                    React.useEffect(() => {
+                        if (onReadinessChange) callbacks.set(tab, onReadinessChange);
+                    }, [onReadinessChange]);
+                    return null;
+                },
+            });
+            server.use(http.get('*/squads/sq-1/beer-calls/bc-1/worlds', () => HttpResponse.json({
+                worlds: { bar: { participants: [] }, piscine: { participants: [] } },
+            })));
+            const view = (isOpen: boolean) => <SelectWorldModal isOpen={isOpen} onClose={vi.fn()} squadId="sq-1" beerCallId="bc-1" isActiveApero={false} worldModuleLoader={loader} />;
+            const { rerender } = render(view(true));
+            await waitFor(() => expect(callbacks.has('bar')).toBe(true));
+            const oldCallback = callbacks.get('bar')!;
+            act(() => screen.getByRole('button', { name: /piscine/i }).click());
+            await waitFor(() => expect(callbacks.has('piscine')).toBe(true));
+            act(() => callbacks.get('piscine')!(true));
+            await waitFor(() => {
+                threeUseFrameMock.advance();
+                expect(recordedSignals.some(signal => (signal.detail as { view: string }).view === 'world-piscine')).toBe(true);
+            });
+            const invalidations: string[] = [];
+            const onInvalidation = (event: Event) => invalidations.push((event as CustomEvent<{ view: string }>).detail.view);
+            window.addEventListener('beercall:scene-invalidate', onInvalidation);
+            try {
+                act(() => oldCallback(true));
+                expect(invalidations).not.toContain('world-piscine');
+            } finally {
+                window.removeEventListener('beercall:scene-invalidate', onInvalidation);
+            }
+
+            const oldPoolCallback = callbacks.get('piscine')!;
+            rerender(view(false));
+            rerender(view(true));
+            await waitFor(() => expect(callbacks.get('piscine')).not.toBe(oldPoolCallback));
+            recordedSignals.length = 0;
+            await act(async () => {
+                oldPoolCallback(true);
+                threeUseFrameMock.advance();
+                await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+            });
+            expect(recordedSignals.filter(signal => signal.kind === 'worldFrameSubmitted')).toHaveLength(0);
+            act(() => callbacks.get('piscine')!(true));
+            await waitFor(() => {
+                threeUseFrameMock.advance();
+                expect(recordedSignals.some(signal => (signal.detail as { view: string }).view === 'world-piscine')).toBe(true);
+            });
+        });
+
         it('Le passage d’onglet réarme une nouvelle génération et ignore les callbacks tardifs de l’ancien monde', async () => {
             server.use(
                 http.get('*/squads/sq-1/beer-calls/bc-1/worlds', () =>
@@ -395,6 +448,7 @@ describe('WorldReadiness — Attente des avatars réellement animés dans les mo
                 expect(recordedSignals.some((s) => (s.detail as { view: string }).view === 'world-bar')).toBe(true);
             });
             const initialBarSignalCount = recordedSignals.filter((s) => s.kind === 'worldFrameSubmitted').length;
+            const lateBarCallback = modularAvatarCaptors.get('bar-cap');
 
             // Passage à l’onglet piscine
             const poolButton = screen.getByRole('button', { name: /piscine/i });
@@ -404,7 +458,7 @@ describe('WorldReadiness — Attente des avatars réellement animés dans les mo
 
             // Une callback tardive provenant du BarWorld démonté doit être ignorée
             act(() => {
-                modularAvatarCaptors.get('bar-cap')?.(true, { parts: ['head'], meshCount: 1 });
+                lateBarCallback?.(true, { parts: ['head'], meshCount: 1 });
             });
 
             // Aucune nouvelle soumission de frame pour bar
@@ -413,6 +467,7 @@ describe('WorldReadiness — Attente des avatars réellement animés dans les mo
             expect(recordedSignals.filter((s) => s.kind === 'worldFrameSubmitted').length).toBe(initialBarSignalCount);
 
             // Maintenant, l'avatar de la piscine devient prêt
+            await waitFor(() => expect(modularAvatarCaptors.has('goggles')).toBe(true));
             act(() => {
                 modularAvatarCaptors.get('goggles')?.(true, { parts: ['head'], meshCount: 1 });
             });
@@ -424,6 +479,17 @@ describe('WorldReadiness — Attente des avatars réellement animés dans les mo
                 );
                 expect(poolSignals.length).toBeGreaterThanOrEqual(1);
             });
+
+            // A retained callback must not invalidate the already-ready active pool.
+            const invalidations: string[] = [];
+            const onInvalidation = (event: Event) => invalidations.push((event as CustomEvent<{ view: string }>).detail.view);
+            window.addEventListener('beercall:scene-invalidate', onInvalidation);
+            try {
+                act(() => lateBarCallback?.(true, { parts: ['head'], meshCount: 1 }));
+                expect(invalidations).not.toContain('world-piscine');
+            } finally {
+                window.removeEventListener('beercall:scene-invalidate', onInvalidation);
+            }
         });
     });
 

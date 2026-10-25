@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import React from 'react';
 import {
     resolveWorldShadowPolicy,
@@ -15,6 +15,10 @@ import FloatyIslandWorld from '../components/3D/FloatyIslandWorld';
 import type { WorldParticipant } from '../types/api';
 
 const contactShadowsCaptor = vi.fn();
+const shadowAvatarControl = vi.hoisted(() => ({
+    autoReady: true,
+    callbacks: new Map<string, (ready: boolean, details?: { parts: string[]; meshCount: number }) => void>(),
+}));
 
 vi.mock('@react-three/drei', () => ({
     ContactShadows: (props: unknown) => {
@@ -39,12 +43,42 @@ vi.mock('../hooks/useGameEngine', () => ({
 }));
 
 vi.mock('../components/3D/AvatarCanvas', () => ({
-    ModularAvatar: () => <div data-testid="mock-avatar" />,
+    ModularAvatar: ({ config, onReadinessChange }: {
+        config: { head?: string };
+        onReadinessChange?: (ready: boolean, details?: { parts: string[]; meshCount: number }) => void;
+    }) => {
+        React.useEffect(() => {
+            if (onReadinessChange) shadowAvatarControl.callbacks.set(config.head ?? 'default', onReadinessChange);
+            if (shadowAvatarControl.autoReady) onReadinessChange?.(true, { parts: ['head'], meshCount: 1 });
+        }, [config.head, onReadinessChange]);
+        return <div data-testid="mock-avatar" />;
+    },
 }));
 
 describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
     beforeEach(() => {
         contactShadowsCaptor.mockClear();
+        shadowAvatarControl.autoReady = true;
+        shadowAvatarControl.callbacks.clear();
+    });
+
+    it.each(['bar', 'piscine', 'dodo'] as const)('%s: captures static shadows only after animated avatars are ready, and rearms on outfit changes', (world) => {
+        shadowAvatarControl.autoReady = false;
+        const view = (head: string) => {
+            const participants = [{ user_id: 'u_1', avatar_config: { head } }];
+            if (world === 'bar') return <BarWorld participants={participants} aperoId="bc_1" squadId="sq_1" isActiveApero={false} onSelectPhoto={vi.fn()} shadowPolicy="static" />;
+            if (world === 'piscine') return <PiscineWorld participants={participants} shadowPolicy="static" />;
+            return <FloatyIslandWorld participants={participants} shadowPolicy="static" />;
+        };
+        const { rerender } = render(view('old-outfit'));
+        expect(screen.queryByTestId('mock-contact-shadows')).not.toBeInTheDocument();
+        act(() => shadowAvatarControl.callbacks.get('old-outfit')?.(true, { parts: ['head'], meshCount: 1 }));
+        expect(screen.getAllByTestId('mock-contact-shadows')).toHaveLength(1);
+        expect(contactShadowsCaptor).toHaveBeenLastCalledWith(expect.objectContaining({ frames: 1 }));
+        rerender(view('new-outfit'));
+        expect(screen.queryByTestId('mock-contact-shadows')).not.toBeInTheDocument();
+        act(() => shadowAvatarControl.callbacks.get('new-outfit')?.(true, { parts: ['head'], meshCount: 1 }));
+        expect(screen.getAllByTestId('mock-contact-shadows')).toHaveLength(1);
     });
 
     describe('1. Résolution de la politique (resolveWorldShadowPolicy & details)', () => {

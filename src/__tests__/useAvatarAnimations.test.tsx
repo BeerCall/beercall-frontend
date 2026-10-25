@@ -5,7 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { webcrypto } from 'node:crypto';
-import { readAnimationResponse, useAvatarAnimations } from '../hooks/useAvatarAnimations';
+import { preloadAvatarAnimations, readAnimationResponse, useAvatarAnimations } from '../hooks/useAvatarAnimations';
 import type { AnimationManifest } from '../types/animationPack';
 
 let manifest: AnimationManifest;
@@ -49,6 +49,26 @@ beforeEach(() => {
 afterEach(() => { clients.forEach(client => client.clear()); clients.length = 0; vi.unstubAllGlobals(); });
 
 describe('shared progressive avatar animations', () => {
+  it('preloads manifest and critical pack before the first hook and shares them without refetch', async () => {
+    const client = new QueryClient();
+    clients.push(client);
+    await preloadAvatarAnimations(client);
+    expect(count('/animations/manifest.json')).toBe(1);
+    expect(count(manifest.critical.url)).toBe(1);
+    expect(count(manifest.deferred.url)).toBe(0);
+
+    const { result } = renderHook(() => useAvatarAnimations(), {
+      wrapper: ({ children }: PropsWithChildren) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+    });
+    await waitFor(() => expect(result.current.activeClip?.name).toBe('Idle'));
+    expect(count('/animations/manifest.json')).toBe(1);
+    expect(count(manifest.critical.url)).toBe(1);
+    expect(count(manifest.deferred.url)).toBe(0);
+  });
+  it('swallows a failed preload so the hook keeps retry and display ownership', async () => {
+    fetchMock.mockImplementationOnce(async () => new Response(null, { status: 503 }));
+    await expect(preloadAvatarAnimations(new QueryClient())).resolves.toBeUndefined();
+  });
   it('exposes all 25 names immediately and keeps Idle until a frame AND paint opportunity', async () => {
     const { result } = renderHook(() => useAvatarAnimations(), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.activeClip?.name).toBe('Idle'));

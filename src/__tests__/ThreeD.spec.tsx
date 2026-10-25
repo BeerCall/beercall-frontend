@@ -112,6 +112,7 @@ const {
 
 vi.mock('../hooks/useAvatarAnimations', () => ({
     useAvatarAnimations: (targetAnimation: string | null) => mockAvatarAnimations(targetAnimation),
+    preloadAvatarAnimations: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@react-three/fiber', () => ({
@@ -268,6 +269,32 @@ describe('3D Components Rendering & Observability', () => {
         expect(danceAction.fadeIn).toHaveBeenCalledTimes(1);
         expect(danceAction.play).toHaveBeenCalledTimes(1);
         expect(idleAction.fadeOut).toHaveBeenCalledTimes(1);
+
+        // A recreated mixer action with the same name still needs to be started.
+        const replacementAction = createMockAction();
+        mockActionMap.set('Dance', replacementAction);
+        currentClip = { name: 'Dance' };
+        rerender(<ModularAvatar config={{ head: 'cap', animation: 'Dance', gender: 'Men' }} />);
+        expect(replacementAction.play).toHaveBeenCalledTimes(1);
+    });
+
+    it('never reports readiness while the critical clip is loading or unavailable', () => {
+        const onReadinessChange = vi.fn();
+        const result = {
+            clipNames: [], activeClip: undefined, isLoading: true,
+            deferredStatus: 'idle', error: null, notifyInitialFrame: vi.fn(),
+            getClip: vi.fn(), retry: vi.fn(),
+        };
+        mockAvatarAnimations.mockReturnValue(result);
+        const config = { head: 'cap', animation: 'Idle', gender: 'Men' as const };
+        const { rerender } = render(<ModularAvatar config={config} onReadinessChange={onReadinessChange} />);
+        expect(onReadinessChange).not.toHaveBeenCalledWith(true, expect.anything());
+        mockAvatarAnimations.mockReturnValue({ ...result, isLoading: false, error: new Error('Idle unavailable') });
+        rerender(<ModularAvatar config={config} onReadinessChange={onReadinessChange} />);
+        expect(onReadinessChange).not.toHaveBeenCalledWith(true, expect.anything());
+        mockAvatarAnimations.mockReturnValue({ ...result, activeClip: { name: 'Idle' }, isLoading: false });
+        rerender(<ModularAvatar config={config} onReadinessChange={onReadinessChange} />);
+        expect(onReadinessChange).toHaveBeenLastCalledWith(true, { parts: ['head'], meshCount: 1 });
     });
 
     it('notifies initial frame via frame probe only after pieces are ready and action is Idle', () => {

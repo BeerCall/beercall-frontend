@@ -1,6 +1,5 @@
-import {useRef, useMemo, useEffect, useCallback} from 'react';
+import {useRef, useState, useMemo, useEffect, useCallback} from 'react';
 import {useFBX, Float, ContactShadows, Html} from '@react-three/drei';
-import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
 import {useNavigate} from 'react-router-dom';
 import {ModularAvatar} from "./AvatarCanvas.tsx";
@@ -31,18 +30,9 @@ function ModelPart({path, customTransform, isEnvironment = false}: {
     const fbx = useFBX(path);
 
     const clonedFbx = useMemo(() => {
-        const clone = isEnvironment ? fbx.clone() : SkeletonUtils.clone(fbx);
-
-        clone.traverse((child) => {
-            if ((child as THREE.Mesh).isMesh) {
-                const mesh = child as THREE.Mesh;
-                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-                materials.forEach((mat) => {
-                    if (mat) mat.needsUpdate = true;
-                });
-            }
-        });
-        return clone;
+        // Les matériaux du FBX sont partagés et déjà configurés : un clone
+        // n'exige pas de revalidation de programme à chaque ouverture.
+        return isEnvironment ? fbx.clone() : SkeletonUtils.clone(fbx);
     }, [fbx, isEnvironment]);
 
     return (
@@ -125,6 +115,8 @@ export default function PiscineWorld({
         });
     }, [participants]);
 
+    const shadowGeneration = JSON.stringify(expectedKeys);
+    const [shadowReadyGeneration, setShadowReadyGeneration] = useState<string>();
     const readyAvatarsRef = useRef<Map<string, { ready: boolean; meshCount: number; partsCount: number }>>(new Map());
 
     const checkReadiness = useCallback(() => {
@@ -200,8 +192,15 @@ export default function PiscineWorld({
                 partsCount: 0,
             });
         }
+        if (effectiveShadowPolicy === 'static') {
+            const allAnimated = expectedKeys.every(expectedKey => {
+                const status = readyAvatarsRef.current.get(expectedKey);
+                return status?.ready && status.meshCount > 0 && status.partsCount > 0;
+            });
+            setShadowReadyGeneration(allAnimated ? shadowGeneration : undefined);
+        }
         checkReadiness();
-    }, [checkReadiness]);
+    }, [checkReadiness, effectiveShadowPolicy, expectedKeys, shadowGeneration]);
 
     return (
         <group position={[0, 0, 0]}>
@@ -255,8 +254,9 @@ export default function PiscineWorld({
                             </Float>
                         </group>
 
-                        {shadowDetails.useLocalShadows && (
+                        {shadowDetails.useLocalShadows && (effectiveShadowPolicy !== 'static' || shadowReadyGeneration === shadowGeneration) && (
                             <ContactShadows
+                                key={avatarKey}
                                 position={[0, 0, 0]}
                                 opacity={0.6}
                                 scale={150}

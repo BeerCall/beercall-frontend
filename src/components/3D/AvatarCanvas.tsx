@@ -1,20 +1,21 @@
-import {Suspense, useMemo, useEffect, useLayoutEffect, useRef, useState, useCallback} from 'react';
+import {Suspense, useMemo, useEffect, useLayoutEffect, useRef, useState, useCallback, useContext} from 'react';
 import {Canvas, useFrame, useThree} from '@react-three/fiber';
 import {
     OrbitControls,
     ContactShadows,
-    Environment,
     useFBX,
     Html,
     useProgress,
     useAnimations
 } from '@react-three/drei';
+import {QueryClientContext} from '@tanstack/react-query';
 import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
 import {MODELS_URL} from "../../lib/api.ts";
 import type {AvatarConfig, AvatarTransform} from "../../types/avatar.ts";
 import SceneReadyProbe from './SceneReadyProbe';
-import {useAvatarAnimations} from '../../hooks/useAvatarAnimations';
+import {warmAvatarModels} from './warmupAvatar';
+import {preloadAvatarAnimations, useAvatarAnimations} from '../../hooks/useAvatarAnimations';
 
 const silenceWarnings = () => {
     const originalWarn = console.warn;
@@ -353,19 +354,10 @@ function AvatarPart({
     const clonedFbx = useMemo(() => {
         if (!fbx) return null;
 
-        // On utilise SkeletonUtils pour cloner correctement les os et maillages
-        const clone = SkeletonUtils.clone(fbx);
-
-        clone.traverse((child) => {
-            if ((child as THREE.Mesh).isMesh) {
-                const mesh = child as THREE.Mesh;
-                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-                materials.forEach((mat) => {
-                    if (mat) mat.needsUpdate = true;
-                });
-            }
-        });
-        return clone;
+        // SkeletonUtils clone partage les matériaux du FBX en cache ; les
+        // marquer `needsUpdate` à chaque montage forçait une revalidation de
+        // programme et re-gonflait le coût d'ouverture des mondes.
+        return SkeletonUtils.clone(fbx);
     }, [fbx]);
 
     // On crée un AnimationMixer isolé pour CE vêtement
@@ -379,7 +371,7 @@ function AvatarPart({
         let isActionPlaying = false;
         if (currentAnim && actions[currentAnim]) {
             const action = actions[currentAnim];
-            if (lastAnimRef.current !== currentAnim) {
+            if (lastAnimRef.current !== currentAnim || lastActionRef.current !== action || !action.isRunning()) {
                 if (lastActionRef.current && lastActionRef.current !== action) {
                     lastActionRef.current.fadeOut(0.2);
                 }
@@ -387,9 +379,7 @@ function AvatarPart({
                 lastAnimRef.current = currentAnim;
                 lastActionRef.current = action;
             }
-            isActionPlaying = true;
-        } else if (!animations || animations.length === 0 || !currentAnim) {
-            isActionPlaying = true;
+            isActionPlaying = action.isRunning();
         }
 
         let meshCount = 0;
@@ -613,13 +603,11 @@ function AvatarFrameloopController({ active }: { active: boolean }) {
         if (active) {
             if (!wasActiveRef.current) {
                 // Dégel : redémarrage de l'horloge sans inclure l'inactivité (CHAL-04, REV-06)
-                if (clock) {
-                    if (typeof clock.start === 'function') clock.start();
-                    restoreClockElapsed(clock, savedElapsedRef.current);
-                }
                 if (typeof setFrameloop === 'function') {
                     setFrameloop('always');
                 }
+                // Fiber resets elapsedTime in setFrameloop; restore only AFTER it starts the clock.
+                if (clock) restoreClockElapsed(clock, savedElapsedRef.current);
                 if (typeof invalidate === 'function') {
                     invalidate();
                 }
@@ -632,7 +620,6 @@ function AvatarFrameloopController({ active }: { active: boolean }) {
                     savedElapsedRef.current = typeof clock.getElapsedTime === 'function'
                         ? clock.getElapsedTime()
                         : (clock.elapsedTime || 0);
-                    if (typeof clock.stop === 'function') clock.stop();
                 }
                 if (typeof setFrameloop === 'function') {
                     setFrameloop('never');
@@ -693,14 +680,21 @@ export default function AvatarCanvas({
         silenceWarnings();
     }, []);
 
+    // Le manifeste et le clip Idle sont indépendants des FBX : les demander dès
+    // le montage du Canvas évite d'attendre la fin du parse des modèles pour
+    // commencer le téléchargement des animations.
+    const queryClient = useContext(QueryClientContext);
+    useEffect(() => {
+        if (queryClient) void preloadAvatarAnimations(queryClient);
+    }, [queryClient]);
+
     // 🚀 PRÉCHARGEMENT CIBLÉ DES VÊTEMENTS
     useEffect(() => {
-        if (config) {
+        if (!config) return;
+        if (headOnly) {
             if (config.head && config.head !== 'none') useFBX.preload(`${MODELS_URL}/${config.head}.fbx`);
-            if (!headOnly && config.body && config.body !== 'none') useFBX.preload(`${MODELS_URL}/${config.body}.fbx`);
-            if (!headOnly && config.legs && config.legs !== 'none') useFBX.preload(`${MODELS_URL}/${config.legs}.fbx`);
-            if (!headOnly && config.feet && config.feet !== 'none') useFBX.preload(`${MODELS_URL}/${config.feet}.fbx`);
-            if (!headOnly && config.accessory && config.accessory !== 'none') useFBX.preload(`${MODELS_URL}/${config.accessory}.fbx`);
+        } else {
+            warmAvatarModels(config);
         }
     }, [config, headOnly]);
 
@@ -732,7 +726,7 @@ export default function AvatarCanvas({
 
     return (
         <div className="w-full h-full relative">
-            <Canvas camera={{position: [0, targetY, cameraZ], fov: 45}} dpr={[1, 2]}
+            <Canvas camera={{position: [0, targetY, cameraZ], fov: 45}} dpr={[1, 1.5]}
                     className="z-10 relative">
                 <AvatarFrameloopController active={isEffectiveActive}/>
                 <ambientLight intensity={1.5}/>
@@ -753,15 +747,15 @@ export default function AvatarCanvas({
                         ready={isAvatarReady}
                         expectedParts={expectedParts}
                     />
-                    {!headOnly && <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={200} blur={2} far={200} color="#000000"/>}
-                </Suspense>
-
-                {/* L'environnement charge de son côté silencieusement */}
-                <Suspense fallback={null}>
-                    <Environment preset="city"/>
+                    {/* Une seule passe : l'ombre est un halo statique sous l'avatar, la
+                        recalculer à chaque frame doublait les draw calls du Canvas. */}
+                    {!headOnly && <ContactShadows position={[0, 0, 0]} opacity={0.6}
+                                                  scale={200} blur={2} far={200} resolution={256}
+                                                  frames={1} color="#000000"/>}
                 </Suspense>
 
                 <OrbitControls
+                    enabled={!disableZoom || !disablePan}
                     enableZoom={!disableZoom}
                     enablePan={!disablePan}
                     target={[0, targetY, 0]}

@@ -111,6 +111,7 @@ vi.mock('../hooks/useAvatarAnimations', () => ({
         getClip: vi.fn(),
         retry: vi.fn(),
     }),
+    preloadAvatarAnimations: vi.fn().mockResolvedValue(undefined),
 }));
 
 

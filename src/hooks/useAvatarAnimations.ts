@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { AnimationClip } from 'three';
 import { ANIMATION_BYTE_LIMITS, createAnimationPackManager, validateManifest } from '../lib/animationPack';
-import type { AnimationPackManager, AvatarAnimationsResult } from '../types/animationPack';
+import type { AnimationManifest, AnimationPackManager, AvatarAnimationsResult } from '../types/animationPack';
 
 const EMPTY_NAMES: readonly string[] = Object.freeze([]);
 const CACHE_TIME = 30 * 60 * 1000;
@@ -41,6 +41,47 @@ export async function readAnimationResponse(url: string, limit: number, signal?:
   return bytes;
 }
 
+function manifestQueryOptions() {
+  return {
+    ...queryPolicy,
+    queryKey: ['avatar-animations', 'manifest', 1],
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+      const bytes = await readAnimationResponse('/animations/manifest.json', ANIMATION_BYTE_LIMITS.manifest, signal);
+      const data: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+      return validateManifest(data);
+    },
+  } as const;
+}
+
+function criticalQueryOptions(manifest: AnimationManifest | undefined) {
+  return {
+    ...queryPolicy,
+    queryKey: ['avatar-animations', 'idle', manifest?.formatVersion, manifest?.sourceHash, manifest?.critical.sha256],
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+      if (!manifest) throw new Error('Animation manifest is not loaded');
+      const bytes = await readAnimationResponse(manifest.critical.url, manifest.critical.byteLength, signal);
+      return createAnimationPackManager(manifest, bytes);
+    },
+  };
+}
+
+/**
+ * Démarre le manifeste et le pack critique sans attendre le chargement des FBX.
+ * Les mêmes clés sont réutilisées par useAvatarAnimations : React Query déduplique
+ * la requête, aucun octet n'est téléchargé deux fois.
+ */
+export async function preloadAvatarAnimations(queryClient: QueryClient): Promise<void> {
+  try {
+    const manifestOptions = manifestQueryOptions();
+    await queryClient.prefetchQuery(manifestOptions);
+    const manifest = queryClient.getQueryData<AnimationManifest>(manifestOptions.queryKey);
+    if (manifest) await queryClient.prefetchQuery(criticalQueryOptions(manifest));
+  } catch {
+    // Le hook garde la main sur l'affichage et le retry ; un préchargement raté
+    // ne doit jamais faire échouer le rendu.
+  }
+}
+
 export function useAvatarAnimations(targetAnimation: string | null = 'Idle'): AvatarAnimationsResult {
   const queryClient = useQueryClient();
   const requested = targetAnimation || 'Idle';
@@ -49,25 +90,11 @@ export function useAvatarAnimations(targetAnimation: string | null = 'Idle'): Av
   const [selection, setSelection] = useState<{
     manager: AnimationPackManager; name: string; clip?: AnimationClip; error?: Error;
   }>();
-  const manifestQuery = useQuery({
-    ...queryPolicy,
-    queryKey: ['avatar-animations', 'manifest', 1],
-    queryFn: async ({ signal }) => {
-      const bytes = await readAnimationResponse('/animations/manifest.json', ANIMATION_BYTE_LIMITS.manifest, signal);
-      const data: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-      return validateManifest(data);
-    },
-  });
+  const manifestQuery = useQuery(manifestQueryOptions());
   const manifest = manifestQuery.data;
   const criticalQuery = useQuery({
-    ...queryPolicy,
-    queryKey: ['avatar-animations', 'idle', manifest?.formatVersion, manifest?.sourceHash, manifest?.critical.sha256],
+    ...criticalQueryOptions(manifest),
     enabled: !!manifest,
-    queryFn: async ({ signal }) => {
-      if (!manifest) throw new Error('Animation manifest is not loaded');
-      const bytes = await readAnimationResponse(manifest.critical.url, manifest.critical.byteLength, signal);
-      return createAnimationPackManager(manifest, bytes);
-    },
   });
   const manager = criticalQuery.data;
   const deferredOptions = useMemo(() => ({

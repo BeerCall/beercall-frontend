@@ -51,14 +51,24 @@ function ModelPart({path, customTransform, isBar = false}: { path: string, custo
                     if (material) {
                         if (isBar && material.color && material.map) material.color.set(0xffffff);
                         if (material.map) {
-                            if (THREE.SRGBColorSpace) material.map.colorSpace = THREE.SRGBColorSpace;
-                            else material.map.encoding = 3001;
+                            if (THREE.SRGBColorSpace) {
+                                // Une texture déjà convertie ne doit pas re-déclencher
+                                // une revalidation de matériau à chaque réouverture.
+                                if (material.map.colorSpace !== THREE.SRGBColorSpace) {
+                                    material.map.colorSpace = THREE.SRGBColorSpace;
+                                    material.map.needsUpdate = true;
+                                    material.needsUpdate = true;
+                                }
+                            } else if (material.map.encoding !== 3001) {
+                                material.map.encoding = 3001;
+                                material.map.needsUpdate = true;
+                                material.needsUpdate = true;
+                            }
                         }
                         if (material.shininess !== undefined) material.shininess = 0;
                         if (material.specular) material.specular.set(0x000000);
                         if (material.roughness !== undefined) material.roughness = 1;
                         if (material.metalness !== undefined) material.metalness = 0;
-                        material.needsUpdate = true;
                     }
                 });
             }
@@ -348,6 +358,8 @@ export default function BarWorld({
         });
     }, [participants]);
 
+    const shadowGeneration = JSON.stringify(expectedKeys);
+    const [shadowReadyGeneration, setShadowReadyGeneration] = useState<string>();
     const readyAvatarsRef = useRef<Map<string, { ready: boolean; meshCount: number; partsCount: number }>>(new Map());
 
     const checkReadiness = useCallback(() => {
@@ -423,8 +435,15 @@ export default function BarWorld({
                 partsCount: 0,
             });
         }
+        if (effectiveShadowPolicy === 'static') {
+            const allAnimated = expectedKeys.every(expectedKey => {
+                const status = readyAvatarsRef.current.get(expectedKey);
+                return status?.ready && status.meshCount > 0 && status.partsCount > 0;
+            });
+            setShadowReadyGeneration(allAnimated ? shadowGeneration : undefined);
+        }
         checkReadiness();
-    }, [checkReadiness]);
+    }, [checkReadiness, effectiveShadowPolicy, expectedKeys, shadowGeneration]);
 
     return (
         <group position={[0, 0, 0]}>
@@ -487,8 +506,9 @@ export default function BarWorld({
                             </group>
                         </group>
 
-                        {shadowDetails.useLocalShadows && (
+                        {shadowDetails.useLocalShadows && (effectiveShadowPolicy !== 'static' || shadowReadyGeneration === shadowGeneration) && (
                             <ContactShadows
+                                key={avatarKey}
                                 position={[0, 0, 0]}
                                 opacity={0.6}
                                 scale={150}

@@ -1,4 +1,4 @@
-import {useState, useEffect, useCallback, Suspense, type ComponentType} from 'react';
+import {useState, useEffect, useLayoutEffect, useRef, useCallback, Suspense, type ComponentType} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
@@ -84,11 +84,22 @@ export default function SelectWorldModal({
 }: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
     const [tabGeneration, setTabGeneration] = useState(0);
+    const contextKey = isOpen ? JSON.stringify([squadId, beerCallId]) : null;
+    const [sceneContext, setSceneContext] = useState(contextKey);
+    if (sceneContext !== contextKey) {
+        // Reopen / another Beer Call requires a fresh readiness cycle, even on the same tab.
+        setSceneContext(contextKey);
+        setTabGeneration(generation => generation + 1);
+    }
     const [worldReadiness, setWorldReadiness] = useState<{ tab: WorldTab; generation: number; ready: boolean }>({
         tab: 'bar',
         generation: 0,
         ready: false,
     });
+    const activeWorldRef = useRef({ tab: activeTab, generation: tabGeneration, open: isOpen });
+    useLayoutEffect(() => {
+        activeWorldRef.current = { tab: activeTab, generation: tabGeneration, open: isOpen };
+    }, [activeTab, tabGeneration, isOpen]);
 
     // Le passage d'onglet réarme une nouvelle génération ; les callbacks de l'ancien monde sont ignorés (T12B / REV-04)
     const isWorldReady = worldReadiness.tab === activeTab && worldReadiness.generation === tabGeneration && worldReadiness.ready;
@@ -108,6 +119,8 @@ export default function SelectWorldModal({
     }, []);
 
     const handleWorldReadinessChange = useCallback((tab: WorldTab, generation: number, isReady: boolean) => {
+        const active = activeWorldRef.current;
+        if (!active.open || active.tab !== tab || active.generation !== generation) return;
         setWorldReadiness((prev) => {
             if (prev.tab === tab && prev.generation === generation && prev.ready === isReady) {
                 return prev;
@@ -293,7 +306,7 @@ export default function SelectWorldModal({
                                         <p className="mt-3 text-sm text-gray-900 font-bold">Chargement du monde 3D…</p>
                                     </div>
                                 )}
-                                <Canvas camera={{position: [0, 80, 450], fov: 45}} dpr={[1, 2]}>
+                                <Canvas camera={{position: [0, 80, 450], fov: 45}} dpr={[1, 1.5]}>
                                     <ambientLight intensity={activeTab === 'bar' ? 1 : 1.5}/>
                                     <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                                     <directionalLight position={[-10, 10, -10]} intensity={1}/>
@@ -303,6 +316,7 @@ export default function SelectWorldModal({
                                         {/* AIGUILLAGE VERS LES BONS COMPOSANTS 3D AVEC LA FONCTION DE PHOTO */}
                                         {ActiveWorld && activeTab === 'bar' && (
                                             <ActiveWorld
+                                                key={`bar-${tabGeneration}`}
                                                 isActiveApero={isActiveApero}
                                                 aperoId={beerCallId}
                                                 squadId={squadId}
@@ -314,12 +328,14 @@ export default function SelectWorldModal({
                                         )}
                                         {ActiveWorld && activeTab === 'piscine' && (
                                             <ActiveWorld
+                                                key={`piscine-${tabGeneration}`}
                                                 participants={currentParticipants}
                                                 onReadinessChange={(ready) => handleWorldReadinessChange('piscine', tabGeneration, ready)}
                                             />
                                         )}
                                         {ActiveWorld && activeTab === 'dodo' && (
                                             <ActiveWorld
+                                                key={`dodo-${tabGeneration}`}
                                                 participants={currentParticipants}
                                                 onReadinessChange={(ready) => handleWorldReadinessChange('dodo', tabGeneration, ready)}
                                             />

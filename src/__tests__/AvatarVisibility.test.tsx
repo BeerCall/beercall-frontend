@@ -85,6 +85,13 @@ const { mockFiberState, frameCallbacks } = vi.hoisted(() => {
         invalidate: vi.fn(),
         frameloop: 'always' as 'always' | 'never' | 'demand',
         setFrameloop: vi.fn((mode: 'always' | 'never' | 'demand') => {
+            // Match the installed Fiber implementation: both transitions reset elapsedTime.
+            state.clock.stop();
+            state.clock.elapsedTime = 0;
+            if (mode !== 'never') {
+                state.clock.start();
+                state.clock.elapsedTime = 0;
+            }
             state.frameloop = mode;
         }),
         clock,
@@ -137,6 +144,7 @@ vi.mock('../hooks/useAvatarAnimations', () => ({
         getClip: vi.fn(),
         retry: vi.fn(),
     }),
+    preloadAvatarAnimations: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('AvatarCanvas: suspension sans remontage du Canvas (CHAL-04)', () => {
@@ -174,12 +182,15 @@ describe('AvatarCanvas: suspension sans remontage du Canvas (CHAL-04)', () => {
     });
 
     it('reprise après 30s de pause : frameloop always, invalidate appelé, horloge redémarrée et delta borné (≤100 ms)', () => {
+        let now = 0;
+        vi.spyOn(performance, 'now').mockImplementation(() => now);
         const clock = new ControlledClock();
         mockFiberState.clock = clock as unknown as typeof mockFiberState.clock;
 
         const { rerender } = render(<AvatarCanvas config={dummyConfig} active={true} />);
 
         // Simule 5s de fonctionnement normal
+        now = 5000;
         clock.getDelta();
         const elapsedBeforePause = clock.getElapsedTime();
 
@@ -193,8 +204,7 @@ describe('AvatarCanvas: suspension sans remontage du Canvas (CHAL-04)', () => {
 
         // 2. Pause simulée de 30 secondes
         // Dans une implémentation naïve sans reset d'horloge, delta serait de 30 secondes
-        const pauseDurationMs = 30000;
-        vi.spyOn(performance, 'now').mockReturnValue(performance.now() + pauseDurationMs);
+        now += 30000;
 
         // 3. Dégel / Reprise
         act(() => {
