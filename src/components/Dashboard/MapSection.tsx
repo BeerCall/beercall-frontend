@@ -14,6 +14,7 @@ interface MapSectionProps {
     isNightMode: boolean;
     isMapReady?: boolean;
     handleMapLoaded?: () => void;
+    active?: boolean;
     squadDetails: SquadDetails | null | undefined;
     profile: Profile | null | undefined;
     handleMapPointerDown: (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement> | unknown) => void;
@@ -31,6 +32,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     isNightMode,
     isMapReady,
     handleMapLoaded,
+    active = true,
     squadDetails,
     profile,
     handleMapPointerDown,
@@ -208,7 +210,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                                 {profile?.avatar ? (
                                     (mapLoaded || Boolean(isMapReady)) ? (
                                         <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
-                                            <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard"/>
+                                            <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard" active={active}/>
                                         </Suspense>
                                     ) : (
                                         <div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>

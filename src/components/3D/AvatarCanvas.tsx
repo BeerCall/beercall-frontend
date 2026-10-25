@@ -1,5 +1,5 @@
-import {Suspense, useMemo, useEffect, useRef, useState, useCallback} from 'react';
-import {Canvas, useFrame} from '@react-three/fiber';
+import {Suspense, useMemo, useEffect, useLayoutEffect, useRef, useState, useCallback} from 'react';
+import {Canvas, useFrame, useThree} from '@react-three/fiber';
 import {
     OrbitControls,
     ContactShadows,
@@ -598,6 +598,61 @@ export function ModularAvatar({
     );
 }
 
+function restoreClockElapsed(clockInstance: { elapsedTime: number }, elapsed: number) {
+    clockInstance.elapsedTime = elapsed;
+}
+
+function AvatarFrameloopController({ active }: { active: boolean }) {
+    const setFrameloop = useThree((state) => state.setFrameloop);
+    const clock = useThree((state) => state.clock);
+    const invalidate = useThree((state) => state.invalidate);
+    const savedElapsedRef = useRef(0);
+    const wasActiveRef = useRef(true);
+
+    useLayoutEffect(() => {
+        if (active) {
+            if (!wasActiveRef.current) {
+                // Dégel : redémarrage de l'horloge sans inclure l'inactivité (CHAL-04, REV-06)
+                if (clock) {
+                    if (typeof clock.start === 'function') clock.start();
+                    restoreClockElapsed(clock, savedElapsedRef.current);
+                }
+                if (typeof setFrameloop === 'function') {
+                    setFrameloop('always');
+                }
+                if (typeof invalidate === 'function') {
+                    invalidate();
+                }
+                wasActiveRef.current = true;
+            }
+        } else {
+            if (wasActiveRef.current) {
+                // Gel : sauvegarde du temps écoulé et arrêt du frameloop
+                if (clock) {
+                    savedElapsedRef.current = typeof clock.getElapsedTime === 'function'
+                        ? clock.getElapsedTime()
+                        : (clock.elapsedTime || 0);
+                    if (typeof clock.stop === 'function') clock.stop();
+                }
+                if (typeof setFrameloop === 'function') {
+                    setFrameloop('never');
+                }
+                wasActiveRef.current = false;
+            }
+        }
+    }, [active, setFrameloop, clock, invalidate]);
+
+    useEffect(() => {
+        return () => {
+            if (!wasActiveRef.current && typeof setFrameloop === 'function') {
+                setFrameloop('always');
+            }
+        };
+    }, [setFrameloop]);
+
+    return null;
+}
+
 interface AvatarCanvasProps {
     config: AvatarConfig;
     disableZoom?: boolean;
@@ -606,6 +661,7 @@ interface AvatarCanvasProps {
     headOnly?: boolean;
     view?: string;
     instanceId?: string;
+    active?: boolean;
 }
 
 export default function AvatarCanvas({
@@ -615,8 +671,24 @@ export default function AvatarCanvas({
                                          onAnimationsLoaded,
                                          headOnly = false,
                                          view,
-                                         instanceId
+                                         instanceId,
+                                         active = true
                                      }: AvatarCanvasProps) {
+    const [isDocumentVisible, setIsDocumentVisible] = useState(() =>
+        typeof document === 'undefined' ? true : !document.hidden
+    );
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            setIsDocumentVisible(!document.hidden);
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
+    const isEffectiveActive = active && isDocumentVisible;
     useEffect(() => {
         silenceWarnings();
     }, []);
@@ -662,6 +734,7 @@ export default function AvatarCanvas({
         <div className="w-full h-full relative">
             <Canvas camera={{position: [0, targetY, cameraZ], fov: 45}} dpr={[1, 2]}
                     className="z-10 relative">
+                <AvatarFrameloopController active={isEffectiveActive}/>
                 <ambientLight intensity={1.5}/>
                 <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                 <directionalLight position={[-10, 10, -10]} intensity={1}/>
