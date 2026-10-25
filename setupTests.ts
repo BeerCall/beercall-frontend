@@ -4,6 +4,13 @@ import { afterEach, beforeAll, afterAll, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { server } from './src/__tests__/mocks/server';
 
+// Preserve the existing scene/animation doubles; prepared transport and decoding
+// have dedicated loader and exporter tests, independent of the GPU doubles.
+vi.mock('./src/hooks/useModel', async () => {
+    const { useFBX } = await import('@react-three/drei');
+    return { useModel: useFBX };
+});
+
 // Create a dummy scene object with clone and traverse methods
 interface DummyScene {
     clone: () => DummyScene;

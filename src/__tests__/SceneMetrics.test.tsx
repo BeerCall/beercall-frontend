@@ -5,7 +5,7 @@ import type { RootState } from '@react-three/fiber';
 import type { MapRef } from 'react-map-gl/maplibre';
 import SceneReadyProbe from '../components/3D/SceneReadyProbe';
 import { MapSection } from '../components/Dashboard/MapSection';
-import { clearSceneMetrics, getLatestSceneSignal, getSceneMetrics, recordSceneSignal, registerSceneInstance, unregisterSceneInstance } from '../lib/sceneMetrics';
+import { clearSceneMetrics, getInitialDashboardSceneSignal, getLatestSceneSignal, getSceneMetrics, recordSceneSignal, registerSceneInstance, unregisterSceneInstance } from '../lib/sceneMetrics';
 
 const mock = vi.hoisted(() => ({
   frame: undefined as ((state: RootState) => void) | undefined,
@@ -84,6 +84,39 @@ describe('submitted frame signals', () => {
     expect(getSceneMetrics()).toHaveLength(50);
     expect(performance.getEntriesByType('mark').filter(mark => mark.name.includes('avatarFrameSubmitted')).length).toBeLessThanOrEqual(2);
   });
+  it('keeps the initial diagnostic timestamp separate from invalidated/resumed readiness', () => {
+    const generation = registerSceneInstance('dashboard', 'map');
+    registerSceneInstance('dashboard', 'avatar');
+    recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: 'map', generation, timestamp: 100 });
+    recordSceneSignal('avatarFrameSubmitted', { view: 'dashboard', instanceId: 'avatar', generation, timestamp: 110 });
+    expect(getInitialDashboardSceneSignal()?.timestamp).toBe(110);
+    unregisterSceneInstance('dashboard', 'map', generation);
+    expect(getLatestSceneSignal('sceneUsable')).toBeUndefined();
+    registerSceneInstance('dashboard', 'map-new');
+    recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: 'map-new', generation, timestamp: 200 });
+    expect(getLatestSceneSignal('sceneUsable')?.timestamp).toBe(200);
+    expect(getInitialDashboardSceneSignal()?.timestamp).toBe(110);
+    clearSceneMetrics();
+    expect(getInitialDashboardSceneSignal()).toBeUndefined();
+  });
+  it('rearms a retained avatar only after a new submitted frame, never from its old timestamp', () => {
+    const { rerender } = render(<SceneReadyProbe kind="avatar" view="dashboard" ready active/>);
+    frame(); gl.info.render.frame++; gl.info.render.calls = 2; followUp();
+    const original = getLatestSceneSignal('avatarFrameSubmitted')!;
+    expect(original).toBeDefined();
+    rerender(<SceneReadyProbe kind="avatar" view="dashboard" ready active={false}/>);
+    expect(getLatestSceneSignal('avatarFrameSubmitted')).toBeUndefined();
+    frame(); gl.info.render.frame++; followUp();
+    expect(getLatestSceneSignal('avatarFrameSubmitted')).toBeUndefined();
+    rerender(<SceneReadyProbe kind="avatar" view="dashboard" ready active/>);
+    expect(getLatestSceneSignal('avatarFrameSubmitted')).toBeUndefined();
+    frame(); followUp(); // No actual render progression: still not ready.
+    expect(getLatestSceneSignal('avatarFrameSubmitted')).toBeUndefined();
+    frame(); gl.info.render.frame++; followUp();
+    const resumed = getLatestSceneSignal('avatarFrameSubmitted')!;
+    expect(resumed.instanceId).toBe(original.instanceId);
+    expect(resumed.timestamp).toBeGreaterThan(original.timestamp);
+  });
 });
 
 it('map readiness requires onLoad THEN idle, never the existing UI timer; errors invalidate it', () => {
@@ -115,4 +148,26 @@ it('does not confuse DOM map and Fiber probe identities even when their React ID
   expect(getLatestSceneSignal('sceneUsable')).toBeDefined();
   avatar.unmount();
   expect(getLatestSceneSignal('mapInteractive')).toBe(map);
+});
+
+it('retains the map identity while suspending hidden readiness and resizing on return', () => {
+  const stop = vi.fn(), triggerRepaint = vi.fn(), resize = vi.fn();
+  const mapRef = { current: { getMap: () => ({ stop, triggerRepaint }), resize } } as unknown as React.RefObject<MapRef>;
+  const props = { mapRef, userLocation: null, isNightMode: false, squadDetails: null, profile: null,
+    handleMapPointerDown: vi.fn(), cancelLongPress: vi.fn(), handleManualRecenter: vi.fn(),
+    handleBeerCallClick: vi.fn(), openCamera: vi.fn(), setIsWorldsModalOpen: vi.fn() };
+  const { rerender } = render(<MapSection {...props} visible/>);
+  act(() => { mock.map.onLoad?.(); mock.map.onIdle?.(); });
+  const first = getLatestSceneSignal('mapInteractive')!;
+  rerender(<MapSection {...props} visible={false}/>);
+  expect(stop).toHaveBeenCalledOnce();
+  expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+  act(() => mock.map.onIdle?.());
+  expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+  rerender(<MapSection {...props} visible/>);
+  expect(resize).toHaveBeenCalledOnce();
+  expect(triggerRepaint).toHaveBeenCalledOnce();
+  expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+  act(() => mock.map.onIdle?.());
+  expect(getLatestSceneSignal('mapInteractive')?.instanceId).toBe(first.instanceId);
 });

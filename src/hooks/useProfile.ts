@@ -58,7 +58,7 @@ export interface UserProfile {
     stats: UserStats;
 }
 
-export function useProfile(userId: string = 'me') {
+export function useProfile(userId: string = 'me', enabled = true) {
     return useQuery({
         queryKey: ['profile', userId],
         queryFn: async () => {
@@ -69,5 +69,6 @@ export function useProfile(userId: string = 'me') {
         },
         // Garde les données fraîches pour éviter les flashs au passage Signup -> Dashboard
         staleTime: 1000 * 60,
+        enabled,
     });
 }

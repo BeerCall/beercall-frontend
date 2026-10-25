@@ -3,7 +3,6 @@ import {Canvas, useFrame, useThree} from '@react-three/fiber';
 import {
     OrbitControls,
     ContactShadows,
-    useFBX,
     Html,
     useProgress,
     useAnimations
@@ -16,6 +15,7 @@ import type {AvatarConfig, AvatarTransform} from "../../types/avatar.ts";
 import SceneReadyProbe from './SceneReadyProbe';
 import {warmAvatarModels} from './warmupAvatar';
 import {preloadAvatarAnimations, useAvatarAnimations} from '../../hooks/useAvatarAnimations';
+import {useModel} from '../../hooks/useModel';
 
 const silenceWarnings = () => {
     const originalWarn = console.warn;
@@ -348,7 +348,7 @@ function AvatarPart({
     onPartReady?: (partKey: string, meshCount: number, actionPlaying: boolean) => void,
     onPartUnmount?: (partKey: string) => void,
 }) {
-    const fbx = useFBX(path);
+    const fbx = useModel(path);
     const groupRef = useRef<THREE.Group>(null);
 
     const clonedFbx = useMemo(() => {
@@ -692,7 +692,7 @@ export default function AvatarCanvas({
     useEffect(() => {
         if (!config) return;
         if (headOnly) {
-            if (config.head && config.head !== 'none') useFBX.preload(`${MODELS_URL}/${config.head}.fbx`);
+            if (config.head && config.head !== 'none') useModel.preload(`${MODELS_URL}/${config.head}.fbx`);
         } else {
             warmAvatarModels(config);
         }
@@ -745,6 +745,7 @@ export default function AvatarCanvas({
                         id={instanceId}
                         view={view ?? (headOnly ? 'head' : 'full')}
                         ready={isAvatarReady}
+                        active={isEffectiveActive}
                         expectedParts={expectedParts}
                     />
                     {/* Une seule passe : l'ombre est un halo statique sous l'avatar, la

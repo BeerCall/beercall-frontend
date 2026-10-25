@@ -1,21 +1,22 @@
 // src/App.tsx
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import {BrowserRouter, Routes, Route, Navigate} from 'react-router-dom';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {useUserStore} from './store/useUserStore';
 import {usePushNotifications} from './hooks/usePushNotifications';
 import Layout from './components/Layout';
 import ToastContainer from './components/UI/ToastContainer';
+import PersistentDashboard from './components/PersistentDashboard';
 
 // Lazy loading extrême pour tuer le Bundle Size Obèse (LCP optimisé)
 const Login = React.lazy(() => import('./pages/Login'));
-const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const PerformancePanel = React.lazy(() => import('./components/UI/PerformancePanel'));
 const SignUp = React.lazy(() => import('./pages/SignUp.tsx'));
 const Profile = React.lazy(() => import('./pages/Profile.tsx'));
 const Connections = React.lazy(() => import('./pages/Connections.tsx'));
 const ChatPage = React.lazy(() => import('./pages/ChatPage'));
 
-const queryClient = new QueryClient({
+const createQueryClient = () => new QueryClient({
     defaultOptions: {
         queries: {
             staleTime: 1000 * 60 * 5,
@@ -38,6 +39,34 @@ const LoadingFallback = () => (
 
 export default function App() {
     const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+    const username = useUserStore((state) => state.username);
+    return <AppSession key={isAuthenticated ? `user:${username}` : 'guest'} isAuthenticated={isAuthenticated}/>;
+}
+
+function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
+    const [queryClient] = useState(createQueryClient);
+    const [diagnostics, setDiagnostics] = useState(() => {
+        const requested = new URLSearchParams(window.location.search).get('perf') === '1';
+        try { return requested || sessionStorage.getItem('beercall:perf') === '1'; }
+        catch { return requested; }
+    });
+    useEffect(() => () => queryClient.clear(), [queryClient]);
+    useEffect(() => {
+        const enable = () => {
+            setDiagnostics(true);
+            try { sessionStorage.setItem('beercall:perf', '1'); } catch { /* Storage is optional. */ }
+        };
+        const disable = () => {
+            setDiagnostics(false);
+            try { sessionStorage.removeItem('beercall:perf'); } catch { /* Storage is optional. */ }
+        };
+        window.addEventListener('beercall:diagnostics-enable', enable);
+        window.addEventListener('beercall:diagnostics-disable', disable);
+        return () => {
+            window.removeEventListener('beercall:diagnostics-enable', enable);
+            window.removeEventListener('beercall:diagnostics-disable', disable);
+        };
+    }, []);
 
     usePushNotifications();
 
@@ -45,6 +74,7 @@ export default function App() {
         <QueryClientProvider client={queryClient}>
             <BrowserRouter>
                 <ToastContainer/>
+                {diagnostics && <Suspense fallback={null}><PerformancePanel/></Suspense>}
                 <Suspense fallback={<LoadingFallback />}>
                     <Routes>
                         <Route element={<Layout/>}>
@@ -56,8 +86,8 @@ export default function App() {
                             <Route path="/profile" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Profile/></ProtectedRoute>} />
                             <Route path="/profile/:id" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Profile/></ProtectedRoute>} />
                             <Route path="/connections" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Connections/></ProtectedRoute>} />
-                            <Route path="/dashboard" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Dashboard/></ProtectedRoute>} />
-                            <Route path="/squad/:id" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Dashboard/></ProtectedRoute>} />
+                            <Route path="/dashboard" element={<ProtectedRoute isAuthenticated={isAuthenticated}>{null}</ProtectedRoute>} />
+                            <Route path="/squad/:id" element={<ProtectedRoute isAuthenticated={isAuthenticated}>{null}</ProtectedRoute>} />
                             <Route path="/squad/:squadId/beer-call/:beerCallId/chat" element={<ProtectedRoute isAuthenticated={isAuthenticated}><ChatPage/></ProtectedRoute>} />
                             <Route path="/squad/:id/chat" element={<ProtectedRoute isAuthenticated={isAuthenticated}><ChatPage/></ProtectedRoute>} />
 
@@ -66,6 +96,7 @@ export default function App() {
                         </Route>
                     </Routes>
                 </Suspense>
+                <PersistentDashboard/>
             </BrowserRouter>
         </QueryClientProvider>
     );

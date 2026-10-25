@@ -282,9 +282,14 @@ export default function Profile() {
                                     {(!profile.unlocked_badges || profile.unlocked_badges.length === 0) && <div
                                         className="text-center py-6 border-2 border-dashed border-gray-100 rounded-2xl">
                                         <p className="text-xs font-bold text-gray-300 uppercase tracking-widest">Aucun
-                                            trophée pour le moment</p></div>}
+                                             trophée pour le moment</p></div>}
                                 </div>
                             </div>
+                            {isOwnProfile && <button type="button"
+                                onClick={() => window.dispatchEvent(new Event('beercall:diagnostics-enable'))}
+                                className="text-xs font-bold text-gray-700 underline">
+                                Diagnostic de fluidité (local)
+                            </button>}
                         </div>
                     </div>
                 )}

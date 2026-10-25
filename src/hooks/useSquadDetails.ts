@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import type { SquadDetails } from '../types/api';
 export type { AperoStatus, BeerCall, SquadDetails } from '../types/api';
 
-export function useSquadDetails(id: string | undefined) {
+export function useSquadDetails(id: string | undefined, active = true) {
     const queryClient = useQueryClient();
     const query = useQuery({
         queryKey: ['squad', id],
@@ -14,11 +14,11 @@ export function useSquadDetails(id: string | undefined) {
             const response = await api.get<SquadDetails>(`/squads/${id}`);
             return response.data;
         },
-        enabled: !!id,
+        enabled: !!id && active,
     });
 
     useEffect(() => {
-        if (!id || !query.data?.active_beer_call?.length) {
+        if (!active || !id || !query.data?.active_beer_call?.length) {
             return;
         }
 
@@ -40,7 +40,7 @@ export function useSquadDetails(id: string | undefined) {
         return () => {
             clearTimeout(timer);
         };
-    }, [id, query.data, queryClient]);
+    }, [id, active, query.data, queryClient]);
 
     return query;
 }

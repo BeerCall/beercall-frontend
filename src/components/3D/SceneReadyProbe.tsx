@@ -17,6 +17,7 @@ export interface SceneReadyProbeProps {
     id?: string;
     view?: string;
     ready?: boolean;
+    active?: boolean;
     expectedParts?: string[];
     onFrameSubmitted?: (metrics: { timestamp: number; frame: number; calls: number }) => void;
 }
@@ -26,6 +27,7 @@ export function SceneReadyProbe({
     id,
     view,
     ready = true,
+    active = true,
     expectedParts,
     onFrameSubmitted,
 }: SceneReadyProbeProps) {
@@ -56,7 +58,7 @@ export function SceneReadyProbe({
         // Si expectedParts est spécifié et vide, le probe ne s'arme jamais.
         if (expectedParts && expectedParts.length === 0) {
             armedRef.current = false;
-        } else if (ready) {
+        } else if (ready && active) {
             armedRef.current = true;
         } else {
             armedRef.current = false;
@@ -67,7 +69,7 @@ export function SceneReadyProbe({
             if (frameRequest.current !== undefined) cancelAnimationFrame(frameRequest.current);
             frameRequest.current = undefined;
         };
-    }, [ready, expectedParts, sceneView, instanceId]);
+    }, [ready, active, expectedParts, sceneView, instanceId]);
 
     // Nettoyage au démontage
     useEffect(() => {

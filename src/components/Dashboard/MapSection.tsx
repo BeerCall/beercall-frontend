@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { User as UserIcon } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
 import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
-import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
+import { QueryClientContext } from '@tanstack/react-query';
+import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
 const AvatarCanvas = React.lazy(() => import('../3D/AvatarCanvas'));
 
 interface MapSectionProps {
@@ -15,6 +16,7 @@ interface MapSectionProps {
     isMapReady?: boolean;
     handleMapLoaded?: () => void;
     active?: boolean;
+    visible?: boolean;
     squadDetails: SquadDetails | null | undefined;
     profile: Profile | null | undefined;
     handleMapPointerDown: (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement> | unknown) => void;
@@ -33,6 +35,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     isMapReady,
     handleMapLoaded,
     active = true,
+    visible = true,
     squadDetails,
     profile,
     handleMapPointerDown,
@@ -61,23 +64,29 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         () => typeof WebGL2RenderingContext !== 'undefined' || typeof WebGLRenderingContext !== 'undefined',
         []
     );
+    const queryClient = React.useContext(QueryClientContext);
 
     // Prépare les FBX pendant l'initialisation de la carte : sans cela, le
     // Canvas attend `onLoad`, puis télécharge et parse encore les modèles.
     React.useEffect(() => {
-        if (!canWarm3d || !profile?.avatar) return;
+        if (!visible || !canWarm3d || !profile?.avatar) return;
         let cancelled = false;
+        // Loading code/Idle can overlap map style/tiles, not start after onLoad.
+        void import('../3D/AvatarCanvas').catch(() => {});
+        if (queryClient) void import('../../hooks/useAvatarAnimations')
+            .then(module => { if (!cancelled) void module.preloadAvatarAnimations(queryClient); })
+            .catch(() => {});
         void import('../3D/warmupAvatar')
             .then(module => {
                 if (!cancelled) module.warmAvatarModels(profile.avatar);
             })
             .catch(() => {});
         return () => { cancelled = true; };
-    }, [canWarm3d, profile?.avatar]);
+    }, [visible, canWarm3d, profile?.avatar, queryClient]);
 
     const [mapId] = React.useState(() => allocateSceneInstanceId('map'));
     const [mapLoaded, setMapLoaded] = React.useState(false);
-    const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; submitted: boolean }>({ mounted: false, loaded: false, submitted: false });
+    const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; submitted: boolean; suspended: boolean }>({ mounted: false, loaded: false, submitted: false, suspended: false });
     React.useLayoutEffect(() => {
         const state = lifecycle.current;
         state.mounted = true;
@@ -88,6 +97,25 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             setMapLoaded(false);
         };
     }, [mapId]);
+    React.useLayoutEffect(() => {
+        const update = () => {
+            const state = lifecycle.current;
+            const suspended = !visible || document.hidden;
+            if (suspended && !state.suspended) {
+                if (state.generation !== undefined) invalidateSceneInstance('dashboard', mapId, state.generation);
+                state.submitted = false;
+                mapRef.current?.getMap?.().stop();
+            } else if (!suspended && state.suspended) {
+                // Keep the same WebGL context/viewport; certify only the next real idle.
+                mapRef.current?.resize?.();
+                mapRef.current?.getMap?.().triggerRepaint();
+            }
+            state.suspended = suspended;
+        };
+        update();
+        document.addEventListener('visibilitychange', update);
+        return () => document.removeEventListener('visibilitychange', update);
+    }, [visible, mapId, mapRef]);
     const handleMapLoad = React.useCallback(() => {
         const state = lifecycle.current;
         if (!state.mounted) return;
@@ -98,7 +126,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     }, [mapId, handleMapLoaded]);
     const handleMapIdle = React.useCallback(() => {
         const state = lifecycle.current;
-        if (state.loaded && !state.submitted && state.generation !== undefined) {
+        if (state.mounted && state.loaded && !state.suspended && !document.hidden && !state.submitted && state.generation !== undefined) {
             state.submitted = !!recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: mapId, generation: state.generation });
         }
     }, [mapId]);

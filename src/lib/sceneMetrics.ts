@@ -38,6 +38,10 @@ export interface SceneMetricsRecord {
 
 const MAX_RECORDS = 50;
 const records: SceneMetricsRecord[] = [];
+// Historical first usable dashboard of this document, not an active readiness
+// signal. Diagnostics opened later (e.g. from the PWA profile) must not label a
+// warm-return timestamp as the initial load. Bench consumers keep using records.
+let initialDashboardScene: SceneMetricsRecord | undefined;
 let nextGeneration = 0;
 let nextInstanceId = 0;
 const instances = new Map<string, { generation: number; ids: Set<string> }>();
@@ -126,6 +130,7 @@ export function recordSceneSignal(
         generation: current.generation,
     };
 
+    if (!initialDashboardScene && kind === 'sceneUsable' && view === 'dashboard') initialDashboardScene = record;
     records.push(record);
     if (records.length > MAX_RECORDS) {
         records.shift();
@@ -232,6 +237,10 @@ export function getSceneMetrics(): SceneMetricsRecord[] {
     return [...records];
 }
 
+export function getInitialDashboardSceneSignal(): SceneMetricsRecord | undefined {
+    return initialDashboardScene ? { ...initialDashboardScene } : undefined;
+}
+
 /**
  * Récupère le dernier enregistrement pour un type de signal donné.
  */
@@ -253,6 +262,7 @@ export function getLatestSceneSignal(
  */
 export function clearSceneMetrics(): void {
     records.length = 0;
+    initialDashboardScene = undefined;
     instances.clear();
     delete latestDashboardSignals.mapInteractive;
     delete latestDashboardSignals.avatarFrameSubmitted;
