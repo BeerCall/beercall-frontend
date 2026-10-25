@@ -6,6 +6,12 @@ import {useNavigate} from 'react-router-dom';
 import {ModularAvatar} from "./AvatarCanvas.tsx";
 import type {WorldParticipant} from '../../types/api.ts';
 import type {AvatarConfig, AvatarTransform} from '../../types/avatar.ts';
+import {
+    getShadowPolicyDetails,
+    getWorldShadowPolicy,
+    type WorldShadowPolicy,
+} from '../../lib/renderPolicy';
+import WorldContactShadows from './WorldContactShadows';
 
 // --- FILTRE ANTI-WARNINGS ---
 const silenceWarnings = () => {
@@ -79,9 +85,22 @@ const getDynamicPlacement = (index: number, totalParticipants: number) => {
 interface PiscineWorldProps {
     participants: WorldParticipant[];
     onReadinessChange?: (isReady: boolean) => void;
+    shadowPolicy?: WorldShadowPolicy;
 }
 
-export default function PiscineWorld({participants, onReadinessChange}: PiscineWorldProps) {
+export default function PiscineWorld({
+    participants,
+    onReadinessChange,
+    shadowPolicy,
+}: PiscineWorldProps) {
+    const effectiveShadowPolicy = shadowPolicy ?? getWorldShadowPolicy();
+    const shadowDetails = getShadowPolicyDetails(effectiveShadowPolicy);
+
+    const avatarPositions = useMemo(
+        () => participants.map((_, index) => getDynamicPlacement(index, participants.length).position),
+        [participants]
+    );
+
     useMemo(() => {
         silenceWarnings();
     }, []);
@@ -186,6 +205,10 @@ export default function PiscineWorld({participants, onReadinessChange}: PiscineW
 
     return (
         <group position={[0, 0, 0]}>
+            {/* 🌑 OMBRE DE CONTACT PARTAGÉE (CHAL-06 / option 'shared') */}
+            {shadowDetails.useSharedShadows && (
+                <WorldContactShadows positions={avatarPositions} groundY={50} />
+            )}
 
             {/* 🌟 LE DÉCOR : LA PISCINE 🌟 */}
             <group
@@ -232,8 +255,17 @@ export default function PiscineWorld({participants, onReadinessChange}: PiscineW
                             </Float>
                         </group>
 
-                        <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={150} blur={2} far={100}
-                                        color="#000000"/>
+                        {shadowDetails.useLocalShadows && (
+                            <ContactShadows
+                                position={[0, 0, 0]}
+                                opacity={0.6}
+                                scale={150}
+                                blur={2}
+                                far={100}
+                                color="#000000"
+                                frames={shadowDetails.localFrames}
+                            />
+                        )}
 
                         {/* 💬 LA BULLE D'EXCUSE */}
                         {participant.excuse && (

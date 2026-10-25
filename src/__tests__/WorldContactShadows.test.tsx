@@ -10,6 +10,8 @@ import {
 } from '../lib/renderPolicy';
 import WorldContactShadows from '../components/3D/WorldContactShadows';
 import BarWorld from '../components/3D/BarWorld';
+import PiscineWorld from '../components/3D/PiscineWorld';
+import FloatyIslandWorld from '../components/3D/FloatyIslandWorld';
 import type { WorldParticipant } from '../types/api';
 
 const contactShadowsCaptor = vi.fn();
@@ -359,6 +361,104 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
                 />
             );
 
+            expect(contactShadowsCaptor).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('5. Intégration PiscineWorld & FloatyIslandWorld (T22 / CHAL-06)', () => {
+        const createParticipants = (count: number): WorldParticipant[] =>
+            Array.from({ length: count }, (_, i) => ({
+                user_id: `u_${i}`,
+                username: `Nageur ${i}`,
+                avatar_config: { head: 'default' },
+                excuse: i === 0 ? 'Piscine fermée' : undefined,
+            }));
+
+        it('PiscineWorld legacy par défaut : rend N ombres locales avec frames=Infinity', () => {
+            const participants = createParticipants(5);
+            render(<PiscineWorld participants={participants} />);
+
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(5);
+            for (const call of contactShadowsCaptor.mock.calls) {
+                const props = call[0];
+                expect(props.frames).toBe(Infinity);
+                expect(props.scale).toBe(150);
+                expect(props.position).toEqual([0, 0, 0]);
+            }
+        });
+
+        it('PiscineWorld static : conserve N ombres locales avec frames=1', () => {
+            const participants = createParticipants(5);
+            render(<PiscineWorld participants={participants} shadowPolicy="static" />);
+
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(5);
+            for (const call of contactShadowsCaptor.mock.calls) {
+                const props = call[0];
+                expect(props.frames).toBe(1);
+                expect(props.scale).toBe(150);
+                expect(props.position).toEqual([0, 0, 0]);
+            }
+        });
+
+        it('PiscineWorld shared : rend 1 seule ombre partagée sur le sol de la piscine Y=50', () => {
+            const participants = createParticipants(5);
+            render(<PiscineWorld participants={participants} shadowPolicy="shared" />);
+
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(1);
+            const callProps = contactShadowsCaptor.mock.calls[0][0];
+            expect(callProps.position[1]).toBe(50);
+            expect(callProps.frames).toBe(Infinity);
+            expect(callProps.resolution).toBe(512);
+            expect(callProps.scale[0]).toBeGreaterThanOrEqual(250);
+            expect(callProps.scale[1]).toBeGreaterThanOrEqual(250);
+        });
+
+        it('PiscineWorld shared vide : ne produit aucune ombre si 0 participant', () => {
+            render(<PiscineWorld participants={[]} shadowPolicy="shared" />);
+            expect(contactShadowsCaptor).not.toHaveBeenCalled();
+        });
+
+        it('FloatyIslandWorld legacy par défaut : rend N ombres locales avec frames=Infinity', () => {
+            const participants = createParticipants(5);
+            render(<FloatyIslandWorld participants={participants} />);
+
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(5);
+            for (const call of contactShadowsCaptor.mock.calls) {
+                const props = call[0];
+                expect(props.frames).toBe(Infinity);
+                expect(props.scale).toBe(150);
+                expect(props.position).toEqual([0, 0, 0]);
+            }
+        });
+
+        it('FloatyIslandWorld static : conserve N ombres locales avec frames=1', () => {
+            const participants = createParticipants(5);
+            render(<FloatyIslandWorld participants={participants} shadowPolicy="static" />);
+
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(5);
+            for (const call of contactShadowsCaptor.mock.calls) {
+                const props = call[0];
+                expect(props.frames).toBe(1);
+                expect(props.scale).toBe(150);
+                expect(props.position).toEqual([0, 0, 0]);
+            }
+        });
+
+        it('FloatyIslandWorld shared : rend 1 seule ombre partagée sur le sol de l’île Y=95', () => {
+            const participants = createParticipants(5);
+            render(<FloatyIslandWorld participants={participants} shadowPolicy="shared" />);
+
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(1);
+            const callProps = contactShadowsCaptor.mock.calls[0][0];
+            expect(callProps.position[1]).toBe(95);
+            expect(callProps.frames).toBe(Infinity);
+            expect(callProps.resolution).toBe(512);
+            expect(callProps.scale[0]).toBeGreaterThanOrEqual(250);
+            expect(callProps.scale[1]).toBeGreaterThanOrEqual(250);
+        });
+
+        it('FloatyIslandWorld shared vide : ne produit aucune ombre si 0 participant', () => {
+            render(<FloatyIslandWorld participants={[]} shadowPolicy="shared" />);
             expect(contactShadowsCaptor).not.toHaveBeenCalled();
         });
     });

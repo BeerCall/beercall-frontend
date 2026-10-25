@@ -6,6 +6,12 @@ import {useNavigate} from 'react-router-dom';
 import {ModularAvatar} from "./AvatarCanvas.tsx";
 import type {WorldParticipant} from '../../types/api.ts';
 import type {AvatarConfig, AvatarTransform} from '../../types/avatar.ts';
+import {
+    getShadowPolicyDetails,
+    getWorldShadowPolicy,
+    type WorldShadowPolicy,
+} from '../../lib/renderPolicy';
+import WorldContactShadows from './WorldContactShadows';
 
 // --- FILTRE ANTI-WARNINGS ---
 const silenceWarnings = () => {
@@ -79,9 +85,22 @@ const getDynamicPlacement = (index: number, totalParticipants: number) => {
 interface FloatyIslandWorldProps {
     participants: WorldParticipant[];
     onReadinessChange?: (isReady: boolean) => void;
+    shadowPolicy?: WorldShadowPolicy;
 }
 
-export default function FloatyIslandWorld({participants, onReadinessChange}: FloatyIslandWorldProps) {
+export default function FloatyIslandWorld({
+    participants,
+    onReadinessChange,
+    shadowPolicy,
+}: FloatyIslandWorldProps) {
+    const effectiveShadowPolicy = shadowPolicy ?? getWorldShadowPolicy();
+    const shadowDetails = getShadowPolicyDetails(effectiveShadowPolicy);
+
+    const avatarPositions = useMemo(
+        () => participants.map((_, index) => getDynamicPlacement(index, participants.length).position),
+        [participants]
+    );
+
     useMemo(() => {
         silenceWarnings();
     }, []);
@@ -186,6 +205,10 @@ export default function FloatyIslandWorld({participants, onReadinessChange}: Flo
 
     return (
         <group position={[0, 0, 0]}>
+            {/* 🌑 OMBRE DE CONTACT PARTAGÉE (CHAL-06 / option 'shared') */}
+            {shadowDetails.useSharedShadows && (
+                <WorldContactShadows positions={avatarPositions} groundY={95} />
+            )}
 
             {/* 🌟 LE DÉCOR : L'ILE 🌟 */}
             <group
@@ -232,8 +255,17 @@ export default function FloatyIslandWorld({participants, onReadinessChange}: Flo
                             </Float>
                         </group>
 
-                        <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={150} blur={2} far={100}
-                                        color="#000000"/>
+                        {shadowDetails.useLocalShadows && (
+                            <ContactShadows
+                                position={[0, 0, 0]}
+                                opacity={0.6}
+                                scale={150}
+                                blur={2}
+                                far={100}
+                                color="#000000"
+                                frames={shadowDetails.localFrames}
+                            />
+                        )}
 
                         <Html position={[0, GLOBAL_CONFIG.htmlY, 0]} center>
                             <div
