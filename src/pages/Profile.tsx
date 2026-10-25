@@ -1,11 +1,10 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, Suspense} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
 import {ChevronLeft, Check, Medal, Users, BarChart2, Trophy} from 'lucide-react';
 import {useQueryClient} from '@tanstack/react-query';
-import React, { Suspense } from 'react';
 import {useProfile} from '../hooks/useProfile';
 import {api} from '../lib/api';
-const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
+import SafeAvatar from '../components/3D/SafeAvatar';
 import VestiairePanel from '../components/Profile/VestiairePanel';
 import {motion, AnimatePresence} from 'framer-motion';
 import {toast} from "../store/useToastStore.ts";
@@ -183,7 +182,7 @@ export default function Profile() {
                     )}
 
                     <Suspense fallback={<div className="flex h-full items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-beer"></div></div>}>
-                        <AvatarCanvas config={previewAvatar} onAnimationsLoaded={setAvailableAnimations}/>
+                        <SafeAvatar config={previewAvatar} onAnimationsLoaded={setAvailableAnimations}/>
                     </Suspense>
                 </div>
 

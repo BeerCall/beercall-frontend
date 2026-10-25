@@ -1,11 +1,10 @@
 import {useNavigate} from 'react-router-dom';
 import {useQuery} from '@tanstack/react-query';
-import React, { Suspense } from 'react';
+import { Suspense, useRef } from 'react';
 import {ChevronLeft, Users, Trophy, ArrowRight} from 'lucide-react';
 import {api} from '../lib/api';
-const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
+import SafeAvatar from '../components/3D/SafeAvatar';
 import {motion, useInView} from 'framer-motion';
-import {useRef} from "react";
 import type {AvatarConfig} from '../types/avatar';
 import {ThumbnailBudgetProvider, useThumbnailSlot} from '../hooks/useThumbnailBudget';
 
@@ -36,7 +35,7 @@ const AvatarThumbnail = ({id, config, username}: { id: string; config: AvatarCon
         <div ref={ref} className="w-full h-full relative" data-testid={`avatar-thumb-${id}`}>
             {isGranted ? (
                 <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
-                    <AvatarCanvas config={config} disableZoom={true} disablePan={true}/>
+                    <SafeAvatar config={config} disableZoom={true} disablePan={true}/>
                 </Suspense>
             ) : (
                 // Miniature non admise au budget ou hors écran : placeholder stable et accessible

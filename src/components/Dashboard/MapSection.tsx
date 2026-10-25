@@ -7,7 +7,7 @@ import AvatarLoadingIndicator from './AvatarLoadingIndicator';
 import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
 import { QueryClientContext } from '@tanstack/react-query';
 import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
-const AvatarCanvas = React.lazy(() => import('../3D/AvatarCanvas'));
+import SafeAvatar, { preloadAvatarCanvas } from '../3D/SafeAvatar';
 
 interface MapSectionProps {
     mapRef: React.RefObject<MapRef | null>;
@@ -73,7 +73,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         if (!visible || !canWarm3d || !profile?.avatar) return;
         let cancelled = false;
         // Loading code/Idle can overlap map style/tiles, not start after onLoad.
-        void import('../3D/AvatarCanvas').catch(() => {});
+        void preloadAvatarCanvas().catch(() => {});
         if (queryClient) void import('../../hooks/useAvatarAnimations')
             .then(module => { if (!cancelled) void module.preloadAvatarAnimations(queryClient); })
             .catch(() => {});
@@ -270,7 +270,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                                 {profile?.avatar ? (
                                     (hasMapLoaded || Boolean(isMapReady)) ? (
                                         <Suspense fallback={<AvatarLoadingIndicator phase="canvas-suspense"/>}>
-                                            <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard" active={active}/>
+                                            <SafeAvatar config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard" active={active}/>
                                         </Suspense>
                                     ) : (
                                         <AvatarLoadingIndicator phase="map-bootstrap"/>

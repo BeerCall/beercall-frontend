@@ -1,5 +1,5 @@
 // src/pages/ChatPage.tsx
-import React, {useState, useEffect, useRef, Suspense} from 'react';
+import {useState, useEffect, useRef, Suspense} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {motion, AnimatePresence, useInView} from 'framer-motion';
 import {ChevronLeft, Send, MessageCircle, User as UserIcon} from 'lucide-react';
@@ -8,8 +8,7 @@ import {useSquadWebSocket} from '../hooks/useSquadWebSocket';
 import {useChat} from '../hooks/useChat';
 import {useProfile} from '../hooks/useProfile';
 import type {ChatMessage} from '../types/chat';
-
-const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
+import SafeAvatar from '../components/3D/SafeAvatar';
 
 // ⏱️ Formate un timestamp en heure (ex: 14:32)
 const formatTime = (ts: number) => {
@@ -37,7 +36,7 @@ function MessageBubble({message, isOwn}: { message: ChatMessage, isOwn: boolean 
                 {senderProfile?.avatar && senderProfile.avatar.head ? (
                     isInView ? (
                         <Suspense fallback={<div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>}>
-                            <AvatarCanvas config={senderProfile.avatar} headOnly={true} disableZoom={true} disablePan={true}/>
+                            <SafeAvatar config={senderProfile.avatar} headOnly={true} disableZoom={true} disablePan={true}/>
                         </Suspense>
                     ) : null
                 ) : (
