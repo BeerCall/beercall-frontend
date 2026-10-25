@@ -192,4 +192,82 @@ describe('Garanties de maintien carte (UX-01 / T01)', () => {
 
         expect(result.current.isScheduleModalOpen).toBe(false);
     });
+
+    it('un pointerup / touchend (relâchement) à 400 ms annule le timer et empêche l ouverture à 700 ms', () => {
+        const { result } = renderHook(() => useDashboard());
+        const startEvent = {
+            originalEvent: { target: { closest: () => null } },
+            point: { x: 100, y: 100 },
+            lngLat: { toArray: () => [2.3522, 48.8566] },
+        };
+
+        act(() => {
+            result.current.handleMapPointerDown(startEvent);
+            vi.advanceTimersByTime(400);
+        });
+
+        const releaseEvent = {
+            point: { x: 100, y: 100 },
+        };
+
+        act(() => {
+            result.current.cancelLongPress(releaseEvent);
+            vi.advanceTimersByTime(500);
+        });
+
+        expect(result.current.isScheduleModalOpen).toBe(false);
+        expect(result.current.scheduleCoordinates).toBeNull();
+    });
+
+    it('un move de 5 px (inférieur au seuil) via handleMapPointerMove n annule pas le timer et ouvre la modale à 700 ms', () => {
+        const { result } = renderHook(() => useDashboard());
+        const startEvent = {
+            originalEvent: { target: { closest: () => null } },
+            point: { x: 100, y: 100 },
+            lngLat: { toArray: () => [2.3522, 48.8566] },
+        };
+
+        act(() => {
+            result.current.handleMapPointerDown(startEvent);
+            vi.advanceTimersByTime(300);
+        });
+
+        const smallMoveEvent = {
+            point: { x: 105, y: 100 },
+        };
+
+        act(() => {
+            result.current.handleMapPointerMove(smallMoveEvent);
+            vi.advanceTimersByTime(400);
+        });
+
+        expect(result.current.isScheduleModalOpen).toBe(true);
+        expect(result.current.scheduleCoordinates).toEqual({ lng: 2.3522, lat: 48.8566 });
+    });
+
+    it('un move de 15 px (supérieur au seuil) via handleMapPointerMove annule et réinitialise', () => {
+        const { result } = renderHook(() => useDashboard());
+        const startEvent = {
+            originalEvent: { target: { closest: () => null } },
+            point: { x: 100, y: 100 },
+            lngLat: { toArray: () => [2.3522, 48.8566] },
+        };
+
+        act(() => {
+            result.current.handleMapPointerDown(startEvent);
+            vi.advanceTimersByTime(300);
+        });
+
+        const largeMoveEvent = {
+            point: { x: 115, y: 100 },
+        };
+
+        act(() => {
+            result.current.handleMapPointerMove(largeMoveEvent);
+            vi.advanceTimersByTime(500);
+        });
+
+        expect(result.current.isScheduleModalOpen).toBe(false);
+        expect(result.current.scheduleCoordinates).toBeNull();
+    });
 });

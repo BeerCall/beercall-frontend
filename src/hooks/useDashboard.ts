@@ -85,11 +85,18 @@ export const useDashboard = () => {
         }
     };
 
-    const cancelLongPress = useCallback((event?: unknown) => {
+    const cancelLongPress = useCallback(() => {
+        if (longPressTimer.current) {
+            window.clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+        longPressStart.current = null;
+    }, []);
+
+    const handleMapPointerMove = useCallback((event?: unknown) => {
         const ev = event as { originalEvent?: { touches?: unknown[] }, point?: { x: number, y: number } } | undefined;
         if (ev?.originalEvent?.touches && ev.originalEvent.touches.length > 1) {
-            if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
-            longPressTimer.current = null;
+            cancelLongPress();
             return;
         }
 
@@ -97,16 +104,10 @@ export const useDashboard = () => {
             const dx = ev.point.x - longPressStart.current.x;
             const dy = ev.point.y - longPressStart.current.y;
             if (Math.hypot(dx, dy) > 12) {
-                if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
-                longPressTimer.current = null;
+                cancelLongPress();
             }
-        } else {
-            if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
-            longPressTimer.current = null;
         }
-    }, []);
-
-    const handleMapPointerMove = cancelLongPress;
+    }, [cancelLongPress]);
 
     const handleMapPointerDown = useCallback((event: unknown) => {
         const ev = event as { originalEvent?: { target?: { closest?: (s: string) => boolean }, touches?: unknown[] }, point?: { x: number, y: number }, lngLat?: { toArray: () => [number, number] } };
@@ -121,6 +122,8 @@ export const useDashboard = () => {
 
         longPressStart.current = {x: ev.point?.x || 0, y: ev.point?.y || 0};
         longPressTimer.current = window.setTimeout(() => {
+            longPressTimer.current = null;
+            longPressStart.current = null;
             if (ev.lngLat) {
                 const [lng, lat] = ev.lngLat.toArray();
                 setScheduleCoordinates({lng, lat});
@@ -195,9 +198,9 @@ export const useDashboard = () => {
             window.removeEventListener('click', handleFirstInteraction);
             window.removeEventListener('touchstart', handleFirstInteraction);
             stopTracking();
-            if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+            cancelLongPress();
         };
-    }, [active, startTracking, stopTracking]);
+    }, [active, startTracking, stopTracking, cancelLongPress]);
 
     useEffect(() => {
         if (active && id && userLocation && mapRef.current && !hasCentered.current) {
