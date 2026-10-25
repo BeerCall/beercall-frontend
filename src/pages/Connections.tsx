@@ -7,6 +7,7 @@ const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
 import {motion, useInView} from 'framer-motion';
 import {useRef} from "react";
 import type {AvatarConfig} from '../types/avatar';
+import {ThumbnailBudgetProvider, useThumbnailSlot} from '../hooks/useThumbnailBudget';
 
 // Interface basée sur l'objet que tu m'as fourni
 interface Connection {
@@ -25,21 +26,22 @@ interface Connection {
     };
 }
 
-const AvatarThumbnail = ({config}: { config: AvatarConfig }) => {
-    const ref = useRef(null);
+const AvatarThumbnail = ({id, config, username}: { id: string; config: AvatarConfig; username: string }) => {
+    const ref = useRef<HTMLDivElement>(null);
     // margin: "100px" permet de charger l'avatar juste avant qu'il n'entre dans l'écran
     const isInView = useInView(ref, {margin: "100px"});
+    const isGranted = useThumbnailSlot(id, isInView, ref);
 
     return (
-        <div ref={ref} className="w-full h-full relative">
-            {isInView ? (
+        <div ref={ref} className="w-full h-full relative" data-testid={`avatar-thumb-${id}`}>
+            {isGranted ? (
                 <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
                     <AvatarCanvas config={config} disableZoom={true} disablePan={true}/>
                 </Suspense>
             ) : (
-                // Si la carte est hors écran, on détruit le Canvas et on libère la carte graphique
-                <div className="absolute inset-0 bg-gray-50 flex items-center justify-center">
-                    <div className="w-6 h-6 border-4 border-beer/30 border-t-beer rounded-full animate-spin"></div>
+                // Miniature non admise au budget ou hors écran : placeholder stable et accessible
+                <div className="absolute inset-0 bg-gray-100 flex items-center justify-center text-gray-400 font-black text-2xl select-none" aria-label={`Avatar de ${username}`}>
+                    {username ? username.charAt(0).toUpperCase() : '?'}
                 </div>
             )}
         </div>
@@ -48,6 +50,7 @@ const AvatarThumbnail = ({config}: { config: AvatarConfig }) => {
 
 export default function Connections() {
     const navigate = useNavigate();
+    const listRef = useRef<HTMLDivElement>(null);
 
     // 📡 Requête pour récupérer tes relations
     const {data: connections, isLoading} = useQuery({
@@ -65,45 +68,46 @@ export default function Connections() {
     );
 
     return (
-        <div className="h-full w-full bg-[#f8fafc] flex flex-col font-sans overflow-hidden">
-            {/* HEADER FIXE */}
-            <header
-                className="p-6 pt-[calc(18px+env(safe-area-inset-top))] flex items-center gap-4 bg-white/80 backdrop-blur-md border-b border-gray-100 z-20 shrink-0">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="p-3 bg-white shadow-md rounded-full text-gray-700 hover:scale-110 active:scale-90 transition-transform"
-                >
-                    <ChevronLeft size={24}/>
-                </button>
-                <div>
-                    <h1 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter flex items-center gap-2">
-                        Connexions <Users size={20} className="text-beer"/>
-                    </h1>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Tes compagnons de
-                        bar</p>
-                </div>
-            </header>
+        <ThumbnailBudgetProvider maxSlots={2} containerRef={listRef}>
+            <div className="h-full w-full bg-[#f8fafc] flex flex-col font-sans overflow-hidden">
+                {/* HEADER FIXE */}
+                <header
+                    className="p-6 pt-[calc(18px+env(safe-area-inset-top))] flex items-center gap-4 bg-white/80 backdrop-blur-md border-b border-gray-100 z-20 shrink-0">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-3 bg-white shadow-md rounded-full text-gray-700 hover:scale-110 active:scale-90 transition-transform"
+                    >
+                        <ChevronLeft size={24}/>
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter flex items-center gap-2">
+                            Connexions <Users size={20} className="text-beer"/>
+                        </h1>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Tes compagnons de
+                            bar</p>
+                    </div>
+                </header>
 
-            {/* LISTE DES CONNEXIONS */}
-            <div className="flex-1 overflow-y-auto p-6 pb-32 space-y-6">
-                {connections && connections.length > 0 ? (
-                    connections.map((user, index) => (
-                        <motion.div
-                            key={user.id}
-                            initial={{opacity: 0, x: -20}}
-                            animate={{opacity: 1, x: 0}}
-                            transition={{delay: index * 0.1}}
-                            onClick={() => navigate(`/profile/${user.id}`)}
-                            className="bg-white rounded-[2.5rem] p-4 shadow-xl shadow-gray-200/50 border-2 border-transparent hover:border-beer transition-all group cursor-pointer flex items-center gap-4 h-48"
-                        >
-                            {/* MINIATURE AVATAR 3D */}
-                            <div
-                                className="w-32 h-40 shrink-0 bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
+                {/* LISTE DES CONNEXIONS */}
+                <div ref={listRef} className="flex-1 overflow-y-auto p-6 pb-32 space-y-6">
+                    {connections && connections.length > 0 ? (
+                        connections.map((user, index) => (
+                            <motion.div
+                                key={user.id}
+                                initial={{opacity: 0, x: -20}}
+                                animate={{opacity: 1, x: 0}}
+                                transition={{delay: index * 0.1}}
+                                onClick={() => navigate(`/profile/${user.id}`)}
+                                className="bg-white rounded-[2.5rem] p-4 shadow-xl shadow-gray-200/50 border-2 border-transparent hover:border-beer transition-all group cursor-pointer flex items-center gap-4 h-48"
+                            >
+                                {/* MINIATURE AVATAR 3D */}
+                                <div
+                                    className="w-32 h-40 shrink-0 bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
 
-                                <AvatarThumbnail config={user.avatar}/>
+                                    <AvatarThumbnail id={user.id} config={user.avatar} username={user.username}/>
 
-                                <div className="absolute inset-0 z-10"/>
-                            </div>
+                                    <div className="absolute inset-0 z-10"/>
+                                </div>
 
                             {/* INFOS JOUEUR */}
                             {/* 🚀 L'ajout de min-w-0 empêche Flexbox de pousser les éléments hors de l'écran */}
@@ -155,5 +159,6 @@ export default function Connections() {
                 )}
             </div>
         </div>
+        </ThumbnailBudgetProvider>
     );
 }
