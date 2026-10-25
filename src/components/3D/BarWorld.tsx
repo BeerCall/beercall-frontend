@@ -10,6 +10,12 @@ import {useGameUIStore} from '../../store/useGameUIStore';
 import {toast} from '../../store/useToastStore';
 import type {WorldParticipant} from '../../types/api.ts';
 import type {AvatarConfig, AvatarTransform} from '../../types/avatar.ts';
+import {
+    getShadowPolicyDetails,
+    getWorldShadowPolicy,
+    type WorldShadowPolicy,
+} from '../../lib/renderPolicy';
+import WorldContactShadows from './WorldContactShadows';
 
 // --- FILTRE ANTI-WARNINGS ---
 const silenceWarnings = () => {
@@ -284,6 +290,7 @@ export default function BarWorld({
     onSelectPhoto,
     participantsReliable = true,
     onReadinessChange,
+    shadowPolicy,
 }: {
     aperoId: string;
     squadId: string;
@@ -292,7 +299,16 @@ export default function BarWorld({
     onSelectPhoto: (url: string) => void;
     participantsReliable?: boolean;
     onReadinessChange?: (isReady: boolean) => void;
+    shadowPolicy?: WorldShadowPolicy;
 }) {
+    const effectiveShadowPolicy = shadowPolicy ?? getWorldShadowPolicy();
+    const shadowDetails = getShadowPolicyDetails(effectiveShadowPolicy);
+
+    const avatarPositions = useMemo(
+        () => participants.map((_, index) => getDynamicPlacement(index, participants.length).position),
+        [participants]
+    );
+
     // 🛡️ On désactive le check du gameState si l'apéro n'est pas actif pour éviter le 409 Conflict
     const {gameState, startGame, isLocked} = useGameEngine(aperoId, { enabled: isActiveApero });
     const openGameScreen = useGameUIStore((state) => state.openGameScreen);
@@ -412,6 +428,11 @@ export default function BarWorld({
 
     return (
         <group position={[0, 0, 0]}>
+            {/* 🌑 OMBRE DE CONTACT PARTAGÉE (CHAL-06 / option 'shared') */}
+            {shadowDetails.useSharedShadows && (
+                <WorldContactShadows positions={avatarPositions} groundY={5} />
+            )}
+
             {/* 🌟 LE BAR */}
             <group position={BAR_SETTINGS.position} scale={[BAR_SETTINGS.scale, BAR_SETTINGS.scale, BAR_SETTINGS.scale]}
                    rotation={BAR_SETTINGS.rotation}>
@@ -466,8 +487,17 @@ export default function BarWorld({
                             </group>
                         </group>
 
-                        <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={150} blur={2} far={100}
-                                        color="#000000"/>
+                        {shadowDetails.useLocalShadows && (
+                            <ContactShadows
+                                position={[0, 0, 0]}
+                                opacity={0.6}
+                                scale={150}
+                                blur={2}
+                                far={100}
+                                color="#000000"
+                                frames={shadowDetails.localFrames}
+                            />
+                        )}
 
                         <Html position={[0, GLOBAL_CONFIG.htmlY + 25, 0]} center zIndexRange={[100, 0]}>
                             <div className="flex flex-col items-center">

@@ -9,6 +9,8 @@ import {
     type Position3D,
 } from '../lib/renderPolicy';
 import WorldContactShadows from '../components/3D/WorldContactShadows';
+import BarWorld from '../components/3D/BarWorld';
+import type { WorldParticipant } from '../types/api';
 
 const contactShadowsCaptor = vi.fn();
 
@@ -17,6 +19,25 @@ vi.mock('@react-three/drei', () => ({
         contactShadowsCaptor(props);
         return <div data-testid="mock-contact-shadows" />;
     },
+    useFBX: vi.fn().mockReturnValue({
+        clone: () => ({ traverse: () => {} }),
+        traverse: () => {},
+    }),
+    Float: ({ children }: React.PropsWithChildren<unknown>) => <div>{children}</div>,
+    Html: ({ children }: React.PropsWithChildren<unknown>) => <div>{children}</div>,
+    Text: () => null,
+}));
+
+vi.mock('react-router-dom', () => ({
+    useNavigate: () => vi.fn(),
+}));
+
+vi.mock('../hooks/useGameEngine', () => ({
+    useGameEngine: () => ({ gameState: null, startGame: vi.fn(), isLocked: false }),
+}));
+
+vi.mock('../components/3D/AvatarCanvas', () => ({
+    ModularAvatar: () => <div data-testid="mock-avatar" />,
 }));
 
 describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
@@ -243,6 +264,102 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
                     resolution: 1024,
                 })
             );
+        });
+    });
+
+    describe('4. Intégration BarWorld (T21 / CHAL-06)', () => {
+        const createParticipants = (count: number): WorldParticipant[] =>
+            Array.from({ length: count }, (_, i) => ({
+                user_id: `u_${i}`,
+                username: `Soldat ${i}`,
+                avatar_config: { head: 'default' },
+            }));
+
+        it('politique legacy par défaut : rend N ombres locales avec frames=Infinity pour N participants', () => {
+            const participants = createParticipants(10);
+
+            render(
+                <BarWorld
+                    aperoId="bc_1"
+                    squadId="sq_1"
+                    participants={participants}
+                    isActiveApero={false}
+                    onSelectPhoto={vi.fn()}
+                />
+            );
+
+            // 10 instances locales de ContactShadows, chacune avec frames=Infinity
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(10);
+            for (const call of contactShadowsCaptor.mock.calls) {
+                const props = call[0];
+                expect(props.frames).toBe(Infinity);
+                expect(props.scale).toBe(150);
+                expect(props.position).toEqual([0, 0, 0]);
+            }
+        });
+
+        it('politique static : conserve N ombres locales avec frames=1', () => {
+            const participants = createParticipants(10);
+
+            render(
+                <BarWorld
+                    aperoId="bc_1"
+                    squadId="sq_1"
+                    participants={participants}
+                    isActiveApero={false}
+                    onSelectPhoto={vi.fn()}
+                    shadowPolicy="static"
+                />
+            );
+
+            // 10 instances locales avec frames=1
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(10);
+            for (const call of contactShadowsCaptor.mock.calls) {
+                const props = call[0];
+                expect(props.frames).toBe(1);
+                expect(props.scale).toBe(150);
+                expect(props.position).toEqual([0, 0, 0]);
+            }
+        });
+
+        it('politique shared : remplace les ombres locales par une seule ombre partagée sur le sol Y=5', () => {
+            const participants = createParticipants(10);
+
+            render(
+                <BarWorld
+                    aperoId="bc_1"
+                    squadId="sq_1"
+                    participants={participants}
+                    isActiveApero={false}
+                    onSelectPhoto={vi.fn()}
+                    shadowPolicy="shared"
+                />
+            );
+
+            // Exactement 1 seule instance de ContactShadows rendue au niveau root
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(1);
+            const callProps = contactShadowsCaptor.mock.calls[0][0];
+            expect(callProps.position[1]).toBe(5);
+            expect(callProps.frames).toBe(Infinity);
+            expect(callProps.resolution).toBe(512);
+            // Couvre l'ensemble des 10 avatars + 75
+            expect(callProps.scale[0]).toBeGreaterThanOrEqual(300);
+            expect(callProps.scale[1]).toBeGreaterThanOrEqual(300);
+        });
+
+        it('ne produit aucune ombre si la liste de participants est vide sous shared', () => {
+            render(
+                <BarWorld
+                    aperoId="bc_1"
+                    squadId="sq_1"
+                    participants={[]}
+                    isActiveApero={false}
+                    onSelectPhoto={vi.fn()}
+                    shadowPolicy="shared"
+                />
+            );
+
+            expect(contactShadowsCaptor).not.toHaveBeenCalled();
         });
     });
 });
