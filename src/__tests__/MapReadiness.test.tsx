@@ -175,21 +175,37 @@ describe('Map Readiness & onLoad lifecycle (CHAL-07)', () => {
             expect(signal?.view).toBe('dashboard');
         });
 
-        it('révoque l’avatar si une erreur survient après le chargement', async () => {
+        it('conserve le même avatar après une erreur carte, sans certifier une carte en erreur', async () => {
             render(<MapSection {...defaultProps} isMapReady={false} />);
 
             act(() => {
                 mapMockControl.triggerLoad();
             });
 
-            expect(await screen.findByTestId('avatar-canvas')).toBeInTheDocument();
+            const canvas = await screen.findByTestId('avatar-canvas');
+            act(() => { mapMockControl.triggerIdle(); });
+            expect(getLatestSceneSignal('mapInteractive')).toBeDefined();
 
             // Erreur subséquente
             act(() => {
                 mapMockControl.triggerError();
             });
 
-            expect(screen.queryByTestId('avatar-canvas')).not.toBeInTheDocument();
+            expect(screen.getByTestId('avatar-canvas')).toBe(canvas);
+            expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+            act(() => { mapMockControl.triggerIdle(); });
+            expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+        });
+
+        it('ne remonte pas l’avatar si la carte signale une erreur pendant le passage par le profil', async () => {
+            const { rerender } = render(<MapSection {...defaultProps} visible active isMapReady={false}/>);
+            act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
+            const canvas = await screen.findByTestId('avatar-canvas');
+            rerender(<MapSection {...defaultProps} visible={false} active={false} isMapReady={false}/>);
+            act(() => { mapMockControl.triggerError(); });
+            rerender(<MapSection {...defaultProps} visible active isMapReady={false}/>);
+            expect(screen.getByTestId('avatar-canvas')).toBe(canvas);
+            expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
         });
     });
 });

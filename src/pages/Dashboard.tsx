@@ -111,6 +111,7 @@ export default function Dashboard() {
                             canCreateFromLocation={dashboard.canCreateFromLocation}
                             isNightMode={dashboard.isNightMode}
                             isMapReady={dashboard.isMapReady}
+                            handleMapLoaded={dashboard.handleMapLoaded}
                             active={routeActive && !dashboard.isGameScreenOpen && !dashboard.isWorldsModalOpen}
                             visible={routeActive}
                             squadDetails={dashboard.squadDetails}

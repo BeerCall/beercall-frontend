@@ -85,7 +85,9 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     }, [visible, canWarm3d, profile?.avatar, queryClient]);
 
     const [mapId] = React.useState(() => allocateSceneInstanceId('map'));
-    const [mapLoaded, setMapLoaded] = React.useState(false);
+    // Avatar bootstrap is independent from current map readiness. A tile/style
+    // error must invalidate map metrics, not tear down an already-loaded avatar.
+    const [hasMapLoaded, setHasMapLoaded] = React.useState(false);
     const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; submitted: boolean; suspended: boolean }>({ mounted: false, loaded: false, submitted: false, suspended: false });
     React.useLayoutEffect(() => {
         const state = lifecycle.current;
@@ -94,7 +96,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         return () => {
             if (state.generation !== undefined) unregisterSceneInstance('dashboard', mapId, state.generation);
             state.generation = undefined; state.mounted = false; state.loaded = false; state.submitted = false;
-            setMapLoaded(false);
+            setHasMapLoaded(false);
         };
     }, [mapId]);
     React.useLayoutEffect(() => {
@@ -121,7 +123,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         if (!state.mounted) return;
         if (state.generation === undefined) state.generation = registerSceneInstance('dashboard', mapId);
         state.loaded = true;
-        setMapLoaded(true);
+        setHasMapLoaded(true);
         handleMapLoaded?.();
     }, [mapId, handleMapLoaded]);
     const handleMapIdle = React.useCallback(() => {
@@ -134,7 +136,6 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         const state = lifecycle.current;
         if (state.generation !== undefined) unregisterSceneInstance('dashboard', mapId, state.generation);
         state.generation = undefined; state.loaded = false; state.submitted = false;
-        setMapLoaded(false);
     }, [mapId]);
 
     // Sur iPhone (DPR 3), MapLibre rendrait sinon 9 fois plus de pixels que le
@@ -266,7 +267,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                         <div className="relative w-24 h-32 flex items-end justify-center pb-2">
                             <div className="absolute inset-0 pointer-events-none">
                                 {profile?.avatar ? (
-                                    (mapLoaded || Boolean(isMapReady)) ? (
+                                    (hasMapLoaded || Boolean(isMapReady)) ? (
                                         <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
                                             <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard" active={active}/>
                                         </Suspense>
