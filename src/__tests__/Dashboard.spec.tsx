@@ -4,6 +4,7 @@ import React from 'react';
 import { render } from './utils/test-utils';
 import Dashboard from '../pages/Dashboard';
 import { useUserStore } from '../store/useUserStore';
+import { mapMockControl } from '../../setupTests';
 
 vi.mock('firebase/messaging', () => ({
     getToken: vi.fn().mockResolvedValue('fake-fcm-token'),
@@ -25,12 +26,6 @@ vi.mock('react-router-dom', async () => {
         useNavigate: () => vi.fn(),
     };
 });
-
-vi.mock('react-map-gl/maplibre', () => ({
-  default: ({ children }: React.PropsWithChildren<unknown>) => <div data-testid="mock-map">{children}</div>,
-  Marker: ({ children }: React.PropsWithChildren<unknown>) => <div data-testid="mock-marker">{children}</div>,
-  NavigationControl: () => <div data-testid="mock-nav-control" />,
-}));
 
 const { dashboardUseFrameMock, dashboardUseThreeMock } = vi.hoisted(() => {
     const frameCallbacks = new Set<(state: unknown, delta: number) => void>();
@@ -122,6 +117,7 @@ vi.mock('../hooks/useAvatarAnimations', () => ({
 
 describe('Dashboard & Squads', () => {
     beforeEach(() => {
+        mapMockControl.autoLoad = true;
         useUserStore.setState({ user: { username: 'validUser' }, isAuthenticated: true });
         vi.useFakeTimers({ shouldAdvanceTime: true });
         vi.clearAllMocks();

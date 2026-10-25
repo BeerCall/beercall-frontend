@@ -54,7 +54,76 @@ const { globalMockState, globalFrameCallbacks, globalFiberMock } = vi.hoisted(()
     return { globalMockState: state, globalFrameCallbacks: callbacks, globalFiberMock: fiberMock };
 });
 
+export interface MapMockControl {
+    autoLoad: boolean;
+    autoIdle: boolean;
+    latestProps: {
+        onLoad?: () => void;
+        onIdle?: () => void;
+        onError?: () => void;
+        [key: string]: unknown;
+    } | null;
+    triggerLoad: () => void;
+    triggerIdle: () => void;
+    triggerError: () => void;
+    reset: () => void;
+}
+
+export const mapMockControl: MapMockControl = {
+    autoLoad: false,
+    autoIdle: false,
+    latestProps: null,
+    triggerLoad: () => {
+        mapMockControl.latestProps?.onLoad?.();
+    },
+    triggerIdle: () => {
+        mapMockControl.latestProps?.onIdle?.();
+    },
+    triggerError: () => {
+        mapMockControl.latestProps?.onError?.();
+    },
+    reset: () => {
+        mapMockControl.autoLoad = false;
+        mapMockControl.autoIdle = false;
+        mapMockControl.latestProps = null;
+    },
+};
+
 export { globalFiberMock };
+
+vi.mock('react-map-gl/maplibre', () => {
+    const MockMap = (props: React.PropsWithChildren<{
+        onLoad?: () => void;
+        onIdle?: () => void;
+        onError?: () => void;
+        [key: string]: unknown;
+    }>) => {
+        const { children, onLoad, onIdle } = props;
+
+        React.useEffect(() => {
+            mapMockControl.latestProps = props;
+            if (mapMockControl.autoLoad) {
+                onLoad?.();
+                if (mapMockControl.autoIdle) {
+                    onIdle?.();
+                }
+            }
+            return () => {
+                if (mapMockControl.latestProps === props) {
+                    mapMockControl.latestProps = null;
+                }
+            };
+        }, [props, onLoad, onIdle]);
+
+        return React.createElement('div', { 'data-testid': 'mock-map' }, children);
+    };
+
+    return {
+        default: MockMap,
+        Marker: ({ children }: React.PropsWithChildren<unknown>) => React.createElement('div', { 'data-testid': 'mock-marker' }, children),
+        NavigationControl: () => React.createElement('div', { 'data-testid': 'mock-nav-control' }),
+    };
+});
 
 vi.mock('@react-three/fiber', () => ({
     Canvas: () => null,
@@ -153,6 +222,7 @@ afterEach(() => {
     server.resetHandlers();
     cleanup();
     globalFiberMock.clear();
+    mapMockControl.reset();
 });
 
 afterAll(() => server.close());

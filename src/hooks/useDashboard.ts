@@ -206,9 +206,8 @@ export const useDashboard = () => {
         }
     }, [userLocation, id]);
 
-    useEffect(() => {
-        const timer = setTimeout(() => setIsMapReady(true), 500);
-        return () => clearTimeout(timer);
+    const handleMapLoaded = useCallback(() => {
+        setIsMapReady(true);
     }, []);
 
     const handleBeerCallClick = useCallback((beerCall: BeerCall) => {
@@ -249,6 +248,7 @@ export const useDashboard = () => {
         retryGPS,
         isNightMode,
         isMapReady,
+        handleMapLoaded,
         copied,
         showPushBanner,
         handleEnableNotifications,
