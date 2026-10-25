@@ -18,6 +18,8 @@ body {
 
 /* 🟩 NIVEAU 3 : L'APPLICATION REACT (Vert) */
 #root {
+    /* Anchor the retained dashboard to the same app bounds as routed Layout. */
+    position: relative;
     min-height: 100%;
     height: 100%;
     width: 100%;
