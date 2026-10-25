@@ -12,16 +12,6 @@ import {
 } from '../../lib/renderPolicy';
 import WorldContactShadows from './WorldContactShadows';
 
-// --- FILTRE ANTI-WARNINGS ---
-const silenceWarnings = () => {
-    const originalWarn = console.warn;
-    console.warn = (...args) => {
-        const msg = args.join(' ');
-        if (msg.includes('THREE.') || msg.includes('X4122') || msg.includes('skinning weights')) return;
-        originalWarn(...args);
-    };
-};
-
 function ModelPart({path, customTransform, isEnvironment = false}: {
     path: string,
     customTransform?: AvatarTransform,
@@ -90,10 +80,6 @@ export default function FloatyIslandWorld({
         () => participants.map((_, index) => getDynamicPlacement(index, participants.length).position),
         [participants]
     );
-
-    useMemo(() => {
-        silenceWarnings();
-    }, []);
 
     const navigate = useNavigate();
 

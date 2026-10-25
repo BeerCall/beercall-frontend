@@ -252,4 +252,29 @@ describe('AvatarCanvas: suspension sans remontage du Canvas (CHAL-04)', () => {
         unmount();
         expect(removeListenerSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
     });
+
+    it('vingt montages/démontages avec StrictMode : identité de console.warn inchangée, pas de monkey-patch empilé', () => {
+        const initialWarn = console.warn;
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        for (let i = 0; i < 20; i++) {
+            const { unmount } = render(
+                <React.StrictMode>
+                    <AvatarCanvas config={dummyConfig} active={true} />
+                </React.StrictMode>
+            );
+            unmount();
+        }
+
+        // Vérification : console.warn n'a pas été enveloppé/réassigné par un monkey-patch
+        expect(console.warn).toBe(warnSpy);
+        warnSpy.mockRestore();
+        expect(console.warn).toBe(initialWarn);
+
+        // Émission d'un warning : arrive bien une seule fois
+        const secondSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        console.warn('test warning direct');
+        expect(secondSpy).toHaveBeenCalledTimes(1);
+        secondSpy.mockRestore();
+    });
 });

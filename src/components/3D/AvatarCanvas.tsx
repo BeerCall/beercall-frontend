@@ -18,15 +18,6 @@ import {preloadAvatarAnimations, useAvatarAnimations} from '../../hooks/useAvata
 import {useModel} from '../../hooks/useModel';
 import {recordAvatarLoading} from '../../lib/avatarLoadingTrace';
 
-const silenceWarnings = () => {
-    const originalWarn = console.warn;
-    console.warn = (...args) => {
-        const msg = args.join(' ');
-        if (msg.includes('THREE.') || msg.includes('X4122') || msg.includes('skinning weights') || msg.includes('deprecated')) return;
-        originalWarn(...args);
-    };
-};
-
 const CONFIG = {
     scale: 1,
     cameraZ: 300,
@@ -686,9 +677,6 @@ export default function AvatarCanvas({
         recordAvatarLoading('avatar-mount', 'start', canvasView);
         return () => recordAvatarLoading('avatar-mount', 'end', canvasView);
     }, [view, headOnly]);
-    useEffect(() => {
-        silenceWarnings();
-    }, []);
 
     // Le manifeste et le clip Idle sont indépendants des FBX : les demander dès
     // le montage du Canvas évite d'attendre la fin du parse des modèles pour
