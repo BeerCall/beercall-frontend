@@ -1,18 +1,22 @@
-import {Suspense, useMemo, useEffect, useRef} from 'react';
-import {Canvas} from '@react-three/fiber';
+import {Suspense, useMemo, useEffect, useLayoutEffect, useRef, useState, useCallback, useContext} from 'react';
+import {Canvas, useFrame, useThree} from '@react-three/fiber';
 import {
     OrbitControls,
     ContactShadows,
-    Environment,
-    useFBX,
     Html,
     useProgress,
     useAnimations
 } from '@react-three/drei';
+import {QueryClientContext} from '@tanstack/react-query';
 import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
 import {MODELS_URL} from "../../lib/api.ts";
 import type {AvatarConfig, AvatarTransform} from "../../types/avatar.ts";
+import SceneReadyProbe from './SceneReadyProbe';
+import {warmAvatarModels} from './warmupAvatar';
+import {preloadAvatarAnimations, useAvatarAnimations} from '../../hooks/useAvatarAnimations';
+import {useModel} from '../../hooks/useModel';
+import {recordAvatarLoading} from '../../lib/avatarLoadingTrace';
 
 const silenceWarnings = () => {
     const originalWarn = console.warn;
@@ -264,10 +268,14 @@ const CUSTOM_ITEMS_CONFIG: Record<string, AvatarTransform> = {
 };
 
 function CanvasLoader() {
+    useEffect(() => {
+        recordAvatarLoading('model-assets', 'start', 'avatar');
+        return () => recordAvatarLoading('model-assets', 'end', 'avatar');
+    }, []);
     const {progress} = useProgress();
     return (
         <Html center>
-            <div className="flex flex-col items-center bg-white/90 p-4 rounded-2xl shadow-xl backdrop-blur-md">
+            <div data-avatar-loading="model-assets" className="flex flex-col items-center bg-white/90 p-4 rounded-2xl shadow-xl backdrop-blur-md">
                 <div className="w-8 h-8 border-4 border-beer border-t-transparent rounded-full animate-spin"></div>
                 <p className="text-xs font-black text-beer mt-2 tracking-widest">{progress.toFixed(0)}%</p>
             </div>
@@ -275,47 +283,135 @@ function CanvasLoader() {
     );
 }
 
+// 🚀 NOUVEAU COMPOSANT AVATAR FRAME NOTIFIER : Raccorde notifyInitialFrame à un probe de frame
+function AvatarFrameNotifier({
+    ready,
+    isIdle,
+    onFrameSubmitted,
+}: {
+    ready: boolean;
+    isIdle: boolean;
+    onFrameSubmitted: () => void;
+}) {
+    const armedRef = useRef(false);
+    const submittedRef = useRef(false);
+    const frameRequest = useRef<number | undefined>(undefined);
+    const callbackRef = useRef(onFrameSubmitted);
+    useEffect(() => {
+        callbackRef.current = onFrameSubmitted;
+    }, [onFrameSubmitted]);
+
+    useEffect(() => {
+        if (ready && isIdle && !submittedRef.current) {
+            armedRef.current = true;
+        } else if (!ready) {
+            armedRef.current = false;
+            submittedRef.current = false;
+        } else {
+            armedRef.current = false;
+        }
+        return () => {
+            armedRef.current = false;
+            if (frameRequest.current !== undefined) {
+                cancelAnimationFrame(frameRequest.current);
+                frameRequest.current = undefined;
+            }
+        };
+    }, [ready, isIdle]);
+
+    useFrame((state) => {
+        if (!armedRef.current || submittedRef.current || frameRequest.current !== undefined) return;
+        const before = state.gl.info.render.frame;
+        frameRequest.current = requestAnimationFrame(() => {
+            frameRequest.current = undefined;
+            const { calls, frame } = state.gl.info.render;
+            if (!armedRef.current || submittedRef.current || document.hidden || frame <= before || calls <= 0) return;
+            submittedRef.current = true;
+            armedRef.current = false;
+            callbackRef.current();
+        });
+    });
+
+    return null;
+}
+
 // 🚀 NOUVEAU COMPOSANT AVATAR PART : Chaque partie s'anime TOUTE SEULE
-function AvatarPart({path, customTransform, animations, currentAnim}: {
+function AvatarPart({
+    path,
+    customTransform,
+    animations,
+    currentAnim,
+    partKey,
+    onPartReady,
+    onPartUnmount,
+}: {
     path: string,
     customTransform?: AvatarTransform,
     animations?: THREE.AnimationClip[],
-    currentAnim?: string
+    currentAnim?: string,
+    partKey?: string,
+    onPartReady?: (partKey: string, meshCount: number, actionPlaying: boolean) => void,
+    onPartUnmount?: (partKey: string) => void,
 }) {
-    const fbx = useFBX(path);
+    const fbx = useModel(path);
     const groupRef = useRef<THREE.Group>(null);
 
     const clonedFbx = useMemo(() => {
         if (!fbx) return null;
 
-        // On utilise SkeletonUtils pour cloner correctement les os et maillages
-        const clone = SkeletonUtils.clone(fbx);
-
-        clone.traverse((child) => {
-            if ((child as THREE.Mesh).isMesh) {
-                const mesh = child as THREE.Mesh;
-                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-                materials.forEach((mat) => {
-                    if (mat) mat.needsUpdate = true;
-                });
-            }
-        });
-        return clone;
+        // SkeletonUtils clone partage les matériaux du FBX en cache ; les
+        // marquer `needsUpdate` à chaque montage forçait une revalidation de
+        // programme et re-gonflait le coût d'ouverture des mondes.
+        return SkeletonUtils.clone(fbx);
     }, [fbx]);
 
     // On crée un AnimationMixer isolé pour CE vêtement
     const {actions} = useAnimations(animations || [], groupRef);
+    const lastAnimRef = useRef<string | null>(null);
+    const lastActionRef = useRef<THREE.AnimationAction | null>(null);
+    const unmountCbRef = useRef(onPartUnmount);
+    useEffect(() => { unmountCbRef.current = onPartUnmount; }, [onPartUnmount]);
 
     useEffect(() => {
+        let isActionPlaying = false;
         if (currentAnim && actions[currentAnim]) {
-            actions[currentAnim].reset().fadeIn(0.2).play(); // Fondu rapide pour plus de réactivité
+            const action = actions[currentAnim];
+            if (lastAnimRef.current !== currentAnim || lastActionRef.current !== action || !action.isRunning()) {
+                if (lastActionRef.current && lastActionRef.current !== action) {
+                    lastActionRef.current.fadeOut(0.2);
+                }
+                action.reset().fadeIn(0.2).play();
+                lastAnimRef.current = currentAnim;
+                lastActionRef.current = action;
+            }
+            isActionPlaying = action.isRunning();
         }
+
+        let meshCount = 0;
+        if (clonedFbx) {
+            clonedFbx.traverse((child) => {
+                if ((child as THREE.Mesh).isMesh && (child as THREE.Mesh).visible !== false) {
+                    meshCount++;
+                }
+            });
+        }
+
+        if (partKey && onPartReady) {
+            onPartReady(partKey, meshCount, isActionPlaying);
+        }
+    }, [currentAnim, actions, clonedFbx, partKey, onPartReady, animations]);
+
+    useEffect(() => {
         return () => {
-            if (currentAnim && actions[currentAnim]) {
-                actions[currentAnim].fadeOut(0.2);
+            if (lastActionRef.current) {
+                lastActionRef.current.fadeOut(0.2);
+                lastActionRef.current.stop();
+            }
+            if (partKey) {
+                unmountCbRef.current?.(partKey);
             }
         };
-    }, [currentAnim, actions]);
+    }, [partKey]);
 
     if (!clonedFbx) return null;
 
@@ -331,52 +427,222 @@ function AvatarPart({path, customTransform, animations, currentAnim}: {
     );
 }
 
-export function ModularAvatar({config, onAnimationsLoaded}: {
+export function ModularAvatar({
+    config,
+    onAnimationsLoaded,
+    onReadinessChange,
+}: {
     config: AvatarConfig,
-    onAnimationsLoaded?: (animations: string[]) => void
+    onAnimationsLoaded?: (animations: string[]) => void,
+    onReadinessChange?: (isReady: boolean, details?: { parts: string[]; meshCount: number }) => void,
 }) {
     const accessoryTransform = config.accessory ? CUSTOM_ITEMS_CONFIG[config.accessory] : undefined;
 
-    const animFbx = useFBX(`${MODELS_URL}/Animations.fbx`);
     const targetAnimation = config.animation || "Idle";
+    const {
+        clipNames,
+        activeClip,
+        deferredStatus,
+        error,
+        notifyInitialFrame,
+        retry,
+    } = useAvatarAnimations(targetAnimation);
 
-    useEffect(() => {
-        if (onAnimationsLoaded && animFbx.animations) {
-            const names = animFbx.animations.map(anim => anim.name);
-            onAnimationsLoaded(names);
+    // Protection contre le glitch d'animation (CHAL-01, REV-06) :
+    // ModularAvatar ne transmet à AvatarPart que le clip actif, via un useMemo stable.
+    // Ne JAMAIS utiliser [activeClip] inline dans le JSX.
+    const activeAnimations = useMemo(() => activeClip ? [activeClip] : [], [activeClip]);
+    const currentAnim = activeClip?.name;
+
+    const expectedParts = useMemo(() => {
+        if (!config) return [];
+        const parts: string[] = [];
+        if (config.head && config.head !== 'none') parts.push('head');
+        if (config.body && config.body !== 'none') parts.push('body');
+        if (config.legs && config.legs !== 'none') parts.push('legs');
+        if (config.feet && config.feet !== 'none') parts.push('feet');
+        if (config.accessory && config.accessory !== 'none') parts.push('accessory');
+        return parts;
+    }, [config]);
+
+    const readyPartsRef = useRef<Map<string, { meshCount: number; actionPlaying: boolean }>>(new Map());
+    const [isAvatarReady, setIsAvatarReady] = useState(false);
+
+    const checkReadiness = useCallback(() => {
+        if (expectedParts.length === 0) {
+            setIsAvatarReady(false);
+            onReadinessChange?.(false);
+            return;
         }
-    }, [animFbx, onAnimationsLoaded]);
+
+        let allPresent = true;
+        let totalMeshes = 0;
+        let allActionsPlaying = true;
+
+        for (const part of expectedParts) {
+            const status = readyPartsRef.current.get(part);
+            if (!status) {
+                allPresent = false;
+                break;
+            }
+            totalMeshes += status.meshCount;
+            if (!status.actionPlaying) {
+                allActionsPlaying = false;
+                break;
+            }
+        }
+
+        const isReady = allPresent && totalMeshes > 0 && allActionsPlaying;
+        setIsAvatarReady(isReady);
+        onReadinessChange?.(isReady, isReady ? { parts: expectedParts, meshCount: totalMeshes } : undefined);
+    }, [expectedParts, onReadinessChange]);
+
+    const handlePartReady = useCallback((partKey: string, meshCount: number, actionPlaying: boolean) => {
+        readyPartsRef.current.set(partKey, { meshCount, actionPlaying });
+        checkReadiness();
+    }, [checkReadiness]);
+
+    const handlePartUnmount = useCallback((partKey: string) => {
+        readyPartsRef.current.delete(partKey);
+        checkReadiness();
+    }, [checkReadiness]);
+
+    // Appeler onAnimationsLoaded avec les 25 noms du manifeste dès sa réception
+    useEffect(() => {
+        if (onAnimationsLoaded && clipNames.length > 0) {
+            onAnimationsLoaded([...clipNames]);
+        }
+    }, [clipNames, onAnimationsLoaded]);
+
+    const isIdle = currentAnim === 'Idle';
 
     return (
         <group>
+            {/* Raccorder notifyInitialFrame du hook T10 à un probe de frame, armé après readiness des pièces ET action Idle */}
+            <AvatarFrameNotifier
+                ready={isAvatarReady}
+                isIdle={isIdle}
+                onFrameSubmitted={notifyInitialFrame}
+            />
+
+            {/* UI Html de chargement/erreur avec bouton « Réessayer les animations » ; différé en échec n'efface pas l'avatar */}
+            {error && !activeClip && (
+                <Html center>
+                    <div className="flex flex-col items-center bg-white/90 p-4 rounded-2xl shadow-xl backdrop-blur-md text-center max-w-xs">
+                        <p className="text-xs font-bold text-red-600 mb-2">Erreur de chargement des animations</p>
+                        <button
+                            type="button"
+                            onClick={() => { void retry(); }}
+                            className="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 cursor-pointer"
+                        >
+                            Réessayer les animations
+                        </button>
+                    </div>
+                </Html>
+            )}
+
+            {deferredStatus === 'error' && (
+                <Html position={[0, -20, 0]} center>
+                    <div className="bg-amber-100/90 border border-amber-300 text-amber-900 px-3 py-1 rounded-lg text-xs flex items-center gap-2 shadow-md">
+                        <span>Animations différées indisponibles</span>
+                        <button
+                            type="button"
+                            onClick={() => { void retry(); }}
+                            className="underline font-bold text-amber-700 hover:text-amber-900 cursor-pointer"
+                        >
+                            Réessayer les animations
+                        </button>
+                    </div>
+                </Html>
+            )}
+
             {/* Le paramètre key force React à recréer la pièce et relancer l'animation */}
             {config.head && config.head !== 'none' &&
                 <AvatarPart key={`head-${config.head}`} path={`${MODELS_URL}/${config.head}.fbx`}
-                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
+                            partKey="head" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
+                            animations={activeAnimations} currentAnim={currentAnim}/>}
 
             {config.body && config.body !== 'none' &&
                 <AvatarPart key={`body-${config.body}`} path={`${MODELS_URL}/${config.body}.fbx`}
-                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
+                            partKey="body" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
+                            animations={activeAnimations} currentAnim={currentAnim}/>}
 
             {config.legs && config.legs !== 'none' &&
                 <AvatarPart key={`legs-${config.legs}`} path={`${MODELS_URL}/${config.legs}.fbx`}
-                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
+                            partKey="legs" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
+                            animations={activeAnimations} currentAnim={currentAnim}/>}
 
             {config.feet && config.feet !== 'none' &&
                 <AvatarPart key={`feet-${config.feet}`} path={`${MODELS_URL}/${config.feet}.fbx`}
-                            animations={animFbx.animations} currentAnim={targetAnimation}/>}
+                            partKey="feet" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
+                            animations={activeAnimations} currentAnim={currentAnim}/>}
 
             {config.accessory && config.accessory !== 'none' && (
                 <AvatarPart
                     key={`acc-${config.accessory}`}
                     path={`${MODELS_URL}/${config.accessory}.fbx`}
+                    partKey="accessory"
+                    onPartReady={handlePartReady}
+                    onPartUnmount={handlePartUnmount}
                     customTransform={accessoryTransform}
-                    animations={animFbx.animations}
-                    currentAnim={targetAnimation}
+                    animations={activeAnimations}
+                    currentAnim={currentAnim}
                 />
             )}
         </group>
     );
+}
+
+function restoreClockElapsed(clockInstance: { elapsedTime: number }, elapsed: number) {
+    clockInstance.elapsedTime = elapsed;
+}
+
+function AvatarFrameloopController({ active }: { active: boolean }) {
+    const setFrameloop = useThree((state) => state.setFrameloop);
+    const clock = useThree((state) => state.clock);
+    const invalidate = useThree((state) => state.invalidate);
+    const savedElapsedRef = useRef(0);
+    const wasActiveRef = useRef(true);
+
+    useLayoutEffect(() => {
+        if (active) {
+            if (!wasActiveRef.current) {
+                // Dégel : redémarrage de l'horloge sans inclure l'inactivité (CHAL-04, REV-06)
+                if (typeof setFrameloop === 'function') {
+                    setFrameloop('always');
+                }
+                // Fiber resets elapsedTime in setFrameloop; restore only AFTER it starts the clock.
+                if (clock) restoreClockElapsed(clock, savedElapsedRef.current);
+                if (typeof invalidate === 'function') {
+                    invalidate();
+                }
+                wasActiveRef.current = true;
+            }
+        } else {
+            if (wasActiveRef.current) {
+                // Gel : sauvegarde du temps écoulé et arrêt du frameloop
+                if (clock) {
+                    savedElapsedRef.current = typeof clock.getElapsedTime === 'function'
+                        ? clock.getElapsedTime()
+                        : (clock.elapsedTime || 0);
+                }
+                if (typeof setFrameloop === 'function') {
+                    setFrameloop('never');
+                }
+                wasActiveRef.current = false;
+            }
+        }
+    }, [active, setFrameloop, clock, invalidate]);
+
+    useEffect(() => {
+        return () => {
+            if (!wasActiveRef.current && typeof setFrameloop === 'function') {
+                setFrameloop('always');
+            }
+        };
+    }, [setFrameloop]);
+
+    return null;
 }
 
 interface AvatarCanvasProps {
@@ -385,6 +651,9 @@ interface AvatarCanvasProps {
     disablePan?: boolean;
     onAnimationsLoaded?: (animations: string[]) => void;
     headOnly?: boolean;
+    view?: string;
+    instanceId?: string;
+    active?: boolean;
 }
 
 export default function AvatarCanvas({
@@ -392,22 +661,50 @@ export default function AvatarCanvas({
                                          disableZoom = false,
                                          disablePan = false,
                                          onAnimationsLoaded,
-                                         headOnly = false
+                                         headOnly = false,
+                                         view,
+                                         instanceId,
+                                         active = true
                                      }: AvatarCanvasProps) {
+    const [isDocumentVisible, setIsDocumentVisible] = useState(() =>
+        typeof document === 'undefined' ? true : !document.hidden
+    );
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            setIsDocumentVisible(!document.hidden);
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
+    const isEffectiveActive = active && isDocumentVisible;
+    useEffect(() => {
+        const canvasView = view ?? (headOnly ? 'head' : 'full');
+        recordAvatarLoading('avatar-mount', 'start', canvasView);
+        return () => recordAvatarLoading('avatar-mount', 'end', canvasView);
+    }, [view, headOnly]);
     useEffect(() => {
         silenceWarnings();
     }, []);
 
-    // 🚀 PRÉCHARGEMENT MASSIF
+    // Le manifeste et le clip Idle sont indépendants des FBX : les demander dès
+    // le montage du Canvas évite d'attendre la fin du parse des modèles pour
+    // commencer le téléchargement des animations.
+    const queryClient = useContext(QueryClientContext);
     useEffect(() => {
-        useFBX.preload(`${MODELS_URL}/Animations.fbx`);
+        if (queryClient) void preloadAvatarAnimations(queryClient);
+    }, [queryClient]);
 
-        if (config) {
-            if (config.head && config.head !== 'none') useFBX.preload(`${MODELS_URL}/${config.head}.fbx`);
-            if (!headOnly && config.body && config.body !== 'none') useFBX.preload(`${MODELS_URL}/${config.body}.fbx`);
-            if (!headOnly && config.legs && config.legs !== 'none') useFBX.preload(`${MODELS_URL}/${config.legs}.fbx`);
-            if (!headOnly && config.feet && config.feet !== 'none') useFBX.preload(`${MODELS_URL}/${config.feet}.fbx`);
-            if (!headOnly && config.accessory && config.accessory !== 'none') useFBX.preload(`${MODELS_URL}/${config.accessory}.fbx`);
+    // 🚀 PRÉCHARGEMENT CIBLÉ DES VÊTEMENTS
+    useEffect(() => {
+        if (!config) return;
+        if (headOnly) {
+            if (config.head && config.head !== 'none') useModel.preload(`${MODELS_URL}/${config.head}.fbx`);
+        } else {
+            warmAvatarModels(config);
         }
     }, [config, headOnly]);
 
@@ -419,26 +716,57 @@ export default function AvatarCanvas({
             : config;
     }, [headOnly, config]);
 
+    const expectedParts = useMemo(() => {
+        if (!renderConfig) return [];
+        const parts: string[] = [];
+        if (renderConfig.head && renderConfig.head !== 'none') parts.push('head');
+        if (!headOnly) {
+            if (renderConfig.body && renderConfig.body !== 'none') parts.push('body');
+            if (renderConfig.legs && renderConfig.legs !== 'none') parts.push('legs');
+            if (renderConfig.feet && renderConfig.feet !== 'none') parts.push('feet');
+            if (renderConfig.accessory && renderConfig.accessory !== 'none') parts.push('accessory');
+        }
+        return parts;
+    }, [renderConfig, headOnly]);
+
+    const [isAvatarReady, setIsAvatarReady] = useState(false);
+    const handleReadinessChange = useCallback((ready: boolean) => {
+        setIsAvatarReady(ready);
+    }, []);
+
     return (
         <div className="w-full h-full relative">
-            <Canvas camera={{position: [0, targetY, cameraZ], fov: 45}} dpr={[1, 2]}
+            <Canvas camera={{position: [0, targetY, cameraZ], fov: 45}} dpr={[1, 1.5]}
                     className="z-10 relative">
+                <AvatarFrameloopController active={isEffectiveActive}/>
                 <ambientLight intensity={1.5}/>
                 <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                 <directionalLight position={[-10, 10, -10]} intensity={1}/>
 
                 {/* 🚀 APRÈS : On sépare les Suspense pour éviter le conflit d'état ! */}
                 <Suspense fallback={headOnly ? null : <CanvasLoader/>}>
-                    <ModularAvatar config={renderConfig} onAnimationsLoaded={onAnimationsLoaded}/>
-                    {!headOnly && <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={200} blur={2} far={200} color="#000000"/>}
-                </Suspense>
-
-                {/* L'environnement charge de son côté silencieusement */}
-                <Suspense fallback={null}>
-                    <Environment preset="city"/>
+                    <ModularAvatar
+                        config={renderConfig}
+                        onAnimationsLoaded={onAnimationsLoaded}
+                        onReadinessChange={handleReadinessChange}
+                    />
+                    <SceneReadyProbe
+                        kind="avatar"
+                        id={instanceId}
+                        view={view ?? (headOnly ? 'head' : 'full')}
+                        ready={isAvatarReady}
+                        active={isEffectiveActive}
+                        expectedParts={expectedParts}
+                    />
+                    {/* Une seule passe : l'ombre est un halo statique sous l'avatar, la
+                        recalculer à chaque frame doublait les draw calls du Canvas. */}
+                    {!headOnly && <ContactShadows position={[0, 0, 0]} opacity={0.6}
+                                                  scale={200} blur={2} far={200} resolution={256}
+                                                  frames={1} color="#000000"/>}
                 </Suspense>
 
                 <OrbitControls
+                    enabled={!disableZoom || !disablePan}
                     enableZoom={!disableZoom}
                     enablePan={!disablePan}
                     target={[0, targetY, 0]}

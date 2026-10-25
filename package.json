@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run animations:check && tsc -b && vite build",
+    "postbuild": "node scripts/precompress.mjs",
+    "animations:check": "node scripts/check-animations.mjs",
+    "models:prepare": "node scripts/prepare-models.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

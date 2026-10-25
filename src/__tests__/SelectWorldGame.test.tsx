@@ -106,4 +106,46 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation au 
             })
         );
     });
+
+    it('active le bouton masqué "Démarrer la partie" et permet le lancement quand les conditions sont réunies (T19)', async () => {
+        server.use(
+            http.get('*/squads/1/beer-calls/bc_1/worlds', () =>
+                HttpResponse.json({
+                    worlds: {
+                        bar: {
+                            participants: [{ user_id: 'u_1' }, { user_id: 'u_2' }],
+                        },
+                    },
+                })
+            ),
+            http.post('*/aperos/:id/game/start', () =>
+                HttpResponse.json({ success: true, game_state: { status: 'in_progress' } })
+            ),
+            http.get('*/aperos/:id/game/state', () =>
+                HttpResponse.json({ status: 'in_progress' })
+            )
+        );
+
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const onClose = vi.fn();
+
+        render(
+            <QueryClientProvider client={queryClient}>
+                <SelectWorldModal isOpen onClose={onClose} squadId="1" beerCallId="bc_1" isActiveApero />
+            </QueryClientProvider>
+        );
+
+        // Attente du chargement du module et des participants
+        await waitFor(() => expect(screen.getByTestId('bar-world-mock')).toBeInTheDocument());
+
+        const startButton = screen.getByRole('button', { name: 'Démarrer la partie' });
+        expect(startButton).toBeEnabled();
+
+        // Le lancement déclenche l'ouverture de l'écran de jeu et la fermeture de la modale
+        startButton.click();
+        await waitFor(() => {
+            expect(useGameUIStore.getState().isGameScreenOpen).toBe(true);
+            expect(onClose).toHaveBeenCalled();
+        });
+    });
 });

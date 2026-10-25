@@ -9,6 +9,7 @@ import { useLocationStore } from '../store/useLocationStore';
 import { toast } from '../store/useToastStore';
 import type { MapRef } from 'react-map-gl/maplibre';
 import type { BeerCall } from '../types/api';
+import { useDashboardActive } from '../lib/dashboardActivity';
 
 function gpsMessage(location: Pick<ReturnType<typeof useLocationStore.getState>, 'userLocation' | 'acquiredAt' | 'hasSessionFix' | 'locationStatus'>): string | null {
     if (location.hasSessionFix && location.locationStatus === 'available' && location.userLocation) return null;
@@ -24,6 +25,7 @@ function gpsMessage(location: Pick<ReturnType<typeof useLocationStore.getState>,
 }
 
 export const useDashboard = () => {
+    const active = useDashboardActive();
     const { id } = useParams();
     const navigate = useNavigate();
 
@@ -43,12 +45,9 @@ export const useDashboard = () => {
         return currentHour >= 19 || currentHour < 6;
     });
 
-    const { data: profile } = useProfile();
-    const squadQuery = useSquadDetails(id);
+    const { data: profile } = useProfile('me', active);
+    const squadQuery = useSquadDetails(id, active);
     const squadDetails = squadQuery.data;
-    // TODO(REV-04): The useSquadWebSocket hook was just a no-op placeholder masking the absence
-    // of a real WebSocket implementation. It has been removed. A proper WS hook should be
-    // implemented when real-time features are actually supported by the backend and frontend.
     const { isGameScreenOpen, currentAperoId, closeGameScreen } = useGameUIStore();
     const { userLocation, acquiredAt, hasSessionFix, locationStatus, startTracking, stopTracking } = useLocationStore();
     const canCreateFromLocation = hasSessionFix && locationStatus === 'available' && userLocation !== null;
@@ -76,7 +75,7 @@ export const useDashboard = () => {
 
     // Init WebSocket
     const squadIdNumber = id ? parseInt(id, 10) : undefined;
-    useSquadWebSocket(squadIdNumber);
+    useSquadWebSocket(active ? squadIdNumber : undefined);
 
     const handleEnableNotifications = async () => {
         const success = await subscribeToNotifications();
@@ -180,6 +179,7 @@ export const useDashboard = () => {
     }, [userLocation, acquiredAt, hasSessionFix, locationStatus]);
 
     useEffect(() => {
+        if (!active) return;
         const handleFirstInteraction = () => {
             startTracking();
             window.removeEventListener('click', handleFirstInteraction);
@@ -193,22 +193,22 @@ export const useDashboard = () => {
             window.removeEventListener('click', handleFirstInteraction);
             window.removeEventListener('touchstart', handleFirstInteraction);
             stopTracking();
+            if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
         };
-    }, [startTracking, stopTracking]);
+    }, [active, startTracking, stopTracking]);
 
     useEffect(() => {
-        if (id && userLocation && mapRef.current && !hasCentered.current) {
+        if (active && id && userLocation && mapRef.current && !hasCentered.current) {
             mapRef.current.jumpTo({
                 center: [userLocation.lng, userLocation.lat],
                 zoom: 14
             });
             hasCentered.current = true;
         }
-    }, [userLocation, id]);
+    }, [active, userLocation, id]);
 
-    useEffect(() => {
-        const timer = setTimeout(() => setIsMapReady(true), 500);
-        return () => clearTimeout(timer);
+    const handleMapLoaded = useCallback(() => {
+        setIsMapReady(true);
     }, []);
 
     const handleBeerCallClick = useCallback((beerCall: BeerCall) => {
@@ -228,6 +228,7 @@ export const useDashboard = () => {
     };
 
     return {
+        active,
         id,
         navigate,
         profile,
@@ -249,6 +250,7 @@ export const useDashboard = () => {
         retryGPS,
         isNightMode,
         isMapReady,
+        handleMapLoaded,
         copied,
         showPushBanner,
         handleEnableNotifications,

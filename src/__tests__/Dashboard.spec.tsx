@@ -4,6 +4,7 @@ import React from 'react';
 import { render } from './utils/test-utils';
 import Dashboard from '../pages/Dashboard';
 import { useUserStore } from '../store/useUserStore';
+import { mapMockControl } from '../../setupTests';
 
 vi.mock('firebase/messaging', () => ({
     getToken: vi.fn().mockResolvedValue('fake-fcm-token'),
@@ -26,15 +27,58 @@ vi.mock('react-router-dom', async () => {
     };
 });
 
-vi.mock('react-map-gl/maplibre', () => ({
-  default: ({ children }: React.PropsWithChildren<unknown>) => <div data-testid="mock-map">{children}</div>,
-  Marker: ({ children }: React.PropsWithChildren<unknown>) => <div data-testid="mock-marker">{children}</div>,
-  NavigationControl: () => <div data-testid="mock-nav-control" />,
-}));
+const { dashboardUseFrameMock, dashboardUseThreeMock } = vi.hoisted(() => {
+    const frameCallbacks = new Set<(state: unknown, delta: number) => void>();
+    const gl = {
+        domElement: document.createElement('canvas'),
+        render: vi.fn(),
+        info: {
+            render: { calls: 0, frame: 0, lines: 0, points: 0, triangles: 0 },
+            memory: { geometries: 0, textures: 0 },
+        },
+    };
+    const scene = {};
+    const camera = {};
+    const invalidate = vi.fn();
+    const state = {
+        gl,
+        scene,
+        camera,
+        invalidate,
+        get: vi.fn(),
+        advance: vi.fn(),
+        clock: { getElapsedTime: () => 0, getDelta: () => 1 / 60 },
+    };
+    state.get.mockReturnValue(state);
+
+    const useFrame = Object.assign(
+        vi.fn((cb: (s: unknown, d: number) => void) => {
+            if (typeof cb === 'function') {
+                frameCallbacks.add(cb);
+            }
+        }),
+        {
+            advance: (delta = 1 / 60) => {
+                gl.info.render.frame += 1;
+                gl.info.render.calls += 1;
+                frameCallbacks.forEach((cb) => cb(state, delta));
+            },
+            clear: () => frameCallbacks.clear(),
+            callbacks: frameCallbacks,
+        }
+    );
+
+    const useThree = vi.fn((selector?: (s: unknown) => unknown) => {
+        return typeof selector === 'function' ? selector(state) : state;
+    });
+
+    return { dashboardMockState: state, dashboardUseFrameMock: useFrame, dashboardUseThreeMock: useThree };
+});
 
 vi.mock('@react-three/fiber', () => ({
     Canvas: ({ children }: React.PropsWithChildren<unknown>) => <div data-testid="mock-canvas">{children}</div>,
-    useFrame: vi.fn(),
+    useFrame: dashboardUseFrameMock,
+    useThree: dashboardUseThreeMock,
 }));
 
 vi.mock('@react-three/drei', () => ({
@@ -56,13 +100,29 @@ vi.mock('../hooks/useDashboard', () => ({
     useDashboard: vi.fn(),
 }));
 
+vi.mock('../hooks/useAvatarAnimations', () => ({
+    useAvatarAnimations: vi.fn().mockReturnValue({
+        clipNames: ['Idle'],
+        activeClip: { name: 'Idle' },
+        isLoading: false,
+        deferredStatus: 'ready',
+        error: null,
+        notifyInitialFrame: vi.fn(),
+        getClip: vi.fn(),
+        retry: vi.fn(),
+    }),
+    preloadAvatarAnimations: vi.fn().mockResolvedValue(undefined),
+}));
+
 
 
 describe('Dashboard & Squads', () => {
     beforeEach(() => {
+        mapMockControl.autoLoad = true;
         useUserStore.setState({ user: { username: 'validUser' }, isAuthenticated: true });
         vi.useFakeTimers({ shouldAdvanceTime: true });
         vi.clearAllMocks();
+        dashboardUseFrameMock.clear();
     });
 
     afterEach(() => {

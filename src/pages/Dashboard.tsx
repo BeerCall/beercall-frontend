@@ -1,11 +1,5 @@
 ﻿import React, { Suspense } from 'react';
 import Navbar from '../components/UI/Navbar';
-import CreateSquadModal from '../components/Modals/CreateSquadModal';
-import CreateBeerCallModal from '../components/Modals/CreateBeerCallModal';
-import JoinSquadModal from '../components/Modals/JoinSquadModal';
-import RespondBeerCallModal from '../components/Modals/RespondBeerCallModal';
-import SelectWorldModal from '../components/Modals/SelectWorldModal';
-import ScheduleAperoModal from '../components/Modals/ScheduleAperoModal';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Check, Copy, Key, BellRing } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,10 +7,18 @@ import { useDashboard } from '../hooks/useDashboard';
 import { MapSection } from '../components/Dashboard/MapSection';
 import { Timeline } from '../components/Dashboard/Timeline';
 import { isAxiosError } from 'axios';
+import { useDashboardActive } from '../lib/dashboardActivity';
 
 const GameScreen = React.lazy(() => import('./GameScreen'));
+const CreateSquadModal = React.lazy(() => import('../components/Modals/CreateSquadModal'));
+const CreateBeerCallModal = React.lazy(() => import('../components/Modals/CreateBeerCallModal'));
+const JoinSquadModal = React.lazy(() => import('../components/Modals/JoinSquadModal'));
+const RespondBeerCallModal = React.lazy(() => import('../components/Modals/RespondBeerCallModal'));
+const SelectWorldModal = React.lazy(() => import('../components/Modals/SelectWorldModal'));
+const ScheduleAperoModal = React.lazy(() => import('../components/Modals/ScheduleAperoModal'));
 
 export default function Dashboard() {
+    const routeActive = useDashboardActive();
     const { fileInputRef, mapRef, ...dashboard } = useDashboard();
     const squadErrorStatus = isAxiosError(dashboard.squadError) ? dashboard.squadError.response?.status : undefined;
     const squadErrorMessage = squadErrorStatus === 403 ? 'Accès à cette squad refusé'
@@ -109,6 +111,9 @@ export default function Dashboard() {
                             canCreateFromLocation={dashboard.canCreateFromLocation}
                             isNightMode={dashboard.isNightMode}
                             isMapReady={dashboard.isMapReady}
+                            handleMapLoaded={dashboard.handleMapLoaded}
+                            active={routeActive && !dashboard.isGameScreenOpen && !dashboard.isWorldsModalOpen}
+                            visible={routeActive}
                             squadDetails={dashboard.squadDetails}
                             profile={dashboard.profile}
                             handleMapPointerDown={dashboard.handleMapPointerDown}
@@ -135,23 +140,25 @@ export default function Dashboard() {
                 <Navbar onCreateClick={() => dashboard.setIsSquadModalOpen(true)} onJoinClick={() => dashboard.setIsJoinModalOpen(true)}/>
             </div>
 
-            <CreateSquadModal isOpen={dashboard.isSquadModalOpen} onClose={() => dashboard.setIsSquadModalOpen(false)}/>
-            <JoinSquadModal isOpen={dashboard.isJoinModalOpen} onClose={() => dashboard.setIsJoinModalOpen(false)}/>
-            <CreateBeerCallModal squadId={dashboard.id || ''} photoFile={dashboard.photoFile} location={dashboard.photoLocation}
+            <Suspense fallback={null}>
+            {routeActive && dashboard.isSquadModalOpen && <CreateSquadModal isOpen onClose={() => dashboard.setIsSquadModalOpen(false)}/>}
+            {routeActive && dashboard.isJoinModalOpen && <JoinSquadModal isOpen onClose={() => dashboard.setIsJoinModalOpen(false)}/>}
+            {routeActive && dashboard.photoFile && <CreateBeerCallModal squadId={dashboard.id || ''} photoFile={dashboard.photoFile} location={dashboard.photoLocation}
                                  scheduledApero={dashboard.startingScheduledApero}
                                  onClose={() => {
                                      dashboard.setPhotoFile(null);
                                      dashboard.setPhotoLocation(null);
                                      dashboard.setStartingScheduledApero(null);
-                                 }}/>
-            <RespondBeerCallModal isOpen={!!dashboard.selectedBeerCall} onClose={() => dashboard.setSelectedBeerCall(null)}
-                                  beerCall={dashboard.selectedBeerCall} squadId={dashboard.id || ''} location={dashboard.userLocation}/>
-            <ScheduleAperoModal isOpen={dashboard.isScheduleModalOpen} onClose={() => dashboard.setIsScheduleModalOpen(false)}
-                                squadId={dashboard.id || ''} coordinates={dashboard.scheduleCoordinates}/>
-            {!dashboard.isGameScreenOpen && (
+                                  }}/>}
+            {routeActive && dashboard.selectedBeerCall && <RespondBeerCallModal isOpen onClose={() => dashboard.setSelectedBeerCall(null)}
+                                  beerCall={dashboard.selectedBeerCall} squadId={dashboard.id || ''} location={dashboard.userLocation}/>}
+            {routeActive && dashboard.isScheduleModalOpen && <ScheduleAperoModal isOpen onClose={() => dashboard.setIsScheduleModalOpen(false)}
+                                squadId={dashboard.id || ''} coordinates={dashboard.scheduleCoordinates}/>}
+            {routeActive && !dashboard.isGameScreenOpen && dashboard.isWorldsModalOpen && (
                 <SelectWorldModal isOpen={!!dashboard.isWorldsModalOpen} onClose={() => dashboard.setIsWorldsModalOpen(null)}
                                   squadId={dashboard.id || ''} beerCallId={dashboard.isWorldsModalOpen || ''} isActiveApero={!!dashboard.isActiveApero}/>
             )}
+            </Suspense>
         </div>
     );
 }

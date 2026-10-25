@@ -1,4 +1,4 @@
-import {useState, useEffect, Suspense} from 'react';
+import {useState, useEffect, useLayoutEffect, useRef, useCallback, Suspense, type ComponentType} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
@@ -7,15 +7,25 @@ import {OrbitControls, Html, useProgress} from '@react-three/drei';
 import {api} from '../../lib/api';
 import {useGameEngine} from '../../hooks/useGameEngine';
 import {useGameUIStore} from '../../store/useGameUIStore';
-import type {WorldsResponse} from '../../types/api';
-
-// 🌍 IMPORT DE TES 3 MONDES
-import BarWorld from '../3D/BarWorld';
-import PiscineWorld from '../3D/PiscineWorld';
-import FloatyIslandWorld from '../3D/FloatyIslandWorld.tsx';
+import type {WorldsResponse, WorldParticipant} from '../../types/api';
+import SceneReadyProbe from '../3D/SceneReadyProbe';
 
 // 📸 IMPORT DE TA MODALE
 import PhotoModal from '../Modals/PhotoModal';
+
+type WorldComponentProps = {
+    participants: WorldParticipant[];
+    onReadinessChange?: (isReady: boolean) => void;
+    isActiveApero?: boolean;
+    aperoId?: string;
+    squadId?: string;
+    onSelectPhoto?: (url: string) => void;
+    participantsReliable?: boolean;
+};
+
+type LoadedWorldModule = {
+    default: ComponentType<WorldComponentProps>;
+};
 
 const silenceWarnings = () => {
     const originalWarn = console.warn;
@@ -26,6 +36,19 @@ const silenceWarnings = () => {
     };
 };
 
+async function defaultWorldModuleLoader(tab: WorldTab): Promise<LoadedWorldModule> {
+    switch (tab) {
+        case 'bar':
+            return import('../3D/BarWorld') as Promise<LoadedWorldModule>;
+        case 'piscine':
+            return import('../3D/PiscineWorld') as Promise<LoadedWorldModule>;
+        case 'dodo':
+            return import('../3D/FloatyIslandWorld') as Promise<LoadedWorldModule>;
+        default:
+            throw new Error(`Monde inconnu: ${tab}`);
+    }
+}
+
 // --- LA MODALE PRINCIPALE ---
 interface SelectWorldModalProps {
     isOpen: boolean;
@@ -33,6 +56,7 @@ interface SelectWorldModalProps {
     squadId: string;
     beerCallId: string;
     isActiveApero: boolean;
+    worldModuleLoader?: (tab: WorldTab) => Promise<LoadedWorldModule>;
 }
 
 type WorldTab = 'bar' | 'piscine' | 'dodo';
@@ -50,8 +74,41 @@ function CanvasLoader() {
     );
 }
 
-export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, isActiveApero}: SelectWorldModalProps) {
+export default function SelectWorldModal({
+    isOpen,
+    onClose,
+    squadId,
+    beerCallId,
+    isActiveApero,
+    worldModuleLoader = defaultWorldModuleLoader,
+}: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
+    const [tabGeneration, setTabGeneration] = useState(0);
+    const contextKey = isOpen ? JSON.stringify([squadId, beerCallId]) : null;
+    const [sceneContext, setSceneContext] = useState(contextKey);
+    if (sceneContext !== contextKey) {
+        // Reopen / another Beer Call requires a fresh readiness cycle, even on the same tab.
+        setSceneContext(contextKey);
+        setTabGeneration(generation => generation + 1);
+    }
+    const [worldReadiness, setWorldReadiness] = useState<{ tab: WorldTab; generation: number; ready: boolean }>({
+        tab: 'bar',
+        generation: 0,
+        ready: false,
+    });
+    const activeWorldRef = useRef({ tab: activeTab, generation: tabGeneration, open: isOpen });
+    useLayoutEffect(() => {
+        activeWorldRef.current = { tab: activeTab, generation: tabGeneration, open: isOpen };
+    }, [activeTab, tabGeneration, isOpen]);
+
+    // Le passage d'onglet réarme une nouvelle génération ; les callbacks de l'ancien monde sont ignorés (T12B / REV-04)
+    const isWorldReady = worldReadiness.tab === activeTab && worldReadiness.generation === tabGeneration && worldReadiness.ready;
+
+    const handleTabClick = (tab: WorldTab) => {
+        if (tab === activeTab) return;
+        setActiveTab(tab);
+        setTabGeneration((prev) => prev + 1);
+    };
 
     // 📸 NOUVEAU : STATE POUR LES PHOTOS GÉRÉ ICI
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
@@ -59,6 +116,17 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
 
     useEffect(() => {
         silenceWarnings();
+    }, []);
+
+    const handleWorldReadinessChange = useCallback((tab: WorldTab, generation: number, isReady: boolean) => {
+        const active = activeWorldRef.current;
+        if (!active.open || active.tab !== tab || active.generation !== generation) return;
+        setWorldReadiness((prev) => {
+            if (prev.tab === tab && prev.generation === generation && prev.ready === isReady) {
+                return prev;
+            }
+            return { tab, generation, ready: isReady };
+        });
     }, []);
 
     const {data: worldsData, isPending, isError, refetch} = useQuery({
@@ -69,6 +137,26 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
         },
         enabled: isOpen && !!squadId && !!beerCallId,
     });
+
+    // 🚀 REV-06 : Chargement dynamique du module du monde sélectionné uniquement
+    const {
+        data: worldModule,
+        isPending: isModulePending,
+        isError: isModuleError,
+        refetch: refetchModule,
+    } = useQuery<LoadedWorldModule>({
+        queryKey: ['world-module', activeTab],
+        queryFn: () => worldModuleLoader(activeTab),
+        staleTime: Infinity,
+        gcTime: Infinity,
+        retry: 1,
+        retryDelay: 100,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        enabled: isOpen,
+    });
+
+    const ActiveWorld = worldModule?.default;
 
     const THEMES = {
         bar: {
@@ -146,7 +234,7 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                         <div className="flex bg-white px-6 py-2 border-b border-gray-100 z-20 gap-2 shadow-md">
                             {(Object.keys(THEMES) as WorldTab[]).map((tab) => (
                                 <button
-                                    key={tab} onClick={() => setActiveTab(tab)}
+                                    key={tab} onClick={() => handleTabClick(tab)}
                                     className={`flex-1 flex flex-col items-center p-3 rounded-2xl transition-all ${activeTab === tab ? THEMES[tab].color + ' text-white shadow-lg' : 'bg-gray-50 text-gray-400'}`}
                                 >
                                     {THEMES[tab].icon}
@@ -189,8 +277,36 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                                          <p role="status" className="mt-3 text-sm text-gray-900">Chargement des participants…</p>
                                      </>}
                                 </div>
+                            ) : isModuleError ? (
+                                <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/80 p-6 text-center">
+                                    <p className="text-sm font-bold text-gray-900 mb-1">Impossible de charger le monde 3D</p>
+                                    <p className="text-xs text-gray-600 mb-3">Vérifiez votre connexion réseau</p>
+                                    <div className="flex gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => refetchModule()}
+                                            className="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow hover:bg-amber-600 transition-colors"
+                                        >
+                                            Réessayer
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => window.location.reload()}
+                                            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-gray-300 transition-colors"
+                                        >
+                                            Recharger la page
+                                        </button>
+                                    </div>
+                                </div>
                             ) : (
-                                <Canvas camera={{position: [0, 80, 450], fov: 45}} dpr={[1, 2]}>
+                                <>
+                                {isModulePending && !ActiveWorld && (
+                                    <div role="status" className="absolute inset-0 flex flex-col items-center justify-center z-40">
+                                        <div className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin border-gray-900"></div>
+                                        <p className="mt-3 text-sm text-gray-900 font-bold">Chargement du monde 3D…</p>
+                                    </div>
+                                )}
+                                <Canvas camera={{position: [0, 80, 450], fov: 45}} dpr={[1, 1.5]}>
                                     <ambientLight intensity={activeTab === 'bar' ? 1 : 1.5}/>
                                     <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                                     <directionalLight position={[-10, 10, -10]} intensity={1}/>
@@ -198,18 +314,39 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                                     {/* 🛡️ SUSPENSE: EMPÊCHE LE DEMONTAGE GLOBAL DU DASHBOARD */}
                                     <Suspense fallback={<CanvasLoader />}>
                                         {/* AIGUILLAGE VERS LES BONS COMPOSANTS 3D AVEC LA FONCTION DE PHOTO */}
-                                        {activeTab === 'bar' && (
-                                            <BarWorld
+                                        {ActiveWorld && activeTab === 'bar' && (
+                                            <ActiveWorld
+                                                key={`bar-${tabGeneration}`}
                                                 isActiveApero={isActiveApero}
                                                 aperoId={beerCallId}
                                                 squadId={squadId}
                                                 participants={currentParticipants}
                                                 onSelectPhoto={handleSelectPhoto}
-                                                participantsReliable={hasWorldData && !isPending && !isError}
+                                                participantsReliable={participantsReliable}
+                                                onReadinessChange={(ready) => handleWorldReadinessChange('bar', tabGeneration, ready)}
                                             />
                                         )}
-                                        {activeTab === 'piscine' && <PiscineWorld participants={currentParticipants}/>}
-                                        {activeTab === 'dodo' && <FloatyIslandWorld participants={currentParticipants}/>}
+                                        {ActiveWorld && activeTab === 'piscine' && (
+                                            <ActiveWorld
+                                                key={`piscine-${tabGeneration}`}
+                                                participants={currentParticipants}
+                                                onReadinessChange={(ready) => handleWorldReadinessChange('piscine', tabGeneration, ready)}
+                                            />
+                                        )}
+                                        {ActiveWorld && activeTab === 'dodo' && (
+                                            <ActiveWorld
+                                                key={`dodo-${tabGeneration}`}
+                                                participants={currentParticipants}
+                                                onReadinessChange={(ready) => handleWorldReadinessChange('dodo', tabGeneration, ready)}
+                                            />
+                                        )}
+                                        <SceneReadyProbe
+                                            key={`world-probe-${activeTab}-${tabGeneration}`}
+                                            kind="world"
+                                            id={activeTab}
+                                            view={`world-${activeTab}`}
+                                            ready={participantsReliable && isWorldReady}
+                                        />
                                     </Suspense>
 
                                     <OrbitControls
@@ -220,6 +357,7 @@ export default function SelectWorldModal({isOpen, onClose, squadId, beerCallId, 
                                         autoRotateSpeed={0.5}
                                     />
                                 </Canvas>
+                                </>
                             )}
 
                             {/* TITRE EN SURIMPRESSION */}

@@ -3,7 +3,10 @@ import Map, { Marker, NavigationControl, type MapRef } from 'react-map-gl/maplib
 import { motion } from 'framer-motion';
 import { User as UserIcon } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
+import AvatarLoadingIndicator from './AvatarLoadingIndicator';
 import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
+import { QueryClientContext } from '@tanstack/react-query';
+import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
 const AvatarCanvas = React.lazy(() => import('../3D/AvatarCanvas'));
 
 interface MapSectionProps {
@@ -11,7 +14,10 @@ interface MapSectionProps {
     userLocation: { lat: number; lng: number } | null;
     canCreateFromLocation?: boolean;
     isNightMode: boolean;
-    isMapReady: boolean;
+    isMapReady?: boolean;
+    handleMapLoaded?: () => void;
+    active?: boolean;
+    visible?: boolean;
     squadDetails: SquadDetails | null | undefined;
     profile: Profile | null | undefined;
     handleMapPointerDown: (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement> | unknown) => void;
@@ -28,6 +34,9 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     canCreateFromLocation = false,
     isNightMode,
     isMapReady,
+    handleMapLoaded,
+    active = true,
+    visible = true,
     squadDetails,
     profile,
     handleMapPointerDown,
@@ -51,8 +60,98 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         openCamera();
     }, [openCamera]);
 
+    // WebGL absent (jsdom, navigateur bridé) : inutile de télécharger le chunk 3D.
+    const canWarm3d = React.useMemo(
+        () => typeof WebGL2RenderingContext !== 'undefined' || typeof WebGLRenderingContext !== 'undefined',
+        []
+    );
+    const queryClient = React.useContext(QueryClientContext);
+
+    // Prépare les FBX pendant l'initialisation de la carte : sans cela, le
+    // Canvas attend `onLoad`, puis télécharge et parse encore les modèles.
+    React.useEffect(() => {
+        if (!visible || !canWarm3d || !profile?.avatar) return;
+        let cancelled = false;
+        // Loading code/Idle can overlap map style/tiles, not start after onLoad.
+        void import('../3D/AvatarCanvas').catch(() => {});
+        if (queryClient) void import('../../hooks/useAvatarAnimations')
+            .then(module => { if (!cancelled) void module.preloadAvatarAnimations(queryClient); })
+            .catch(() => {});
+        void import('../3D/warmupAvatar')
+            .then(module => {
+                if (!cancelled) module.warmAvatarModels(profile.avatar);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [visible, canWarm3d, profile?.avatar, queryClient]);
+
+    const [mapId] = React.useState(() => allocateSceneInstanceId('map'));
+    // Avatar bootstrap is independent from current map readiness. A tile/style
+    // error must invalidate map metrics, not tear down an already-loaded avatar.
+    const [hasMapLoaded, setHasMapLoaded] = React.useState(false);
+    const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; submitted: boolean; suspended: boolean }>({ mounted: false, loaded: false, submitted: false, suspended: false });
+    React.useLayoutEffect(() => {
+        const state = lifecycle.current;
+        state.mounted = true;
+        state.generation = registerSceneInstance('dashboard', mapId);
+        return () => {
+            if (state.generation !== undefined) unregisterSceneInstance('dashboard', mapId, state.generation);
+            state.generation = undefined; state.mounted = false; state.loaded = false; state.submitted = false;
+            setHasMapLoaded(false);
+        };
+    }, [mapId]);
+    React.useLayoutEffect(() => {
+        const update = () => {
+            const state = lifecycle.current;
+            const suspended = !visible || document.hidden;
+            if (suspended && !state.suspended) {
+                if (state.generation !== undefined) invalidateSceneInstance('dashboard', mapId, state.generation);
+                state.submitted = false;
+                mapRef.current?.getMap?.().stop();
+            } else if (!suspended && state.suspended) {
+                // Keep the same WebGL context/viewport; certify only the next real idle.
+                mapRef.current?.resize?.();
+                mapRef.current?.getMap?.().triggerRepaint();
+            }
+            state.suspended = suspended;
+        };
+        update();
+        document.addEventListener('visibilitychange', update);
+        return () => document.removeEventListener('visibilitychange', update);
+    }, [visible, mapId, mapRef]);
+    const handleMapLoad = React.useCallback(() => {
+        const state = lifecycle.current;
+        if (!state.mounted) return;
+        if (state.generation === undefined) state.generation = registerSceneInstance('dashboard', mapId);
+        state.loaded = true;
+        setHasMapLoaded(true);
+        handleMapLoaded?.();
+    }, [mapId, handleMapLoaded]);
+    const handleMapIdle = React.useCallback(() => {
+        const state = lifecycle.current;
+        if (state.mounted && state.loaded && !state.suspended && !document.hidden && !state.submitted && state.generation !== undefined) {
+            state.submitted = !!recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: mapId, generation: state.generation });
+        }
+    }, [mapId]);
+    const handleMapError = React.useCallback(() => {
+        const state = lifecycle.current;
+        if (state.generation !== undefined) unregisterSceneInstance('dashboard', mapId, state.generation);
+        state.generation = undefined; state.loaded = false; state.submitted = false;
+    }, [mapId]);
+
+    // Sur iPhone (DPR 3), MapLibre rendrait sinon 9 fois plus de pixels que le
+    // nécessaire. On plafonne le ratio comme les Canvas 3D et on supprime les
+    // fondus de tuiles qui relancent des rendus après chaque interaction.
+    const mapRuntimeOptions = React.useMemo(() => ({
+        pixelRatio: typeof window === 'undefined' ? 1 : Math.min(window.devicePixelRatio || 1, 1.5),
+        fadeDuration: 0,
+        renderWorldCopies: false,
+        refreshExpiredTiles: false,
+    }), []);
+
     return (
         <Map ref={mapRef}
+            {...mapRuntimeOptions}
             initialViewState={{
                 longitude: userLocation?.lng || 2.3522,
                 latitude: userLocation?.lat || 48.8566,
@@ -60,6 +159,9 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                 pitch: 45
             }}
             mapStyle={mapStyle} interactive={true}
+            onLoad={handleMapLoad}
+            onIdle={handleMapIdle}
+            onError={handleMapError}
             onMouseDown={handleMapPointerDown} onMouseUp={cancelLongPress}
             onMouseLeave={cancelLongPress}
             onTouchStart={handleMapPointerDown} onTouchMove={cancelLongPress}
@@ -166,12 +268,12 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                         <div className="relative w-24 h-32 flex items-end justify-center pb-2">
                             <div className="absolute inset-0 pointer-events-none">
                                 {profile?.avatar ? (
-                                    isMapReady ? (
-                                        <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
-                                            <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true}/>
+                                    (hasMapLoaded || Boolean(isMapReady)) ? (
+                                        <Suspense fallback={<AvatarLoadingIndicator phase="canvas-suspense"/>}>
+                                            <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard" active={active}/>
                                         </Suspense>
                                     ) : (
-                                        <div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>
+                                        <AvatarLoadingIndicator phase="map-bootstrap"/>
                                     )
                                 ) : (
                                     <UserIcon size={32} className="text-beer drop-shadow-xl m-auto mt-10"/>
