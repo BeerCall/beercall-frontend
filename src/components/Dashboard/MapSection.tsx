@@ -89,6 +89,15 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     // Avatar bootstrap is independent from current map readiness. A tile/style
     // error must invalidate map metrics, not tear down an already-loaded avatar.
     const [hasMapLoaded, setHasMapLoaded] = React.useState(false);
+    const [isMapContextLost, setIsMapContextLost] = React.useState(false);
+    const mapInstanceRef = React.useRef<{
+        on?: (event: string, fn: (evt?: unknown) => void) => void;
+        off?: (event: string, fn: (evt?: unknown) => void) => void;
+        resize?: () => void;
+        triggerRepaint?: () => void;
+        stop?: () => void;
+    } | null>(null);
+
     const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; submitted: boolean; suspended: boolean }>({ mounted: false, loaded: false, submitted: false, suspended: false });
     React.useLayoutEffect(() => {
         const state = lifecycle.current;
@@ -100,6 +109,65 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             setHasMapLoaded(false);
         };
     }, [mapId]);
+
+    const handleContextLost = React.useCallback(() => {
+        setIsMapContextLost(true);
+        const state = lifecycle.current;
+        if (state.generation !== undefined) {
+            invalidateSceneInstance('dashboard', mapId, state.generation);
+        }
+        state.submitted = false;
+        state.loaded = false;
+    }, [mapId]);
+
+    const handleContextRestored = React.useCallback(() => {
+        const state = lifecycle.current;
+        try {
+            mapInstanceRef.current?.resize?.();
+            mapInstanceRef.current?.triggerRepaint?.();
+        } catch {
+            // Tolérance environnements de simulation
+        }
+        // Réarmer la vérification pour certification au prochain idle valide
+        state.loaded = true;
+        state.submitted = false;
+    }, []);
+
+    const attachMapInstance = React.useCallback((map: {
+        on?: (event: string, fn: (evt?: unknown) => void) => void;
+        off?: (event: string, fn: (evt?: unknown) => void) => void;
+        resize?: () => void;
+        triggerRepaint?: () => void;
+        stop?: () => void;
+    } | null) => {
+        if (!map || map === mapInstanceRef.current) return;
+        if (mapInstanceRef.current) {
+            mapInstanceRef.current.off?.('webglcontextlost', handleContextLost);
+            mapInstanceRef.current.off?.('webglcontextrestored', handleContextRestored);
+        }
+        mapInstanceRef.current = map;
+        map.on?.('webglcontextlost', handleContextLost);
+        map.on?.('webglcontextrestored', handleContextRestored);
+    }, [handleContextLost, handleContextRestored]);
+
+    React.useEffect(() => {
+        const map = mapRef.current?.getMap?.() as {
+            on?: (event: string, fn: (evt?: unknown) => void) => void;
+            off?: (event: string, fn: (evt?: unknown) => void) => void;
+            resize?: () => void;
+            triggerRepaint?: () => void;
+            stop?: () => void;
+        } | undefined;
+        if (map) attachMapInstance(map);
+        return () => {
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current.off?.('webglcontextlost', handleContextLost);
+                mapInstanceRef.current.off?.('webglcontextrestored', handleContextRestored);
+                mapInstanceRef.current = null;
+            }
+        };
+    }, [mapRef, attachMapInstance, handleContextLost, handleContextRestored]);
+
     React.useLayoutEffect(() => {
         const update = () => {
             const state = lifecycle.current;
@@ -119,18 +187,31 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         document.addEventListener('visibilitychange', update);
         return () => document.removeEventListener('visibilitychange', update);
     }, [visible, mapId, mapRef]);
-    const handleMapLoad = React.useCallback(() => {
+    const handleMapLoad = React.useCallback((event?: { target?: unknown }) => {
         const state = lifecycle.current;
         if (!state.mounted) return;
+        const targetMap = (event?.target ?? mapRef.current?.getMap?.()) as {
+            on?: (event: string, fn: (evt?: unknown) => void) => void;
+            off?: (event: string, fn: (evt?: unknown) => void) => void;
+            resize?: () => void;
+            triggerRepaint?: () => void;
+            stop?: () => void;
+        } | undefined;
+        if (targetMap) {
+            attachMapInstance(targetMap);
+        }
         if (state.generation === undefined) state.generation = registerSceneInstance('dashboard', mapId);
         state.loaded = true;
         setHasMapLoaded(true);
         handleMapLoaded?.();
-    }, [mapId, handleMapLoaded]);
+    }, [mapId, handleMapLoaded, mapRef, attachMapInstance]);
     const handleMapIdle = React.useCallback(() => {
         const state = lifecycle.current;
-        if (state.mounted && state.loaded && !state.suspended && !document.hidden && !state.submitted && state.generation !== undefined) {
-            state.submitted = !!recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: mapId, generation: state.generation });
+        if (state.mounted && state.loaded && !state.suspended && !document.hidden && state.generation !== undefined) {
+            if (!state.submitted) {
+                state.submitted = !!recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: mapId, generation: state.generation });
+            }
+            setIsMapContextLost(false);
         }
     }, [mapId]);
     const handleMapError = React.useCallback(() => {
@@ -170,6 +251,17 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             onZoomStart={cancelLongPress}
             onMoveStart={cancelLongPress}>
             
+            {/* STATUT CONTEXTE WEBGL PERDU */}
+            {isMapContextLost && (
+                <div
+                    role="status"
+                    aria-label="Statut carte"
+                    className="absolute inset-x-4 top-[calc(60px+env(safe-area-inset-top))] z-30 p-3 bg-amber-500/95 text-white text-xs font-bold text-center rounded-xl shadow-lg backdrop-blur-sm pointer-events-none transition-all"
+                >
+                    Carte momentanément indisponible
+                </div>
+            )}
+
             {/* BOUTON RECENTRER */}
             <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-[20px] z-10">
                 <button onClick={handleRecenterClick}
