@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import Map, { Marker, NavigationControl, type MapRef } from 'react-map-gl/maplibre';
+import Map, { Marker, NavigationControl, type MapRef, type MapLayerMouseEvent, type MapLayerTouchEvent } from 'react-map-gl/maplibre';
 import { motion } from 'framer-motion';
 import { User as UserIcon } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
@@ -22,6 +22,7 @@ interface MapSectionProps {
     profile: Profile | null | undefined;
     handleMapPointerDown: (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement> | unknown) => void;
     cancelLongPress: (event?: unknown) => void;
+    handleMapPointerMove: (event: MapLayerMouseEvent) => void;
     handleManualRecenter: () => void;
     handleBeerCallClick: (beerCall: BeerCall) => void;
     openCamera: (location?: { lng: number; lat: number }, apero?: BeerCall) => void;
@@ -41,6 +42,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     profile,
     handleMapPointerDown,
     cancelLongPress,
+    handleMapPointerMove,
     handleManualRecenter,
     handleBeerCallClick,
     openCamera,
@@ -59,6 +61,10 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     const handlePlayerClick = React.useCallback(() => {
         openCamera();
     }, [openCamera]);
+
+    const handlePointerMove = React.useCallback((event: MapLayerMouseEvent | MapLayerTouchEvent) => {
+        handleMapPointerMove?.(event as MapLayerMouseEvent);
+    }, [handleMapPointerMove]);
 
     // WebGL absent (jsdom, navigateur bridé) : inutile de télécharger le chunk 3D.
     const canWarm3d = React.useMemo(
@@ -244,8 +250,9 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             onIdle={handleMapIdle}
             onError={handleMapError}
             onMouseDown={handleMapPointerDown} onMouseUp={cancelLongPress}
+            onMouseMove={handlePointerMove}
             onMouseLeave={cancelLongPress}
-            onTouchStart={handleMapPointerDown} onTouchMove={cancelLongPress}
+            onTouchStart={handleMapPointerDown} onTouchMove={handlePointerMove}
             onTouchEnd={cancelLongPress}
             onDragStart={cancelLongPress}
             onZoomStart={cancelLongPress}

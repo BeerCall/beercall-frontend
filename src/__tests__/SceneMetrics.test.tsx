@@ -121,7 +121,7 @@ describe('submitted frame signals', () => {
 
 it('map readiness requires onLoad THEN idle, never the existing UI timer; errors invalidate it', () => {
   const { unmount } = render(<MapSection mapRef={createRef<MapRef>()} userLocation={null} isNightMode={false} isMapReady
-    squadDetails={null} profile={null} handleMapPointerDown={vi.fn()} cancelLongPress={vi.fn()}
+    squadDetails={null} profile={null} handleMapPointerDown={vi.fn()} cancelLongPress={vi.fn()} handleMapPointerMove={vi.fn()}
     handleManualRecenter={vi.fn()} handleBeerCallClick={vi.fn()} openCamera={vi.fn()} setIsWorldsModalOpen={vi.fn()} />);
   expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
   act(() => mock.map.onIdle?.()); expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
@@ -136,7 +136,7 @@ it('map readiness requires onLoad THEN idle, never the existing UI timer; errors
 
 it('does not confuse DOM map and Fiber probe identities even when their React IDs coincide', () => {
   render(<MapSection mapRef={createRef<MapRef>()} userLocation={null} isNightMode={false} isMapReady
-    squadDetails={null} profile={null} handleMapPointerDown={vi.fn()} cancelLongPress={vi.fn()}
+    squadDetails={null} profile={null} handleMapPointerDown={vi.fn()} cancelLongPress={vi.fn()} handleMapPointerMove={vi.fn()}
     handleManualRecenter={vi.fn()} handleBeerCallClick={vi.fn()} openCamera={vi.fn()} setIsWorldsModalOpen={vi.fn()} />);
   act(() => { mock.map.onLoad?.(); mock.map.onIdle?.(); });
   const map = getLatestSceneSignal('mapInteractive')!;
@@ -154,7 +154,7 @@ it('retains the map identity while suspending hidden readiness and resizing on r
   const stop = vi.fn(), triggerRepaint = vi.fn(), resize = vi.fn();
   const mapRef = { current: { getMap: () => ({ stop, triggerRepaint }), resize } } as unknown as React.RefObject<MapRef>;
   const props = { mapRef, userLocation: null, isNightMode: false, squadDetails: null, profile: null,
-    handleMapPointerDown: vi.fn(), cancelLongPress: vi.fn(), handleManualRecenter: vi.fn(),
+    handleMapPointerDown: vi.fn(), cancelLongPress: vi.fn(), handleMapPointerMove: vi.fn(), handleManualRecenter: vi.fn(),
     handleBeerCallClick: vi.fn(), openCamera: vi.fn(), setIsWorldsModalOpen: vi.fn() };
   const { rerender } = render(<MapSection {...props} visible/>);
   act(() => { mock.map.onLoad?.(); mock.map.onIdle?.(); });

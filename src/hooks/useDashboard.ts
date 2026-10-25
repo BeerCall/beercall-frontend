@@ -106,6 +106,8 @@ export const useDashboard = () => {
         }
     }, []);
 
+    const handleMapPointerMove = cancelLongPress;
+
     const handleMapPointerDown = useCallback((event: unknown) => {
         const ev = event as { originalEvent?: { target?: { closest?: (s: string) => boolean }, touches?: unknown[] }, point?: { x: number, y: number }, lngLat?: { toArray: () => [number, number] } };
         if (ev.originalEvent?.target?.closest?.('button, a, input, [role="button"]')) return;
@@ -275,6 +277,7 @@ export const useDashboard = () => {
         mapRef,
         handleMapPointerDown,
         cancelLongPress,
+        handleMapPointerMove,
         openCamera,
         handlePhotoCapture,
         focusOnLocation,

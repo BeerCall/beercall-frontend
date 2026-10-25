@@ -118,6 +118,7 @@ export default function Dashboard() {
                             profile={dashboard.profile}
                             handleMapPointerDown={dashboard.handleMapPointerDown}
                             cancelLongPress={dashboard.cancelLongPress}
+                            handleMapPointerMove={dashboard.handleMapPointerMove}
                             handleManualRecenter={dashboard.handleManualRecenter}
                             handleBeerCallClick={dashboard.handleBeerCallClick}
                             openCamera={dashboard.openCamera}
