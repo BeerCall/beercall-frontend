@@ -3,11 +3,13 @@
 ## Scène conservée
 
 `PersistentDashboard` conserve **un seul** dashboard par session authentifiée. Les routes
-profil/contacts/chat masquent son DOM (`hidden`, `inert`, `aria-hidden`) sans détruire la
+profil/contacts/chat masquent son DOM (`invisible`, opacité 0, `inert`, `aria-hidden`) sans détruire la
 carte ni l'avatar. Les paramètres du dashboard sont figés pendant cette période. Le rendu
 de l'avatar est suspendu ; GPS, abonnement squad et queries du dashboard sont désactivés.
 Au retour, la carte est redimensionnée et les marqueurs de readiness attendent un nouvel
 événement idle et une nouvelle frame soumise : aucun ancien timestamp n'est recyclé.
+Le panneau garde ses dimensions hors écran : pas de `display: none` ni d'attribut `hidden`,
+qui ramèneraient les canvases à 0×0 et déclencheraient une reconfiguration au retour.
 
 Changer de compte/déconnecter détruit la scène et le cache de queries de la session.
 Le cache de scènes ne grossit pas avec le nombre de squads visitées. Les modales de
@@ -59,6 +61,8 @@ Le panneau peut être arrêté ; le premier signal de scène est conservé sépa
 signaux actifs pour ne pas confondre chargement initial et retour à chaud.
 
 - Aucun envoi serveur, token, payload API ou URL de ressource dans le rapport.
+- `avatarLoadingTrace` distingue attente de carte, suspension du canvas, chargement des
+  modèles et cycle de vie de l'avatar. Historique local borné à 100 événements.
 - Les temps de décodage distinguent FBX et format préparé ; ils excluent compilation GPU.
 - Sur Safari, les Long Tasks peuvent être **non mesurées**, jamais assimilées à zéro.
 - Les marqueurs WebGL et intervalles rAF restent des proxys logiciels, pas une preuve

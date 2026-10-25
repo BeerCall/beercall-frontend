@@ -16,6 +16,7 @@ import SceneReadyProbe from './SceneReadyProbe';
 import {warmAvatarModels} from './warmupAvatar';
 import {preloadAvatarAnimations, useAvatarAnimations} from '../../hooks/useAvatarAnimations';
 import {useModel} from '../../hooks/useModel';
+import {recordAvatarLoading} from '../../lib/avatarLoadingTrace';
 
 const silenceWarnings = () => {
     const originalWarn = console.warn;
@@ -267,10 +268,14 @@ const CUSTOM_ITEMS_CONFIG: Record<string, AvatarTransform> = {
 };
 
 function CanvasLoader() {
+    useEffect(() => {
+        recordAvatarLoading('model-assets', 'start', 'avatar');
+        return () => recordAvatarLoading('model-assets', 'end', 'avatar');
+    }, []);
     const {progress} = useProgress();
     return (
         <Html center>
-            <div className="flex flex-col items-center bg-white/90 p-4 rounded-2xl shadow-xl backdrop-blur-md">
+            <div data-avatar-loading="model-assets" className="flex flex-col items-center bg-white/90 p-4 rounded-2xl shadow-xl backdrop-blur-md">
                 <div className="w-8 h-8 border-4 border-beer border-t-transparent rounded-full animate-spin"></div>
                 <p className="text-xs font-black text-beer mt-2 tracking-widest">{progress.toFixed(0)}%</p>
             </div>
@@ -676,6 +681,11 @@ export default function AvatarCanvas({
     }, []);
 
     const isEffectiveActive = active && isDocumentVisible;
+    useEffect(() => {
+        const canvasView = view ?? (headOnly ? 'head' : 'full');
+        recordAvatarLoading('avatar-mount', 'start', canvasView);
+        return () => recordAvatarLoading('avatar-mount', 'end', canvasView);
+    }, [view, headOnly]);
     useEffect(() => {
         silenceWarnings();
     }, []);

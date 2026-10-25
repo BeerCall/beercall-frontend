@@ -18,7 +18,9 @@ function RetainedDashboard() {
     if (!retained) return null;
 
     return (
-        <div className={`absolute inset-0 ${active ? '' : 'hidden'}`} hidden={!active}
+        // Keep positive layout bounds for MapLibre/Fiber while inactive. display:none
+        // makes ResizeObserver report 0x0 and forces a resize/reconfigure on return.
+        <div className={`absolute inset-0 ${active ? '' : 'invisible opacity-0 pointer-events-none'}`}
              inert={!active} aria-hidden={!active} data-testid="retained-dashboard">
             <DashboardActivityContext.Provider value={active}>
                 <Suspense fallback={<div role="status" className="flex h-full items-center justify-center">Chargement…</div>}>

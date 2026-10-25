@@ -3,6 +3,7 @@ import Map, { Marker, NavigationControl, type MapRef } from 'react-map-gl/maplib
 import { motion } from 'framer-motion';
 import { User as UserIcon } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
+import AvatarLoadingIndicator from './AvatarLoadingIndicator';
 import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
 import { QueryClientContext } from '@tanstack/react-query';
 import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
@@ -268,11 +269,11 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                             <div className="absolute inset-0 pointer-events-none">
                                 {profile?.avatar ? (
                                     (hasMapLoaded || Boolean(isMapReady)) ? (
-                                        <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
+                                        <Suspense fallback={<AvatarLoadingIndicator phase="canvas-suspense"/>}>
                                             <AvatarCanvas config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard" active={active}/>
                                         </Suspense>
                                     ) : (
-                                        <div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>
+                                        <AvatarLoadingIndicator phase="map-bootstrap"/>
                                     )
                                 ) : (
                                     <UserIcon size={32} className="text-beer drop-shadow-xl m-auto mt-10"/>

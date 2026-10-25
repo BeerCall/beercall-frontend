@@ -43,7 +43,9 @@ describe('single retained dashboard', () => {
         expect(await screen.findByRole('heading', { name: 'Profil test' })).toBeVisible();
         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
         const retained = screen.getByTestId('retained-dashboard');
-        expect(retained).toHaveAttribute('hidden');
+        expect(retained).not.toHaveAttribute('hidden');
+        expect(retained).toHaveClass('invisible', 'opacity-0', 'pointer-events-none');
+        expect(retained).not.toHaveClass('hidden');
         expect(retained).toHaveAttribute('inert');
         expect(retained).toHaveAttribute('aria-hidden', 'true');
         expect(retained).toHaveTextContent('Squad 1 / pause');
