@@ -22,7 +22,7 @@ export interface SharedShadowBounds {
     position: [number, number, number];
 }
 
-export const DEFAULT_SHADOW_POLICY: WorldShadowPolicy = 'legacy';
+export const DEFAULT_SHADOW_POLICY: WorldShadowPolicy = 'static';
 export const LEGACY_SHADOW_FOOTPRINT_RADIUS = 75; // Demi-empreinte de scale=150
 
 /**
@@ -33,22 +33,12 @@ export function resolveWorldShadowPolicy(
     envPolicy?: string | null,
     legacySharedShadows?: string | boolean | null
 ): WorldShadowPolicy {
-    if (typeof envPolicy === 'string' && envPolicy.trim().length > 0) {
-        const normalized = envPolicy.trim().toLowerCase();
-        if (normalized === 'legacy' || normalized === 'static' || normalized === 'shared') {
-            return normalized;
-        }
-    }
+    const normalized = typeof envPolicy === 'string' ? envPolicy.trim().toLowerCase() : '';
+    if (normalized === 'legacy' || normalized === 'static' || normalized === 'shared') return normalized;
 
-    if (
-        legacySharedShadows === true ||
-        legacySharedShadows === 'true' ||
-        legacySharedShadows === '1'
-    ) {
-        return 'shared';
-    }
-
-    return DEFAULT_SHADOW_POLICY;
+    return (legacySharedShadows === true || legacySharedShadows === 'true' || legacySharedShadows === '1')
+        ? 'shared'
+        : DEFAULT_SHADOW_POLICY;
 }
 
 /**

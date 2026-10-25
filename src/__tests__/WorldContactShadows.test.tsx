@@ -48,15 +48,15 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
     });
 
     describe('1. Résolution de la politique (resolveWorldShadowPolicy & details)', () => {
-        it('applique par défaut la politique "legacy" sans configuration d’environnement', () => {
-            expect(DEFAULT_SHADOW_POLICY).toBe('legacy');
-            expect(resolveWorldShadowPolicy(undefined, undefined)).toBe('legacy');
-            expect(resolveWorldShadowPolicy(null, null)).toBe('legacy');
-            expect(resolveWorldShadowPolicy('', '')).toBe('legacy');
+        it('applique par défaut la politique "static" sans configuration d’environnement', () => {
+            expect(DEFAULT_SHADOW_POLICY).toBe('static');
+            expect(resolveWorldShadowPolicy(undefined, undefined)).toBe('static');
+            expect(resolveWorldShadowPolicy(null, null)).toBe('static');
+            expect(resolveWorldShadowPolicy('', '')).toBe('static');
 
-            const details = getShadowPolicyDetails('legacy');
-            expect(details.policy).toBe('legacy');
-            expect(details.localFrames).toBe(Infinity);
+            const details = getShadowPolicyDetails('static');
+            expect(details.policy).toBe('static');
+            expect(details.localFrames).toBe(1);
             expect(details.useLocalShadows).toBe(true);
             expect(details.useSharedShadows).toBe(false);
         });
@@ -87,8 +87,8 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
             expect(resolveWorldShadowPolicy(undefined, true)).toBe('shared');
             expect(resolveWorldShadowPolicy(undefined, 'true')).toBe('shared');
             expect(resolveWorldShadowPolicy(undefined, '1')).toBe('shared');
-            expect(resolveWorldShadowPolicy(undefined, 'false')).toBe('legacy');
-            expect(resolveWorldShadowPolicy(undefined, false)).toBe('legacy');
+            expect(resolveWorldShadowPolicy(undefined, 'false')).toBe('static');
+            expect(resolveWorldShadowPolicy(undefined, false)).toBe('static');
         });
 
         it('priorise VITE_WORLD_SHADOW_POLICY sur l’ancien booléen VITE_SHARED_WORLD_SHADOWS', () => {
@@ -277,7 +277,7 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
                 avatar_config: { head: 'default' },
             }));
 
-        it('politique legacy par défaut : rend N ombres locales avec frames=Infinity pour N participants', () => {
+        it('politique static par défaut : rend N ombres locales avec frames=1 pour N participants', () => {
             const participants = createParticipants(10);
 
             render(
@@ -290,7 +290,31 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
                 />
             );
 
-            // 10 instances locales de ContactShadows, chacune avec frames=Infinity
+            // 10 instances locales de ContactShadows, chacune avec frames=1
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(10);
+            for (const call of contactShadowsCaptor.mock.calls) {
+                const props = call[0];
+                expect(props.frames).toBe(1);
+                expect(props.scale).toBe(150);
+                expect(props.position).toEqual([0, 0, 0]);
+            }
+        });
+
+        it('politique legacy explicite : rend N ombres locales avec frames=Infinity', () => {
+            const participants = createParticipants(10);
+
+            render(
+                <BarWorld
+                    aperoId="bc_1"
+                    squadId="sq_1"
+                    participants={participants}
+                    isActiveApero={false}
+                    onSelectPhoto={vi.fn()}
+                    shadowPolicy="legacy"
+                />
+            );
+
+            // 10 instances locales de ContactShadows avec frames=Infinity
             expect(contactShadowsCaptor).toHaveBeenCalledTimes(10);
             for (const call of contactShadowsCaptor.mock.calls) {
                 const props = call[0];
@@ -300,7 +324,7 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
             }
         });
 
-        it('politique static : conserve N ombres locales avec frames=1', () => {
+        it('politique static explicite : conserve N ombres locales avec frames=1', () => {
             const participants = createParticipants(10);
 
             render(
@@ -374,9 +398,22 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
                 excuse: i === 0 ? 'Piscine fermée' : undefined,
             }));
 
-        it('PiscineWorld legacy par défaut : rend N ombres locales avec frames=Infinity', () => {
+        it('PiscineWorld static par défaut : rend N ombres locales avec frames=1', () => {
             const participants = createParticipants(5);
             render(<PiscineWorld participants={participants} />);
+
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(5);
+            for (const call of contactShadowsCaptor.mock.calls) {
+                const props = call[0];
+                expect(props.frames).toBe(1);
+                expect(props.scale).toBe(150);
+                expect(props.position).toEqual([0, 0, 0]);
+            }
+        });
+
+        it('PiscineWorld legacy explicite : rend N ombres locales avec frames=Infinity', () => {
+            const participants = createParticipants(5);
+            render(<PiscineWorld participants={participants} shadowPolicy="legacy" />);
 
             expect(contactShadowsCaptor).toHaveBeenCalledTimes(5);
             for (const call of contactShadowsCaptor.mock.calls) {
@@ -387,7 +424,7 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
             }
         });
 
-        it('PiscineWorld static : conserve N ombres locales avec frames=1', () => {
+        it('PiscineWorld static explicite : conserve N ombres locales avec frames=1', () => {
             const participants = createParticipants(5);
             render(<PiscineWorld participants={participants} shadowPolicy="static" />);
 
@@ -418,9 +455,22 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
             expect(contactShadowsCaptor).not.toHaveBeenCalled();
         });
 
-        it('FloatyIslandWorld legacy par défaut : rend N ombres locales avec frames=Infinity', () => {
+        it('FloatyIslandWorld static par défaut : rend N ombres locales avec frames=1', () => {
             const participants = createParticipants(5);
             render(<FloatyIslandWorld participants={participants} />);
+
+            expect(contactShadowsCaptor).toHaveBeenCalledTimes(5);
+            for (const call of contactShadowsCaptor.mock.calls) {
+                const props = call[0];
+                expect(props.frames).toBe(1);
+                expect(props.scale).toBe(150);
+                expect(props.position).toEqual([0, 0, 0]);
+            }
+        });
+
+        it('FloatyIslandWorld legacy explicite : rend N ombres locales avec frames=Infinity', () => {
+            const participants = createParticipants(5);
+            render(<FloatyIslandWorld participants={participants} shadowPolicy="legacy" />);
 
             expect(contactShadowsCaptor).toHaveBeenCalledTimes(5);
             for (const call of contactShadowsCaptor.mock.calls) {
@@ -431,7 +481,7 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
             }
         });
 
-        it('FloatyIslandWorld static : conserve N ombres locales avec frames=1', () => {
+        it('FloatyIslandWorld static explicite : conserve N ombres locales avec frames=1', () => {
             const participants = createParticipants(5);
             render(<FloatyIslandWorld participants={participants} shadowPolicy="static" />);
 
