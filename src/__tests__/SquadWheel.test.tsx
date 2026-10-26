@@ -107,4 +107,47 @@ describe('Roue paginée sans popup de confirmation', () => {
         expect(screen.getByRole('status')).toHaveTextContent('Chargement des squads');
         expect(screen.getByRole('button', { name: 'Profil' })).toBeInTheDocument();
     });
+
+    it('applique squadLabel sous les badges tout en préservant le aria-label complet et le nom actif complet', () => {
+        const testSquads: Squad[] = [
+            { id: 1, name: 'Les Amis du Bar', icon: 'beer', color: '#F59E0B', invite_code: 'BAR' },
+            { id: 2, name: 'BeerCall', icon: 'rocket', color: '#10B981', invite_code: 'BEER' },
+            { id: 3, name: 'Équipe du jeudi', icon: 'fire', color: '#EF4444', invite_code: 'JEU' },
+        ];
+        render(<SquadWheel squads={testSquads} currentSquadId="1" onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()} />);
+
+        // Les labels sous les badges utilisent squadLabel
+        expect(screen.getByText('LADB')).toBeInTheDocument();
+        expect(screen.getByText('BeerCall')).toBeInTheDocument();
+        expect(screen.getByText('ÉDJ')).toBeInTheDocument();
+
+        // Les aria-label sur les boutons restent complets
+        expect(screen.getByRole('button', { name: 'Les Amis du Bar' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'BeerCall' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Équipe du jeudi' })).toBeInTheDocument();
+
+        // Le nom actif reste complet
+        const activeLabel = screen.getByText('Les Amis du Bar', { selector: '[data-wheel-active]' });
+        expect(activeLabel).toBeInTheDocument();
+        expect(activeLabel).toHaveClass('bg-white', 'rounded', 'px-1', 'text-gray-900');
+    });
+
+    it('applique le fond blanc opaque, arrondi et px-1 sur tous les textes de la roue pour le contraste', () => {
+        const testSquads: Squad[] = [
+            { id: 1, name: 'Squad Un', icon: 'beer', color: '#F59E0B', invite_code: 'SQ1' },
+            { id: 2, name: 'Squad Deux', icon: 'pizza', color: '#3B82F6', invite_code: 'SQ2' },
+        ];
+        const { rerender } = render(<SquadWheel squads={testSquads} currentSquadId="1" onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()} />);
+
+        const labels = document.querySelectorAll('[data-wheel-label]');
+        expect(labels.length).toBeGreaterThan(0);
+        labels.forEach(label => {
+            expect(label).toHaveClass('bg-white', 'rounded', 'px-1', 'text-gray-900');
+        });
+
+        // Cas de chargement
+        rerender(<SquadWheel squads={[]} isLoading onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()} />);
+        const loadingText = screen.getByRole('status');
+        expect(loadingText).toHaveClass('bg-white', 'rounded', 'px-1', 'text-gray-900');
+    });
 });
