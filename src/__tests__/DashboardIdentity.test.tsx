@@ -74,10 +74,11 @@ describe('DashboardIdentity (T25b)', () => {
         expect(identity).toHaveClass('bg-white', 'text-gray-900');
 
         const name = screen.getByRole('heading', {name: 'Les Amis du Bar'});
-        const codeButton = screen.getByRole('button', {name: 'Copier le code BLE-2026-XYZ'});
+        const codeButton = screen.getByRole('button', {name: 'BLE-2026-XYZ'});
         expect(name).toBeInTheDocument();
         expect(codeButton).toBeInTheDocument();
         expect(codeButton).toHaveClass('min-h-11');
+        expect(codeButton).toHaveAttribute('title', 'Copier le code');
         expect(codeButton.textContent).toContain('BLE-2026-XYZ');
 
         // Deux rangées distinctes, dans cet ordre.
@@ -122,7 +123,7 @@ describe('DashboardIdentity (T25b)', () => {
         render(<Dashboard/>);
 
         expect(screen.getByRole('heading', {name: longName})).toHaveClass('line-clamp-2', 'break-words');
-        const codeButton = screen.getByRole('button', {name: 'Copier le code CODE-TRES-LONG-1234'});
+        const codeButton = screen.getByRole('button', {name: 'CODE-TRES-LONG-1234'});
         expect(codeButton.textContent).toContain('CODE-TRES-LONG-1234');
         expect(codeButton.className).not.toContain('truncate');
         expect(document.querySelector('[data-wheel-active]')).toBeNull();

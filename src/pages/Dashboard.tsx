@@ -67,7 +67,7 @@ export default function Dashboard() {
                             </div>
                             {dashboard.squadDetails?.invite_code && (
                                 <button onClick={dashboard.handleCopyCode}
-                                        aria-label={`Copier le code ${dashboard.squadDetails.invite_code}`}
+                                        aria-label={dashboard.squadDetails.invite_code}
                                         className="shrink-0 min-h-11 flex items-center gap-2 hover:opacity-80 px-2 -mx-2 rounded-full transition-all group active:scale-95" title="Copier le code">
                                     <Key size={12} style={{color: dashboard.squadDetails?.color || '#D97706'}}/>
                                     <span className="font-black tracking-[0.25em] text-xs pt-[2px]">{dashboard.squadDetails.invite_code}</span>
