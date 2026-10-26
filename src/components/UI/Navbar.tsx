@@ -24,7 +24,8 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
 
             {/* 🔽 BARRE DE NAVIGATION INFÉRIEURE */}
             <div
-                className="h-[calc(80px_+_env(safe-area-inset-bottom))] bg-white border-t border-gray-100 px-8 flex justify-between items-center pt-4 pb-[calc(16px_+_env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50 pointer-events-auto">
+                data-bottom-nav
+                className="h-[calc(80px_+_env(safe-area-inset-bottom))] bg-white border-t border-gray-100 px-8 flex justify-between items-center pt-4 pb-[calc(16px_+_env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50 pointer-events-auto touch-none overscroll-none">
                 <button
                     onClick={() => navigate('/connections')}
                     className="flex flex-col items-center text-gray-700 hover:text-amber-800"
