@@ -1,4 +1,4 @@
-import {useState, useEffect, useLayoutEffect, useRef, useCallback, Suspense, type ComponentType} from 'react';
+import {useState, useLayoutEffect, useRef, useCallback, Suspense, type ComponentType} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
@@ -25,15 +25,6 @@ type WorldComponentProps = {
 
 type LoadedWorldModule = {
     default: ComponentType<WorldComponentProps>;
-};
-
-const silenceWarnings = () => {
-    const originalWarn = console.warn;
-    console.warn = (...args) => {
-        const msg = args.join(' ');
-        if (msg.includes('THREE.') || msg.includes('X4122') || msg.includes('skinning weights')) return;
-        originalWarn(...args);
-    };
 };
 
 async function defaultWorldModuleLoader(tab: WorldTab): Promise<LoadedWorldModule> {
@@ -113,10 +104,6 @@ export default function SelectWorldModal({
     // 📸 NOUVEAU : STATE POUR LES PHOTOS GÉRÉ ICI
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
-
-    useEffect(() => {
-        silenceWarnings();
-    }, []);
 
     const handleWorldReadinessChange = useCallback((tab: WorldTab, generation: number, isReady: boolean) => {
         const active = activeWorldRef.current;
@@ -259,8 +246,6 @@ export default function SelectWorldModal({
                         </button>
 
                         {/* 🌟 LA SCÈNE 3D 🌟 */}
-                        {activeTab === 'bar' && isActiveApero && hasWorldData && !isError && currentParticipants.length < 2 &&
-                            <p className="mx-6 mb-2 text-xs text-gray-700">Au moins 2 participants au Bar sont nécessaires</p>}
                         {isError && hasWorldData && <div role="alert" className="mx-6 my-2 text-xs text-gray-900">
                             Actualisation impossible — dernières données affichées
                             <button onClick={() => refetch()} className="ml-2 underline font-bold">Réessayer</button>

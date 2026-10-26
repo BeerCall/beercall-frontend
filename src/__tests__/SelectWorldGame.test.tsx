@@ -74,7 +74,7 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation au 
         );
     });
 
-    it('affiche le message d’aide sans bouton HTML avec moins de 2 participants', async () => {
+    it('désactive le lancement sans bouton HTML ni avertissement textuel avec moins de 2 participants', async () => {
         server.use(
             http.get('*/squads/1/beer-calls/bc_1/worlds', () =>
                 HttpResponse.json({
@@ -96,7 +96,8 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation au 
         );
 
         await screen.findByText('1 Soldat(s)');
-        expect(screen.getByText('Au moins 2 participants au Bar sont nécessaires')).toBeInTheDocument();
+        expect(screen.queryByText(/Au moins 2 participants/i)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Démarrer la partie' })).toBeDisabled();
         expect(screen.queryByRole('button', { name: /Lancer le jeu/i })).not.toBeInTheDocument();
 
         expect(barWorldCaptor).toHaveBeenLastCalledWith(
