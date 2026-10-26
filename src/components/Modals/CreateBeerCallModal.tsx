@@ -36,6 +36,52 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
     const isTerminal = status === 'succeeded' || status === 'rejected' || status === 'failed';
     const isSubmitting = submissionPhase !== 'idle' || Boolean(jobId && !isTerminal);
 
+    const [showSlowNotice, setShowSlowNotice] = useState(false);
+    const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+    const checkCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        if (!jobId || isTerminal) {
+            setShowSlowNotice(false);
+            setIsCheckingStatus(false);
+            if (checkCooldownTimerRef.current !== null) {
+                clearTimeout(checkCooldownTimerRef.current);
+                checkCooldownTimerRef.current = null;
+            }
+            return;
+        }
+
+        const timer = window.setTimeout(() => {
+            setShowSlowNotice(true);
+        }, 10000);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [jobId, isTerminal]);
+
+    useEffect(() => {
+        return () => {
+            if (checkCooldownTimerRef.current !== null) {
+                window.clearTimeout(checkCooldownTimerRef.current);
+                checkCooldownTimerRef.current = null;
+            }
+        };
+    }, []);
+
+    const handleCheckStatus = () => {
+        if (isCheckingStatus || !jobId || isTerminal) return;
+        setIsCheckingStatus(true);
+        resumeTracking();
+        if (checkCooldownTimerRef.current !== null) {
+            window.clearTimeout(checkCooldownTimerRef.current);
+        }
+        checkCooldownTimerRef.current = window.setTimeout(() => {
+            setIsCheckingStatus(false);
+            checkCooldownTimerRef.current = null;
+        }, 1000);
+    };
+
     useEffect(() => {
         if (!jobId || !isTerminal || handledJob.current === jobId) return;
         handledJob.current = jobId;
@@ -196,6 +242,19 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
                                     Suivi indisponible : votre demande est conservée, son résultat reste inconnu.
                                     {trackingPaused && <button type="button" onClick={resumeTracking}
                                         className="ml-2 underline">Reprendre le suivi</button>}
+                                </div>
+                            )}
+                            {showSlowNotice && !isTerminal && Boolean(jobId) && (
+                                <div role="status" className="mb-3 text-sm text-gray-900">
+                                    La vérification prend plus de temps que prévu.
+                                    <button
+                                        type="button"
+                                        onClick={handleCheckStatus}
+                                        disabled={isCheckingStatus}
+                                        className="ml-2 underline disabled:opacity-50"
+                                    >
+                                        Vérifier le statut
+                                    </button>
                                 </div>
                             )}
                             <button

@@ -402,4 +402,102 @@ describe('BeerCall Modals', () => {
         );
         expect(onClose).toHaveBeenCalledTimes(1);
     });
+
+    it('CreateBeerCallModal: affiche statut et bouton de récupération après 10s, sans appel supplémentaire à 60s sans clic', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const onClose = vi.fn();
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        const location = { lat: 48.8566, lng: 2.3522 };
+
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { job_id: 'job-slow-1' } });
+        vi.mocked(api.get).mockResolvedValue({ data: { id: 'job-slow-1', status: 'pending' } });
+
+        render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
+
+        const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
+        const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
+        await user.type(locationInput, 'Mon super bar');
+
+        await user.click(submitBtn);
+
+        // Attente de la transition post -> job_id
+        await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+
+        // À 5 secondes : pas encore de message de lenteur
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(screen.queryByText(/La vérification prend plus de temps que prévu\./)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Vérifier le statut' })).not.toBeInTheDocument();
+
+        // À 10 secondes : le message et le bouton apparaissent
+        await vi.advanceTimersByTimeAsync(6000);
+        expect(await screen.findByText(/La vérification prend plus de temps que prévu\./)).toBeInTheDocument();
+        const verifyBtn = await screen.findByRole('button', { name: 'Vérifier le statut' });
+        expect(verifyBtn).toBeInTheDocument();
+        expect(verifyBtn).not.toBeDisabled();
+
+        // À 60 secondes sans clic : aucun appel supplémentaire GET ou POST
+        await vi.advanceTimersByTimeAsync(50000);
+        expect(api.get).toHaveBeenCalledTimes(1);
+        expect(api.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('CreateBeerCallModal: clic sur Vérifier le statut relance le même job, désactive 1s puis disparaît au terminal', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const onClose = vi.fn();
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        const location = { lat: 48.8566, lng: 2.3522 };
+
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { job_id: 'job-slow-2' } });
+        vi.mocked(api.get)
+            .mockResolvedValueOnce({ data: { id: 'job-slow-2', status: 'pending' } })
+            .mockResolvedValueOnce({ data: { id: 'job-slow-2', status: 'running' } })
+            .mockResolvedValueOnce({ data: { id: 'job-slow-2', status: 'succeeded' } });
+
+        render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
+
+        const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
+        const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
+        await user.type(locationInput, 'Mon super bar');
+        await user.click(submitBtn);
+
+        await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+
+        // Avancer au-delà de 10s pour faire apparaître le bouton de récupération
+        await vi.advanceTimersByTimeAsync(11000);
+        const verifyBtn = await screen.findByRole('button', { name: 'Vérifier le statut' });
+        expect(verifyBtn).not.toBeDisabled();
+
+        // Clic sur "Vérifier le statut"
+        await user.click(verifyBtn);
+
+        // Doit appeler le GET du même job, mais aucun POST supplémentaire
+        await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+        expect(vi.mocked(api.get)).toHaveBeenLastCalledWith(
+            '/squads/sq-1/beer-calls/jobs/job-slow-2',
+            expect.any(Object)
+        );
+        expect(api.post).toHaveBeenCalledTimes(1);
+
+        // Bouton désactivé pendant 1 seconde
+        expect(verifyBtn).toBeDisabled();
+
+        // Clic pendant le cooldown de 1s n'émet aucun appel supplémentaire
+        await user.click(verifyBtn);
+        expect(api.get).toHaveBeenCalledTimes(2);
+
+        // Après 1s, le bouton est réactivé
+        await vi.advanceTimersByTimeAsync(1100);
+        await waitFor(() => expect(verifyBtn).not.toBeDisabled());
+
+        // Second clic : job passe à succeeded
+        await user.click(verifyBtn);
+        await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3));
+
+        await vi.runAllTimersAsync();
+
+        // Le statut terminal succeeded ferme la modale et l'indice disparaît
+        await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+        expect(screen.queryByText(/La vérification prend plus de temps que prévu\./)).not.toBeInTheDocument();
+    });
 });
