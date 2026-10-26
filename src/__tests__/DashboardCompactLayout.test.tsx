@@ -134,11 +134,14 @@ describe('Flux commun et layout compact des overlays (UI-02 / UI-04 / T09)', () 
 
         // Libellé court <= 8 : placé sous le badge dans la bande de 118 px
         const shortLabel = screen.getByText('Courte', { selector: '[data-wheel-label]' });
-        expect(shortLabel).toHaveClass('w-[48px]', 'text-xs', 'leading-[14px]', 'bg-white', 'rounded', 'px-1');
+        expect(shortLabel).toHaveClass('w-[48px]', 'text-xs', 'leading-[14px]', 'rounded', 'px-1');
+        expect(shortLabel).not.toHaveClass('bg-white');
+        expect(shortLabel).toHaveClass('text-gray-900');
         expect(shortLabel.className).not.toContain('truncate');
 
         const initialsLabel = screen.getByText('LADB', { selector: '[data-wheel-label]' });
-        expect(initialsLabel).toHaveClass('w-[48px]', 'text-xs', 'leading-[14px]', 'bg-white', 'rounded', 'px-1');
+        expect(initialsLabel).toHaveClass('w-[48px]', 'text-xs', 'leading-[14px]', 'rounded', 'px-1');
+        expect(initialsLabel).not.toHaveClass('bg-white');
 
         // Libellé long > 8 (120 chars) : placé en flux sous la bande de 118 px
         const longWordText = 'S'.repeat(120);
@@ -147,7 +150,8 @@ describe('Flux commun et layout compact des overlays (UI-02 / UI-04 / T09)', () 
 
         const longLabelContainer = container.querySelector(`span[data-squad-id="2"][data-wheel-label]`);
         expect(longLabelContainer).toBeInTheDocument();
-        expect(longLabelContainer).toHaveClass('bg-white', 'rounded', 'px-1', 'text-gray-900');
+        expect(longLabelContainer).toHaveClass('rounded', 'px-1', 'text-gray-900');
+        expect(longLabelContainer).not.toHaveClass('bg-white');
         expect(longLabelContainer?.className).not.toContain('truncate');
 
         // La pastille de couleur est présente à côté du mot long
@@ -189,11 +193,9 @@ describe('Flux commun et layout compact des overlays (UI-02 / UI-04 / T09)', () 
         const longRow = fluxContainer?.querySelector('span[data-squad-id="1"][data-wheel-label]');
         expect(longRow).toBeInTheDocument();
 
-        // 2. Nom actif
+        // 2. Plus de doublon bas du nom actif (T25b) ; l identité vit désormais en haut.
         const activeName = fluxContainer?.querySelector('[data-wheel-active]');
-        expect(activeName).toBeInTheDocument();
-        expect(activeName).toHaveTextContent('Supercalifragilistic');
-        expect(activeName).toHaveClass('w-[120px]', 'h-7', 'line-clamp-2', 'break-all', 'bg-white', 'rounded', 'px-1');
+        expect(activeName).toBeNull();
 
         // 3. Contrôles de pagination
         const controls = fluxContainer?.querySelector('[data-wheel-controls]');

@@ -14,12 +14,13 @@ interface SquadWheelProps {
     squads: Squad[];
     currentSquadId?: string;
     isLoading?: boolean;
+    isNightMode?: boolean;
     onSelect: (id: number) => void;
     onCreate: () => void;
     onJoin: () => void;
 }
 
-export default function SquadWheel({ squads, currentSquadId, isLoading = false, onSelect, onCreate, onJoin }: SquadWheelProps) {
+export default function SquadWheel({ squads, currentSquadId, isLoading = false, isNightMode = false, onSelect, onCreate, onJoin }: SquadWheelProps) {
     const currentId = currentSquadId ?? '';
     const [pageState, setPageState] = useState(() => ({
         currentId, count: squads.length, index: squadPageForId(squads, currentId),
@@ -30,7 +31,9 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
         setPageState({ currentId, count: squads.length, index: page });
     }
     const wheel = squadWheelPage(squads, page);
-    const active = squads.find(squad => String(squad.id) === currentId);
+    const labelTone = isNightMode
+        ? 'text-beer-light drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]'
+        : 'text-gray-900 drop-shadow-[0_1px_2px_rgba(255,255,255,0.95)]';
     const suppressClick = useRef(false);
     const dragX = useMotionValue(0);
     const negateX = useTransform(dragX, value => -value);
@@ -69,7 +72,7 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
                     <motion.div style={placement(WHEEL_ACTION_ANGLES.create)} className="absolute w-[72px] -translate-x-1/2 -translate-y-6 flex flex-col items-center">
                         <button aria-label="Créer" onClick={event => { if (isTap(event)) onCreate(); }}
                                 className="w-12 h-12 rounded-full bg-white border-4 border-orange-100 flex items-center justify-center text-beer shadow-lg"><Plus size={26} /></button>
-                        <span data-wheel-label className="mt-1 w-[72px] truncate text-center text-xs leading-[14px] font-bold text-gray-900 bg-white rounded px-1">Créer</span>
+                        <span data-wheel-label className={`mt-1 w-[72px] truncate text-center text-xs leading-[14px] font-bold ${labelTone} rounded px-1`}>Créer</span>
                     </motion.div>
                     {!isLoading && wheel.items.map(({ squad, angle }) => {
                         const label = squadLabel(squad.name);
@@ -87,7 +90,7 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
                                     {SQUAD_ICONS[squad.icon] ?? SQUAD_ICONS.beer}
                                 </button>
                                 {!isLong && (
-                                    <span data-wheel-label data-squad-id={squad.id} className="mt-1 w-[48px] text-center text-xs leading-[14px] font-bold text-gray-900 bg-white rounded px-1 [overflow-wrap:anywhere] whitespace-normal">
+                                    <span data-wheel-label data-squad-id={squad.id} className={`mt-1 w-[48px] text-center text-xs leading-[14px] font-bold ${labelTone} rounded px-1 [overflow-wrap:anywhere] whitespace-normal`}>
                                         {label}
                                     </span>
                                 )}
@@ -97,7 +100,7 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
                     <motion.div style={placement(WHEEL_ACTION_ANGLES.join)} className="absolute w-[72px] -translate-x-1/2 -translate-y-6 flex flex-col items-center">
                         <button aria-label="Rejoindre" onClick={event => { if (isTap(event)) onJoin(); }}
                                 className="w-12 h-12 rounded-full bg-white border-4 border-blue-100 flex items-center justify-center text-blue-700 shadow-lg"><Key size={24} /></button>
-                        <span data-wheel-label className="mt-1 w-[72px] truncate text-center text-xs leading-[14px] font-bold text-gray-900 bg-white rounded px-1">Rejoindre</span>
+                        <span data-wheel-label className={`mt-1 w-[72px] truncate text-center text-xs leading-[14px] font-bold ${labelTone} rounded px-1`}>Rejoindre</span>
                     </motion.div>
                 </motion.div>
             </motion.div>
@@ -110,22 +113,20 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
                 .map(({ squad }) => (
                     <div key={squad.id} className="w-full px-4 flex items-center justify-center">
                         <span data-wheel-label data-squad-id={squad.id}
-                              className="inline-flex items-center gap-1.5 text-center text-xs leading-[14px] font-bold text-gray-900 bg-white rounded px-1 [overflow-wrap:anywhere] whitespace-normal">
+                              className={`inline-flex items-center gap-1.5 text-center text-xs leading-[14px] font-bold ${labelTone} rounded px-1 [overflow-wrap:anywhere] whitespace-normal`}>
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: squad.color || '#F59E0B' }} aria-hidden="true" />
                             <span>{squadLabel(squad.name)}</span>
                         </span>
                     </div>
                 ))}
             {isLoading ? (
-                <p role="status" className="w-[120px] text-center text-xs leading-[14px] text-gray-900 bg-white rounded px-1">Chargement des squads…</p>
-            ) : active && (
-                <p data-wheel-active className="w-[120px] h-7 line-clamp-2 break-all text-center text-xs leading-[14px] text-gray-900 font-bold bg-white rounded px-1">{active.name}</p>
-            )}
+                <p role="status" className={`w-[120px] text-center text-xs leading-[14px] ${labelTone} rounded px-1`}>Chargement des squads…</p>
+            ) : null}
             {wheel.pageCount > 1 && (
-                <div data-wheel-controls className="h-7 flex items-center justify-center gap-3 pointer-events-auto text-xs text-gray-900">
-                    <button aria-label="Page précédente" disabled={page === 0} onClick={() => changePage(wheel.previous)} className="h-7 px-3 rounded-lg bg-white disabled:opacity-50">←</button>
-                    <span aria-live="polite" className="bg-white rounded px-1 text-gray-900 font-bold">Page {page + 1}/{wheel.pageCount}</span>
-                    <button aria-label="Page suivante" disabled={page === wheel.pageCount - 1} onClick={() => changePage(wheel.next)} className="h-7 px-3 rounded-lg bg-white disabled:opacity-50">→</button>
+                <div data-wheel-controls className={`h-7 flex items-center justify-center gap-3 pointer-events-auto text-xs ${labelTone}`}>
+                    <button aria-label="Page précédente" disabled={page === 0} onClick={() => changePage(wheel.previous)} className="h-7 px-3 rounded-lg border border-current/40 disabled:opacity-50">←</button>
+                    <span aria-live="polite" className="rounded px-1 font-bold">Page {page + 1}/{wheel.pageCount}</span>
+                    <button aria-label="Page suivante" disabled={page === wheel.pageCount - 1} onClick={() => changePage(wheel.next)} className="h-7 px-3 rounded-lg border border-current/40 disabled:opacity-50">→</button>
                 </div>
             )}
         </div>

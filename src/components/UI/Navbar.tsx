@@ -7,9 +7,10 @@ import {useNavigate, useParams} from 'react-router-dom';
 interface NavbarProps {
     onCreateClick: () => void;
     onJoinClick: () => void;
+    isNightMode?: boolean;
 }
 
-export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
+export default function Navbar({onCreateClick, onJoinClick, isNightMode = false}: NavbarProps) {
     const navigate = useNavigate();
     const logout = useUserStore((state) => state.logout);
     const {data: squads, isLoading} = useSquads();
@@ -19,7 +20,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
         <div className="relative w-full pointer-events-none">
 
             {/* 🎡 LA ROULETTE (Boutons + Squads) */}
-            <SquadWheel squads={squads ?? []} currentSquadId={currentSquadId} isLoading={isLoading}
+            <SquadWheel squads={squads ?? []} currentSquadId={currentSquadId} isLoading={isLoading} isNightMode={isNightMode}
                         onCreate={onCreateClick} onJoin={onJoinClick} onSelect={id => navigate(`/squad/${id}`)} />
 
             {/* 🔽 BARRE DE NAVIGATION INFÉRIEURE */}

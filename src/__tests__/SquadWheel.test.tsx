@@ -126,13 +126,11 @@ describe('Roue paginée sans popup de confirmation', () => {
         expect(screen.getByRole('button', { name: 'BeerCall' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Équipe du jeudi' })).toBeInTheDocument();
 
-        // Le nom actif reste complet
-        const activeLabel = screen.getByText('Les Amis du Bar', { selector: '[data-wheel-active]' });
-        expect(activeLabel).toBeInTheDocument();
-        expect(activeLabel).toHaveClass('bg-white', 'rounded', 'px-1', 'text-gray-900');
+        // T25b : plus de doublon bas du nom actif ; le nom complet reste sur le bouton.
+        expect(document.querySelector('[data-wheel-active]')).toBeNull();
     });
 
-    it('applique le fond blanc opaque, arrondi et px-1 sur tous les textes de la roue pour le contraste', () => {
+    it('applique la palette de carte aux textes de la roue, sans rectangle blanc', () => {
         const testSquads: Squad[] = [
             { id: 1, name: 'Squad Un', icon: 'beer', color: '#F59E0B', invite_code: 'SQ1' },
             { id: 2, name: 'Squad Deux', icon: 'pizza', color: '#3B82F6', invite_code: 'SQ2' },
@@ -142,12 +140,21 @@ describe('Roue paginée sans popup de confirmation', () => {
         const labels = document.querySelectorAll('[data-wheel-label]');
         expect(labels.length).toBeGreaterThan(0);
         labels.forEach(label => {
-            expect(label).toHaveClass('bg-white', 'rounded', 'px-1', 'text-gray-900');
+            expect(label).not.toHaveClass('bg-white');
+            expect(label).toHaveClass('rounded', 'px-1', 'text-gray-900', 'drop-shadow-[0_1px_2px_rgba(255,255,255,0.95)]');
+        });
+
+        // Nuit : orange de la charte, ombre sombre.
+        rerender(<SquadWheel squads={testSquads} currentSquadId="1" isNightMode onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()} />);
+        document.querySelectorAll('[data-wheel-label]').forEach(label => {
+            expect(label).not.toHaveClass('bg-white');
+            expect(label).toHaveClass('text-beer-light', 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]');
         });
 
         // Cas de chargement
         rerender(<SquadWheel squads={[]} isLoading onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()} />);
         const loadingText = screen.getByRole('status');
-        expect(loadingText).toHaveClass('bg-white', 'rounded', 'px-1', 'text-gray-900');
+        expect(loadingText).toHaveClass('rounded', 'px-1', 'text-gray-900');
+        expect(loadingText).not.toHaveClass('bg-white');
     });
 });
