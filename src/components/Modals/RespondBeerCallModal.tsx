@@ -4,6 +4,7 @@ import {motion, AnimatePresence} from 'framer-motion';
 import {useQueryClient} from '@tanstack/react-query';
 import {api} from '../../lib/api';
 import {toast} from '../../store/useToastStore';
+import {useLocationStore} from '../../store/useLocationStore';
 
 // 🚀 NOUVELLE FONCTION : Compression + Correction EXIF Apple
 const processImageForBackend = (file: File): Promise<File> => {
@@ -62,7 +63,7 @@ interface RespondBeerCallModalProps {
     onClose: () => void;
     beerCall: BeerCall | null;
     squadId: string;
-    location: { lat: number; lng: number } | null;
+    location?: { lat: number; lng: number } | null;
     hasLiveLocation: boolean;
 }
 
@@ -73,10 +74,13 @@ export default function RespondBeerCallModal({
                                                  onClose,
                                                  beerCall,
                                                  squadId,
-                                                 location,
                                                  hasLiveLocation
                                              }: RespondBeerCallModalProps) {
     const queryClient = useQueryClient();
+    // Source de vérité : le fix courant du store, pas la prop capturée à l'ouverture.
+    const hasLiveFix = useLocationStore(state =>
+        state.hasSessionFix && state.locationStatus === 'available' && state.userLocation !== null);
+    const canAcceptWithLocation = hasLiveLocation && hasLiveFix;
 
     const [step, setStep] = useState<Step>('dilemma');
     const [excuse, setExcuse] = useState('');
@@ -133,11 +137,11 @@ export default function RespondBeerCallModal({
 
     // --- APPEL API : ACCEPTER ---
     const handleAccept = async () => {
-        if (!hasLiveLocation) {
+        if (!canAcceptWithLocation) {
             toast.error("GPS actuel nécessaire", "Une position GPS actuelle est nécessaire pour accepter.");
             return;
         }
-        if (!beerCall || !photoFile || !location) {
+        if (!beerCall || !photoFile) {
             toast.error("Erreur GPS", "Localisation introuvable. Vérifie que ton GPS est activé !");
             return;
         }
@@ -147,10 +151,18 @@ export default function RespondBeerCallModal({
             // 🚀 Compression et correction de la photo avant l'envoi
             const fixedPhoto = await processImageForBackend(photoFile);
 
+            // Revalidation juste avant le POST : la permission a pu changer pendant la préparation.
+            const current = useLocationStore.getState();
+            const postFix = current.hasSessionFix && current.locationStatus === 'available' ? current.userLocation : null;
+            if (!postFix) {
+                toast.error("GPS actuel nécessaire", "La position GPS a changé pendant la préparation. Rapproche-toi et réessaie.");
+                return;
+            }
+
             const formData = new FormData();
             formData.append('file', fixedPhoto);
-            formData.append('lat', location.lat.toString());
-            formData.append('lon', location.lng.toString());
+            formData.append('lat', postFix.lat.toString());
+            formData.append('lon', postFix.lng.toString());
 
             await api.post(`/squads/${squadId}/beer-calls/${beerCall.id}/join/`, formData, {
                 headers: {'Content-Type': 'multipart/form-data'},
@@ -226,18 +238,18 @@ export default function RespondBeerCallModal({
                                     </button>
                                     <button
                                         onClick={() => {
-                                            if (!hasLiveLocation) return;
+                                            if (!canAcceptWithLocation) return;
                                             setStep('accepting');
                                             openCamera(); // On ouvre l'appareil photo direct !
                                         }}
-                                        disabled={!hasLiveLocation}
-                                        aria-describedby={hasLiveLocation ? undefined : 'respond-gps-hint'}
+                                        disabled={!canAcceptWithLocation}
+                                        aria-describedby={canAcceptWithLocation ? undefined : 'respond-gps-hint'}
                                         className="flex-1 bg-beer text-white p-4 rounded-[2rem] font-black text-sm uppercase tracking-widest flex flex-col items-center gap-2 shadow-xl shadow-beer/30 hover:scale-105 transition-all disabled:opacity-40 disabled:scale-100 disabled:shadow-none disabled:cursor-not-allowed"
                                     >
                                         <Beer size={28}/> J'y Vais !
                                     </button>
                                 </div>
-                                {!hasLiveLocation && (
+                                {!canAcceptWithLocation && (
                                     <p id="respond-gps-hint" className="sr-only">Une position GPS actuelle est nécessaire pour accepter.</p>
                                 )}
                             </motion.div>
@@ -296,8 +308,8 @@ export default function RespondBeerCallModal({
                                 )}
 
                                 <button
-                                    onClick={handleAccept} disabled={isSubmitting || !photoFile || !hasLiveLocation}
-                                    aria-describedby={hasLiveLocation ? undefined : 'respond-gps-hint'}
+                                    onClick={handleAccept} disabled={isSubmitting || !photoFile || !canAcceptWithLocation}
+                                    aria-describedby={canAcceptWithLocation ? undefined : 'respond-gps-hint'}
                                     className="w-full bg-beer text-white p-5 rounded-[2rem] font-black text-lg shadow-xl shadow-beer/30 flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50"
                                 >
                                     {isSubmitting ? 'SCAN IA EN COURS...' : 'VALIDATION IA'} <Check size={20}/>

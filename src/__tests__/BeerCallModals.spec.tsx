@@ -7,6 +7,7 @@ import RespondBeerCallModal from '../components/Modals/RespondBeerCallModal';
 import ScheduleAperoModal from '../components/Modals/ScheduleAperoModal';
 import { api } from '../lib/api';
 import { toast } from '../store/useToastStore';
+import { useLocationStore } from '../store/useLocationStore';
 import type { BeerCall } from '../types/dashboard';
 
 vi.mock('../lib/api', () => ({
@@ -63,8 +64,24 @@ HTMLCanvasElement.prototype.toBlob = function(callback: BlobCallback) {
     }, 10);
 };
 
+// Fix GPS live simulé pour les soumissions nominales (T24).
+const grantFix = (lat = 48.8566, lng = 2.3522) => {
+    useLocationStore.setState({
+        userLocation: { lat, lng }, acquiredAt: 1_000, hasSessionFix: true,
+        locationStatus: 'available', isTracking: false, error: null,
+    });
+};
+const clearFix = () => {
+    useLocationStore.setState({
+        userLocation: null, acquiredAt: null, hasSessionFix: false,
+        locationStatus: 'idle', isTracking: false, error: null,
+    });
+};
+
 describe('BeerCall Modals', () => {
     beforeEach(() => {
+        useLocationStore.getState().stopTracking();
+        clearFix();
         vi.clearAllMocks();
         vi.useFakeTimers({ shouldAdvanceTime: true });
     });
@@ -77,6 +94,7 @@ describe('BeerCall Modals', () => {
         
         vi.mocked(api.post).mockResolvedValueOnce({ data: { id: 'call-1' } });
         
+        grantFix();
         render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
         
         const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
@@ -101,6 +119,72 @@ describe('BeerCall Modals', () => {
         await waitFor(() => expect(onClose).toHaveBeenCalled());
     });
 
+    it('CreateBeerCallModal: envoie le fix live, pas les coordonnées du marqueur', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        grantFix(48.1, 2.1);
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { id: 'call-live' } });
+
+        render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={{ lat: 50, lng: 5 }} scheduledApero={null} onClose={vi.fn()} />);
+        await user.type(screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i), 'Bar live');
+        await user.click(screen.getByRole('button', { name: /LANCER L'APPEL/i }));
+        await vi.runAllTimersAsync();
+
+        await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+        const data = vi.mocked(api.post).mock.calls[0][1] as FormData;
+        expect(data.get('latitude')).toBe('48.1');
+        expect(data.get('longitude')).toBe('2.1');
+    });
+
+    it('CreateBeerCallModal: bloque sans fix live, puis un fix rétablit un envoi unique', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { id: 'call-after-fix' } });
+
+        render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={{ lat: 48.8566, lng: 2.3522 }} scheduledApero={null} onClose={vi.fn()} />);
+        const submit = screen.getByRole('button', { name: /LANCER L'APPEL/i });
+        await user.type(screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i), 'Bar sans fix');
+        expect(submit).toBeDisabled();
+        fireEvent.click(submit);
+        await vi.runAllTimersAsync();
+        expect(api.post).not.toHaveBeenCalled();
+
+        grantFix();
+        await waitFor(() => expect(submit).not.toBeDisabled());
+        await user.click(submit);
+        await vi.runAllTimersAsync();
+        await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    });
+
+    it('CreateBeerCallModal: perdre le fix pendant la préparation annule le POST, un nouveau fix repart une seule fois', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        grantFix();
+        const toastSpy = vi.spyOn(toast, 'error');
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { id: 'call-new-fix' } });
+
+        render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={{ lat: 48.8566, lng: 2.3522 }} scheduledApero={null} onClose={vi.fn()} />);
+        const submit = screen.getByRole('button', { name: /LANCER L'APPEL/i });
+        await user.type(screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i), 'Bar perdu');
+
+        fireEvent.click(submit);
+        clearFix();
+        await vi.runAllTimersAsync();
+
+        expect(api.post).not.toHaveBeenCalled();
+        expect(toastSpy).toHaveBeenCalledWith('GPS actuel nécessaire', expect.stringMatching(/position GPS a changé/i));
+        expect(submit).toBeDisabled();
+
+        grantFix(47.5, 1.25);
+        await waitFor(() => expect(submit).not.toBeDisabled());
+        await user.click(submit);
+        await vi.runAllTimersAsync();
+        await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+        const data = vi.mocked(api.post).mock.calls[0][1] as FormData;
+        expect(data.get('latitude')).toBe('47.5');
+        expect(data.get('longitude')).toBe('1.25');
+    });
+
     it('RespondBeerCallModal: accept and submit photo', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         const onClose = vi.fn();
@@ -109,6 +193,7 @@ describe('BeerCall Modals', () => {
         
         vi.mocked(api.post).mockResolvedValueOnce({ data: { success: true } });
         
+        grantFix(48.8, 2.3);
         render(<RespondBeerCallModal isOpen={true} onClose={onClose} beerCall={beerCall} squadId="sq-1" location={location} hasLiveLocation />);
         
         // 1. Click J'y Vais
@@ -154,6 +239,41 @@ describe('BeerCall Modals', () => {
         expect(await screen.findByText(/L'Esquive/i)).toBeInTheDocument();
     });
 
+    it('RespondBeerCallModal: perdre le fix désactive la validation, un nouveau fix envoie une seule fois ses coordonnées', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const beerCall = { id: 'call-1', location_name: 'Le Central', creator_name: 'Creator' };
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        grantFix();
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { success: true } });
+
+        render(<RespondBeerCallModal isOpen onClose={vi.fn()} beerCall={beerCall} squadId="sq-1"
+                                     location={{ lat: 50, lng: 5 }} hasLiveLocation />);
+
+        await user.click(screen.getByRole('button', { name: /J'y Vais !/i }));
+        await screen.findByText(/Prouve-le !/i);
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        fireEvent.change(fileInput, { target: { files: [photoFile] } });
+
+        const submit = await screen.findByRole('button', { name: /VALIDATION IA/i });
+        expect(submit).not.toBeDisabled();
+
+        clearFix();
+        await waitFor(() => expect(submit).toBeDisabled());
+        fireEvent.click(submit);
+        await vi.runAllTimersAsync();
+        expect(api.post).not.toHaveBeenCalled();
+
+        grantFix(47, 1);
+        await waitFor(() => expect(submit).not.toBeDisabled());
+        await user.click(submit);
+        await vi.runAllTimersAsync();
+
+        await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+        const data = vi.mocked(api.post).mock.calls[0][1] as FormData;
+        expect(data.get('lat')).toBe('47');
+        expect(data.get('lon')).toBe('1');
+    });
+
     it('ScheduleAperoModal: submit coordinates', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         const onClose = vi.fn();
@@ -190,6 +310,7 @@ describe('BeerCall Modals', () => {
         
         vi.mocked(api.post).mockRejectedValueOnce(new Error('Network error'));
         
+        grantFix();
         render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
         
         const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
@@ -238,6 +359,7 @@ describe('BeerCall Modals', () => {
             abort() {}
         } as unknown as typeof FileReader;
 
+        grantFix();
         render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
         
         const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
@@ -274,6 +396,7 @@ describe('BeerCall Modals', () => {
         
         vi.mocked(api.post).mockRejectedValueOnce(new Error('Rejected'));
         
+        grantFix();
         render(<RespondBeerCallModal isOpen={true} onClose={onClose} beerCall={beerCall} squadId="sq-1" location={{ lat: 0, lng: 0 }} hasLiveLocation />);
         
         await user.click(screen.getByRole('button', { name: /J'y Vais !/i }));
@@ -332,6 +455,7 @@ describe('BeerCall Modals', () => {
             resolveJobGet = resolve;
         }));
 
+        grantFix();
         render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
 
         const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
@@ -365,6 +489,7 @@ describe('BeerCall Modals', () => {
 
         vi.mocked(api.post).mockResolvedValueOnce({ data: { id: 'call-1' } });
 
+        grantFix();
         render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
 
         const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
@@ -393,6 +518,7 @@ describe('BeerCall Modals', () => {
 
         vi.mocked(api.post).mockResolvedValueOnce({ data: { id: 'started-1' } });
 
+        grantFix();
         render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={scheduledApero} onClose={onClose} />);
 
         const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
@@ -429,6 +555,7 @@ describe('BeerCall Modals', () => {
         vi.mocked(api.post).mockResolvedValueOnce({ data: { job_id: 'job-slow-1' } });
         vi.mocked(api.get).mockResolvedValue({ data: { id: 'job-slow-1', status: 'pending' } });
 
+        grantFix();
         render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
 
         const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
@@ -471,6 +598,7 @@ describe('BeerCall Modals', () => {
             .mockResolvedValueOnce({ data: { id: 'job-slow-2', status: 'running' } })
             .mockResolvedValueOnce({ data: { id: 'job-slow-2', status: 'succeeded' } });
 
+        grantFix();
         render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
 
         const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);

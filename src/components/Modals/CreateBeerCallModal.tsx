@@ -8,6 +8,7 @@ import {toast} from '../../store/useToastStore';
 import type {BeerCall} from '../../types/dashboard';
 import {useBeerCallJob} from '../../hooks/useBeerCallJob';
 import {processBeerCallImage, ImagePreparationError} from '../../lib/processBeerCallImage';
+import {useLocationStore} from '../../store/useLocationStore';
 
 type SubmissionPhase = 'idle' | 'preparing' | 'uploading';
 
@@ -32,6 +33,10 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
     const handledJob = useRef<string | null>(null);
 
     const { status, rejectReason, trackingUnavailable, trackingPaused, resumeTracking } = useBeerCallJob(squadId, jobId);
+    // Abonnement au fix courant : la perte de permission désactive le bouton
+    // d'une modale déjà ouverte, sans attendre un nouveau clic.
+    const hasLiveFix = useLocationStore(state =>
+        state.hasSessionFix && state.locationStatus === 'available' && state.userLocation !== null);
 
     const isTerminal = status === 'succeeded' || status === 'rejected' || status === 'failed';
     // État dérivé : un job terminé n'est plus en cours de soumission, sans setState dans un effet.
@@ -111,8 +116,18 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
         }
     }, [photoFile]);
 
+    const readLiveFix = () => {
+        const current = useLocationStore.getState();
+        return current.hasSessionFix && current.locationStatus === 'available' ? current.userLocation : null;
+    };
+
     const handleSubmit = async () => {
         if (isSubmittingRef.current || Boolean(jobId && !isTerminal) || !photoFile || !location || !locationName.trim()) return;
+        const startFix = readLiveFix();
+        if (!startFix) {
+            toast.error("GPS actuel nécessaire", "Une position GPS actuelle est nécessaire pour lancer l'appel.");
+            return;
+        }
         isSubmittingRef.current = true;
         setSubmissionPhase('preparing');
         const requestKey = isTerminal ? crypto.randomUUID() : idempotencyKey;
@@ -124,12 +139,21 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
         try {
             const fixedPhoto = await processBeerCallImage(photoFile);
 
+            // La préparation photo est asynchrone : revalider le fix juste avant le POST.
+            const postFix = readLiveFix();
+            if (!postFix) {
+                isSubmittingRef.current = false;
+                setSubmissionPhase('idle');
+                toast.error("GPS actuel nécessaire", "La position GPS a changé pendant la préparation. Rapproche-toi et réessaie.");
+                return;
+            }
+
             setSubmissionPhase('uploading');
 
             const formData = new FormData();
             formData.append('file', fixedPhoto);
-            formData.append('latitude', location.lat.toString());
-            formData.append('longitude', location.lng.toString());
+            formData.append('latitude', postFix.lat.toString());
+            formData.append('longitude', postFix.lng.toString());
             formData.append('location_name', locationName.trim());
             
             let res: AxiosResponse<{job_id?: string}>;
@@ -172,7 +196,7 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
         }
     };
 
-    const isFormValid = location !== null && locationName.trim().length > 0;
+    const isFormValid = location !== null && locationName.trim().length > 0 && hasLiveFix;
 
     const getButtonLabel = () => {
         if (jobId && !isTerminal) {

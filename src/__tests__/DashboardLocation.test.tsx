@@ -107,13 +107,14 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(state()).toMatchObject({ isTracking: true, locationStatus: 'searching', hasSessionFix: false });
     });
 
-    it('retry invalide le suivi puis un nouveau watch réactive la création', () => {
+    it('relance après un échec puis un nouveau watch réactive la création', () => {
         cache();
         const { result, click } = mountHook();
         act(() => { state().startTracking(); watches[0].error?.(gpsError); });
         act(() => result.current.openCamera());
         expect(click).not.toHaveBeenCalled();
-        act(() => result.current.retryGPS());
+        expect((result.current as unknown as Record<string, unknown>).retryGPS).toBeUndefined();
+        act(() => state().startTracking());
         expect(result.current.locationStatus).toBe('searching');
         act(() => watches[1].success(position(2000, 49, 4)));
         expect(result.current.canCreateFromLocation).toBe(true);
@@ -160,15 +161,28 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(useToastStore.getState().toasts.at(-1)?.title).toBe('Position mémorisée');
     });
 
-    it('garde le démarrage programmé avec ses coordonnées explicites sans nouveau fix', () => {
+    it('refuse le démarrage programmé sans fix live, même avec des coordonnées explicites', () => {
         cache();
         const { result, click } = mountHook();
         const scheduled: BeerCall = { id: 'scheduled', creator_name: 'User', creator_id: 1, location_name: 'Lieu prévu',
             longitude: 5, latitude: 50, status: 'scheduled', participants_count: 0, has_responded: false, can_start: true };
         act(() => result.current.openCamera({ lat: 50, lng: 5 }, scheduled));
+        expect(click).not.toHaveBeenCalled();
+        expect(result.current.photoLocation).toBeNull();
+        expect(result.current.startingScheduledApero).toBeNull();
+        expect(state().hasSessionFix).toBe(false);
+    });
+
+    it('démarre un apero programmé avec le fix live, jamais avec les coordonnées du marqueur', () => {
+        const { result, click } = mountHook();
+        act(() => watches[0].success(position(2000, 48.1, 2.1)));
+        const scheduled: BeerCall = { id: 'scheduled', creator_name: 'User', creator_id: 1, location_name: 'Lieu prévu',
+            longitude: 5, latitude: 50, status: 'scheduled', participants_count: 0, has_responded: false, can_start: true };
+        act(() => result.current.openCamera({ lat: 50, lng: 5 }, scheduled));
         expect(click).toHaveBeenCalledTimes(1);
-        expect(result.current.photoLocation).toEqual({ lat: 50, lng: 5 });
+        expect(result.current.photoLocation).toEqual({ lat: 48.1, lng: 2.1 });
         expect(result.current.startingScheduledApero).toEqual(scheduled);
+        expect(result.current.startingScheduledApero).toMatchObject({ id: 'scheduled', location_name: 'Lieu prévu' });
     });
 
     it('démarre le suivi au montage actif et l arrête au démontage', () => {

@@ -52,7 +52,6 @@ export const useDashboard = () => {
     const { userLocation, acquiredAt, hasSessionFix, locationStatus, startTracking, stopTracking } = useLocationStore();
     const canCreateFromLocation = hasSessionFix && locationStatus === 'available' && userLocation !== null;
     const locationMessage = gpsMessage({ userLocation, acquiredAt, hasSessionFix, locationStatus });
-    const retryGPS = useCallback(() => { stopTracking(); startTracking(); }, [startTracking, stopTracking]);
     const isActiveApero = squadDetails?.active_beer_call?.some((call: { id: string }) => call.id === isWorldsModalOpen);
 
     // Fermer l'écran de jeu quand on change de squad
@@ -154,20 +153,18 @@ export const useDashboard = () => {
         }, 700);
     }, [cancelLongPress]);
 
-    const openCamera = useCallback((location = userLocation, apero: BeerCall | null = null) => {
-        let captureLocation = location;
-        if (apero === null) {
-            const current = useLocationStore.getState();
-            if (!current.hasSessionFix || current.locationStatus !== 'available' || !current.userLocation) {
-                toast.error('GPS actuel nécessaire', gpsMessage(current) ?? 'Une nouvelle position GPS est nécessaire pour créer.');
-                return;
-            }
-            captureLocation = current.userLocation;
+    // Toute preuve photo (création immédiate ou démarrage d'un apero programmé)
+    // exige un fix live et utilise ses coordonnées, jamais celles du marqueur.
+    const openCamera = useCallback((_location?: { lng: number; lat: number }, apero: BeerCall | null = null) => {
+        const current = useLocationStore.getState();
+        if (!current.hasSessionFix || current.locationStatus !== 'available' || !current.userLocation) {
+            toast.error('GPS actuel nécessaire', gpsMessage(current) ?? 'Une nouvelle position GPS est nécessaire pour créer.');
+            return;
         }
-        setPhotoLocation(captureLocation);
+        setPhotoLocation(current.userLocation);
         setStartingScheduledApero(apero);
         if (fileInputRef.current) fileInputRef.current.click();
-    }, [userLocation]);
+    }, []);
 
     const handlePhotoCapture = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -275,7 +272,6 @@ export const useDashboard = () => {
         locationStatus,
         canCreateFromLocation,
         locationMessage,
-        retryGPS,
         isNightMode,
         isMapReady,
         handleMapLoaded,
