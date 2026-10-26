@@ -67,6 +67,9 @@ export const useDashboard = () => {
     const mapRef = useRef<MapRef>(null);
     const longPressTimer = useRef<number | null>(null);
     const longPressStart = useRef<{ x: number; y: number } | null>(null);
+    const longPressSeq = useRef(0);
+    const activeRef = useRef(active);
+    const routeIdRef = useRef(id);
     const hasCentered = useRef(false);
     const [copied, setCopied] = useState(false);
     const [showPushBanner, setShowPushBanner] = useState(() => 'Notification' in window && Notification.permission === 'default');
@@ -86,12 +89,24 @@ export const useDashboard = () => {
     };
 
     const cancelLongPress = useCallback(() => {
+        longPressSeq.current += 1;
         if (longPressTimer.current) {
             window.clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
         }
         longPressStart.current = null;
     }, []);
+
+    // Toute frontière de route ou perte d'activité interrompt un maintien en cours,
+    // et le démontage nettoie le timer restant.
+    useEffect(() => {
+        activeRef.current = active;
+        routeIdRef.current = id;
+        cancelLongPress();
+        return () => {
+            cancelLongPress();
+        };
+    }, [active, id, cancelLongPress]);
 
     const handleMapPointerMove = useCallback((event?: unknown) => {
         const ev = event as { originalEvent?: { touches?: unknown[] }, point?: { x: number, y: number } } | undefined;
@@ -112,23 +127,30 @@ export const useDashboard = () => {
     const handleMapPointerDown = useCallback((event: unknown) => {
         const ev = event as { originalEvent?: { target?: { closest?: (s: string) => boolean }, touches?: unknown[] }, point?: { x: number, y: number }, lngLat?: { toArray: () => [number, number] } };
         if (ev.originalEvent?.target?.closest?.('button, a, input, [role="button"]')) return;
-        
+
+        // Un nouvel appui remplace toujours le maintien précédent.
+        cancelLongPress();
+
         if (ev.originalEvent?.touches && ev.originalEvent.touches.length > 1) {
-            cancelLongPress();
             return;
         }
 
-        if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+        // Copie immédiate : l'événement peut être réutilisé/muté par MapLibre avant le déclenchement.
+        const coordinates = ev.lngLat ? ev.lngLat.toArray() : null;
+        const pressSeq = longPressSeq.current;
+        const pressRouteId = routeIdRef.current;
 
         longPressStart.current = {x: ev.point?.x || 0, y: ev.point?.y || 0};
         longPressTimer.current = window.setTimeout(() => {
             longPressTimer.current = null;
             longPressStart.current = null;
-            if (ev.lngLat) {
-                const [lng, lat] = ev.lngLat.toArray();
-                setScheduleCoordinates({lng, lat});
-                setIsScheduleModalOpen(true);
-            }
+            if (pressSeq !== longPressSeq.current) return;
+            if (!activeRef.current || routeIdRef.current !== pressRouteId) return;
+            if (!coordinates) return;
+            const [lng, lat] = coordinates;
+            if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+            setScheduleCoordinates({lng, lat});
+            setIsScheduleModalOpen(true);
         }, 700);
     }, [cancelLongPress]);
 

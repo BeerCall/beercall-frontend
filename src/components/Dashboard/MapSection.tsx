@@ -253,7 +253,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             onMouseMove={handlePointerMove}
             onMouseLeave={cancelLongPress}
             onTouchStart={handleMapPointerDown} onTouchMove={handlePointerMove}
-            onTouchEnd={cancelLongPress}
+            onTouchEnd={cancelLongPress} onTouchCancel={cancelLongPress}
             onDragStart={cancelLongPress}
             onZoomStart={cancelLongPress}
             onMoveStart={cancelLongPress}>
