@@ -28,8 +28,16 @@ export const useLocationStore = create<LocationState>()(
                 error: null,
 
                 startTracking: () => {
-                    if (get().isTracking) return;
+                    const current = get();
+                    // Une acquisition en cours (recherche ou fix utilisable) ne se double pas.
+                    // Après un échec terminal, la session reste stable mais une demande
+                    // explicite (bouton geoloc, retour visible) peut relancer une acquisition.
+                    if (current.isTracking && (current.locationStatus === 'searching' || current.locationStatus === 'available')) return;
                     const currentGeneration = ++generation;
+                    if (watchId !== null) {
+                        trackingGeolocation?.clearWatch(watchId);
+                        watchId = null;
+                    }
                     let watchHasReported = false;
                     let lastAcceptedTimestamp: number | null = null;
                     set({ hasSessionFix: false, locationStatus: 'searching', error: null });

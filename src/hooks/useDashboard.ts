@@ -206,19 +206,20 @@ export const useDashboard = () => {
     }, [userLocation, acquiredAt, hasSessionFix, locationStatus]);
 
     useEffect(() => {
-        if (!active) return;
-        const handleFirstInteraction = () => {
-            startTracking();
-            window.removeEventListener('click', handleFirstInteraction);
-            window.removeEventListener('touchstart', handleFirstInteraction);
+        if (!active) {
+            stopTracking();
+            return;
+        }
+        // Acquisition au montage actif, sans attendre un clic arbitraire.
+        startTracking();
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') startTracking();
+            else stopTracking();
         };
-        
-        window.addEventListener('click', handleFirstInteraction);
-        window.addEventListener('touchstart', handleFirstInteraction);
+        document.addEventListener('visibilitychange', handleVisibility);
 
         return () => {
-            window.removeEventListener('click', handleFirstInteraction);
-            window.removeEventListener('touchstart', handleFirstInteraction);
+            document.removeEventListener('visibilitychange', handleVisibility);
             stopTracking();
             cancelLongPress();
         };

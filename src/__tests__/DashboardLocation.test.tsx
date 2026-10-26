@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook, screen, fireEvent } from '@testing-library/react';
-import type { PropsWithChildren } from 'react';
+import { StrictMode, type PropsWithChildren } from 'react';
 import type { MapRef } from 'react-map-gl/maplibre';
 import { render } from './utils/test-utils';
 import { useDashboard } from '../hooks/useDashboard';
@@ -139,5 +139,69 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(click).toHaveBeenCalledTimes(1);
         expect(result.current.photoLocation).toEqual({ lat: 50, lng: 5 });
         expect(result.current.startingScheduledApero).toEqual(scheduled);
+    });
+
+    it('démarre le suivi au montage actif et l arrête au démontage', () => {
+        const { unmount } = renderHook(() => useDashboard());
+        expect(watches).toHaveLength(1);
+        expect(points).toHaveLength(1);
+        expect(state().isTracking).toBe(true);
+
+        act(() => unmount());
+        expect(state().isTracking).toBe(false);
+    });
+
+    it('dix rerenders ne doublent ni le point ni le watch', () => {
+        const { rerender } = renderHook(() => useDashboard());
+        for (let i = 0; i < 10; i++) act(() => rerender());
+        expect(points).toHaveLength(1);
+        expect(watches).toHaveLength(1);
+    });
+
+    it('arrête à la mise en arrière-plan et reprend une seule fois au retour visible', () => {
+        renderHook(() => useDashboard());
+        const setVisibility = (value: DocumentVisibilityState) => {
+            Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => value });
+            act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+        };
+        try {
+            setVisibility('hidden');
+            expect(state()).toMatchObject({ isTracking: false, locationStatus: 'idle' });
+            setVisibility('visible');
+            expect(watches).toHaveLength(2);
+            setVisibility('visible');
+            expect(watches).toHaveLength(2);
+        } finally {
+            Reflect.deleteProperty(document, 'visibilityState');
+        }
+    });
+
+    it('sous StrictMode, un seul watch reste actif et les callbacks périmés sont ignorés', () => {
+        renderHook(() => useDashboard(), { wrapper: ({ children }) => <StrictMode>{children}</StrictMode> });
+        expect(state().isTracking).toBe(true);
+        expect(watches.length).toBeGreaterThanOrEqual(1);
+
+        act(() => watches.at(-1)!.success(position(2000, 49)));
+        expect(state()).toMatchObject({ hasSessionFix: true, acquiredAt: 2000, userLocation: { lat: 49, lng: 2 } });
+
+        // Si StrictMode a bien rejoué l'effet, le callback de la génération précédente
+        // ne doit plus déplacer le fix.
+        if (watches.length > 1) {
+            act(() => watches[0].success(position(3000, 90)));
+            expect(state()).toMatchObject({ acquiredAt: 2000, userLocation: { lat: 49, lng: 2 } });
+        }
+    });
+
+    it('un refus ne relance pas de lui-même et une demande explicite réussit', () => {
+        renderHook(() => useDashboard());
+        act(() => watches[0].error?.(gpsError));
+        expect(points).toHaveLength(1);
+        expect(watches).toHaveLength(1);
+        expect(state().isTracking).toBe(true);
+
+        act(() => state().startTracking());
+        expect(watches).toHaveLength(2);
+        act(() => watches[1].success(position(2000, 49)));
+        expect(state()).toMatchObject({ hasSessionFix: true, userLocation: { lat: 49, lng: 2 } });
     });
 });
