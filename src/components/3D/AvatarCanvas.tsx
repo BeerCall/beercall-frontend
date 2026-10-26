@@ -1,5 +1,5 @@
 import {Suspense, useMemo, useEffect, useLayoutEffect, useRef, useState, useCallback, useContext} from 'react';
-import {Canvas, useFrame, useThree} from '@react-three/fiber';
+import {Canvas, useFrame, useThree, type EventManager} from '@react-three/fiber';
 import {
     OrbitControls,
     ContactShadows,
@@ -24,6 +24,16 @@ const CONFIG = {
     cameraZ: 300,
     cameraTargetY: 80
 };
+
+// Les miniatures de liste n'ont pas besoin de raycasting/pointeur R3F :
+// cela évite d'enregistrer des écouteurs DOM superflus et prévient tout crash si
+// le conteneur est démonté pendant l'initialisation asynchrone de R3F configure().
+const noopEventManager = (): EventManager<HTMLElement> => ({
+    enabled: false,
+    priority: 0,
+    connect: () => {},
+    disconnect: () => {},
+});
 
 // 🍺 LE RECTIFICATEUR D'OBJETS PERSONNALISÉS
 const CUSTOM_ITEMS_CONFIG: Record<string, AvatarTransform> = {
@@ -872,6 +882,7 @@ export default function AvatarCanvas({
             data-avatar-framing-info={isThumbnail && framingInfo ? JSON.stringify(framingInfo) : undefined}
         >
             <Canvas camera={{position: [0, targetY, cameraZ], fov: 45}} dpr={[1, 1.5]}
+                    events={isThumbnail ? noopEventManager : undefined}
                     className="z-10 relative">
                 <AvatarFrameloopController active={isEffectiveActive}/>
                 <ambientLight intensity={1.5}/>
