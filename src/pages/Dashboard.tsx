@@ -124,21 +124,23 @@ export default function Dashboard() {
                             openCamera={dashboard.openCamera}
                             setIsWorldsModalOpen={dashboard.setIsWorldsModalOpen}
                         />
-
-                        {dashboard.id && dashboard.squadDetails && (
-                            <Timeline 
-                                squadDetails={dashboard.squadDetails}
-                                squadId={dashboard.id}
-                                navigate={dashboard.navigate}
-                                focusOnLocation={dashboard.focusOnLocation}
-                                openCamera={dashboard.openCamera}
-                                setSelectedBeerCall={dashboard.setSelectedBeerCall}
-                                setIsWorldsModalOpen={dashboard.setIsWorldsModalOpen}
-                            />
-                        )}
                     </div>
                 </div>
-                <Navbar onCreateClick={() => dashboard.setIsSquadModalOpen(true)} onJoinClick={() => dashboard.setIsJoinModalOpen(true)}/>
+
+                <div data-testid="dashboard-bottom-wrapper" className="absolute bottom-0 inset-x-0 flex flex-col pointer-events-none z-[70]">
+                    {dashboard.id && dashboard.squadDetails && (
+                        <Timeline 
+                            squadDetails={dashboard.squadDetails}
+                            squadId={dashboard.id}
+                            navigate={dashboard.navigate}
+                            focusOnLocation={dashboard.focusOnLocation}
+                            openCamera={dashboard.openCamera}
+                            setSelectedBeerCall={dashboard.setSelectedBeerCall}
+                            setIsWorldsModalOpen={dashboard.setIsWorldsModalOpen}
+                        />
+                    )}
+                    <Navbar onCreateClick={() => dashboard.setIsSquadModalOpen(true)} onJoinClick={() => dashboard.setIsJoinModalOpen(true)}/>
+                </div>
             </div>
 
             <Suspense fallback={null}>

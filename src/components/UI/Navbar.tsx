@@ -16,7 +16,7 @@ export default function Navbar({onCreateClick, onJoinClick}: NavbarProps) {
     const {id: currentSquadId} = useParams();
 
     return (
-        <div className="absolute bottom-0 w-full z-50 pointer-events-none">
+        <div className="relative w-full pointer-events-none">
 
             {/* 🎡 LA ROULETTE (Boutons + Squads) */}
             <SquadWheel squads={squads ?? []} currentSquadId={currentSquadId} isLoading={isLoading}
