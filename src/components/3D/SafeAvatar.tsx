@@ -14,6 +14,8 @@ export interface SafeAvatarProps {
   active?: boolean;
   className?: string;
   fallback?: React.ReactNode;
+  /** `thumbnail` = cadrage local borné (Connexions uniquement) ; défaut inchangé. */
+  framing?: 'default' | 'thumbnail';
 }
 
 // Lazy import direct d'AvatarCanvas
@@ -29,7 +31,8 @@ export default function SafeAvatar({
   ...avatarProps
 }: SafeAvatarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isContextLost, setIsContextLost] = useState(false);
+  const [contextState, setContextState] = useState<'ok' | 'lost' | 'restoring'>('ok');
+  // Remontage manuel volontaire uniquement : une restauration native conserve le même Canvas.
   const [retryKey, setRetryKey] = useState(0);
 
   // Capture des événements de perte/restauration de contexte WebGL
@@ -39,12 +42,13 @@ export default function SafeAvatar({
 
     const handleContextLost = (event: Event) => {
       event.preventDefault();
-      setIsContextLost(true);
+      setContextState('lost');
     };
 
+    // Ne bloque ni preventDefault ni la propagation : React Three Fiber doit
+    // recevoir l'événement pour restaurer son contexte.
     const handleContextRestored = () => {
-      setIsContextLost(false);
-      setRetryKey(k => k + 1);
+      setContextState('restoring');
     };
 
     container.addEventListener('webglcontextlost', handleContextLost, true);
@@ -57,8 +61,13 @@ export default function SafeAvatar({
   }, []);
 
   const handleManualReset = useCallback(() => {
-    setIsContextLost(false);
+    setContextState('ok');
     setRetryKey(k => k + 1);
+  }, []);
+
+  // Le statut « restauration » ne se ferme qu'après une frame réellement soumise.
+  const handleFrameSubmitted = useCallback(() => {
+    setContextState(prev => (prev === 'restoring' ? 'ok' : prev));
   }, []);
 
   const defaultLoadingFallback = (
@@ -68,13 +77,22 @@ export default function SafeAvatar({
   );
 
   return (
-    <div ref={containerRef} className={className} data-testid="safe-avatar-container">
+    <div ref={containerRef} className={`relative ${className}`} data-testid="safe-avatar-container">
       <AvatarRenderBoundary onReset={handleManualReset} fallback={fallback}>
-        {isContextLost ? (
+        <Suspense fallback={fallback ?? defaultLoadingFallback}>
+          <LazyAvatarCanvas
+            key={retryKey}
+            active={active && contextState !== 'lost'}
+            onFrameSubmitted={handleFrameSubmitted}
+            {...avatarProps}
+          />
+        </Suspense>
+
+        {contextState === 'lost' && (
           <div
             role="status"
             aria-label="Contexte WebGL perdu"
-            className="w-full h-full min-h-[100px] flex flex-col items-center justify-center p-3 bg-gray-50 rounded-2xl text-center"
+            className="absolute inset-0 w-full h-full min-h-[100px] flex flex-col items-center justify-center p-3 bg-gray-50 rounded-2xl text-center"
           >
             <p className="text-xs font-semibold text-gray-500 mb-2">Affichage suspendu (WebGL)</p>
             <button
@@ -85,10 +103,16 @@ export default function SafeAvatar({
               Réessayer
             </button>
           </div>
-        ) : (
-          <Suspense fallback={fallback ?? defaultLoadingFallback}>
-            <LazyAvatarCanvas key={retryKey} active={active} {...avatarProps} />
-          </Suspense>
+        )}
+
+        {contextState === 'restoring' && (
+          <div
+            role="status"
+            aria-label="Restauration de l'affichage"
+            className="absolute inset-0 w-full h-full flex flex-col items-center justify-center p-3 pointer-events-none text-center"
+          >
+            <p className="text-xs font-semibold text-gray-500">Restauration de l'affichage…</p>
+          </div>
         )}
       </AvatarRenderBoundary>
     </div>

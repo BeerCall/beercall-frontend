@@ -1,9 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import SafeAvatar, { preloadAvatarCanvas } from '../components/3D/SafeAvatar';
 import { AvatarRenderBoundary } from '../components/3D/AvatarRenderBoundary';
 import type { AvatarConfig } from '../types/avatar';
+
+const canvasState = vi.hoisted(() => ({ mounts: 0, unmounts: 0 }));
+
+// Canvas factice : permet de prouver l'identité DOM conservée et de simuler une frame soumise.
+vi.mock('../components/3D/AvatarCanvas', async () => {
+  const ReactModule = await import('react');
+  function MockAvatarCanvas({active, onFrameSubmitted}: {active?: boolean; onFrameSubmitted?: () => void}) {
+    ReactModule.useEffect(() => {
+      canvasState.mounts += 1;
+      return () => {
+        canvasState.unmounts += 1;
+      };
+    }, []);
+    return (
+      <div data-testid="avatar-canvas" data-active={active === false ? 'false' : 'true'}>
+        <button type="button" onClick={onFrameSubmitted}>frame</button>
+      </div>
+    );
+  }
+  return {default: MockAvatarCanvas};
+});
 
 const dummyConfig: AvatarConfig = {
   head: 'head_base',
@@ -85,34 +106,86 @@ describe('AvatarRenderBoundary (T14d)', () => {
 });
 
 describe('SafeAvatar Component (T14d)', () => {
+  beforeEach(() => {
+    canvasState.mounts = 0;
+    canvasState.unmounts = 0;
+  });
+
   it('monte le conteneur SafeAvatar sans bloquer par un probe synchrone', async () => {
     render(<SafeAvatar config={dummyConfig} />);
 
     expect(screen.getByTestId('safe-avatar-container')).toBeInTheDocument();
   });
 
-  it('intercepte webglcontextlost, affiche le statut suspendu et restaure sur webglcontextrestored', async () => {
+  it('conserve le même Canvas pendant la perte puis la restauration native, sans clôturer avant une frame', async () => {
     const { container } = render(<SafeAvatar config={dummyConfig} />);
 
     const safeContainer = container.querySelector('[data-testid="safe-avatar-container"]');
     expect(safeContainer).toBeInTheDocument();
 
-    // Simulation de perte de contexte WebGL
+    const firstCanvas = await screen.findByTestId('avatar-canvas');
+    expect(canvasState.mounts).toBe(1);
+
+    // Perte émise depuis le canvas enfant : la capture du conteneur doit la recevoir.
     await act(async () => {
-      const lostEvent = new Event('webglcontextlost', { bubbles: true, cancelable: true });
-      safeContainer?.dispatchEvent(lostEvent);
+      firstCanvas.dispatchEvent(new Event('webglcontextlost', {bubbles: true, cancelable: true}));
     });
 
-    expect(screen.getByRole('status', { name: 'Contexte WebGL perdu' })).toBeInTheDocument();
+    expect(screen.getByRole('status', {name: 'Contexte WebGL perdu'})).toBeInTheDocument();
     expect(screen.getByText('Affichage suspendu (WebGL)')).toBeInTheDocument();
+    expect(screen.getByTestId('avatar-canvas')).toBe(firstCanvas);
+    expect(screen.getByTestId('avatar-canvas')).toHaveAttribute('data-active', 'false');
+    expect(canvasState.mounts).toBe(1);
 
-    // Simulation de restauration du contexte WebGL
+    const restoredEvent = new Event('webglcontextrestored', {bubbles: true, cancelable: true});
+    let childReceived = false;
+    const child = document.createElement('span');
+    child.addEventListener('webglcontextrestored', () => {
+      childReceived = true;
+    });
+    firstCanvas.appendChild(child);
+
     await act(async () => {
-      const restoredEvent = new Event('webglcontextrestored', { bubbles: true, cancelable: true });
-      safeContainer?.dispatchEvent(restoredEvent);
+      child.dispatchEvent(restoredEvent);
     });
 
-    expect(screen.queryByRole('status', { name: 'Contexte WebGL perdu' })).not.toBeInTheDocument();
+    // Le handler ne bloque ni preventDefault ni la propagation vers R3F.
+    expect(restoredEvent.defaultPrevented).toBe(false);
+    expect(childReceived).toBe(true);
+
+    expect(screen.getByRole('status', {name: "Restauration de l'affichage"})).toBeInTheDocument();
+    expect(screen.getByTestId('avatar-canvas')).toBe(firstCanvas);
+    expect(screen.getByTestId('avatar-canvas')).toHaveAttribute('data-active', 'true');
+    expect(canvasState.mounts).toBe(1);
+
+    // Aucune frame soumise : le statut de restauration reste affiché.
+    expect(screen.queryByRole('status', {name: 'Contexte WebGL perdu'})).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', {name: 'frame'}));
+    });
+
+    expect(screen.queryByRole('status', {name: "Restauration de l'affichage"})).not.toBeInTheDocument();
+    expect(canvasState.mounts).toBe(1);
+  });
+
+  it('le réessai manuel reste une action locale distincte qui remonte le Canvas', async () => {
+    render(<SafeAvatar config={dummyConfig} />);
+    const firstCanvas = await screen.findByTestId('avatar-canvas');
+
+    await act(async () => {
+      firstCanvas.dispatchEvent(new Event('webglcontextlost', {bubbles: true, cancelable: true}));
+    });
+
+    expect(screen.getByRole('status', {name: 'Contexte WebGL perdu'})).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', {name: 'Réessayer'}));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('status', {name: 'Contexte WebGL perdu'})).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('avatar-canvas')).not.toBe(firstCanvas);
+    expect(canvasState.mounts).toBe(2);
   });
 
   it('nettoie les écouteurs de contexte au démontage', () => {

@@ -11,6 +11,7 @@ import {QueryClientContext} from '@tanstack/react-query';
 import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
 import {MODELS_URL} from "../../lib/api.ts";
+import {computeAvatarFraming} from "../../lib/avatarFraming.ts";
 import type {AvatarConfig, AvatarTransform} from "../../types/avatar.ts";
 import SceneReadyProbe from './SceneReadyProbe';
 import {warmAvatarModels} from './warmupAvatar';
@@ -422,10 +423,12 @@ export function ModularAvatar({
     config,
     onAnimationsLoaded,
     onReadinessChange,
+    groupRef,
 }: {
     config: AvatarConfig,
     onAnimationsLoaded?: (animations: string[]) => void,
     onReadinessChange?: (isReady: boolean, details?: { parts: string[]; meshCount: number }) => void,
+    groupRef?: React.RefObject<THREE.Group | null>,
 }) {
     const accessoryTransform = config.accessory ? CUSTOM_ITEMS_CONFIG[config.accessory] : undefined;
 
@@ -508,7 +511,7 @@ export function ModularAvatar({
     const isIdle = currentAnim === 'Idle';
 
     return (
-        <group>
+        <group ref={groupRef}>
             {/* Raccorder notifyInitialFrame du hook T10 à un probe de frame, armé après readiness des pièces ET action Idle */}
             <AvatarFrameNotifier
                 ready={isAvatarReady}
@@ -588,6 +591,114 @@ function restoreClockElapsed(clockInstance: { elapsedTime: number }, elapsed: nu
     clockInstance.elapsedTime = elapsed;
 }
 
+function restoreCameraClip(cameraInstance: THREE.PerspectiveCamera, near: number, far: number) {
+    cameraInstance.near = near;
+    cameraInstance.far = far;
+    cameraInstance.updateProjectionMatrix();
+}
+
+export interface ThumbnailFramingInfo {
+    width: number;
+    height: number;
+    distance: number;
+    center: [number, number, number];
+    position: [number, number, number];
+    near: number;
+    far: number;
+    boxMin: [number, number, number];
+    boxMax: [number, number, number];
+    corners: [number, number, number][];
+}
+
+interface ThumbnailFramingProps {
+    groupRef: React.RefObject<THREE.Group | null>;
+    ready: boolean;
+    signature: string;
+    onApplied: (info: ThumbnailFramingInfo | null) => void;
+}
+
+/**
+ * Cadrage opt-in des miniatures : mesure l'assemblage réel (SkinnedMesh dans la pose
+ * courante, accessoire compris) puis ajuste la caméra. Aucun recalcul par frame :
+ * uniquement au changement de tenue, de readiness ou de taille réelle.
+ */
+function ThumbnailFramingController({groupRef, ready, signature, onApplied}: ThumbnailFramingProps) {
+    const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
+    const size = useThree((state) => state.size);
+    const invalidate = useThree((state) => state.invalidate);
+
+    useEffect(() => {
+        if (!ready) return;
+        const group = groupRef.current;
+        if (!group) return;
+
+        group.updateMatrixWorld(true);
+        const box = new THREE.Box3();
+        const temp = new THREE.Box3();
+
+        group.traverse((object) => {
+            const mesh = object as THREE.Mesh;
+            if (!mesh.isMesh || mesh.visible === false) return;
+
+            let local: THREE.Box3 | null = null;
+            const skinned = mesh as THREE.SkinnedMesh;
+            if (skinned.isSkinnedMesh && typeof skinned.computeBoundingBox === 'function') {
+                // Boîte de la pose courante, sur le clone local uniquement.
+                skinned.computeBoundingBox();
+                local = skinned.boundingBox ?? null;
+            } else if (mesh.geometry) {
+                if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+                local = mesh.geometry.boundingBox;
+            }
+            if (!local || local.isEmpty()) return;
+
+            temp.copy(local).applyMatrix4(mesh.matrixWorld);
+            if (!temp.isEmpty()) box.union(temp);
+        });
+
+        const framing = computeAvatarFraming({box, width: size.width, height: size.height, fov: camera.fov});
+        if (!framing.ok) {
+            onApplied(null);
+            return;
+        }
+
+        camera.position.set(...framing.position);
+        camera.lookAt(framing.center[0], framing.center[1], framing.center[2]);
+        restoreCameraClip(camera, framing.near, framing.far);
+        camera.updateMatrixWorld(true);
+        if (typeof invalidate === 'function') invalidate();
+
+        const corners: [number, number, number][] = [];
+        for (const x of [box.min.x, box.max.x]) {
+            for (const y of [box.min.y, box.max.y]) {
+                for (const z of [box.min.z, box.max.z]) {
+                    const projected = new THREE.Vector3(x, y, z).project(camera);
+                    corners.push([
+                        Number(projected.x.toFixed(4)),
+                        Number(projected.y.toFixed(4)),
+                        Number(projected.z.toFixed(4)),
+                    ]);
+                }
+            }
+        }
+
+        onApplied({
+            width: Math.round(size.width),
+            height: Math.round(size.height),
+            distance: Number(framing.distance.toFixed(2)),
+            center: framing.center.map((value) => Number(value.toFixed(2))) as [number, number, number],
+            position: framing.position.map((value) => Number(value.toFixed(2))) as [number, number, number],
+            near: Number(framing.near.toFixed(2)),
+            far: Number(framing.far.toFixed(2)),
+            boxMin: [box.min.x, box.min.y, box.min.z].map((value) => Number(value.toFixed(2))) as [number, number, number],
+            boxMax: [box.max.x, box.max.y, box.max.z].map((value) => Number(value.toFixed(2))) as [number, number, number],
+            corners,
+        });
+    }, [ready, signature, size.width, size.height, camera, groupRef, invalidate, onApplied]);
+
+    return null;
+}
+
 function AvatarFrameloopController({ active }: { active: boolean }) {
     const setFrameloop = useThree((state) => state.setFrameloop);
     const clock = useThree((state) => state.clock);
@@ -645,6 +756,10 @@ interface AvatarCanvasProps {
     view?: string;
     instanceId?: string;
     active?: boolean;
+    /** Preuve réelle de frame soumise (après cadrage/tenue) ; jamais un timer. */
+    onFrameSubmitted?: () => void;
+    /** `thumbnail` active un cadrage local borné ; défaut = caméra historique intacte. */
+    framing?: 'default' | 'thumbnail';
 }
 
 export default function AvatarCanvas({
@@ -655,7 +770,9 @@ export default function AvatarCanvas({
                                          headOnly = false,
                                          view,
                                          instanceId,
-                                         active = true
+                                         active = true,
+                                         onFrameSubmitted,
+                                         framing = 'default',
                                      }: AvatarCanvasProps) {
     const [isDocumentVisible, setIsDocumentVisible] = useState(() =>
         typeof document === 'undefined' ? true : !document.hidden
@@ -722,8 +839,38 @@ export default function AvatarCanvas({
         setIsAvatarReady(ready);
     }, []);
 
+    const avatarGroupRef = useRef<THREE.Group>(null);
+    const [framingInfo, setFramingInfo] = useState<ThumbnailFramingInfo | null>(null);
+    const [framingReady, setFramingReady] = useState(false);
+    const [framingToken, setFramingToken] = useState(0);
+
+    const framingSignature = useMemo(() => JSON.stringify(renderConfig), [renderConfig]);
+
+    const handleFramingApplied = useCallback((info: ThumbnailFramingInfo | null) => {
+        setFramingInfo(info);
+        setFramingReady(false);
+        setFramingToken((token) => token + 1);
+    }, []);
+
+    const handleFrameSubmitted = useCallback(() => {
+        onFrameSubmitted?.();
+        setFramingReady(true);
+    }, [onFrameSubmitted]);
+
+    const isThumbnail = framing === 'thumbnail';
+    const framingPhase = isThumbnail ? (framingReady && isEffectiveActive ? 'ready' : 'pending') : undefined;
+
+    const controlsTarget = useMemo<[number, number, number]>(() => {
+        if (isThumbnail && framingInfo) return framingInfo.center;
+        return [0, targetY, 0];
+    }, [isThumbnail, framingInfo, targetY]);
+
     return (
-        <div className="w-full h-full relative">
+        <div
+            className="w-full h-full relative"
+            data-avatar-framing={framingPhase}
+            data-avatar-framing-info={isThumbnail && framingInfo ? JSON.stringify(framingInfo) : undefined}
+        >
             <Canvas camera={{position: [0, targetY, cameraZ], fov: 45}} dpr={[1, 1.5]}
                     className="z-10 relative">
                 <AvatarFrameloopController active={isEffectiveActive}/>
@@ -731,20 +878,32 @@ export default function AvatarCanvas({
                 <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                 <directionalLight position={[-10, 10, -10]} intensity={1}/>
 
+                {isThumbnail && (
+                    <ThumbnailFramingController
+                        groupRef={avatarGroupRef}
+                        ready={isAvatarReady}
+                        signature={framingSignature}
+                        onApplied={handleFramingApplied}
+                    />
+                )}
+
                 {/* 🚀 APRÈS : On sépare les Suspense pour éviter le conflit d'état ! */}
                 <Suspense fallback={headOnly ? null : <CanvasLoader/>}>
                     <ModularAvatar
                         config={renderConfig}
                         onAnimationsLoaded={onAnimationsLoaded}
                         onReadinessChange={handleReadinessChange}
+                        groupRef={avatarGroupRef}
                     />
                     <SceneReadyProbe
+                        key={isThumbnail ? framingToken : undefined}
                         kind="avatar"
                         id={instanceId}
                         view={view ?? (headOnly ? 'head' : 'full')}
                         ready={isAvatarReady}
                         active={isEffectiveActive}
                         expectedParts={expectedParts}
+                        onFrameSubmitted={handleFrameSubmitted}
                     />
                     {/* Une seule passe : l'ombre est un halo statique sous l'avatar, la
                         recalculer à chaque frame doublait les draw calls du Canvas. */}
@@ -754,10 +913,11 @@ export default function AvatarCanvas({
                 </Suspense>
 
                 <OrbitControls
+                    makeDefault
                     enabled={!disableZoom || !disablePan}
                     enableZoom={!disableZoom}
                     enablePan={!disablePan}
-                    target={[0, targetY, 0]}
+                    target={controlsTarget}
                     minPolarAngle={Math.PI / 3}
                     maxPolarAngle={Math.PI / 1.7}
                     autoRotate={false}
