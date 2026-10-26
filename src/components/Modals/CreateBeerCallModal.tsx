@@ -34,16 +34,20 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
     const { status, rejectReason, trackingUnavailable, trackingPaused, resumeTracking } = useBeerCallJob(squadId, jobId);
 
     const isTerminal = status === 'succeeded' || status === 'rejected' || status === 'failed';
-    const isSubmitting = submissionPhase !== 'idle' || Boolean(jobId && !isTerminal);
+    // État dérivé : un job terminé n'est plus en cours de soumission, sans setState dans un effet.
+    const phase: SubmissionPhase = isTerminal ? 'idle' : submissionPhase;
+    const isSubmitting = phase !== 'idle' || Boolean(jobId && !isTerminal);
 
-    const [showSlowNotice, setShowSlowNotice] = useState(false);
-    const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+    const [slowNoticeJobId, setSlowNoticeJobId] = useState<string | null>(null);
+    const [checkingJobId, setCheckingJobId] = useState<string | null>(null);
     const checkCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Le drapeau est indexé par job : changer de job masque la notice sans remise à zéro synchrone.
+    const showSlowNotice = Boolean(jobId) && !isTerminal && slowNoticeJobId === jobId;
+    const isCheckingStatus = Boolean(jobId) && !isTerminal && checkingJobId === jobId;
 
     useEffect(() => {
         if (!jobId || isTerminal) {
-            setShowSlowNotice(false);
-            setIsCheckingStatus(false);
             if (checkCooldownTimerRef.current !== null) {
                 clearTimeout(checkCooldownTimerRef.current);
                 checkCooldownTimerRef.current = null;
@@ -52,7 +56,7 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
         }
 
         const timer = window.setTimeout(() => {
-            setShowSlowNotice(true);
+            setSlowNoticeJobId(jobId);
         }, 10000);
 
         return () => {
@@ -71,13 +75,13 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
 
     const handleCheckStatus = () => {
         if (isCheckingStatus || !jobId || isTerminal) return;
-        setIsCheckingStatus(true);
+        setCheckingJobId(jobId);
         resumeTracking();
         if (checkCooldownTimerRef.current !== null) {
             window.clearTimeout(checkCooldownTimerRef.current);
         }
         checkCooldownTimerRef.current = window.setTimeout(() => {
-            setIsCheckingStatus(false);
+            setCheckingJobId(null);
             checkCooldownTimerRef.current = null;
         }, 1000);
     };
@@ -86,7 +90,6 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
         if (!jobId || !isTerminal || handledJob.current === jobId) return;
         handledJob.current = jobId;
         isSubmittingRef.current = false;
-        setSubmissionPhase('idle');
         if (status === 'succeeded') {
             queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
@@ -178,10 +181,10 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
             }
             return 'PHOTO EN ATTENTE DE VÉRIFICATION…';
         }
-        if (submissionPhase === 'preparing') {
+        if (phase === 'preparing') {
             return 'PRÉPARATION DE LA PHOTO…';
         }
-        if (submissionPhase === 'uploading') {
+        if (phase === 'uploading') {
             return 'ENVOI DE LA PHOTO…';
         }
         return 'LANCER L\'APPEL';
