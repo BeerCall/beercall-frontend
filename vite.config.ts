@@ -11,6 +11,7 @@ export default defineConfig({
             strategies: 'injectManifest',
             srcDir: 'src',
             filename: 'firebase-messaging-sw.js',
+            manifestFilename: 'manifest.webmanifest',
             registerType: 'autoUpdate',
             devOptions: {
                 enabled: true,
@@ -19,20 +20,47 @@ export default defineConfig({
             injectManifest: {
                 globIgnores: ['**/node_modules/**/*', '**/animations/**', 'animations/**'],
             },
-            includeAssets: ['favicon.svg', 'apple-touch-icon.svg'],
+            includeAssets: [
+                'favicon.svg',
+                'apple-touch-icon.svg',
+                'apple-touch-icon-180.png',
+                'pwa-192x192.png',
+                'pwa-512x512.png',
+            ],
             manifest: {
                 name: 'BeerCall',
                 short_name: 'BeerCall',
                 description: 'Ne rate plus aucun apéro avec ta Squad !',
-                theme_color: '#f8fafc',
-                background_color: '#f8fafc',
+                start_url: '/',
+                scope: '/',
+                theme_color: '#0F081C',
+                background_color: '#0F081C',
                 display: 'standalone',
                 orientation: 'portrait',
                 icons: [
                     {
-                        src: '/pwa-192x192.svg',
+                        src: '/pwa-192x192.png',
                         sizes: '192x192',
-                        type: 'image/svg'
+                        type: 'image/png',
+                        purpose: 'any'
+                    },
+                    {
+                        src: '/pwa-192x192.png',
+                        sizes: '192x192',
+                        type: 'image/png',
+                        purpose: 'maskable'
+                    },
+                    {
+                        src: '/pwa-512x512.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                        purpose: 'any'
+                    },
+                    {
+                        src: '/pwa-512x512.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                        purpose: 'maskable'
                     }
                 ]
             }
