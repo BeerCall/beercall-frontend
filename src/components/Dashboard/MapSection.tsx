@@ -1,11 +1,12 @@
 import React, { Suspense } from 'react';
 import Map, { Marker, NavigationControl, type MapRef, type MapLayerMouseEvent, type MapLayerTouchEvent } from 'react-map-gl/maplibre';
 import { motion } from 'framer-motion';
-import { User as UserIcon } from 'lucide-react';
+import { User as UserIcon, RefreshCw } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
 import AvatarLoadingIndicator from './AvatarLoadingIndicator';
 import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
 import { QueryClientContext } from '@tanstack/react-query';
+import { useLocationStore } from '../../store/useLocationStore';
 import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
 import SafeAvatar, { preloadAvatarCanvas } from '../3D/SafeAvatar';
 
@@ -51,12 +52,20 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     const mapStyle = isNightMode
         ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
         : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+    const startTracking = useLocationStore(state => state.startTracking);
+    const hasLiveLocation = canCreateFromLocation && userLocation !== null;
 
-    const handleRecenterClick = React.useCallback((e: React.MouseEvent) => {
+    // Avec un fix live, le bouton recentre la carte ; sans fix, il relance
+    // explicitement l'acquisition GPS sans boucle automatique.
+    const handleLocateClick = React.useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        handleManualRecenter();
-    }, [handleManualRecenter]);
+        if (hasLiveLocation) {
+            handleManualRecenter();
+            return;
+        }
+        startTracking();
+    }, [hasLiveLocation, handleManualRecenter, startTracking]);
 
     const handlePlayerClick = React.useCallback(() => {
         openCamera();
@@ -269,19 +278,27 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                 </div>
             )}
 
-            {/* BOUTON RECENTRER */}
+            {/* BOUTON RECENTRER / RELANCER LA LOCALISATION */}
             <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-[20px] z-10">
-                <button onClick={handleRecenterClick}
-                        className="w-[29px] h-[29px] bg-white rounded flex items-center justify-center shadow-[0_0_0_2px_rgba(0,0,0,0.1)] hover:bg-gray-50 active:scale-95 transition-all"
-                        title="Me recentrer">
+                <button onClick={handleLocateClick}
+                        aria-label={hasLiveLocation ? 'Me recentrer' : 'Relancer la localisation'}
+                        aria-describedby={hasLiveLocation ? undefined : 'geoloc-retry-hint'}
+                        title={hasLiveLocation ? 'Me recentrer' : 'Relancer la localisation'}
+                        className={`relative w-[29px] h-[29px] rounded flex items-center justify-center shadow-[0_0_0_2px_rgba(0,0,0,0.1)] active:scale-95 transition-all ${hasLiveLocation ? 'bg-white hover:bg-gray-50' : 'bg-gray-100'}`}>
                     <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
                             strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"
-                            className={userLocation ? "text-gray-700" : "text-gray-300 animate-pulse"}>
+                            className={hasLiveLocation ? 'text-gray-700' : 'text-gray-400'}>
                         <circle cx="12" cy="12" r="10"></circle>
                         <line x1="12" y1="8" x2="12" y2="16"></line>
                         <line x1="8" y1="12" x2="16" y2="12"></line>
                     </svg>
+                    {!hasLiveLocation && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-white flex items-center justify-center shadow-sm">
+                            <RefreshCw size={10} className="text-beer-light" aria-hidden="true"/>
+                        </span>
+                    )}
                 </button>
+                {!hasLiveLocation && <span id="geoloc-retry-hint" className="sr-only">Relance la recherche GPS</span>}
             </div>
 
             <NavigationControl position="top-right" style={{
@@ -345,13 +362,12 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                 </Marker>;
             })}
 
-            {/* MARQUEUR JOUEUR */}
-            {userLocation && (
+            {/* MARQUEUR JOUEUR (uniquement avec un fix GPS live) */}
+            {hasLiveLocation && userLocation && (
                 <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
                         style={{zIndex: 50}}>
                     <div onClick={handlePlayerClick} role="button" tabIndex={0}
-                         aria-disabled={!canCreateFromLocation}
-                         aria-label={canCreateFromLocation ? 'Créer un Beer Call' : 'Position mémorisée — création indisponible'}
+                         aria-label="Créer un Beer Call"
                          onKeyDown={(event) => {
                              if (event.key === 'Enter' || event.key === ' ') {
                                  event.preventDefault();

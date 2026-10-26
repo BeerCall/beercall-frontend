@@ -63,6 +63,7 @@ interface RespondBeerCallModalProps {
     beerCall: BeerCall | null;
     squadId: string;
     location: { lat: number; lng: number } | null;
+    hasLiveLocation: boolean;
 }
 
 type Step = 'dilemma' | 'accepting' | 'declining';
@@ -72,7 +73,8 @@ export default function RespondBeerCallModal({
                                                  onClose,
                                                  beerCall,
                                                  squadId,
-                                                 location
+                                                 location,
+                                                 hasLiveLocation
                                              }: RespondBeerCallModalProps) {
     const queryClient = useQueryClient();
 
@@ -131,6 +133,10 @@ export default function RespondBeerCallModal({
 
     // --- APPEL API : ACCEPTER ---
     const handleAccept = async () => {
+        if (!hasLiveLocation) {
+            toast.error("GPS actuel nécessaire", "Une position GPS actuelle est nécessaire pour accepter.");
+            return;
+        }
         if (!beerCall || !photoFile || !location) {
             toast.error("Erreur GPS", "Localisation introuvable. Vérifie que ton GPS est activé !");
             return;
@@ -220,14 +226,20 @@ export default function RespondBeerCallModal({
                                     </button>
                                     <button
                                         onClick={() => {
+                                            if (!hasLiveLocation) return;
                                             setStep('accepting');
                                             openCamera(); // On ouvre l'appareil photo direct !
                                         }}
-                                        className="flex-1 bg-beer text-white p-4 rounded-[2rem] font-black text-sm uppercase tracking-widest flex flex-col items-center gap-2 shadow-xl shadow-beer/30 hover:scale-105 transition-all"
+                                        disabled={!hasLiveLocation}
+                                        aria-describedby={hasLiveLocation ? undefined : 'respond-gps-hint'}
+                                        className="flex-1 bg-beer text-white p-4 rounded-[2rem] font-black text-sm uppercase tracking-widest flex flex-col items-center gap-2 shadow-xl shadow-beer/30 hover:scale-105 transition-all disabled:opacity-40 disabled:scale-100 disabled:shadow-none disabled:cursor-not-allowed"
                                     >
                                         <Beer size={28}/> J'y Vais !
                                     </button>
                                 </div>
+                                {!hasLiveLocation && (
+                                    <p id="respond-gps-hint" className="sr-only">Une position GPS actuelle est nécessaire pour accepter.</p>
+                                )}
                             </motion.div>
                         )}
 
@@ -284,7 +296,8 @@ export default function RespondBeerCallModal({
                                 )}
 
                                 <button
-                                    onClick={handleAccept} disabled={isSubmitting || !photoFile}
+                                    onClick={handleAccept} disabled={isSubmitting || !photoFile || !hasLiveLocation}
+                                    aria-describedby={hasLiveLocation ? undefined : 'respond-gps-hint'}
                                     className="w-full bg-beer text-white p-5 rounded-[2rem] font-black text-lg shadow-xl shadow-beer/30 flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50"
                                 >
                                     {isSubmitting ? 'SCAN IA EN COURS...' : 'VALIDATION IA'} <Check size={20}/>

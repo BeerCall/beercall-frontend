@@ -75,9 +75,6 @@ export default function Dashboard() {
                                         <Copy size={12} className="opacity-60 group-hover:opacity-100 transition-opacity"/>}
                                 </button>
                             )}
-                            {dashboard.locationMessage && (
-                                <p role="status" className="w-full text-xs leading-[14px] [overflow-wrap:anywhere]">{dashboard.locationMessage}</p>
-                            )}
                         </div>
                     )}
 
@@ -163,7 +160,8 @@ export default function Dashboard() {
                                      dashboard.setStartingScheduledApero(null);
                                   }}/>}
             {routeActive && dashboard.selectedBeerCall && <RespondBeerCallModal isOpen onClose={() => dashboard.setSelectedBeerCall(null)}
-                                  beerCall={dashboard.selectedBeerCall} squadId={dashboard.id || ''} location={dashboard.userLocation}/>}
+                                  beerCall={dashboard.selectedBeerCall} squadId={dashboard.id || ''} location={dashboard.userLocation}
+                                  hasLiveLocation={dashboard.canCreateFromLocation}/>}
             {routeActive && dashboard.isScheduleModalOpen && <ScheduleAperoModal isOpen onClose={() => dashboard.setIsScheduleModalOpen(false)}
                                 squadId={dashboard.id || ''} coordinates={dashboard.scheduleCoordinates}/>}
             {routeActive && !dashboard.isGameScreenOpen && dashboard.isWorldsModalOpen && (

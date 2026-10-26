@@ -61,20 +61,50 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(useToastStore.getState().toasts.at(-1)?.message).not.toContain('Recherche en cours');
     });
 
-    it.each([null, 1234])('conserve le repère du cache et expose son ancienneté (%s)', date => {
-        cache(date);
+    it('sans fix live : aucun joueur, aucun texte GPS mémorisé, cache conservé et création bloquée', () => {
+        cache(1234);
         render(<Dashboard />);
-        act(() => { state().startTracking(); watches[0].error?.(gpsError); });
-        expect(screen.getByText(/Position mémorisée —/)).toHaveTextContent(date === null ? 'ancienneté inconnue' : new Date(date).toLocaleString());
-        const marker = screen.getByRole('button', { name: 'Position mémorisée — création indisponible' });
-        expect(marker).toHaveAttribute('aria-disabled', 'true');
+        act(() => { watches.at(-1)!.error?.(gpsError); });
+
+        expect(screen.queryByText(/Position mémorisée —/)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Position mémorisée/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Relancer la localisation' })).toBeInTheDocument();
+        expect(state().userLocation).toEqual({ lat: 40, lng: 3 });
+        expect(state().hasSessionFix).toBe(false);
+
         const input = screen.getByLabelText('Photo du Beer Call');
         const click = vi.spyOn(input, 'click').mockImplementation(() => {});
-        fireEvent.click(marker);
-        fireEvent.keyDown(marker, { key: 'Enter' });
-        fireEvent.keyDown(marker, { key: ' ' });
         expect(click).not.toHaveBeenCalled();
-        expect(state().userLocation).toEqual({ lat: 40, lng: 3 });
+    });
+
+    it('affiche le joueur et recentre seulement avec un fix live', () => {
+        cache(1234);
+        render(<Dashboard />);
+        expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+
+        act(() => watches.at(-1)!.success(position(4000, 48, 2)));
+
+        expect(screen.getByRole('button', { name: 'Créer un Beer Call' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Me recentrer' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Relancer la localisation' })).not.toBeInTheDocument();
+
+        // Avec un fix, le bouton recentre : aucune nouvelle acquisition.
+        const before = watches.length;
+        fireEvent.click(screen.getByRole('button', { name: 'Me recentrer' }));
+        expect(watches).toHaveLength(before);
+        expect(state().hasSessionFix).toBe(true);
+    });
+
+    it('le bouton geoloc relance une acquisition GPS quand aucun fix live n existe', () => {
+        render(<Dashboard />);
+        act(() => watches.at(-1)!.error?.(gpsError));
+        const before = watches.length;
+
+        fireEvent.click(screen.getByRole('button', { name: 'Relancer la localisation' }));
+
+        expect(watches).toHaveLength(before + 1);
+        expect(state()).toMatchObject({ isTracking: true, locationStatus: 'searching', hasSessionFix: false });
     });
 
     it('retry invalide le suivi puis un nouveau watch réactive la création', () => {

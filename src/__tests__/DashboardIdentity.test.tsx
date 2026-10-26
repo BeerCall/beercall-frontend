@@ -147,11 +147,13 @@ describe('DashboardIdentity (T25b)', () => {
         expect(actions.refetchSquad).toHaveBeenCalledTimes(1);
     });
 
-    it('n affiche plus le bouton textuel Réessayer le GPS', () => {
+    it('n affiche aucun texte ni bouton GPS dans le badge haut', () => {
         vi.mocked(useDashboard).mockReturnValue(baseDashboard({locationMessage: 'Position GPS indisponible'}) as never);
         render(<Dashboard/>);
 
-        expect(screen.getByText('Position GPS indisponible')).toBeInTheDocument();
-        expect(screen.queryByText('Réessayer le GPS')).not.toBeInTheDocument();
+        const identity = document.querySelector('[data-dashboard-identity]') as HTMLElement;
+        expect(identity).not.toHaveTextContent('Position GPS indisponible');
+        expect(identity).not.toHaveTextContent('Réessayer le GPS');
+        expect(screen.queryByText('Position GPS indisponible')).not.toBeInTheDocument();
     });
 });

@@ -109,7 +109,7 @@ describe('BeerCall Modals', () => {
         
         vi.mocked(api.post).mockResolvedValueOnce({ data: { success: true } });
         
-        render(<RespondBeerCallModal isOpen={true} onClose={onClose} beerCall={beerCall} squadId="sq-1" location={location} />);
+        render(<RespondBeerCallModal isOpen={true} onClose={onClose} beerCall={beerCall} squadId="sq-1" location={location} hasLiveLocation />);
         
         // 1. Click J'y Vais
         const acceptBtn = screen.getByRole('button', { name: /J'y Vais !/i });
@@ -135,6 +135,23 @@ describe('BeerCall Modals', () => {
         const formData = vi.mocked(api.post).mock.calls[0][1] as FormData;
         expect(formData.get('lat')).toBe('48.8');
         await waitFor(() => expect(onClose).toHaveBeenCalled());
+    });
+
+    it('RespondBeerCallModal: sans fix live, J y vais et la validation sont inactifs, Je Passe reste actif', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const beerCall = { id: 'call-1', location_name: 'Le Central', creator_name: 'Creator' };
+
+        render(<RespondBeerCallModal isOpen onClose={vi.fn()} beerCall={beerCall} squadId="sq-1"
+                                     location={{ lat: 48.8, lng: 2.3 }} hasLiveLocation={false} />);
+
+        const accept = screen.getByRole('button', { name: /J'y Vais !/i });
+        expect(accept).toBeDisabled();
+        expect(accept).toHaveAccessibleDescription('Une position GPS actuelle est nécessaire pour accepter.');
+        await user.click(accept);
+        expect(screen.queryByText(/Prouve-le !/i)).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /Je Passe/i }));
+        expect(await screen.findByText(/L'Esquive/i)).toBeInTheDocument();
     });
 
     it('ScheduleAperoModal: submit coordinates', async () => {
@@ -257,7 +274,7 @@ describe('BeerCall Modals', () => {
         
         vi.mocked(api.post).mockRejectedValueOnce(new Error('Rejected'));
         
-        render(<RespondBeerCallModal isOpen={true} onClose={onClose} beerCall={beerCall} squadId="sq-1" location={{ lat: 0, lng: 0 }} />);
+        render(<RespondBeerCallModal isOpen={true} onClose={onClose} beerCall={beerCall} squadId="sq-1" location={{ lat: 0, lng: 0 }} hasLiveLocation />);
         
         await user.click(screen.getByRole('button', { name: /J'y Vais !/i }));
         await screen.findByText(/Prouve-le !/i);
