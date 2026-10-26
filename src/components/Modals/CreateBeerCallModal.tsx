@@ -7,7 +7,7 @@ import {api} from '../../lib/api';
 import {toast} from '../../store/useToastStore';
 import type {BeerCall} from '../../types/dashboard';
 import {useBeerCallJob} from '../../hooks/useBeerCallJob';
-import {processBeerCallImage} from '../../lib/processBeerCallImage';
+import {processBeerCallImage, ImagePreparationError} from '../../lib/processBeerCallImage';
 
 interface CreateBeerCallModalProps {
     squadId: string;
@@ -100,9 +100,13 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
                 onClose();
             }
         } catch (err) {
-            const axiosError = err as { response?: { data?: { detail?: string } } };
-            const errorMessage = axiosError.response?.data?.detail || "Erreur serveur inattendue";
-            toast.error("Erreur 🚨", errorMessage);
+            if (err instanceof ImagePreparationError) {
+                toast.error("Erreur 🚨", err.message);
+            } else {
+                const axiosError = err as { response?: { data?: { detail?: string } } };
+                const errorMessage = axiosError.response?.data?.detail || "Erreur serveur inattendue";
+                toast.error("Erreur 🚨", errorMessage);
+            }
         } finally {
             setIsSubmitting(false);
         }

@@ -6,6 +6,7 @@ import CreateBeerCallModal from '../components/Modals/CreateBeerCallModal';
 import RespondBeerCallModal from '../components/Modals/RespondBeerCallModal';
 import ScheduleAperoModal from '../components/Modals/ScheduleAperoModal';
 import { api } from '../lib/api';
+import { toast } from '../store/useToastStore';
 
 vi.mock('../lib/api', () => ({
     api: {
@@ -190,6 +191,61 @@ describe('BeerCall Modals', () => {
         await vi.runAllTimersAsync();
         await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
         expect(vi.mocked(api.post).mock.calls[1][2]?.headers?.['Idempotency-Key']).toBe(firstKey);
+    });
+
+    it('CreateBeerCallModal: affiche le message sûr sur ImagePreparationError, n appelle pas POST, et réactive le bouton pour réessai', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const onClose = vi.fn();
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        const location = { lat: 48.8566, lng: 2.3522 };
+
+        const toastErrorSpy = vi.spyOn(toast, 'error');
+        
+        const savedFileReader = global.FileReader;
+        let shouldFail = true;
+        global.FileReader = class {
+            onload: ((e: { target: { result: string } }) => void) | null = null;
+            onerror: ((e: unknown) => void) | null = null;
+            onabort: ((e: unknown) => void) | null = null;
+            readAsDataURL() {
+                setTimeout(() => {
+                    if (shouldFail) {
+                        if (this.onerror) this.onerror(new Error('Corrupt file'));
+                    } else {
+                        if (this.onload) this.onload({ target: { result: 'data:image/jpeg;base64,ok' } });
+                    }
+                }, 10);
+            }
+            abort() {}
+        } as unknown as typeof FileReader;
+
+        render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
+        
+        const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
+        const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
+        
+        await user.type(locationInput, 'Mon super bar');
+        expect(submitBtn).not.toBeDisabled();
+        
+        await user.click(submitBtn);
+        await vi.runAllTimersAsync();
+        
+        expect(toastErrorSpy).toHaveBeenCalledWith("Erreur 🚨", "Préparation de la photo impossible. Réessaie avec une autre photo.");
+        expect(api.post).not.toHaveBeenCalled();
+        await waitFor(() => {
+            expect(submitBtn).not.toBeDisabled();
+        });
+
+        shouldFail = false;
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { id: 'call-retry' } });
+        await user.click(submitBtn);
+        await vi.runAllTimersAsync();
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledTimes(1);
+        });
+
+        global.FileReader = savedFileReader;
     });
 
     it('RespondBeerCallModal: accept and submit photo, handles error', async () => {
