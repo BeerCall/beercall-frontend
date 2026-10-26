@@ -7,10 +7,12 @@ import RespondBeerCallModal from '../components/Modals/RespondBeerCallModal';
 import ScheduleAperoModal from '../components/Modals/ScheduleAperoModal';
 import { api } from '../lib/api';
 import { toast } from '../store/useToastStore';
+import type { BeerCall } from '../types/dashboard';
 
 vi.mock('../lib/api', () => ({
     api: {
         post: vi.fn(),
+        get: vi.fn(),
     }
 }));
 
@@ -295,5 +297,109 @@ describe('BeerCall Modals', () => {
             expect(submitBtn).not.toBeDisabled();
         });
         expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('CreateBeerCallModal: affiche la succession réelle des libellés (PRÉPARATION -> ENVOI -> EN ATTENTE -> VÉRIFICATION)', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const onClose = vi.fn();
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        const location = { lat: 48.8566, lng: 2.3522 };
+
+        let resolvePost!: (value: { data: { job_id: string } }) => void;
+        vi.mocked(api.post).mockImplementationOnce(() => new Promise((resolve) => {
+            resolvePost = resolve;
+        }));
+
+        let resolveJobGet!: (value: { data: { id: string; status: string } }) => void;
+        vi.mocked(api.get).mockImplementationOnce(() => new Promise((resolve) => {
+            resolveJobGet = resolve;
+        }));
+
+        render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
+
+        const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
+        const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
+        await user.type(locationInput, 'Mon super bar');
+        expect(submitBtn).not.toBeDisabled();
+
+        // 1. Déclenchement de la soumission : passe immédiatement en phase "preparing"
+        await user.click(submitBtn);
+        expect(screen.getByRole('button', { name: 'PRÉPARATION DE LA PHOTO…' })).toBeDisabled();
+
+        // 2. Fin de la préparation photo : FileReader / Canvas se terminent, passe en phase "uploading"
+        await vi.advanceTimersByTimeAsync(30);
+        expect(await screen.findByRole('button', { name: 'ENVOI DE LA PHOTO…' })).toBeDisabled();
+
+        // 3. Réponse 202 du backend avec job_id : passe en phase de suivi du job ("pending")
+        resolvePost({ data: { job_id: 'job-stage-test' } });
+        expect(await screen.findByRole('button', { name: 'PHOTO EN ATTENTE DE VÉRIFICATION…' })).toBeDisabled();
+
+        // 4. Job passe en cours de traitement ("running")
+        await waitFor(() => expect(api.get).toHaveBeenCalled());
+        resolveJobGet({ data: { id: 'job-stage-test', status: 'running' } });
+        expect(await screen.findByRole('button', { name: 'VÉRIFICATION DE LA PHOTO…' })).toBeDisabled();
+    });
+
+    it('CreateBeerCallModal: deux clics synchrones avant re-render n émettent qu un seul POST (verrou isSubmittingRef)', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const onClose = vi.fn();
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        const location = { lat: 48.8566, lng: 2.3522 };
+
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { id: 'call-1' } });
+
+        render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
+
+        const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
+        const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
+
+        await user.type(locationInput, 'Mon super bar');
+        expect(submitBtn).not.toBeDisabled();
+
+        // Deux clics synchrones consécutifs (par exemple double tap ou appui très rapide)
+        fireEvent.click(submitBtn);
+        fireEvent.click(submitBtn);
+
+        await vi.runAllTimersAsync();
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledTimes(1);
+        });
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('CreateBeerCallModal: apéro programmé avec succès immédiat (sans job) ferme la modale sans double appel', async () => {
+        const onClose = vi.fn();
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        const location = { lat: 48.8566, lng: 2.3522 };
+        const scheduledApero = { id: 'sched-42', location_name: 'Bar Programmé' } as unknown as BeerCall;
+
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { id: 'started-1' } });
+
+        render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={scheduledApero} onClose={onClose} />);
+
+        const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
+        expect(submitBtn).not.toBeDisabled();
+
+        // Double appui synchrone
+        fireEvent.click(submitBtn);
+        fireEvent.click(submitBtn);
+
+        await vi.runAllTimersAsync();
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledTimes(1);
+        });
+        expect(vi.mocked(api.post)).toHaveBeenCalledWith(
+            '/squads/sq-1/beer-calls/sched-42/start/',
+            expect.any(FormData),
+            expect.objectContaining({
+                headers: expect.objectContaining({
+                    'Content-Type': 'multipart/form-data',
+                    'Idempotency-Key': expect.any(String),
+                }),
+            })
+        );
+        expect(onClose).toHaveBeenCalledTimes(1);
     });
 });

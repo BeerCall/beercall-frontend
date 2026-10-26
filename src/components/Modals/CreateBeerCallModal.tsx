@@ -9,6 +9,8 @@ import type {BeerCall} from '../../types/dashboard';
 import {useBeerCallJob} from '../../hooks/useBeerCallJob';
 import {processBeerCallImage, ImagePreparationError} from '../../lib/processBeerCallImage';
 
+type SubmissionPhase = 'idle' | 'preparing' | 'uploading';
+
 interface CreateBeerCallModalProps {
     squadId: string;
     photoFile: File | null;
@@ -21,7 +23,8 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
     const queryClient = useQueryClient();
     const [draftLocationName, setLocationName] = useState('');
     const locationName = scheduledApero?.location_name || draftLocationName;
-    const [isUploading, setIsSubmitting] = useState(false);
+    const [submissionPhase, setSubmissionPhase] = useState<SubmissionPhase>('idle');
+    const isSubmittingRef = useRef(false);
     const [preview, setPreview] = useState<{file: File; url: string} | null>(null);
     const previewUrl = preview?.file === photoFile ? preview.url : null;
     const [jobId, setJobId] = useState<string | null>(null);
@@ -31,11 +34,13 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
     const { status, rejectReason, trackingUnavailable, trackingPaused, resumeTracking } = useBeerCallJob(squadId, jobId);
 
     const isTerminal = status === 'succeeded' || status === 'rejected' || status === 'failed';
-    const isSubmitting = isUploading || Boolean(jobId && !isTerminal);
+    const isSubmitting = submissionPhase !== 'idle' || Boolean(jobId && !isTerminal);
 
     useEffect(() => {
         if (!jobId || !isTerminal || handledJob.current === jobId) return;
         handledJob.current = jobId;
+        isSubmittingRef.current = false;
+        setSubmissionPhase('idle');
         if (status === 'succeeded') {
             queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
@@ -58,8 +63,9 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
     }, [photoFile]);
 
     const handleSubmit = async () => {
-        if (!photoFile || !location || !locationName.trim()) return;
-        setIsSubmitting(true);
+        if (isSubmittingRef.current || Boolean(jobId && !isTerminal) || !photoFile || !location || !locationName.trim()) return;
+        isSubmittingRef.current = true;
+        setSubmissionPhase('preparing');
         const requestKey = isTerminal ? crypto.randomUUID() : idempotencyKey;
         if (isTerminal) {
             setIdempotencyKey(requestKey);
@@ -68,6 +74,8 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
 
         try {
             const fixedPhoto = await processBeerCallImage(photoFile);
+
+            setSubmissionPhase('uploading');
 
             const formData = new FormData();
             formData.append('file', fixedPhoto);
@@ -95,11 +103,16 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
 
             if (res.data?.job_id) {
                 setJobId(res.data.job_id);
+                setSubmissionPhase('idle');
             } else {
+                isSubmittingRef.current = false;
+                setSubmissionPhase('idle');
                 queryClient.invalidateQueries({queryKey: ['squad', squadId]});
                 onClose();
             }
         } catch (err) {
+            isSubmittingRef.current = false;
+            setSubmissionPhase('idle');
             if (err instanceof ImagePreparationError) {
                 toast.error("Erreur 🚨", err.message);
             } else {
@@ -107,12 +120,26 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
                 const errorMessage = axiosError.response?.data?.detail || "Erreur serveur inattendue";
                 toast.error("Erreur 🚨", errorMessage);
             }
-        } finally {
-            setIsSubmitting(false);
         }
     };
 
     const isFormValid = location !== null && locationName.trim().length > 0;
+
+    const getButtonLabel = () => {
+        if (jobId && !isTerminal) {
+            if (status === 'running') {
+                return 'VÉRIFICATION DE LA PHOTO…';
+            }
+            return 'PHOTO EN ATTENTE DE VÉRIFICATION…';
+        }
+        if (submissionPhase === 'preparing') {
+            return 'PRÉPARATION DE LA PHOTO…';
+        }
+        if (submissionPhase === 'uploading') {
+            return 'ENVOI DE LA PHOTO…';
+        }
+        return 'LANCER L\'APPEL';
+    };
 
     return (
         <AnimatePresence>
@@ -176,7 +203,7 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
                                 disabled={isSubmitting || !isFormValid}
                                 className="w-full bg-beer text-white p-6 rounded-[2.5rem] font-black text-xl shadow-xl shadow-beer/30 flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                             >
-                                {isSubmitting ? 'ANALYSE IA EN COURS...' : 'LANCER L\'APPEL'} <Send size={24}/>
+                                {getButtonLabel()} <Send size={24}/>
                             </button>
                         </div>
                     </motion.div>
