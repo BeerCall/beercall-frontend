@@ -35,7 +35,9 @@ const AvatarThumbnail = ({id, config, username}: { id: string; config: AvatarCon
         <div ref={ref} className="w-full h-full relative" data-testid={`avatar-thumb-${id}`}>
             {isGranted ? (
                 <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
-                    <SafeAvatar config={config} disableZoom={true} disablePan={true}/>
+                    <SafeAvatar config={config} disableZoom={true} disablePan={true}
+                                framing="thumbnail" view="connections-thumbnail"
+                                instanceId={`connections-${id}`}/>
                 </Suspense>
             ) : (
                 // Miniature non admise au budget ou hors écran : placeholder stable et accessible
@@ -97,11 +99,11 @@ export default function Connections() {
                                 animate={{opacity: 1, x: 0}}
                                 transition={{delay: index * 0.1}}
                                 onClick={() => navigate(`/profile/${user.id}`)}
-                                className="bg-white rounded-[2.5rem] p-4 shadow-xl shadow-gray-200/50 border-2 border-transparent hover:border-beer transition-all group cursor-pointer flex items-center gap-4 h-48"
+                                className="bg-white rounded-[2.5rem] p-3 min-[400px]:p-4 shadow-xl shadow-gray-200/50 border-2 border-transparent hover:border-beer transition-all group cursor-pointer flex items-center gap-2 min-[400px]:gap-4 h-48"
                             >
                                 {/* MINIATURE AVATAR 3D */}
                                 <div
-                                    className="w-32 h-40 shrink-0 bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
+                                    className="w-24 h-32 min-[400px]:w-32 min-[400px]:h-40 shrink-0 bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
 
                                     <AvatarThumbnail id={user.id} config={user.avatar} username={user.username}/>
 
@@ -120,7 +122,7 @@ export default function Connections() {
                                     {user.username}
                                 </h3>
 
-                                <div className="flex items-center gap-2.5 mt-1">
+                                <div className="flex items-center gap-2.5 mt-1 flex-wrap">
                                     <div
                                         className="flex items-center gap-1.5 bg-gradient-to-br from-amber-100 to-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/50 shadow-sm shrink-0">
                                         <Trophy size={14} className="text-amber-500 drop-shadow-sm"/>
@@ -140,7 +142,7 @@ export default function Connections() {
                             {/* BOUTON ACTION */}
                             {/* 🚀 J'ai retiré la div pr-4 inutile et mis le shrink-0 pour garantir qu'il ne s'écrase jamais */}
                             <div
-                                className="w-12 h-12 shrink-0 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 group-hover:bg-beer group-hover:text-white transition-all shadow-inner group-hover:shadow-beer/30">
+                                className="w-11 h-11 min-[400px]:w-12 min-[400px]:h-12 shrink-0 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 group-hover:bg-beer group-hover:text-white transition-all shadow-inner group-hover:shadow-beer/30">
                                 <ArrowRight size={20}/>
                             </div>
                         </motion.div>
