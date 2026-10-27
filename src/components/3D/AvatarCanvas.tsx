@@ -383,15 +383,22 @@ function AvatarPart({
     const unmountCbRef = useRef(onPartUnmount);
     useEffect(() => { unmountCbRef.current = onPartUnmount; }, [onPartUnmount]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         let isActionPlaying = false;
         if (currentAnim && actions[currentAnim]) {
             const action = actions[currentAnim];
             if (lastAnimRef.current !== currentAnim || lastActionRef.current !== action || !action.isRunning()) {
-                if (lastActionRef.current && lastActionRef.current !== action) {
+                const hasPreviousAction = Boolean(lastActionRef.current && lastActionRef.current !== action);
+                if (hasPreviousAction && lastActionRef.current) {
                     lastActionRef.current.fadeOut(0.2);
+                    action.reset().fadeIn(0.2).play();
+                } else {
+                    action.reset().play();
                 }
-                action.reset().fadeIn(0.2).play();
+                const mixer = typeof action.getMixer === 'function' ? action.getMixer() : null;
+                if (mixer && typeof mixer.update === 'function') {
+                    mixer.update(0);
+                }
                 lastAnimRef.current = currentAnim;
                 lastActionRef.current = action;
             }
@@ -500,7 +507,7 @@ export function ModularAvatar({
         retry,
     } = useAvatarAnimations(targetAnimation);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         onActiveClipChange?.(activeClip ?? null);
     }, [activeClip, onActiveClipChange]);
 
@@ -725,6 +732,7 @@ function ThumbnailFramingController({groupRef, ready, signature, clip, allowNonI
     const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
     const size = useThree((state) => state.size);
     const invalidate = useThree((state) => state.invalidate);
+    const controls = useThree((state) => state.controls) as { target?: THREE.Vector3; update?: () => void } | null;
 
     // Cache de l'enveloppe mesurée pour réutilisation immédiate au resize sans recalcul
     const cachedEnvelopeRef = useRef<{
@@ -733,7 +741,7 @@ function ThumbnailFramingController({groupRef, ready, signature, clip, allowNonI
         envelope: ThumbnailIdleEnvelopeReady;
     } | null>(null);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!ready) return;
         const group = groupRef.current;
         if (!group || typeof group.updateMatrixWorld !== 'function') return;
@@ -850,6 +858,12 @@ function ThumbnailFramingController({groupRef, ready, signature, clip, allowNonI
         restoreCameraClip(camera, framing.near, framing.far);
         camera.updateMatrixWorld(true);
         camera.updateProjectionMatrix();
+        if (controls?.target && typeof controls.target.set === 'function') {
+            controls.target.set(framing.center[0], framing.center[1], framing.center[2]);
+            if (typeof controls.update === 'function') {
+                controls.update();
+            }
+        }
         if (typeof invalidate === 'function') invalidate();
 
         // 5. Calcul des coins projetés et validation des matrices
@@ -904,7 +918,7 @@ function ThumbnailFramingController({groupRef, ready, signature, clip, allowNonI
             meshCount,
             status: 'ready',
         }, signature);
-    }, [ready, signature, clip, allowNonIdleClip, size.width, size.height, camera, groupRef, invalidate, onApplied]);
+    }, [ready, signature, clip, allowNonIdleClip, size.width, size.height, camera, controls, groupRef, invalidate, onApplied]);
 
     return null;
 }
@@ -1113,7 +1127,7 @@ export default function AvatarCanvas({
         >
             <Canvas camera={{position: [0, targetY, cameraZ], fov: 45}} dpr={[1, 1.5]}
                     events={isThumbnail ? noopEventManager : undefined}
-                    className="z-10 relative">
+                    className={`z-10 relative ${isAutoFramed && !framingInfo ? 'opacity-0' : 'opacity-100'}`}>
                 <AvatarFrameloopController active={isEffectiveActive}/>
                 <ambientLight intensity={1.5}/>
                 <directionalLight position={[10, 10, 10]} intensity={2.5}/>
@@ -1156,17 +1170,19 @@ export default function AvatarCanvas({
                                                   frames={1} color="#000000"/>}
                 </Suspense>
 
-                <OrbitControls
-                    makeDefault
-                    enabled={!disableZoom || !disablePan}
-                    enableZoom={!disableZoom}
-                    enablePan={!disablePan}
-                    target={controlsTarget}
-                    minPolarAngle={Math.PI / 3}
-                    maxPolarAngle={Math.PI / 1.7}
-                    autoRotate={false}
-                    autoRotateSpeed={1.5}
-                />
+                {!isThumbnail && (
+                    <OrbitControls
+                        makeDefault
+                        enabled={!disableZoom || !disablePan}
+                        enableZoom={!disableZoom}
+                        enablePan={!disablePan}
+                        target={controlsTarget}
+                        minPolarAngle={Math.PI / 3}
+                        maxPolarAngle={Math.PI / 1.7}
+                        autoRotate={false}
+                        autoRotateSpeed={1.5}
+                    />
+                )}
             </Canvas>
         </div>
     );

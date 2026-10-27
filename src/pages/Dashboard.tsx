@@ -44,22 +44,23 @@ export default function Dashboard() {
             {/* 🌍 2. LE RESTE DU DASHBOARD (Carte, timeline, modals...) */}
             <div className={`w-full h-full relative ${dashboard.isGameScreenOpen ? 'hidden' : ''}`}>
                 {/* PILE HAUTE : identité d'abord, bannière push ensuite, jamais superposées */}
-                <div className="absolute top-[calc(8px+env(safe-area-inset-top))] left-4 right-20 z-50 flex flex-col items-start gap-2 pointer-events-none">
+                <div className="absolute top-[calc(8px+env(safe-area-inset-top))] inset-x-0 px-4 z-50 flex flex-col items-center gap-2 pointer-events-none">
                     {dashboard.id && (
                         <div data-dashboard-identity
-                             className={`pointer-events-auto w-fit max-w-[calc(100vw_-_96px)] px-4 py-2.5 rounded-[1.75rem] shadow-xl border-2 flex flex-col items-center text-center gap-1.5 transition-all ${dashboard.isNightMode ? 'bg-[#0F081C] text-beer-light' : 'bg-white text-gray-900'}`}
+                             className="pointer-events-auto w-fit max-w-[calc(100vw_-_32px)] bg-white text-gray-900 px-8 py-3 rounded-[2rem] shadow-xl border-2 flex flex-col items-center text-center gap-2 transition-all"
                              style={{borderColor: dashboard.squadDetails?.color ? `${dashboard.squadDetails.color}40` : 'rgba(217, 119, 6, 0.25)'}}>
                             <div className="w-full min-w-0">
                                 {dashboard.squadDetails && (
-                                    <h2 className="min-w-0 line-clamp-2 break-words font-black tracking-widest uppercase italic text-xl leading-tight">
+                                    <h2 className="min-w-0 line-clamp-2 break-words font-black tracking-widest uppercase italic text-xl leading-none"
+                                        style={{color: dashboard.squadDetails?.color || '#D97706'}}>
                                         {dashboard.squadDetails.name}
                                     </h2>
                                 )}
                                 {!dashboard.squadDetails && dashboard.isSquadPending && (
-                                    <p role="status" className="text-sm font-bold">Chargement de la squad…</p>
+                                    <p role="status" className="text-sm font-bold text-gray-900">Chargement de la squad…</p>
                                 )}
                                 {dashboard.isSquadError && (
-                                    <div role="alert" className="max-w-[calc(100vw_-_96px)] text-xs text-center">
+                                    <div role="alert" className="max-w-[calc(100vw_-_80px)] text-xs text-gray-900 text-center">
                                         <p>{dashboard.squadDetails ? 'Actualisation impossible — dernières données affichées' : squadErrorMessage}</p>
                                         <button onClick={() => dashboard.refetchSquad()} className="mt-1 min-h-11 underline font-bold">Réessayer</button>
                                     </div>
@@ -68,13 +69,12 @@ export default function Dashboard() {
                             {dashboard.squadDetails?.invite_code && (
                                 <button onClick={dashboard.handleCopyCode}
                                         aria-label={dashboard.squadDetails.invite_code}
-                                        className={`shrink-0 min-h-11 flex items-center justify-center gap-2 px-3.5 rounded-full border shadow-sm transition-all group active:scale-95 ${dashboard.isNightMode ? 'bg-[#0F081C] hover:border-beer-light/60' : 'bg-white hover:border-amber-500/60'}`}
-                                        style={{borderColor: dashboard.squadDetails?.color ? `${dashboard.squadDetails.color}55` : 'rgba(217, 119, 6, 0.35)'}}
+                                        className="shrink-0 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 px-4 py-1.5 rounded-full transition-all group active:scale-95"
                                         title="Copier le code">
                                     <Key size={12} style={{color: dashboard.squadDetails?.color || '#D97706'}}/>
-                                    <span className="font-black tracking-[0.25em] text-xs pt-[2px]">{dashboard.squadDetails.invite_code}</span>
+                                    <span className="font-black tracking-[0.25em] text-gray-700 text-xs pt-[2px]">{dashboard.squadDetails.invite_code}</span>
                                     {dashboard.copied ? <Check size={14} className="text-green-500 animate-in zoom-in duration-300"/> :
-                                        <Copy size={12} style={{color: dashboard.squadDetails?.color || '#D97706'}} className="opacity-70 group-hover:opacity-100 transition-opacity"/>}
+                                        <Copy size={12} className="text-gray-400 group-hover:text-gray-700 transition-colors"/>}
                                 </button>
                             )}
                         </div>
@@ -82,7 +82,7 @@ export default function Dashboard() {
 
                     {dashboard.showPushBanner && (
                         <div data-push-banner
-                             className="pointer-events-auto w-full max-w-[calc(100vw_-_96px)] bg-gray-900 text-white p-3 rounded-2xl flex flex-wrap items-center justify-between gap-2 shadow-xl">
+                             className="pointer-events-auto self-start w-full max-w-[calc(100vw_-_96px)] bg-gray-900 text-white p-3 rounded-2xl flex flex-wrap items-center justify-between gap-2 shadow-xl">
                             <div className="flex items-center gap-2 min-w-0 flex-1">
                                 <div className="w-9 h-9 shrink-0 bg-beer rounded-full flex items-center justify-center">
                                     <BellRing size={18} className="text-white"/>

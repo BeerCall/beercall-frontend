@@ -76,8 +76,9 @@ describe('DashboardIdentity (T25b)', () => {
         const name = screen.getByRole('heading', {name: 'Les Amis du Bar'});
         const codeButton = screen.getByRole('button', {name: 'BLE-2026-XYZ'});
         expect(name).toBeInTheDocument();
+        expect(name).toHaveStyle({color: '#F59E0B'});
         expect(codeButton).toBeInTheDocument();
-        expect(codeButton).toHaveClass('min-h-11');
+        expect(codeButton).toHaveClass('bg-gray-100', 'rounded-full');
         expect(codeButton).toHaveAttribute('title', 'Copier le code');
         expect(codeButton.textContent).toContain('BLE-2026-XYZ');
 
@@ -129,13 +130,13 @@ describe('DashboardIdentity (T25b)', () => {
         expect(document.querySelector('[data-wheel-active]')).toBeNull();
     });
 
-    it('en mode nuit, l identité reste opaque avec la palette de nuit', () => {
+    it('en mode nuit, l identité conserve la charte graphique blanche', () => {
         vi.mocked(useDashboard).mockReturnValue(baseDashboard({isNightMode: true}) as never);
         render(<Dashboard/>);
 
         const identity = document.querySelector('[data-dashboard-identity]') as HTMLElement;
-        expect(identity).toHaveClass('bg-[#0F081C]', 'text-beer-light');
-        expect(identity.className).not.toContain('bg-white');
+        expect(identity).toHaveClass('bg-white', 'text-gray-900', 'rounded-[2rem]');
+        expect(identity.className).not.toContain('bg-[#0F081C]');
     });
 
     it('affiche l erreur d actualisation sans masquer les dernières données', () => {
