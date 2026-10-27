@@ -56,7 +56,7 @@ function MessageBubble({message, isOwn}: { message: ChatMessage, isOwn: boolean 
                             ? 'bg-amber-500 text-white rounded-br-md'
                             : 'bg-white text-gray-900 border border-gray-100 rounded-bl-md'
                     }`}>
-                    <span className="whitespace-pre-wrap break-words">{message.text}</span>
+                    <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.text}</span>
                 </div>
                 <span className="text-[10px] text-gray-400 mt-0.5 px-1">{formatTime(message.timestamp)}</span>
             </div>
@@ -137,7 +137,7 @@ export default function ChatPage() {
                         <MessageCircle size={20}/>
                     </div>
                     <div className="min-w-0">
-                        <h1 className="text-lg font-black text-gray-900 uppercase italic tracking-tighter leading-none truncate">
+                        <h1 className="text-lg font-black text-gray-900 uppercase italic tracking-tighter leading-none truncate break-all">
                             {beerCall ? beerCall.location_name || 'Chat Apéro' : (squad?.name || 'Chat Squad')}
                         </h1>
                         <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mt-0.5 truncate">

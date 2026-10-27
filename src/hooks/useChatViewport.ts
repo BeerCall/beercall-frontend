@@ -30,7 +30,16 @@ function layoutRectOf(element: HTMLElement | null): LayoutRect | null {
     };
 }
 
-function fallbackRect(): ChatViewportRect {
+function fallbackRect(parentRect: LayoutRect | null): ChatViewportRect {
+    if (parentRect) {
+        return {
+            height: Math.max(0, parentRect.height),
+            top: 0,
+            left: 0,
+            width: Math.max(0, parentRect.width),
+            scale: 1,
+        };
+    }
     return {
         height: window.innerHeight,
         top: 0,
@@ -45,7 +54,7 @@ function fallbackRect(): ChatViewportRect {
  * Aucune safe-area n'est ajoutée : le parent la réserve déjà.
  */
 export function useChatViewport(containerRef: RefObject<HTMLElement | null>): ChatViewportRect {
-    const [viewport, setViewport] = useState<ChatViewportRect>(fallbackRect);
+    const [viewport, setViewport] = useState<ChatViewportRect>(() => fallbackRect(null));
     const frameRef = useRef<number | null>(null);
 
     useEffect(() => {
@@ -57,7 +66,7 @@ export function useChatViewport(containerRef: RefObject<HTMLElement | null>): Ch
             const parentRect = layoutRectOf(parent);
 
             if (!visual) {
-                const fallback = fallbackRect();
+                const fallback = fallbackRect(parentRect);
                 setViewport(current => (
                     current.height === fallback.height && current.top === fallback.top &&
                     current.left === fallback.left && current.width === fallback.width && current.scale === fallback.scale
@@ -71,7 +80,7 @@ export function useChatViewport(containerRef: RefObject<HTMLElement | null>): Ch
             const visibleTop = visual.offsetTop;
             const visibleLeft = visual.offsetLeft;
             const visibleBottom = visibleTop + visual.height;
-            const visibleRight = visibleLeft + visual.width;
+            const visibleRight = visual.offsetLeft + visual.width;
 
             const frame: LayoutRect = parentRect ?? {
                 top: window.scrollY,
@@ -100,12 +109,14 @@ export function useChatViewport(containerRef: RefObject<HTMLElement | null>): Ch
                     : next
             ));
 
-            // iOS décale la fenêtre : on la remet à zéro une seule fois par frame,
+            // iOS décale parfois la fenêtre : on la remet à zéro une seule fois par frame,
             // uniquement hors pinch, et jamais si elle est déjà à zéro (pas de boucle).
             const focusedInside = Boolean(containerRef.current?.contains(document.activeElement));
             const noPinch = Math.abs(scale - 1) <= 0.01;
             if (focusedInside && noPinch && (window.scrollX !== 0 || window.scrollY !== 0)) {
                 window.scrollTo({left: 0, top: 0, behavior: 'instant' as ScrollBehavior});
+                // Demander une mesure sur la frame suivante pour stabiliser après remise à zéro
+                schedule();
             }
         };
 
@@ -121,6 +132,10 @@ export function useChatViewport(containerRef: RefObject<HTMLElement | null>): Ch
         window.addEventListener('resize', schedule);
         window.addEventListener('scroll', schedule);
 
+        const container = containerRef.current;
+        container?.addEventListener('focusin', schedule);
+        container?.addEventListener('focusout', schedule);
+
         return () => {
             if (frameRef.current !== null) {
                 window.cancelAnimationFrame(frameRef.current);
@@ -130,6 +145,8 @@ export function useChatViewport(containerRef: RefObject<HTMLElement | null>): Ch
             visual?.removeEventListener('scroll', schedule);
             window.removeEventListener('resize', schedule);
             window.removeEventListener('scroll', schedule);
+            container?.removeEventListener('focusin', schedule);
+            container?.removeEventListener('focusout', schedule);
         };
     }, [containerRef]);
 
