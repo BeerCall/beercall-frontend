@@ -1,7 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import React, { useRef } from 'react';
-import { ThumbnailBudgetProvider, useThumbnailSlot } from '../hooks/useThumbnailBudget';
+import {
+  ThumbnailBudgetProvider,
+  useThumbnailSlot,
+  ThumbnailBudgetActionsContext,
+} from '../hooks/useThumbnailBudget';
 
 // Le recalcul est planifié dans une frame annulable : laisser jsdom exécuter le rAF.
 const flushFrame = async () => {
@@ -375,5 +379,129 @@ describe('useThumbnailBudget Hook & Provider', () => {
     expect(screen.getByTestId('candidate-stab-b')).toHaveAttribute('data-granted', 'true');
     expect(registrations()).toBe(3);
     setSpy.mockRestore();
+  });
+
+  it('l\'objet actions de contexte conserve une identité strictement stable après scroll', async () => {
+    let capturedActions: unknown = null;
+    let renderCount = 0;
+
+    function ActionSpy() {
+      const actions = React.useContext(ThumbnailBudgetActionsContext);
+      React.useEffect(() => {
+        renderCount += 1;
+        capturedActions = actions;
+      });
+      return null;
+    }
+
+    function Harness() {
+      const containerRef = useRef<HTMLDivElement>(null);
+      React.useLayoutEffect(() => {
+        if (containerRef.current) {
+          containerRef.current.getBoundingClientRect = () => ({
+            top: 0, bottom: 400, left: 0, right: 300, width: 300, height: 400, x: 0, y: 0, toJSON: () => {},
+          });
+        }
+      }, []);
+      return (
+        <div ref={containerRef} style={{ height: '400px' }}>
+          <ThumbnailBudgetProvider maxSlots={1} containerRef={containerRef}>
+            <ActionSpy />
+            <CandidateItem id="item-1" inView={true} top={50} />
+          </ThumbnailBudgetProvider>
+        </div>
+      );
+    }
+
+    const { container } = render(<Harness />);
+    await flushFrame();
+
+    const firstActions = capturedActions;
+    expect(firstActions).not.toBeNull();
+    const initialRenderCount = renderCount;
+
+    // Défilement du container
+    await act(async () => {
+      container.querySelector('div[style]')?.dispatchEvent(new Event('scroll'));
+    });
+    await flushFrame();
+
+    // L'objet actions est strictement identique (référence stable)
+    expect(capturedActions).toBe(firstActions);
+    // ActionSpy ne s'est pas re-rendu inutilement car le contexte d'actions est distinct du contexte de grants
+    expect(renderCount).toBe(initialRenderCount);
+  });
+
+  it('attribue le slot au candidat le plus central et l\'élément est bien rendu', async () => {
+    function CenteredHarness() {
+      const containerRef = useRef<HTMLDivElement>(null);
+      React.useLayoutEffect(() => {
+        if (containerRef.current) {
+          containerRef.current.getBoundingClientRect = () => ({
+            top: 0, bottom: 600, left: 0, right: 300, width: 300, height: 600, x: 0, y: 0, toJSON: () => {},
+          });
+        }
+      }, []);
+
+      return (
+        <div ref={containerRef} style={{ height: '600px' }}>
+          <ThumbnailBudgetProvider maxSlots={1} containerRef={containerRef}>
+            {/* Centre viewport = 300 */}
+            {/* item-haut: center=50 -> dist=250 */}
+            <CandidateItem id="haut" inView={true} top={0} height={100} />
+            {/* item-exact-centre: top=250, height=100 -> center=300 -> dist=0 */}
+            <CandidateItem id="exact-centre" inView={true} top={250} height={100} />
+            {/* item-bas: top=500 -> center=550 -> dist=250 */}
+            <CandidateItem id="bas" inView={true} top={500} height={100} />
+          </ThumbnailBudgetProvider>
+        </div>
+      );
+    }
+
+    render(<CenteredHarness />);
+    await flushFrame();
+
+    expect(screen.getByTestId('candidate-exact-centre')).toHaveAttribute('data-granted', 'true');
+    expect(screen.getByText('Candidate exact-centre: GRANTED')).toBeInTheDocument();
+    expect(screen.getByTestId('candidate-haut')).toHaveAttribute('data-granted', 'false');
+    expect(screen.getByTestId('candidate-bas')).toHaveAttribute('data-granted', 'false');
+  });
+
+  it('nettoie rigoureusement frames et listeners même sous React.StrictMode', async () => {
+    const cancelSpy = vi.spyOn(window, 'cancelAnimationFrame');
+
+    function StrictHarness() {
+      const containerRef = useRef<HTMLDivElement>(null);
+      React.useLayoutEffect(() => {
+        if (containerRef.current) {
+          containerRef.current.getBoundingClientRect = () => ({
+            top: 0, bottom: 400, left: 0, right: 300, width: 300, height: 400, x: 0, y: 0, toJSON: () => {},
+          });
+        }
+      }, []);
+      return (
+        <React.StrictMode>
+          <div ref={containerRef} style={{ height: '400px' }}>
+            <ThumbnailBudgetProvider maxSlots={2} containerRef={containerRef}>
+              <CandidateItem id="s1" inView={true} top={100} />
+            </ThumbnailBudgetProvider>
+          </div>
+        </React.StrictMode>
+      );
+    }
+
+    // Premier rendu et flush pour vérifier le comportement fonctionnel
+    const { container, unmount } = render(<StrictHarness />);
+    await flushFrame();
+    expect(screen.getByTestId('candidate-s1')).toHaveAttribute('data-granted', 'true');
+
+    // Déclenche un scroll pour armer une frame, puis démonte immédiatement
+    await act(async () => {
+      container.querySelector('div[style]')?.dispatchEvent(new Event('scroll'));
+    });
+    unmount();
+    // Le démontage annule la frame pendante sans lever d'exception
+    expect(cancelSpy).toHaveBeenCalled();
+    cancelSpy.mockRestore();
   });
 });
