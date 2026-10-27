@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, Suspense, useCallback } from 'react';
 import type { AvatarConfig } from '../../types/avatar';
 import { AvatarRenderBoundary } from './AvatarRenderBoundary';
+import { defaultAvatarCanvasLoader, type AvatarCanvasLoader } from './avatarCanvasLoader';
 
 export interface SafeAvatarProps {
   config: AvatarConfig;
@@ -16,24 +17,26 @@ export interface SafeAvatarProps {
   fallback?: React.ReactNode;
   /** `thumbnail` = cadrage local borné (Connexions uniquement) ; défaut inchangé. */
   framing?: 'default' | 'thumbnail';
+  /** Injection optionnelle de loader pour les tests (VER-03) */
+  loader?: AvatarCanvasLoader;
 }
 
-// Lazy import direct d'AvatarCanvas
-const LazyAvatarCanvas = React.lazy(() => import('./AvatarCanvas'));
-
 // Préchargement exposé pour synchronisation test et transition fluide
-export const preloadAvatarCanvas = () => import('./AvatarCanvas');
+export const preloadAvatarCanvas = (loader: AvatarCanvasLoader = defaultAvatarCanvasLoader) =>
+  loader.preload();
 
 export default function SafeAvatar({
   className = 'w-full h-full relative',
   fallback,
   active = true,
+  loader = defaultAvatarCanvasLoader,
   ...avatarProps
 }: SafeAvatarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [contextState, setContextState] = useState<'ok' | 'lost' | 'restoring'>('ok');
   // Remontage manuel volontaire uniquement : une restauration native conserve le même Canvas.
   const [retryKey, setRetryKey] = useState(0);
+  const [, setGeneration] = useState(() => loader.getGeneration());
 
   // Capture des événements de perte/restauration de contexte WebGL
   useEffect(() => {
@@ -62,8 +65,9 @@ export default function SafeAvatar({
 
   const handleManualReset = useCallback(() => {
     setContextState('ok');
+    setGeneration(prevGen => loader.retry(prevGen));
     setRetryKey(k => k + 1);
-  }, []);
+  }, [loader]);
 
   // Le statut « restauration » ne se ferme qu'après une frame réellement soumise.
   const handleFrameSubmitted = useCallback(() => {
@@ -80,12 +84,12 @@ export default function SafeAvatar({
     <div ref={containerRef} className={`relative ${className}`} data-testid="safe-avatar-container">
       <AvatarRenderBoundary onReset={handleManualReset} fallback={fallback}>
         <Suspense fallback={fallback ?? defaultLoadingFallback}>
-          <LazyAvatarCanvas
-            key={retryKey}
-            active={active && contextState !== 'lost'}
-            onFrameSubmitted={handleFrameSubmitted}
-            {...avatarProps}
-          />
+          {React.createElement(loader.getLazyComponent(), {
+            key: retryKey,
+            active: active && contextState !== 'lost',
+            onFrameSubmitted: handleFrameSubmitted,
+            ...avatarProps,
+          })}
         </Suspense>
 
         {contextState === 'lost' && (
