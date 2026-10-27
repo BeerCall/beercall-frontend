@@ -68,6 +68,10 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
     const startTracking = useLocationStore(state => state.startTracking);
     const hasLiveLocation = canCreateFromLocation && userLocation !== null;
+    const [hasHadLiveLocation, setHasHadLiveLocation] = React.useState(hasLiveLocation);
+    // Ne jamais monter le joueur à partir du cache seul. Après un vrai fix,
+    // conserver son Canvas en pause pendant le renouvellement au retour de route.
+    if (hasLiveLocation && !hasHadLiveLocation) setHasHadLiveLocation(true);
 
     // Avec un fix live, le bouton recentre la carte ; sans fix, il relance
     // explicitement l'acquisition GPS sans boucle automatique.
@@ -382,19 +386,22 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                 </Marker>;
             })}
 
-            {/* MARQUEUR JOUEUR (uniquement avec un fix GPS live) */}
-            {hasLiveLocation && userLocation && (
+            {/* Joueur utilisable uniquement sur fix live ; Canvas conservé en pause sinon. */}
+            {hasHadLiveLocation && userLocation && (
                 <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
                         style={{zIndex: 50}}>
-                    <div onClick={handlePlayerClick} role="button" tabIndex={0}
-                         aria-label="Créer un Beer Call"
+                    <div onClick={hasLiveLocation ? handlePlayerClick : undefined}
+                         role={hasLiveLocation ? 'button' : undefined} tabIndex={hasLiveLocation ? 0 : -1}
+                         aria-label={hasLiveLocation ? 'Créer un Beer Call' : undefined}
+                         aria-hidden={!hasLiveLocation} inert={!hasLiveLocation}
                          onKeyDown={(event) => {
+                             if (!hasLiveLocation) return;
                              if (event.key === 'Enter' || event.key === ' ') {
                                  event.preventDefault();
                                  handlePlayerClick();
                              }
                          }}
-                            className="relative flex flex-col items-center cursor-pointer group rounded-full p-2 after:content-[''] after:absolute after:inset-1 after:rounded-full after:animate-soft-pulse after:z-[-1] animate-in fade-in zoom-in-50 duration-500 delay-300 fill-mode-both">
+                            className={`relative flex flex-col items-center cursor-pointer group rounded-full p-2 after:content-[''] after:absolute after:inset-1 after:rounded-full after:animate-soft-pulse after:z-[-1] animate-in fade-in zoom-in-50 duration-500 delay-300 fill-mode-both ${hasLiveLocation ? '' : 'invisible pointer-events-none'}`}>
                         <div
                             className="absolute -top-7 px-3 py-1 bg-white/70 backdrop-blur-sm rounded-full shadow-sm border border-gray-100 transition-opacity opacity-100 group-hover:opacity-100 group-hover:scale-105 group-hover:bg-white group-hover:border-beer pointer-events-none whitespace-nowrap">
                             <span
@@ -405,7 +412,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                                 {profile?.avatar ? (
                                     (hasMapLoaded || Boolean(isMapReady)) ? (
                                         <Suspense fallback={<AvatarLoadingIndicator phase="canvas-suspense"/>}>
-                                            <SafeAvatar config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard" active={active}/>
+                                            <SafeAvatar config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard" active={active && hasLiveLocation}/>
                                         </Suspense>
                                     ) : (
                                         <AvatarLoadingIndicator phase="map-bootstrap"/>

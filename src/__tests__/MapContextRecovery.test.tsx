@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { MapSection } from '../components/Dashboard/MapSection';
 import { mapMockControl } from '../../setupTests';
 import { clearSceneMetrics, getLatestSceneSignal } from '../lib/sceneMetrics';
@@ -296,5 +296,40 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     unmount();
     expect(fakeMap.getListenerCount('webglcontextlost')).toBe(0);
     expect(fakeMap.getListenerCount('webglcontextrestored')).toBe(0);
+  });
+
+  it('conserve le joueur inerte en pause après un vrai fix, sans rendre le cache initial actionnable', () => {
+    const fakeMap = new FakeMapLibreMap();
+    const openCamera = vi.fn();
+    const props: React.ComponentProps<typeof MapSection> = {
+      mapRef: createFakeMapRef(fakeMap), userLocation: { lat: 48.8566, lng: 2.3522 }, isNightMode: false,
+      canCreateFromLocation: false, visible: true, active: true, squadDetails: null, profile: dummyProfile,
+      handleMapPointerDown: vi.fn(), handleMapPointerMove: vi.fn(), cancelLongPress: vi.fn(),
+      handleManualRecenter: vi.fn(), handleBeerCallClick: vi.fn(), openCamera, setIsWorldsModalOpen: vi.fn(),
+    };
+    const { rerender } = render(<MapSection {...props}/>);
+    act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
+    expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('safe-avatar-container')).not.toBeInTheDocument();
+
+    rerender(<MapSection {...props} canCreateFromLocation={true}/>);
+    const player = screen.getByTestId('safe-avatar-container');
+    expect(screen.getByRole('button', { name: 'Créer un Beer Call' })).toBeInTheDocument();
+    rerender(<MapSection {...props} active={false}/>);
+    expect(screen.getByTestId('safe-avatar-container')).toBe(player);
+    expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+    expect(player.closest('[inert]')).not.toBeNull();
+    fireEvent.click(player);
+    expect(openCamera).not.toHaveBeenCalled();
+
+    // Retour actif, mais GPS encore en recherche : le cache ne réactive rien.
+    rerender(<MapSection {...props}/>);
+    expect(screen.getByTestId('safe-avatar-container')).toBe(player);
+    expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+    rerender(<MapSection {...props} canCreateFromLocation={true}/>);
+    expect(screen.getByTestId('safe-avatar-container')).toBe(player);
+    expect(player.closest('[inert]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Créer un Beer Call' }));
+    expect(openCamera).toHaveBeenCalledOnce();
   });
 });
