@@ -72,10 +72,10 @@ describe('MobileShell - Confinement du scroll et barre basse (UX-03)', () => {
     expect(bottomNav.className).toContain('touch-none');
     expect(bottomNav.className).toContain('overscroll-none');
     expect(bottomNav.className).toContain('pointer-events-auto');
-    // T26 : bande bornée 58 px utiles + inset bas appliqué une seule fois.
-    expect(bottomNav.className).toContain('h-[calc(58px_+_env(safe-area-inset-bottom))]');
-    expect(bottomNav.className).toContain('pt-0');
-    expect(bottomNav.className).toContain('pb-[env(safe-area-inset-bottom)]');
+    // T26 : bande basse compacte 64 px sans bande blanche excédentaire sous les boutons.
+    expect(bottomNav.className).toContain('h-[64px]');
+    expect(bottomNav.className).toContain('pt-1');
+    expect(bottomNav.className).toContain('pb-1');
     expect(bottomNav.className).not.toContain('h-[calc(80px_');
     expect(bottomNav.className).not.toContain('pt-4');
     expect(bottomNav.className).not.toContain('pb-[calc(16px_');

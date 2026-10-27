@@ -47,7 +47,7 @@ export default function Dashboard() {
                 <div className="absolute top-[calc(8px+env(safe-area-inset-top))] left-4 right-20 z-50 flex flex-col items-start gap-2 pointer-events-none">
                     {dashboard.id && (
                         <div data-dashboard-identity
-                             className={`pointer-events-auto w-fit max-w-[calc(100vw_-_96px)] px-4 py-2 rounded-[1.75rem] shadow-xl border-2 flex flex-col items-start gap-1 transition-all ${dashboard.isNightMode ? 'bg-[#0F081C] text-beer-light' : 'bg-white text-gray-900'}`}
+                             className={`pointer-events-auto w-fit max-w-[calc(100vw_-_96px)] px-4 py-2.5 rounded-[1.75rem] shadow-xl border-2 flex flex-col items-center text-center gap-1.5 transition-all ${dashboard.isNightMode ? 'bg-[#0F081C] text-beer-light' : 'bg-white text-gray-900'}`}
                              style={{borderColor: dashboard.squadDetails?.color ? `${dashboard.squadDetails.color}40` : 'rgba(217, 119, 6, 0.25)'}}>
                             <div className="w-full min-w-0">
                                 {dashboard.squadDetails && (
@@ -68,11 +68,13 @@ export default function Dashboard() {
                             {dashboard.squadDetails?.invite_code && (
                                 <button onClick={dashboard.handleCopyCode}
                                         aria-label={dashboard.squadDetails.invite_code}
-                                        className="shrink-0 min-h-11 flex items-center gap-2 hover:opacity-80 px-2 -mx-2 rounded-full transition-all group active:scale-95" title="Copier le code">
+                                        className={`shrink-0 min-h-11 flex items-center justify-center gap-2 px-3.5 rounded-full border shadow-sm transition-all group active:scale-95 ${dashboard.isNightMode ? 'bg-[#0F081C] hover:border-beer-light/60' : 'bg-white hover:border-amber-500/60'}`}
+                                        style={{borderColor: dashboard.squadDetails?.color ? `${dashboard.squadDetails.color}55` : 'rgba(217, 119, 6, 0.35)'}}
+                                        title="Copier le code">
                                     <Key size={12} style={{color: dashboard.squadDetails?.color || '#D97706'}}/>
                                     <span className="font-black tracking-[0.25em] text-xs pt-[2px]">{dashboard.squadDetails.invite_code}</span>
                                     {dashboard.copied ? <Check size={14} className="text-green-500 animate-in zoom-in duration-300"/> :
-                                        <Copy size={12} className="opacity-60 group-hover:opacity-100 transition-opacity"/>}
+                                        <Copy size={12} style={{color: dashboard.squadDetails?.color || '#D97706'}} className="opacity-70 group-hover:opacity-100 transition-opacity"/>}
                                 </button>
                             )}
                         </div>
