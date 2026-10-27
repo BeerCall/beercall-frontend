@@ -253,4 +253,48 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     expect(fakeMap.getListenerCount('webglcontextlost')).toBe(0);
     expect(fakeMap.getListenerCount('webglcontextrestored')).toBe(0);
   });
+
+  it('gèle seulement les props natives pendant style null, actualise les enfants et reprend après restored puis idle', () => {
+    const fakeMap = new FakeMapLibreMap();
+    const mapRef = createFakeMapRef(fakeMap);
+    const props: React.ComponentProps<typeof MapSection> = {
+      mapRef, userLocation: { lat: 48.8566, lng: 2.3522 }, isNightMode: false,
+      canCreateFromLocation: false, visible: true, active: true,
+      squadDetails: null, profile: dummyProfile, handleMapPointerDown: vi.fn(),
+      handleMapPointerMove: vi.fn(), cancelLongPress: vi.fn(), handleManualRecenter: vi.fn(),
+      handleBeerCallClick: vi.fn(), openCamera: vi.fn(), setIsWorldsModalOpen: vi.fn(),
+    };
+    const { rerender, unmount } = render(<MapSection {...props}/>);
+    act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
+    const mapNode = screen.getByTestId('mock-map');
+    const initialNativeProps = mapMockControl.latestProps;
+    expect(initialNativeProps?.mapStyle).toContain('positron');
+
+    act(() => { fakeMap.fire('webglcontextlost'); });
+    expect(mapMockControl.latestProps).toBe(initialNativeProps);
+    expect(screen.getByRole('status', { name: 'Statut carte' })).toBeInTheDocument();
+    expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+
+    rerender(<MapSection {...props} isNightMode={true} canCreateFromLocation={true} active={false}/>);
+    expect(mapMockControl.latestProps).toBe(initialNativeProps);
+    expect(screen.getByTestId('mock-map')).toBe(mapNode);
+    // Le nouveau fix et les enfants ne sont pas figés avec l'adaptateur.
+    expect(screen.getByRole('button', { name: 'Me recentrer' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Créer un Beer Call' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Statut carte' })).toBeInTheDocument();
+
+    act(() => { fakeMap.fire('webglcontextrestored'); });
+    expect(mapMockControl.latestProps).toBe(initialNativeProps);
+    expect(screen.getByRole('status', { name: 'Statut carte' })).toBeInTheDocument();
+    act(() => { mapMockControl.triggerIdle(); });
+    expect(mapMockControl.latestProps).not.toBe(initialNativeProps);
+    expect(mapMockControl.latestProps?.mapStyle).toContain('dark-matter');
+    expect(screen.getByTestId('mock-map')).toBe(mapNode);
+    expect(screen.queryByRole('status', { name: 'Statut carte' })).not.toBeInTheDocument();
+    expect(getLatestSceneSignal('mapInteractive')).toBeDefined();
+
+    unmount();
+    expect(fakeMap.getListenerCount('webglcontextlost')).toBe(0);
+    expect(fakeMap.getListenerCount('webglcontextrestored')).toBe(0);
+  });
 });

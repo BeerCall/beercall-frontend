@@ -10,6 +10,20 @@ import { useLocationStore } from '../../store/useLocationStore';
 import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
 import SafeAvatar, { preloadAvatarCanvas } from '../3D/SafeAvatar';
 
+// MapLibre retire son style pendant contextlost. react-map-gl ne protège pas
+// setProps contre ce style null : ne pas rerendre l'adaptateur avant restored
+// puis idle. Le slot de contexte garde les enfants à jour sans rerendre Map.
+const MapContentsContext = React.createContext<React.ReactNode>(null);
+function MapContents() {
+    return React.useContext(MapContentsContext);
+}
+const RetainedNativeMap = React.memo(function RetainedNativeMap({ element }: {
+    element: React.ReactElement;
+    frozen: boolean;
+}) {
+    return element;
+}, (_previous, next) => next.frozen);
+
 interface MapSectionProps {
     mapRef: React.RefObject<MapRef | null>;
     userLocation: { lat: number; lng: number } | null;
@@ -245,7 +259,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         refreshExpiredTiles: false,
     }), []);
 
-    return (
+    const mapElement = (
         <Map ref={mapRef}
             {...mapRuntimeOptions}
             initialViewState={{
@@ -266,6 +280,12 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             onDragStart={cancelLongPress}
             onZoomStart={cancelLongPress}
             onMoveStart={cancelLongPress}>
+            <MapContents/>
+        </Map>
+    );
+
+    return (
+        <MapContentsContext.Provider value={<>
             
             {/* STATUT CONTEXTE WEBGL PERDU */}
             {isMapContextLost && (
@@ -423,6 +443,8 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                     </Marker>
                 );
             })}
-        </Map>
+        </>}>
+            <RetainedNativeMap element={mapElement} frozen={isMapContextLost}/>
+        </MapContentsContext.Provider>
     );
 });
