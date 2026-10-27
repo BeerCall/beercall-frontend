@@ -12,6 +12,11 @@ import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
 import {MODELS_URL} from "../../lib/api.ts";
 import {computeAvatarFraming} from "../../lib/avatarFraming.ts";
+import {
+    computeThumbnailIdleEnvelope,
+    type ThumbnailIdleEnvelopeReady,
+    type AvatarPartMeasurementInput,
+} from "../../lib/thumbnailIdleEnvelope";
 import type {AvatarConfig, AvatarTransform} from "../../types/avatar.ts";
 import SceneReadyProbe from './SceneReadyProbe';
 import {warmAvatarModels} from './warmupAvatar';
@@ -352,11 +357,15 @@ function AvatarPart({
     animations?: THREE.AnimationClip[],
     currentAnim?: string,
     partKey?: string,
-    onPartReady?: (partKey: string, meshCount: number, actionPlaying: boolean) => void,
+    onPartReady?: (partKey: string, meshCount: number, actionPlaying: boolean, partRoot?: THREE.Group) => void,
     onPartUnmount?: (partKey: string) => void,
 }) {
     const fbx = useModel(path);
     const groupRef = useRef<THREE.Group>(null);
+    const fallbackGroupRef = useRef<THREE.Group | null>(null);
+    if (fallbackGroupRef.current == null) {
+        fallbackGroupRef.current = new THREE.Group();
+    }
 
     const clonedFbx = useMemo(() => {
         if (!fbx) return null;
@@ -399,9 +408,23 @@ function AvatarPart({
         }
 
         if (partKey && onPartReady) {
-            onPartReady(partKey, meshCount, isActionPlaying);
+            const fallback = fallbackGroupRef.current;
+            const isFallbackEnv = groupRef.current === fallback;
+            if (isFallbackEnv && fallback && clonedFbx) {
+                fallback.userData = { partKey };
+                if (customTransform?.position) fallback.position.set(...customTransform.position);
+                if (customTransform?.scale) fallback.scale.set(...customTransform.scale);
+                if (customTransform?.rotation) fallback.rotation.set(...customTransform.rotation);
+                if (!fallback.children.includes(clonedFbx)) {
+                    fallback.add(clonedFbx);
+                }
+            }
+            const resolvedRoot = (groupRef.current && 'isObject3D' in groupRef.current)
+                ? groupRef.current
+                : (fallback ?? undefined);
+            onPartReady(partKey, meshCount, isActionPlaying, resolvedRoot);
         }
-    }, [currentAnim, actions, clonedFbx, partKey, onPartReady, animations]);
+    }, [currentAnim, actions, clonedFbx, partKey, onPartReady, animations, customTransform]);
 
     useEffect(() => {
         return () => {
@@ -415,11 +438,20 @@ function AvatarPart({
         };
     }, [partKey]);
 
+    const handleGroupRef = useCallback((node: THREE.Group | HTMLElement | null) => {
+        if (node && 'isObject3D' in node) {
+            (groupRef as React.MutableRefObject<THREE.Group | null>).current = node as THREE.Group;
+        } else {
+            (groupRef as React.MutableRefObject<THREE.Group | null>).current = fallbackGroupRef.current;
+        }
+    }, []);
+
     if (!clonedFbx) return null;
 
     return (
         <group
-            ref={groupRef}
+            ref={handleGroupRef}
+            userData={{ partKey }}
             position={customTransform?.position || [0, 0, 0]}
             scale={customTransform?.scale || [1, 1, 1]}
             rotation={customTransform?.rotation || [0, 0, 0]}
@@ -433,13 +465,29 @@ export function ModularAvatar({
     config,
     onAnimationsLoaded,
     onReadinessChange,
+    onActiveClipChange,
     groupRef,
 }: {
     config: AvatarConfig,
     onAnimationsLoaded?: (animations: string[]) => void,
     onReadinessChange?: (isReady: boolean, details?: { parts: string[]; meshCount: number }) => void,
+    onActiveClipChange?: (clip: THREE.AnimationClip | null) => void,
     groupRef?: React.RefObject<THREE.Group | null>,
 }) {
+    const fallbackRootRef = useRef<THREE.Group | null>(null);
+    if (fallbackRootRef.current == null) {
+        fallbackRootRef.current = new THREE.Group();
+    }
+
+    useEffect(() => {
+        if (!groupRef) return;
+        if (!groupRef.current || !('isObject3D' in groupRef.current)) {
+            (groupRef as React.MutableRefObject<THREE.Group | null>).current = fallbackRootRef.current;
+        }
+    }, [groupRef]);
+
+    const partRootsRef = useRef<Map<string, THREE.Group>>(new Map());
+
     const accessoryTransform = config.accessory ? CUSTOM_ITEMS_CONFIG[config.accessory] : undefined;
 
     const targetAnimation = config.animation || "Idle";
@@ -451,6 +499,10 @@ export function ModularAvatar({
         notifyInitialFrame,
         retry,
     } = useAvatarAnimations(targetAnimation);
+
+    useEffect(() => {
+        onActiveClipChange?.(activeClip ?? null);
+    }, [activeClip, onActiveClipChange]);
 
     // Protection contre le glitch d'animation (CHAL-01, REV-06) :
     // ModularAvatar ne transmet à AvatarPart que le clip actif, via un useMemo stable.
@@ -501,15 +553,35 @@ export function ModularAvatar({
         onReadinessChange?.(isReady, isReady ? { parts: expectedParts, meshCount: totalMeshes } : undefined);
     }, [expectedParts, onReadinessChange]);
 
-    const handlePartReady = useCallback((partKey: string, meshCount: number, actionPlaying: boolean) => {
+    const handlePartReady = useCallback((partKey: string, meshCount: number, actionPlaying: boolean, partRoot?: THREE.Group) => {
         readyPartsRef.current.set(partKey, { meshCount, actionPlaying });
+        if (partRoot) {
+            partRootsRef.current.set(partKey, partRoot);
+            if (!partRoot.parent && fallbackRootRef.current && !fallbackRootRef.current.children.includes(partRoot)) {
+                fallbackRootRef.current.add(partRoot);
+            }
+        }
         checkReadiness();
     }, [checkReadiness]);
 
     const handlePartUnmount = useCallback((partKey: string) => {
         readyPartsRef.current.delete(partKey);
+        const root = partRootsRef.current.get(partKey);
+        if (root && fallbackRootRef.current && fallbackRootRef.current.children.includes(root)) {
+            fallbackRootRef.current.remove(root);
+            partRootsRef.current.delete(partKey);
+        }
         checkReadiness();
     }, [checkReadiness]);
+
+    const handleGroupRef = useCallback((node: THREE.Group | HTMLElement | null) => {
+        if (!groupRef) return;
+        if (node && 'isObject3D' in node) {
+            (groupRef as React.MutableRefObject<THREE.Group | null>).current = node as THREE.Group;
+        } else {
+            (groupRef as React.MutableRefObject<THREE.Group | null>).current = fallbackRootRef.current;
+        }
+    }, [groupRef]);
 
     // Appeler onAnimationsLoaded avec les 25 noms du manifeste dès sa réception
     useEffect(() => {
@@ -521,7 +593,7 @@ export function ModularAvatar({
     const isIdle = currentAnim === 'Idle';
 
     return (
-        <group ref={groupRef}>
+        <group ref={handleGroupRef}>
             {/* Raccorder notifyInitialFrame du hook T10 à un probe de frame, armé après readiness des pièces ET action Idle */}
             <AvatarFrameNotifier
                 ready={isAvatarReady}
@@ -618,42 +690,74 @@ export interface ThumbnailFramingInfo {
     boxMin: [number, number, number];
     boxMax: [number, number, number];
     corners: [number, number, number][];
+    // Diagnostics T36b / VER-13 / VER-16
+    poseBoxMin: [number, number, number];
+    poseBoxMax: [number, number, number];
+    envelopeBoxMin: [number, number, number];
+    envelopeBoxMax: [number, number, number];
+    measuredGuard: [number, number, number];
+    sampleCount: number;
+    cpuTimeMs: number;
+    viewMatrix: number[];
+    projectionMatrix: number[];
+    partsCount: number;
+    meshCount: number;
+    status: 'ready' | 'pending' | 'unavailable';
 }
 
 interface ThumbnailFramingProps {
     groupRef: React.RefObject<THREE.Group | null>;
     ready: boolean;
     signature: string;
-    onApplied: (info: ThumbnailFramingInfo | null) => void;
+    clip: THREE.AnimationClip | null;
+    onApplied: (info: ThumbnailFramingInfo | null, signature: string) => void;
 }
 
 /**
- * Cadrage opt-in des miniatures : mesure l'assemblage réel (SkinnedMesh dans la pose
- * courante, accessoire compris) puis ajuste la caméra. Aucun recalcul par frame :
- * uniquement au changement de tenue, de readiness ou de taille réelle.
+ * Cadrage opt-in des miniatures (T36b / VER-13 / VER-16) :
+ * - Mesure l'enveloppe Idle complète sur clones isolés avec garde mesurée (T36a).
+ * - Applique le cadrage perspective borné T30a sur l'enveloppe mesurée.
+ * - Réutilise l'enveloppe mesurée en cas de redimensionnement CSS (resize).
+ * - Aucun recalcul par frame, aucune caméra qui pompe.
  */
-function ThumbnailFramingController({groupRef, ready, signature, onApplied}: ThumbnailFramingProps) {
+function ThumbnailFramingController({groupRef, ready, signature, clip, onApplied}: ThumbnailFramingProps) {
     const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
     const size = useThree((state) => state.size);
     const invalidate = useThree((state) => state.invalidate);
 
+    // Cache de l'enveloppe mesurée pour réutilisation immédiate au resize sans recalcul
+    const cachedEnvelopeRef = useRef<{
+        signature: string;
+        clipName: string;
+        envelope: ThumbnailIdleEnvelopeReady;
+    } | null>(null);
+
     useEffect(() => {
         if (!ready) return;
         const group = groupRef.current;
-        if (!group) return;
+        if (!group || typeof group.updateMatrixWorld !== 'function') return;
+
+        // Seul le clip Idle est admissible pour le cadrage miniature (T36b)
+        if (!clip || clip.name !== 'Idle') {
+            onApplied(null, signature);
+            return;
+        }
 
         group.updateMatrixWorld(true);
-        const box = new THREE.Box3();
+
+        // 1. Mesure de la boîte de la pose courante (diagnostic borné VER-16)
+        const poseBox = new THREE.Box3();
         const temp = new THREE.Box3();
+        let meshCount = 0;
 
         group.traverse((object) => {
             const mesh = object as THREE.Mesh;
             if (!mesh.isMesh || mesh.visible === false) return;
+            meshCount++;
 
             let local: THREE.Box3 | null = null;
             const skinned = mesh as THREE.SkinnedMesh;
             if (skinned.isSkinnedMesh && typeof skinned.computeBoundingBox === 'function') {
-                // Boîte de la pose courante, sur le clone local uniquement.
                 skinned.computeBoundingBox();
                 local = skinned.boundingBox ?? null;
             } else if (mesh.geometry) {
@@ -663,12 +767,67 @@ function ThumbnailFramingController({groupRef, ready, signature, onApplied}: Thu
             if (!local || local.isEmpty()) return;
 
             temp.copy(local).applyMatrix4(mesh.matrixWorld);
-            if (!temp.isEmpty()) box.union(temp);
+            if (!temp.isEmpty()) poseBox.union(temp);
         });
 
-        const framing = computeAvatarFraming({box, width: size.width, height: size.height, fov: camera.fov});
+        // 2. Récupération des racines des pièces prêtes identifiées par userData.partKey
+        const parts: AvatarPartMeasurementInput[] = [];
+        const seenKeys = new Set<string>();
+        for (const child of group.children) {
+            const partKey = child.userData?.partKey;
+            if (partKey && typeof partKey === 'string' && !seenKeys.has(partKey)) {
+                seenKeys.add(partKey);
+                parts.push({ partKey, root: child });
+            }
+        }
+        if (parts.length === 0) {
+            group.traverse((obj) => {
+                const partKey = obj.userData?.partKey;
+                if (partKey && typeof partKey === 'string' && !seenKeys.has(partKey)) {
+                    seenKeys.add(partKey);
+                    parts.push({ partKey, root: obj });
+                }
+            });
+        }
+
+        if (parts.length === 0) {
+            onApplied(null, signature);
+            return;
+        }
+
+        // 3. Calcul ou réutilisation de l'enveloppe Idle mesurée
+        let envelope: ThumbnailIdleEnvelopeReady;
+        if (
+            cachedEnvelopeRef.current &&
+            cachedEnvelopeRef.current.signature === signature &&
+            cachedEnvelopeRef.current.clipName === clip.name
+        ) {
+            envelope = cachedEnvelopeRef.current.envelope;
+        } else {
+            const envResult = computeThumbnailIdleEnvelope({ parts, clip });
+            if (!envResult.ok) {
+                cachedEnvelopeRef.current = null;
+                onApplied(null, signature);
+                return;
+            }
+            envelope = envResult;
+            cachedEnvelopeRef.current = {
+                signature,
+                clipName: clip.name,
+                envelope: envResult,
+            };
+        }
+
+        // 4. Projection T30a sur l'enveloppe mesurée
+        const framing = computeAvatarFraming({
+            box: envelope.box,
+            width: size.width,
+            height: size.height,
+            fov: camera.fov,
+        });
+
         if (!framing.ok) {
-            onApplied(null);
+            onApplied(null, signature);
             return;
         }
 
@@ -676,12 +835,27 @@ function ThumbnailFramingController({groupRef, ready, signature, onApplied}: Thu
         camera.lookAt(framing.center[0], framing.center[1], framing.center[2]);
         restoreCameraClip(camera, framing.near, framing.far);
         camera.updateMatrixWorld(true);
+        camera.updateProjectionMatrix();
         if (typeof invalidate === 'function') invalidate();
 
+        // 5. Calcul des coins projetés et validation des matrices
+        const viewElements = Array.from(camera.matrixWorldInverse.elements);
+        const projElements = Array.from(camera.projectionMatrix.elements);
+
+        if (
+            viewElements.length !== 16 ||
+            projElements.length !== 16 ||
+            !viewElements.every(Number.isFinite) ||
+            !projElements.every(Number.isFinite)
+        ) {
+            onApplied(null, signature);
+            return;
+        }
+
         const corners: [number, number, number][] = [];
-        for (const x of [box.min.x, box.max.x]) {
-            for (const y of [box.min.y, box.max.y]) {
-                for (const z of [box.min.z, box.max.z]) {
+        for (const x of [envelope.box.min.x, envelope.box.max.x]) {
+            for (const y of [envelope.box.min.y, envelope.box.max.y]) {
+                for (const z of [envelope.box.min.z, envelope.box.max.z]) {
                     const projected = new THREE.Vector3(x, y, z).project(camera);
                     corners.push([
                         Number(projected.x.toFixed(4)),
@@ -700,11 +874,23 @@ function ThumbnailFramingController({groupRef, ready, signature, onApplied}: Thu
             position: framing.position.map((value) => Number(value.toFixed(2))) as [number, number, number],
             near: Number(framing.near.toFixed(2)),
             far: Number(framing.far.toFixed(2)),
-            boxMin: [box.min.x, box.min.y, box.min.z].map((value) => Number(value.toFixed(2))) as [number, number, number],
-            boxMax: [box.max.x, box.max.y, box.max.z].map((value) => Number(value.toFixed(2))) as [number, number, number],
+            boxMin: [envelope.box.min.x, envelope.box.min.y, envelope.box.min.z].map((value) => Number(value.toFixed(2))) as [number, number, number],
+            boxMax: [envelope.box.max.x, envelope.box.max.y, envelope.box.max.z].map((value) => Number(value.toFixed(2))) as [number, number, number],
             corners,
-        });
-    }, [ready, signature, size.width, size.height, camera, groupRef, invalidate, onApplied]);
+            poseBoxMin: [poseBox.min.x, poseBox.min.y, poseBox.min.z].map((value) => Number(value.toFixed(2))) as [number, number, number],
+            poseBoxMax: [poseBox.max.x, poseBox.max.y, poseBox.max.z].map((value) => Number(value.toFixed(2))) as [number, number, number],
+            envelopeBoxMin: [envelope.box.min.x, envelope.box.min.y, envelope.box.min.z].map((value) => Number(value.toFixed(2))) as [number, number, number],
+            envelopeBoxMax: [envelope.box.max.x, envelope.box.max.y, envelope.box.max.z].map((value) => Number(value.toFixed(2))) as [number, number, number],
+            measuredGuard: envelope.measuredGuard.map((value) => Number(value.toFixed(4))) as [number, number, number],
+            sampleCount: envelope.sampleCount,
+            cpuTimeMs: Number(envelope.cpuTimeMs.toFixed(2)),
+            viewMatrix: viewElements,
+            projectionMatrix: projElements,
+            partsCount: parts.length,
+            meshCount,
+            status: 'ready',
+        }, signature);
+    }, [ready, signature, clip, size.width, size.height, camera, groupRef, invalidate, onApplied]);
 
     return null;
 }
@@ -850,25 +1036,48 @@ export default function AvatarCanvas({
     }, []);
 
     const avatarGroupRef = useRef<THREE.Group>(null);
+    const [activeClip, setActiveClip] = useState<THREE.AnimationClip | null>(null);
     const [framingInfo, setFramingInfo] = useState<ThumbnailFramingInfo | null>(null);
     const [framingReady, setFramingReady] = useState(false);
     const [framingToken, setFramingToken] = useState(0);
 
     const framingSignature = useMemo(() => JSON.stringify(renderConfig), [renderConfig]);
 
-    const handleFramingApplied = useCallback((info: ThumbnailFramingInfo | null) => {
+    const [prevSignature, setPrevSignature] = useState(framingSignature);
+    if (prevSignature !== framingSignature) {
+        setPrevSignature(framingSignature);
+        setFramingReady(false);
+        setFramingInfo(null);
+    }
+
+    const handleActiveClipChange = useCallback((clip: THREE.AnimationClip | null) => {
+        setActiveClip((prev) => {
+            if (prev === clip) return prev;
+            if (prev && clip && prev.name === clip.name && prev.tracks?.length === clip.tracks?.length) {
+                return prev;
+            }
+            return clip;
+        });
+    }, []);
+
+    const handleFramingApplied = useCallback((info: ThumbnailFramingInfo | null, appliedSignature: string) => {
+        if (appliedSignature !== framingSignature) return;
         setFramingInfo(info);
         setFramingReady(false);
         setFramingToken((token) => token + 1);
-    }, []);
+    }, [framingSignature]);
 
     const handleFrameSubmitted = useCallback(() => {
         onFrameSubmitted?.();
-        setFramingReady(true);
-    }, [onFrameSubmitted]);
+        if (framingInfo !== null) {
+            setFramingReady(true);
+        }
+    }, [onFrameSubmitted, framingInfo]);
 
-    const isThumbnail = framing === 'thumbnail';
-    const framingPhase = isThumbnail ? (framingReady && isEffectiveActive ? 'ready' : 'pending') : undefined;
+    const isThumbnail = framing === 'thumbnail' && !headOnly;
+    const framingPhase = isThumbnail
+        ? (framingReady && isEffectiveActive && framingInfo !== null ? 'ready' : 'pending')
+        : undefined;
 
     const controlsTarget = useMemo<[number, number, number]>(() => {
         if (isThumbnail && framingInfo) return framingInfo.center;
@@ -894,6 +1103,7 @@ export default function AvatarCanvas({
                         groupRef={avatarGroupRef}
                         ready={isAvatarReady}
                         signature={framingSignature}
+                        clip={activeClip}
                         onApplied={handleFramingApplied}
                     />
                 )}
@@ -904,6 +1114,7 @@ export default function AvatarCanvas({
                         config={renderConfig}
                         onAnimationsLoaded={onAnimationsLoaded}
                         onReadinessChange={handleReadinessChange}
+                        onActiveClipChange={handleActiveClipChange}
                         groupRef={avatarGroupRef}
                     />
                     <SceneReadyProbe
