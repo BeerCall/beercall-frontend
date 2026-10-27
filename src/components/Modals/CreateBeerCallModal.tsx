@@ -46,21 +46,28 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
     const [slowNoticeJobId, setSlowNoticeJobId] = useState<string | null>(null);
     const [checkingJobId, setCheckingJobId] = useState<string | null>(null);
     const checkCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Chaque changement de job (ou passage terminal) invalide les timers du précédent :
+    // un callback périmé ne peut ni afficher la notice ni relâcher un autre cooldown.
+    const jobGenerationRef = useRef(0);
 
     // Le drapeau est indexé par job : changer de job masque la notice sans remise à zéro synchrone.
     const showSlowNotice = Boolean(jobId) && !isTerminal && slowNoticeJobId === jobId;
     const isCheckingStatus = Boolean(jobId) && !isTerminal && checkingJobId === jobId;
 
     useEffect(() => {
+        jobGenerationRef.current += 1;
+        if (checkCooldownTimerRef.current !== null) {
+            window.clearTimeout(checkCooldownTimerRef.current);
+            checkCooldownTimerRef.current = null;
+        }
+
         if (!jobId || isTerminal) {
-            if (checkCooldownTimerRef.current !== null) {
-                clearTimeout(checkCooldownTimerRef.current);
-                checkCooldownTimerRef.current = null;
-            }
             return;
         }
 
+        const generation = jobGenerationRef.current;
         const timer = window.setTimeout(() => {
+            if (jobGenerationRef.current !== generation) return;
             setSlowNoticeJobId(jobId);
         }, 10000);
 
@@ -71,6 +78,7 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
 
     useEffect(() => {
         return () => {
+            jobGenerationRef.current += 1;
             if (checkCooldownTimerRef.current !== null) {
                 window.clearTimeout(checkCooldownTimerRef.current);
                 checkCooldownTimerRef.current = null;
@@ -85,9 +93,12 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
         if (checkCooldownTimerRef.current !== null) {
             window.clearTimeout(checkCooldownTimerRef.current);
         }
+        const generation = jobGenerationRef.current;
+        const checkedJobId = jobId;
         checkCooldownTimerRef.current = window.setTimeout(() => {
-            setCheckingJobId(null);
             checkCooldownTimerRef.current = null;
+            if (jobGenerationRef.current !== generation) return;
+            setCheckingJobId(current => (current === checkedJobId ? null : current));
         }, 1000);
     };
 

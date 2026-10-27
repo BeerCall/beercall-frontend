@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from './utils/test-utils';
 import CreateBeerCallModal from '../components/Modals/CreateBeerCallModal';
@@ -546,8 +546,10 @@ describe('BeerCall Modals', () => {
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    it('CreateBeerCallModal: affiche statut et bouton de récupération après 10s, sans appel supplémentaire à 60s sans clic', async () => {
-        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    it('CreateBeerCallModal: affiche statut et bouton de récupération à 10s pile, sans appel supplémentaire à 60s sans clic', async () => {
+        // Horloge strictement contrôlée : les bornes 9999/10000 ms ne doivent pas
+        // dépendre du temps réel consommé par la préparation photo.
+        vi.useFakeTimers();
         const onClose = vi.fn();
         const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
         const location = { lat: 48.8566, lng: 2.3522 };
@@ -560,34 +562,38 @@ describe('BeerCall Modals', () => {
 
         const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
         const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
-        await user.type(locationInput, 'Mon super bar');
+        fireEvent.change(locationInput, { target: { value: 'Mon super bar' } });
+        fireEvent.click(submitBtn);
 
-        await user.click(submitBtn);
+        // Trois timers de 10 ms préparent la photo : le job est reçu à t=30 ms.
+        await vi.advanceTimersByTimeAsync(30);
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(screen.getByRole('button', { name: /PHOTO EN ATTENTE DE VÉRIFICATION/i })).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledTimes(1);
 
-        // Attente de la transition post -> job_id
-        await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
-        await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
-
-        // À 5 secondes : pas encore de message de lenteur
-        await vi.advanceTimersByTimeAsync(5000);
+        // 9999 ms après réception du job : ni message ni bouton de récupération.
+        await vi.advanceTimersByTimeAsync(9999);
         expect(screen.queryByText(/La vérification prend plus de temps que prévu\./)).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Vérifier le statut' })).not.toBeInTheDocument();
 
-        // À 10 secondes : le message et le bouton apparaissent
-        await vi.advanceTimersByTimeAsync(6000);
-        expect(await screen.findByText(/La vérification prend plus de temps que prévu\./)).toBeInTheDocument();
-        const verifyBtn = await screen.findByRole('button', { name: 'Vérifier le statut' });
-        expect(verifyBtn).toBeInTheDocument();
+        // La milliseconde suivante atteint exactement 10 s : la notice apparaît.
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1);
+        });
+        expect(screen.getByText(/La vérification prend plus de temps que prévu\./)).toBeInTheDocument();
+        const verifyBtn = screen.getByRole('button', { name: 'Vérifier le statut' });
         expect(verifyBtn).not.toBeDisabled();
 
-        // À 60 secondes sans clic : aucun appel supplémentaire GET ou POST
+        // À 60 s sans clic : aucun appel supplémentaire GET ou POST.
         await vi.advanceTimersByTimeAsync(50000);
         expect(api.get).toHaveBeenCalledTimes(1);
         expect(api.post).toHaveBeenCalledTimes(1);
     });
 
-    it('CreateBeerCallModal: clic sur Vérifier le statut relance le même job, désactive 1s puis disparaît au terminal', async () => {
-        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    it('CreateBeerCallModal: clic sur Vérifier le statut relance le même job, désactive 1s pile puis disparaît au terminal', async () => {
+        vi.useFakeTimers();
         const onClose = vi.fn();
         const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
         const location = { lat: 48.8566, lng: 2.3522 };
@@ -603,46 +609,170 @@ describe('BeerCall Modals', () => {
 
         const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
         const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
-        await user.type(locationInput, 'Mon super bar');
-        await user.click(submitBtn);
+        fireEvent.change(locationInput, { target: { value: 'Mon super bar' } });
+        fireEvent.click(submitBtn);
 
-        await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+        await vi.advanceTimersByTimeAsync(30);
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(api.get).toHaveBeenCalledTimes(1);
 
-        // Avancer au-delà de 10s pour faire apparaître le bouton de récupération
-        await vi.advanceTimersByTimeAsync(11000);
-        const verifyBtn = await screen.findByRole('button', { name: 'Vérifier le statut' });
+        // Avancer jusqu'à 10 s pile pour faire apparaître le bouton de récupération
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(10000);
+        });
+        const verifyBtn = screen.getByRole('button', { name: 'Vérifier le statut' });
         expect(verifyBtn).not.toBeDisabled();
 
-        // Clic sur "Vérifier le statut"
-        await user.click(verifyBtn);
+        // Clic sur "Vérifier le statut" : le cooldown démarre au clic.
+        fireEvent.click(verifyBtn);
 
-        // Doit appeler le GET du même job, mais aucun POST supplémentaire
-        await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+        expect(verifyBtn).toBeDisabled();
+
+        // 999 ms : toujours désactivé ; 1000 ms pile : réactivé.
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(999);
+        });
+        expect(verifyBtn).toBeDisabled();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1);
+        });
+        expect(verifyBtn).not.toBeDisabled();
+
+        // Le GET du même job a bien été relancé, sans POST supplémentaire.
+        expect(api.get).toHaveBeenCalledTimes(2);
         expect(vi.mocked(api.get)).toHaveBeenLastCalledWith(
             '/squads/sq-1/beer-calls/jobs/job-slow-2',
             expect.any(Object)
         );
         expect(api.post).toHaveBeenCalledTimes(1);
 
-        // Bouton désactivé pendant 1 seconde
-        expect(verifyBtn).toBeDisabled();
-
-        // Clic pendant le cooldown de 1s n'émet aucun appel supplémentaire
-        await user.click(verifyBtn);
-        expect(api.get).toHaveBeenCalledTimes(2);
-
-        // Après 1s, le bouton est réactivé
-        await vi.advanceTimersByTimeAsync(1100);
-        await waitFor(() => expect(verifyBtn).not.toBeDisabled());
-
         // Second clic : job passe à succeeded
-        await user.click(verifyBtn);
-        await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3));
+        fireEvent.click(verifyBtn);
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(api.get).toHaveBeenCalledTimes(3);
 
-        await vi.runAllTimersAsync();
+        await act(async () => {
+            await vi.runAllTimersAsync();
+        });
 
         // Le statut terminal succeeded ferme la modale et l'indice disparaît
-        await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+        expect(onClose).toHaveBeenCalledTimes(1);
         expect(screen.queryByText(/La vérification prend plus de temps que prévu\./)).not.toBeInTheDocument();
+    });
+
+    it('CreateBeerCallModal: un refus pendant le cooldown annule ses timers et le job suivant repart de zéro', async () => {
+        vi.useFakeTimers();
+        const onClose = vi.fn();
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        const location = { lat: 48.8566, lng: 2.3522 };
+
+        vi.mocked(api.post)
+            .mockResolvedValueOnce({ data: { job_id: 'job-a' } })
+            .mockResolvedValueOnce({ data: { job_id: 'job-b' } });
+        vi.mocked(api.get)
+            .mockResolvedValueOnce({ data: { id: 'job-a', status: 'pending' } })
+            .mockResolvedValueOnce({ data: { id: 'job-a', status: 'rejected', reject_reason: 'Pas de boisson' } })
+            .mockResolvedValue({ data: { id: 'job-b', status: 'pending' } });
+
+        grantFix();
+        render(<CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={onClose} />);
+
+        const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
+        const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
+        fireEvent.change(locationInput, { target: { value: 'Mon super bar' } });
+        fireEvent.click(submitBtn);
+
+        await vi.advanceTimersByTimeAsync(30);
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(api.get).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(10000);
+        });
+        const verifyBtn = screen.getByRole('button', { name: 'Vérifier le statut' });
+        fireEvent.click(verifyBtn);
+        expect(verifyBtn).toBeDisabled();
+
+        // Le GET relancé refuse le job : terminal, la notice et le cooldown disparaissent.
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(api.get).toHaveBeenCalledTimes(2);
+        expect(screen.queryByRole('button', { name: 'Vérifier le statut' })).not.toBeInTheDocument();
+        expect(screen.queryByText(/La vérification prend plus de temps que prévu\./)).not.toBeInTheDocument();
+
+        // Au-delà de l'ancien cooldown : aucun callback périmé ne réactive quoi que ce soit.
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(screen.queryByRole('button', { name: 'Vérifier le statut' })).not.toBeInTheDocument();
+        expect(api.post).toHaveBeenCalledTimes(1);
+
+        // Nouveau job : sa propre notice ne démarre qu'après 10 s pleines.
+        fireEvent.click(screen.getByRole('button', { name: /LANCER L'APPEL/i }));
+        await vi.advanceTimersByTimeAsync(30);
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(api.get).toHaveBeenCalledTimes(3);
+        expect(api.post).toHaveBeenCalledTimes(2);
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(9999);
+        });
+        expect(screen.queryByText(/La vérification prend plus de temps que prévu\./)).not.toBeInTheDocument();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1);
+        });
+        expect(screen.getByRole('button', { name: 'Vérifier le statut' })).not.toBeDisabled();
+    });
+
+    it('CreateBeerCallModal: démontage pendant le cooldown annule ses timers et ne déclenche aucun callback résiduel', async () => {
+        vi.useFakeTimers();
+        const photoFile = new File(['dummy'], 'photo.png', { type: 'image/png' });
+        const location = { lat: 48.8566, lng: 2.3522 };
+
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { job_id: 'job-unmount' } });
+        vi.mocked(api.get).mockResolvedValue({ data: { id: 'job-unmount', status: 'pending' } });
+
+        grantFix();
+        const { unmount } = render(
+            <CreateBeerCallModal squadId="sq-1" photoFile={photoFile} location={location} scheduledApero={null} onClose={vi.fn()} />
+        );
+
+        const locationInput = screen.getByPlaceholderText(/Ex: Bar Le Central\.\.\./i);
+        const submitBtn = screen.getByRole('button', { name: /LANCER L'APPEL/i });
+        fireEvent.change(locationInput, { target: { value: 'Mon super bar' } });
+        fireEvent.click(submitBtn);
+
+        await vi.advanceTimersByTimeAsync(30);
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(10000);
+        });
+        const verifyBtn = screen.getByRole('button', { name: 'Vérifier le statut' });
+
+        const timersBeforeCooldown = vi.getTimerCount();
+        fireEvent.click(verifyBtn);
+        // Le clic arme le cooldown (1 timer supplémentaire)
+        expect(vi.getTimerCount()).toBe(timersBeforeCooldown + 1);
+
+        // Au démontage, le cooldown de la modale est annulé immédiatement
+        unmount();
+        expect(vi.getTimerCount()).toBeLessThan(timersBeforeCooldown + 1);
+
+        // Aucun setState post-démontage ni timer résiduel après l'échéance de 1s
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
     });
 });
