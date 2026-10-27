@@ -490,7 +490,7 @@ export function ModularAvatar({
 
     const accessoryTransform = config.accessory ? CUSTOM_ITEMS_CONFIG[config.accessory] : undefined;
 
-    const targetAnimation = config.animation || "Idle";
+    const targetAnimation = config.animation && config.animation !== 'none' ? config.animation : "Idle";
     const {
         clipNames,
         activeClip,
@@ -710,17 +710,18 @@ interface ThumbnailFramingProps {
     ready: boolean;
     signature: string;
     clip: THREE.AnimationClip | null;
+    allowNonIdleClip?: boolean;
     onApplied: (info: ThumbnailFramingInfo | null, signature: string) => void;
 }
 
 /**
- * Cadrage opt-in des miniatures (T36b / VER-13 / VER-16) :
- * - Mesure l'enveloppe Idle complète sur clones isolés avec garde mesurée (T36a).
+ * Cadrage opt-in des miniatures et du profil (T36b / VER-13 / VER-16) :
+ * - Mesure l'enveloppe complète sur clones isolés avec garde mesurée (T36a).
  * - Applique le cadrage perspective borné T30a sur l'enveloppe mesurée.
  * - Réutilise l'enveloppe mesurée en cas de redimensionnement CSS (resize).
  * - Aucun recalcul par frame, aucune caméra qui pompe.
  */
-function ThumbnailFramingController({groupRef, ready, signature, clip, onApplied}: ThumbnailFramingProps) {
+function ThumbnailFramingController({groupRef, ready, signature, clip, allowNonIdleClip = false, onApplied}: ThumbnailFramingProps) {
     const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
     const size = useThree((state) => state.size);
     const invalidate = useThree((state) => state.invalidate);
@@ -737,8 +738,9 @@ function ThumbnailFramingController({groupRef, ready, signature, clip, onApplied
         const group = groupRef.current;
         if (!group || typeof group.updateMatrixWorld !== 'function') return;
 
-        // Seul le clip Idle est admissible pour le cadrage miniature (T36b)
-        if (!clip || clip.name !== 'Idle') {
+        // Seul le clip Idle est admissible pour le cadrage miniature strict (T36b) ;
+        // en mode profil, toute animation active (Sitting, Interact, etc.) est cadrée.
+        if (!clip || (!allowNonIdleClip && clip.name !== 'Idle')) {
             onApplied(null, signature);
             return;
         }
@@ -795,7 +797,7 @@ function ThumbnailFramingController({groupRef, ready, signature, clip, onApplied
             return;
         }
 
-        // 3. Calcul ou réutilisation de l'enveloppe Idle mesurée
+        // 3. Calcul ou réutilisation de l'enveloppe mesurée
         let envelope: ThumbnailIdleEnvelopeReady;
         if (
             cachedEnvelopeRef.current &&
@@ -806,16 +808,28 @@ function ThumbnailFramingController({groupRef, ready, signature, clip, onApplied
         } else {
             const envResult = computeThumbnailIdleEnvelope({ parts, clip });
             if (!envResult.ok) {
-                cachedEnvelopeRef.current = null;
-                onApplied(null, signature);
-                return;
+                if (allowNonIdleClip && !poseBox.isEmpty()) {
+                    envelope = {
+                        ok: true,
+                        box: poseBox.clone(),
+                        measuredGuard: [0, 0, 0],
+                        sampleCount: 1,
+                        cpuTimeMs: 0,
+                        duration: clip.duration || 0,
+                    };
+                } else {
+                    cachedEnvelopeRef.current = null;
+                    onApplied(null, signature);
+                    return;
+                }
+            } else {
+                envelope = envResult;
+                cachedEnvelopeRef.current = {
+                    signature,
+                    clipName: clip.name,
+                    envelope: envResult,
+                };
             }
-            envelope = envResult;
-            cachedEnvelopeRef.current = {
-                signature,
-                clipName: clip.name,
-                envelope: envResult,
-            };
         }
 
         // 4. Projection T30a sur l'enveloppe mesurée
@@ -890,7 +904,7 @@ function ThumbnailFramingController({groupRef, ready, signature, clip, onApplied
             meshCount,
             status: 'ready',
         }, signature);
-    }, [ready, signature, clip, size.width, size.height, camera, groupRef, invalidate, onApplied]);
+    }, [ready, signature, clip, allowNonIdleClip, size.width, size.height, camera, groupRef, invalidate, onApplied]);
 
     return null;
 }
@@ -954,8 +968,8 @@ interface AvatarCanvasProps {
     active?: boolean;
     /** Preuve réelle de frame soumise (après cadrage/tenue) ; jamais un timer. */
     onFrameSubmitted?: () => void;
-    /** `thumbnail` active un cadrage local borné ; défaut = caméra historique intacte. */
-    framing?: 'default' | 'thumbnail';
+    /** `thumbnail` active un cadrage local borné ; `profile` active le cadrage borné interactif ; défaut = caméra historique intacte. */
+    framing?: 'default' | 'thumbnail' | 'profile';
 }
 
 export default function AvatarCanvas({
@@ -1012,10 +1026,15 @@ export default function AvatarCanvas({
     const targetY = headOnly ? 160 : CONFIG.cameraTargetY;
     const cameraZ = headOnly ? 80 : CONFIG.cameraZ;
     const renderConfig = useMemo(() => {
-        return headOnly && config 
-            ? { head: config.head, gender: config.gender, animation: config.animation } 
-            : config;
-    }, [headOnly, config]);
+        if (!config) return config;
+        if (headOnly) {
+            return { head: config.head, gender: config.gender, animation: config.animation };
+        }
+        if (framing === 'thumbnail') {
+            return { ...config, animation: 'Idle' };
+        }
+        return config;
+    }, [headOnly, config, framing]);
 
     const expectedParts = useMemo(() => {
         if (!renderConfig) return [];
@@ -1075,20 +1094,22 @@ export default function AvatarCanvas({
     }, [onFrameSubmitted, framingInfo]);
 
     const isThumbnail = framing === 'thumbnail' && !headOnly;
-    const framingPhase = isThumbnail
+    const isProfile = framing === 'profile' && !headOnly;
+    const isAutoFramed = isThumbnail || isProfile;
+    const framingPhase = isAutoFramed
         ? (framingReady && isEffectiveActive && framingInfo !== null ? 'ready' : 'pending')
         : undefined;
 
     const controlsTarget = useMemo<[number, number, number]>(() => {
-        if (isThumbnail && framingInfo) return framingInfo.center;
+        if (isAutoFramed && framingInfo) return framingInfo.center;
         return [0, targetY, 0];
-    }, [isThumbnail, framingInfo, targetY]);
+    }, [isAutoFramed, framingInfo, targetY]);
 
     return (
         <div
             className="w-full h-full relative"
             data-avatar-framing={framingPhase}
-            data-avatar-framing-info={isThumbnail && framingInfo ? JSON.stringify(framingInfo) : undefined}
+            data-avatar-framing-info={isAutoFramed && framingInfo ? JSON.stringify(framingInfo) : undefined}
         >
             <Canvas camera={{position: [0, targetY, cameraZ], fov: 45}} dpr={[1, 1.5]}
                     events={isThumbnail ? noopEventManager : undefined}
@@ -1098,12 +1119,13 @@ export default function AvatarCanvas({
                 <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                 <directionalLight position={[-10, 10, -10]} intensity={1}/>
 
-                {isThumbnail && (
+                {isAutoFramed && (
                     <ThumbnailFramingController
                         groupRef={avatarGroupRef}
                         ready={isAvatarReady}
                         signature={framingSignature}
                         clip={activeClip}
+                        allowNonIdleClip={isProfile}
                         onApplied={handleFramingApplied}
                     />
                 )}
@@ -1118,7 +1140,7 @@ export default function AvatarCanvas({
                         groupRef={avatarGroupRef}
                     />
                     <SceneReadyProbe
-                        key={isThumbnail ? framingToken : undefined}
+                        key={isAutoFramed ? framingToken : undefined}
                         kind="avatar"
                         id={instanceId}
                         view={view ?? (headOnly ? 'head' : 'full')}

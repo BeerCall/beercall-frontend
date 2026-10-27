@@ -15,8 +15,8 @@ export interface SafeAvatarProps {
   active?: boolean;
   className?: string;
   fallback?: React.ReactNode;
-  /** `thumbnail` = cadrage local borné (Connexions uniquement) ; défaut inchangé. */
-  framing?: 'default' | 'thumbnail';
+  /** `thumbnail` = cadrage local borné (Connexions) ; `profile` = cadrage borné interactif (Profil) ; défaut inchangé. */
+  framing?: 'default' | 'thumbnail' | 'profile';
   /** Injection optionnelle de loader pour les tests (VER-03) */
   loader?: AvatarCanvasLoader;
 }

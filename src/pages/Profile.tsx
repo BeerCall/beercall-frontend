@@ -137,7 +137,7 @@ export default function Profile() {
                     </h1>
                 </div>
 
-                <div>
+                <div className="flex flex-col gap-1 shrink-0">
                     {/* 🏆 Score XP */}
                     <div
                         className="flex items-center gap-1.5 bg-gradient-to-br from-amber-100 to-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/50 shadow-sm">
@@ -160,7 +160,7 @@ export default function Profile() {
             <div
                 className="flex-1 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-500">
 
-                <div className="h-[50vh] w-full pt-[calc(50px+env(safe-area-inset-top))] relative shrink-0">
+                <div className={`h-[50vh] w-full pt-[calc(76px+env(safe-area-inset-top))] ${isOwnProfile ? 'pb-14' : 'pb-4'} relative shrink-0`}>
 
                     {/* 🚀 LE SWITCH DÉPLACÉ EN BAS : Aux pieds de l'avatar, juste au-dessus du panneau ! */}
                     {isOwnProfile && (
@@ -182,7 +182,15 @@ export default function Profile() {
                     )}
 
                     <Suspense fallback={<div className="flex h-full items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-beer"></div></div>}>
-                        <SafeAvatar config={previewAvatar} onAnimationsLoaded={setAvailableAnimations}/>
+                        <SafeAvatar
+                            config={previewAvatar}
+                            framing="profile"
+                            view="profile"
+                            instanceId={`profile-${profile.id}`}
+                            disableZoom
+                            disablePan
+                            onAnimationsLoaded={setAvailableAnimations}
+                        />
                     </Suspense>
                 </div>
 

@@ -11,7 +11,7 @@ export interface AvatarCanvasProps {
   instanceId?: string;
   active?: boolean;
   onFrameSubmitted?: () => void;
-  framing?: 'default' | 'thumbnail';
+  framing?: 'default' | 'thumbnail' | 'profile';
 }
 
 export type AvatarCanvasModule = { default: React.ComponentType<AvatarCanvasProps> };

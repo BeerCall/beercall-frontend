@@ -186,8 +186,8 @@ vi.mock('@react-three/drei', () => ({
             isRunning: vi.fn().mockImplementation(() => testState.actionRunning),
         };
         return {
-            actions: { Idle: mockAction },
-            names: ['Idle'],
+            actions: { Idle: mockAction, Sitting: mockAction },
+            names: ['Idle', 'Sitting'],
         };
     }),
 }));
@@ -460,13 +460,21 @@ describe('AvatarCanvas: Cadrage thumbnail et enveloppe Idle (T36b / VER-13 / VER
         expect(container.querySelector('[data-avatar-framing="ready"]')).toBeInTheDocument();
     });
 
-    it('fit invalide : clip non-Idle laisse l avatar en pending sans ready', async () => {
+    it('fit invalide : clip non-Idle laisse l avatar en pending sans ready en mode thumbnail', async () => {
         testState.activeClip = new THREE.AnimationClip('Dance', 1.0, []);
         const { container } = render(<AvatarCanvas config={dummyConfig} framing="thumbnail" />);
 
         await flushSubmittedFrame();
         expect(container.querySelector('[data-avatar-framing="pending"]')).toBeInTheDocument();
         expect(container.querySelector('[data-avatar-framing="ready"]')).toBeNull();
+    });
+
+    it('mode profile : cadre aussi une animation active non-Idle (Sitting/Interact)', async () => {
+        testState.activeClip = createTestIdleClip('Sitting', 1.0);
+        const { container } = render(<AvatarCanvas config={{ ...dummyConfig, animation: 'Sitting' }} framing="profile" />);
+
+        await flushSubmittedFrame();
+        expect(container.querySelector('[data-avatar-framing="ready"]')).toBeInTheDocument();
     });
 
     it('perte et restauration WebGL : active=false bascule en pending, restauration redevient ready', async () => {
