@@ -119,7 +119,12 @@ describe('useChatViewport (T27/T38)', () => {
     });
 
     it('remet la fenêtre à zéro au focus hors pinch et replanifie la mesure sans boucle', async () => {
-        const scrollTo = vi.fn();
+        const scrollTo = vi.fn((options?: ScrollToOptions | number, y?: number) => {
+            const nextLeft = typeof options === 'object' ? (options?.left ?? window.scrollX) : (options ?? window.scrollX);
+            const nextTop = typeof options === 'object' ? (options?.top ?? window.scrollY) : (y ?? window.scrollY);
+            Object.defineProperty(window, 'scrollX', {configurable: true, value: nextLeft});
+            Object.defineProperty(window, 'scrollY', {configurable: true, value: nextTop});
+        });
         vi.stubGlobal('scrollTo', scrollTo);
         Object.defineProperty(window, 'scrollY', {configurable: true, value: 140});
         Object.defineProperty(window, 'scrollX', {configurable: true, value: 0});
@@ -136,8 +141,7 @@ describe('useChatViewport (T27/T38)', () => {
         expect(scrollTo).toHaveBeenCalledWith({left: 0, top: 0, behavior: 'instant'});
         expect(result.current.scale).toBe(1);
 
-        // Simulation : après scrollTo, scrollX et scrollY deviennent 0
-        Object.defineProperty(window, 'scrollY', {configurable: true, value: 0});
+        // Laisse tourner la re-mesure planifiée par useChatViewport.
         await flushFrame();
         // scrollTo ne doit pas boucler à l'infini
         expect(scrollTo).toHaveBeenCalledTimes(1);
