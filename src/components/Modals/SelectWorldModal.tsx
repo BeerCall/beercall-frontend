@@ -1,4 +1,4 @@
-import {useState, useLayoutEffect, useRef, useCallback, Suspense, type ComponentType} from 'react';
+import {useState, useLayoutEffect, useRef, useCallback, Suspense} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
@@ -7,38 +7,12 @@ import {OrbitControls, Html, useProgress} from '@react-three/drei';
 import {api} from '../../lib/api';
 import {useGameEngine} from '../../hooks/useGameEngine';
 import {useGameUIStore} from '../../store/useGameUIStore';
-import type {WorldsResponse, WorldParticipant} from '../../types/api';
+import type {WorldsResponse} from '../../types/api';
+import {loadWorldModule, worldModuleQueryOptions, type WorldTab, type LoadedWorldModule} from '../../lib/worldResources';
 import SceneReadyProbe from '../3D/SceneReadyProbe';
 
 // 📸 IMPORT DE TA MODALE
 import PhotoModal from '../Modals/PhotoModal';
-
-type WorldComponentProps = {
-    participants: WorldParticipant[];
-    onReadinessChange?: (isReady: boolean) => void;
-    isActiveApero?: boolean;
-    aperoId?: string;
-    squadId?: string;
-    onSelectPhoto?: (url: string) => void;
-    participantsReliable?: boolean;
-};
-
-type LoadedWorldModule = {
-    default: ComponentType<WorldComponentProps>;
-};
-
-async function defaultWorldModuleLoader(tab: WorldTab): Promise<LoadedWorldModule> {
-    switch (tab) {
-        case 'bar':
-            return import('../3D/BarWorld') as Promise<LoadedWorldModule>;
-        case 'piscine':
-            return import('../3D/PiscineWorld') as Promise<LoadedWorldModule>;
-        case 'dodo':
-            return import('../3D/FloatyIslandWorld') as Promise<LoadedWorldModule>;
-        default:
-            throw new Error(`Monde inconnu: ${tab}`);
-    }
-}
 
 // --- LA MODALE PRINCIPALE ---
 interface SelectWorldModalProps {
@@ -49,8 +23,6 @@ interface SelectWorldModalProps {
     isActiveApero: boolean;
     worldModuleLoader?: (tab: WorldTab) => Promise<LoadedWorldModule>;
 }
-
-type WorldTab = 'bar' | 'piscine' | 'dodo';
 
 // ⏳ COMPOSANT DE CHARGEMENT SÉCURISÉ POUR LE CANVAS
 function CanvasLoader() {
@@ -71,7 +43,7 @@ export default function SelectWorldModal({
     squadId,
     beerCallId,
     isActiveApero,
-    worldModuleLoader = defaultWorldModuleLoader,
+    worldModuleLoader = loadWorldModule,
 }: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
     const [tabGeneration, setTabGeneration] = useState(0);
@@ -125,21 +97,14 @@ export default function SelectWorldModal({
         enabled: isOpen && !!squadId && !!beerCallId,
     });
 
-    // 🚀 REV-06 : Chargement dynamique du module du monde sélectionné uniquement
+    // Foreground remains selected-only; optional warm-up shares these cache keys.
     const {
         data: worldModule,
         isPending: isModulePending,
         isError: isModuleError,
         refetch: refetchModule,
     } = useQuery<LoadedWorldModule>({
-        queryKey: ['world-module', activeTab],
-        queryFn: () => worldModuleLoader(activeTab),
-        staleTime: Infinity,
-        gcTime: Infinity,
-        retry: 1,
-        retryDelay: 100,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: false,
+        ...worldModuleQueryOptions(activeTab, worldModuleLoader),
         enabled: isOpen,
     });
 
@@ -291,7 +256,7 @@ export default function SelectWorldModal({
                                         <p className="mt-3 text-sm text-gray-900 font-bold">Chargement du monde 3D…</p>
                                     </div>
                                 )}
-                                <Canvas camera={{position: [0, 80, 450], fov: 45}} dpr={[1, 1.5]}>
+                                <Canvas data-world-canvas camera={{position: [0, 80, 450], fov: 45}} dpr={[1, 1.5]}>
                                     <ambientLight intensity={activeTab === 'bar' ? 1 : 1.5}/>
                                     <directionalLight position={[10, 10, 10]} intensity={2.5}/>
                                     <directionalLight position={[-10, 10, -10]} intensity={1}/>
