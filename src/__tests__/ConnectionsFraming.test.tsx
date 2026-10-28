@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from 'vitest';
-import {screen} from '@testing-library/react';
+import {act, screen} from '@testing-library/react';
 import {render} from './utils/test-utils';
 import Connections from '../pages/Connections';
 
@@ -56,5 +56,21 @@ describe('Connexions - cadrage des miniatures (T30b)', () => {
       disableZoom: true,
       disablePan: true,
     });
+    // No staggered entrance fade may delay an otherwise prepared avatar.
+    const card = screen.getByText('LISA').closest('div.group');
+    expect(card).toBeInTheDocument();
+    expect(card).not.toHaveStyle({opacity: '0'});
+    expect(card).not.toHaveStyle({transform: 'translateX(-20px)'});
+  });
+
+  it('prépare une vraie frame hors route puis suspend la miniature, et la réactive sans remontage', async () => {
+    const view = render(<Connections active={false}/>);
+    const avatar = await screen.findByTestId('safe-avatar-stub');
+    expect(avatarProps.last?.active).toBe(true);
+    act(() => (avatarProps.last?.onFrameSubmitted as () => void)());
+    expect(avatarProps.last?.active).toBe(false);
+    view.rerender(<Connections active/>);
+    expect(avatarProps.last?.active).toBe(true);
+    expect(screen.getByTestId('safe-avatar-stub')).toBe(avatar);
   });
 });

@@ -73,6 +73,7 @@ const {
         play: ReturnType<typeof vi.fn>;
         stop: ReturnType<typeof vi.fn>;
         isRunning: ReturnType<typeof vi.fn>;
+        getMixer: ReturnType<typeof vi.fn>;
     }>();
 
     const makeMockAction = () => ({
@@ -82,6 +83,7 @@ const {
         play: vi.fn().mockReturnThis(),
         stop: vi.fn().mockReturnThis(),
         isRunning: vi.fn().mockReturnValue(true),
+        getMixer: vi.fn().mockReturnValue({ update: vi.fn() }),
     });
 
     const animationsMock = vi.fn((animations: Array<{ name: string }> = []) => {
@@ -245,8 +247,9 @@ describe('3D Components Rendering & Observability', () => {
 
         const idleAction = mockActionMap.get('Idle')!;
         expect(idleAction.reset).toHaveBeenCalledTimes(1);
-        expect(idleAction.fadeIn).toHaveBeenCalledTimes(1);
+        expect(idleAction.fadeIn).not.toHaveBeenCalled();
         expect(idleAction.play).toHaveBeenCalledTimes(1);
+        expect(idleAction.getMixer().update).toHaveBeenCalledExactlyOnceWith(0);
 
         // Re-render with same clip (simulating refetch or parent re-render)
         rerender(<ModularAvatar config={{ head: 'cap', animation: 'Idle', gender: 'Men' }} />);
@@ -257,8 +260,9 @@ describe('3D Components Rendering & Observability', () => {
 
         // Action counters MUST NOT increase on stable re-render (no glitch / no reset)
         expect(idleAction.reset).toHaveBeenCalledTimes(1);
-        expect(idleAction.fadeIn).toHaveBeenCalledTimes(1);
+        expect(idleAction.fadeIn).not.toHaveBeenCalled();
         expect(idleAction.play).toHaveBeenCalledTimes(1);
+        expect(idleAction.getMixer().update).toHaveBeenCalledTimes(1);
 
         // User changes clip to 'Dance'
         currentClip = danceClip;

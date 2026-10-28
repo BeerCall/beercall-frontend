@@ -7,13 +7,13 @@ import {usePushNotifications} from './hooks/usePushNotifications';
 import Layout from './components/Layout';
 import ToastContainer from './components/UI/ToastContainer';
 import PersistentDashboard from './components/PersistentDashboard';
+import PersistentConnections from './components/PersistentConnections';
 
 // Lazy loading extrême pour tuer le Bundle Size Obèse (LCP optimisé)
 const Login = React.lazy(() => import('./pages/Login'));
 const PerformancePanel = React.lazy(() => import('./components/UI/PerformancePanel'));
 const SignUp = React.lazy(() => import('./pages/SignUp.tsx'));
 const Profile = React.lazy(() => import('./pages/Profile.tsx'));
-const Connections = React.lazy(() => import('./pages/Connections.tsx'));
 const ChatPage = React.lazy(() => import('./pages/ChatPage'));
 
 const createQueryClient = () => new QueryClient({
@@ -85,7 +85,7 @@ function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
                             {/* Protected Routes */}
                             <Route path="/profile" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Profile/></ProtectedRoute>} />
                             <Route path="/profile/:id" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Profile/></ProtectedRoute>} />
-                            <Route path="/connections" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Connections/></ProtectedRoute>} />
+                            <Route path="/connections" element={<ProtectedRoute isAuthenticated={isAuthenticated}>{null}</ProtectedRoute>} />
                             <Route path="/dashboard" element={<ProtectedRoute isAuthenticated={isAuthenticated}>{null}</ProtectedRoute>} />
                             <Route path="/squad/:id" element={<ProtectedRoute isAuthenticated={isAuthenticated}>{null}</ProtectedRoute>} />
                             <Route path="/squad/:squadId/beer-call/:beerCallId/chat" element={<ProtectedRoute isAuthenticated={isAuthenticated}><ChatPage/></ProtectedRoute>} />
@@ -97,6 +97,7 @@ function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
                     </Routes>
                 </Suspense>
                 <PersistentDashboard/>
+                <PersistentConnections/>
             </BrowserRouter>
         </QueryClientProvider>
     );
