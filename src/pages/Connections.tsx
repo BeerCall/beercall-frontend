@@ -1,10 +1,10 @@
 import {useNavigate} from 'react-router-dom';
 import {useQuery} from '@tanstack/react-query';
-import { Suspense, useRef } from 'react';
+import { Suspense, useRef, useState, useCallback } from 'react';
 import {ChevronLeft, Users, Trophy, ArrowRight} from 'lucide-react';
 import {api} from '../lib/api';
 import SafeAvatar from '../components/3D/SafeAvatar';
-import {motion, useInView} from 'framer-motion';
+import {useInView} from 'framer-motion';
 import type {AvatarConfig} from '../types/avatar';
 import {ThumbnailBudgetProvider, useThumbnailSlot} from '../hooks/useThumbnailBudget';
 
@@ -25,11 +25,14 @@ interface Connection {
     };
 }
 
-const AvatarThumbnail = ({id, config, username}: { id: string; config: AvatarConfig; username: string }) => {
+const AvatarThumbnail = ({id, config, username, active}: { id: string; config: AvatarConfig; username: string; active: boolean }) => {
     const ref = useRef<HTMLDivElement>(null);
     // margin: "100px" permet de charger l'avatar juste avant qu'il n'entre dans l'écran
     const isInView = useInView(ref, {margin: "100px"});
     const isGranted = useThumbnailSlot(id, isInView, ref);
+    const signature = JSON.stringify(config);
+    const [submittedSignature, setSubmittedSignature] = useState<string | null>(null);
+    const handleFrameSubmitted = useCallback(() => setSubmittedSignature(signature), [signature]);
 
     return (
         <div ref={ref} className="w-full h-full relative" data-testid={`avatar-thumb-${id}`}>
@@ -37,6 +40,8 @@ const AvatarThumbnail = ({id, config, username}: { id: string; config: AvatarCon
                 <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
                     <SafeAvatar config={config} disableZoom={true} disablePan={true}
                                 framing="thumbnail" view="connections-thumbnail"
+                                active={active || submittedSignature !== signature}
+                                onFrameSubmitted={handleFrameSubmitted}
                                 instanceId={`connections-${id}`}/>
                 </Suspense>
             ) : (
@@ -49,7 +54,7 @@ const AvatarThumbnail = ({id, config, username}: { id: string; config: AvatarCon
     );
 };
 
-export default function Connections() {
+export default function Connections({active = true}: { active?: boolean }) {
     const navigate = useNavigate();
     const listRef = useRef<HTMLDivElement>(null);
 
@@ -92,12 +97,9 @@ export default function Connections() {
                 {/* LISTE DES CONNEXIONS */}
                 <div ref={listRef} className="flex-1 overflow-y-auto p-6 pb-32 space-y-6">
                     {connections && connections.length > 0 ? (
-                        connections.map((user, index) => (
-                            <motion.div
+                        connections.map((user) => (
+                            <div
                                 key={user.id}
-                                initial={{opacity: 0, x: -20}}
-                                animate={{opacity: 1, x: 0}}
-                                transition={{delay: index * 0.1}}
                                 onClick={() => navigate(`/profile/${user.id}`)}
                                 className="bg-white rounded-[2.5rem] p-3 min-[400px]:p-4 shadow-xl shadow-gray-200/50 border-2 border-transparent hover:border-beer transition-all group cursor-pointer flex items-center gap-2 min-[400px]:gap-4 h-48"
                             >
@@ -105,7 +107,7 @@ export default function Connections() {
                                 <div
                                     className="w-24 h-32 min-[400px]:w-32 min-[400px]:h-40 shrink-0 bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
 
-                                    <AvatarThumbnail id={user.id} config={user.avatar} username={user.username}/>
+                                    <AvatarThumbnail id={user.id} config={user.avatar} username={user.username} active={active}/>
 
                                     <div className="absolute inset-0 z-10"/>
                                 </div>
@@ -145,7 +147,7 @@ export default function Connections() {
                                 className="w-11 h-11 min-[400px]:w-12 min-[400px]:h-12 shrink-0 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 group-hover:bg-beer group-hover:text-white transition-all shadow-inner group-hover:shadow-beer/30">
                                 <ArrowRight size={20}/>
                             </div>
-                        </motion.div>
+                        </div>
                     ))
                 ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center px-10">

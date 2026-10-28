@@ -55,5 +55,8 @@ export function parsePreparedModel(buffer: ArrayBuffer): Group {
     restore(model.geometries);
     const result = new ObjectLoader().parse(model);
     if (result.type !== 'Group') throw new Error('Invalid prepared model root');
+    // The loader verifies the content-addressed binary before parsing it. This
+    // source identity gates reuse of offline animation bounds after cloning.
+    result.userData.beercallSourceSha256 = envelope.sourceSha256;
     return result as Group;
 }

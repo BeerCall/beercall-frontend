@@ -13,6 +13,7 @@ export interface SafeAvatarProps {
   view?: string;
   instanceId?: string;
   active?: boolean;
+  onFrameSubmitted?: () => void;
   className?: string;
   fallback?: React.ReactNode;
   /** `thumbnail` = cadrage local borné (Connexions) ; `profile` = cadrage borné interactif (Profil) ; défaut inchangé. */
@@ -29,6 +30,7 @@ export default function SafeAvatar({
   className = 'w-full h-full relative',
   fallback,
   active = true,
+  onFrameSubmitted,
   loader = defaultAvatarCanvasLoader,
   ...avatarProps
 }: SafeAvatarProps) {
@@ -72,7 +74,8 @@ export default function SafeAvatar({
   // Le statut « restauration » ne se ferme qu'après une frame réellement soumise.
   const handleFrameSubmitted = useCallback(() => {
     setContextState(prev => (prev === 'restoring' ? 'ok' : prev));
-  }, []);
+    onFrameSubmitted?.();
+  }, [onFrameSubmitted]);
 
   const defaultLoadingFallback = (
     <div className="flex h-full w-full items-center justify-center">

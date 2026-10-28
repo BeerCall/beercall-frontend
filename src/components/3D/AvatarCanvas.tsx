@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
 import {MODELS_URL} from "../../lib/api.ts";
 import {computeAvatarFraming} from "../../lib/avatarFraming.ts";
+import {preparedThumbnailEnvelope} from '../../lib/thumbnailEnvelopeCatalog';
 import {
     computeThumbnailIdleEnvelope,
     type ThumbnailIdleEnvelopeReady,
@@ -814,7 +815,7 @@ function ThumbnailFramingController({groupRef, ready, signature, clip, allowNonI
         ) {
             envelope = cachedEnvelopeRef.current.envelope;
         } else {
-            const envResult = computeThumbnailIdleEnvelope({ parts, clip });
+            const envResult = preparedThumbnailEnvelope({ parts, clip }) ?? computeThumbnailIdleEnvelope({ parts, clip });
             if (!envResult.ok) {
                 if (allowNonIdleClip && !poseBox.isEmpty()) {
                     envelope = {
@@ -1101,11 +1102,12 @@ export default function AvatarCanvas({
     }, [framingSignature]);
 
     const handleFrameSubmitted = useCallback(() => {
+        if ((framing === 'thumbnail' || framing === 'profile') && !headOnly && framingInfo === null) return;
         onFrameSubmitted?.();
         if (framingInfo !== null) {
             setFramingReady(true);
         }
-    }, [onFrameSubmitted, framingInfo]);
+    }, [onFrameSubmitted, framingInfo, framing, headOnly]);
 
     const isThumbnail = framing === 'thumbnail' && !headOnly;
     const isProfile = framing === 'profile' && !headOnly;
