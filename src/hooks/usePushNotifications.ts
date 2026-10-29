@@ -12,14 +12,14 @@ export function usePushNotifications() {
 
     // Fonction utilitaire centralisée pour récupérer/mettre à jour le token
     const syncToken = async () => {
-        if (!messaging) return false;
-
         try {
+            const instance = await messaging;
+            if (!instance) return false;
             // 1. On récupère le SEUL Service Worker de l'app (celui géré par VitePWA via injectManifest)
             const registration = await navigator.serviceWorker.ready;
 
             // 2. On demande le token à Firebase en le forçant à utiliser ce Service Worker
-            const currentToken = await getToken(messaging, {
+            const currentToken = await getToken(instance, {
                 vapidKey: VAPID_KEY,
                 serviceWorkerRegistration: registration
             });
@@ -38,6 +38,7 @@ export function usePushNotifications() {
 
     // 1️⃣ L'ACTION MANUELLE (Au clic sur le bouton de demande d'autorisation)
     const subscribeToNotifications = async () => {
+        if (typeof Notification === 'undefined' || !messaging) return false;
         try {
             const permission = await Notification.requestPermission();
 
@@ -53,7 +54,7 @@ export function usePushNotifications() {
 
     // 2️⃣ LA RESTAURATION SILENCIEUSE (À l'ouverture / reconnexion)
     useEffect(() => {
-        if (!isAuthenticated || !messaging) return;
+        if (!isAuthenticated || !messaging || typeof Notification === 'undefined') return;
 
         // Si l'OS nous dit que l'utilisateur a DÉJÀ accepté les notifs dans le passé
         if (Notification.permission === 'granted') {
