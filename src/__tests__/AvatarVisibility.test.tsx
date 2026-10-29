@@ -371,12 +371,17 @@ describe('AvatarCanvas: Cadrage thumbnail et enveloppe Idle (T36b / VER-13 / VER
         testState.activeClip = createTestIdleClip('Idle', 1.0);
     });
 
-    it('défaut et headOnly : caméra non ajustée et pas d attribut data-avatar-framing', () => {
+    it('défaut inchangé ; headOnly cadre maintenant la vraie tête avec des matrices bornées', () => {
         const { container: c1 } = render(<AvatarCanvas config={dummyConfig} framing="default" />);
         expect(c1.querySelector('[data-avatar-framing]')).toBeNull();
 
         const { container: c2 } = render(<AvatarCanvas config={dummyConfig} headOnly={true} framing="thumbnail" />);
-        expect(c2.querySelector('[data-avatar-framing]')).toBeNull();
+        const head = c2.querySelector('[data-avatar-framing="pending"]');
+        expect(head).toBeInTheDocument();
+        const info = JSON.parse(head!.getAttribute('data-avatar-framing-info')!);
+        expect(info.partsCount).toBe(1);
+        expect(info.meshCount).toBeGreaterThan(0);
+        expect(info.corners.every((corner: number[]) => Math.abs(corner[0]) <= 0.81 && Math.abs(corner[1]) <= 0.81)).toBe(true);
     });
 
     it('readiness tardive : pending tant que non prêt, puis transition vers ready après soumission de frame', async () => {
