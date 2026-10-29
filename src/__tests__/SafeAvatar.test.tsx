@@ -207,6 +207,16 @@ describe('SafeAvatar Component (T14d)', () => {
     const mod = await promise;
     expect(mod.default).toBeDefined();
   });
+
+  it('shared sans provider expose son erreur sans appeler le loader standalone', () => {
+    const importer = vi.fn();
+    const loader = createAvatarCanvasLoader(importer);
+    render(<SafeAvatar config={dummyConfig} renderMode="shared" loader={loader}/>);
+    expect(screen.getByRole('alert')).toHaveTextContent('Avatar temporairement indisponible');
+    expect(screen.getByText('AvatarViewportProvider manquant')).toBeInTheDocument();
+    expect(importer).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('avatar-canvas')).toBeNull();
+  });
 });
 
 describe('SafeAvatar Lazy Loader Recovery (VER-03 / T35)', () => {

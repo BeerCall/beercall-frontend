@@ -3,8 +3,10 @@ import React, { useState, useEffect, useRef, Suspense, useCallback } from 'react
 import type { AvatarConfig } from '../../types/avatar';
 import { AvatarRenderBoundary } from './AvatarRenderBoundary';
 import { defaultAvatarCanvasLoader, type AvatarCanvasLoader } from './avatarCanvasLoader';
+import SharedAvatar from './SharedAvatar';
 
 export interface SafeAvatarProps {
+  renderMode?: 'standalone' | 'shared';
   config: AvatarConfig;
   disableZoom?: boolean;
   disablePan?: boolean;
@@ -26,7 +28,13 @@ export interface SafeAvatarProps {
 export const preloadAvatarCanvas = (loader: AvatarCanvasLoader = defaultAvatarCanvasLoader) =>
   loader.preload();
 
-export default function SafeAvatar({
+export default function SafeAvatar({renderMode = 'standalone', ...props}: SafeAvatarProps) {
+  if (renderMode === 'shared') return <SharedAvatar {...props}
+    mode={props.headOnly ? 'head' : props.framing === 'thumbnail' || props.framing === 'profile' ? props.framing : 'full'}/>;
+  return <StandaloneAvatar {...props}/>;
+}
+
+function StandaloneAvatar({
   className = 'w-full h-full relative',
   fallback,
   active = true,
