@@ -1,4 +1,4 @@
-import {useState, useEffect, Suspense} from 'react';
+import {useState, Suspense} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
 import {ChevronLeft, Check, Medal, Users, BarChart2, Trophy} from 'lucide-react';
 import {useQueryClient} from '@tanstack/react-query';
@@ -20,7 +20,12 @@ export default function Profile() {
 
     const {data: profile, isLoading} = useProfile(profileId);
 
-    const [previewAvatar, setPreviewAvatar] = useState<AvatarConfig | null>(null);
+    const [previewOwner, setPreviewOwner] = useState(profile?.id);
+    const [previewAvatar, setPreviewAvatar] = useState<AvatarConfig | null>(() => profile?.avatar ?? null);
+    if (previewOwner !== profile?.id) {
+        setPreviewOwner(profile?.id);
+        setPreviewAvatar(profile?.avatar ?? null);
+    }
     const [isSaving, setIsSaving] = useState(false);
 
     // 🚀 AJOUT DE L'ÉTAT POUR LE SWITCH VESTIAIRE / TROPHÉES
@@ -33,12 +38,6 @@ export default function Profile() {
         price: number,
         itemName: string
     } | null>(null);
-
-    useEffect(() => {
-        if (profile?.avatar && !previewAvatar) {
-            setPreviewAvatar(profile.avatar);
-        }
-    }, [profile, previewAvatar]);
 
     const handleBuyItem = (itemId: string, price: number, itemName: string) => {
         if (!isOwnProfile || !profile) return;
@@ -183,6 +182,8 @@ export default function Profile() {
 
                     <Suspense fallback={<div className="flex h-full items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-beer"></div></div>}>
                         <SafeAvatar
+                            key={profile.id}
+                            renderMode="shared"
                             config={previewAvatar}
                             framing="profile"
                             view="profile"
