@@ -7,6 +7,7 @@ import {MODELS_URL} from '../../lib/api.ts';
 import type {AvatarConfig, AvatarTransform} from '../../types/avatar.ts';
 import {useAvatarAnimations} from '../../hooks/useAvatarAnimations';
 import {useModel} from '../../hooks/useModel';
+import {createAvatarPresentationLease, type AvatarPresentationOptions} from '../../lib/avatarPresentationState';
 
 // 🍺 LE RECTIFICATEUR D'OBJETS PERSONNALISÉS
 const CUSTOM_ITEMS_CONFIG: Record<string, AvatarTransform> = {
@@ -303,6 +304,7 @@ function AvatarPart({
     partKey,
     onPartReady,
     onPartUnmount,
+    active,
 }: {
     path: string,
     customTransform?: AvatarTransform,
@@ -311,6 +313,7 @@ function AvatarPart({
     partKey?: string,
     onPartReady?: (partKey: string, meshCount: number, actionPlaying: boolean, partRoot?: THREE.Group) => void,
     onPartUnmount?: (partKey: string) => void,
+    active?: boolean,
 }) {
     const fbx = useModel(path);
     const groupRef = useRef<THREE.Group>(null);
@@ -332,6 +335,8 @@ function AvatarPart({
     const {actions} = useAnimations(animations || [], groupRef);
     const lastAnimRef = useRef<string | null>(null);
     const lastActionRef = useRef<THREE.AnimationAction | null>(null);
+    const wasActiveRef = useRef(active);
+    const skipResumeDeltaRef = useRef(false);
     const unmountCbRef = useRef(onPartUnmount);
     useEffect(() => { unmountCbRef.current = onPartUnmount; }, [onPartUnmount]);
 
@@ -339,7 +344,7 @@ function AvatarPart({
         let isActionPlaying = false;
         if (currentAnim && actions[currentAnim]) {
             const action = actions[currentAnim];
-            if (lastAnimRef.current !== currentAnim || lastActionRef.current !== action || !action.isRunning()) {
+            if (lastAnimRef.current !== currentAnim || lastActionRef.current !== action || (!action.isRunning() && !action.paused)) {
                 const hasPreviousAction = Boolean(lastActionRef.current && lastActionRef.current !== action);
                 if (hasPreviousAction && lastActionRef.current) {
                     lastActionRef.current.fadeOut(0.2);
@@ -354,7 +359,7 @@ function AvatarPart({
                 lastAnimRef.current = currentAnim;
                 lastActionRef.current = action;
             }
-            isActionPlaying = action.isRunning();
+            isActionPlaying = action.isRunning() || (action.paused && lastActionRef.current === action);
         }
 
         let meshCount = 0;
@@ -384,6 +389,22 @@ function AvatarPart({
             onPartReady(partKey, meshCount, isActionPlaying, resolvedRoot);
         }
     }, [currentAnim, actions, clonedFbx, partKey, onPartReady, animations, customTransform]);
+
+    useLayoutEffect(() => {
+        if (active === undefined) return; // Standalone keeps its historical root-owned clock.
+        skipResumeDeltaRef.current = active && wasActiveRef.current === false;
+        wasActiveRef.current = active;
+        for (const action of Object.values(actions)) if (action) action.paused = !active;
+    }, [active, actions]);
+
+    // Runs before Drei's mixer update (priority 0). The first resumed delta may
+    // include a background interval: discard it for this assembly only.
+    useFrame(() => {
+        if (active === undefined) return;
+        const paused = !active || skipResumeDeltaRef.current;
+        for (const action of Object.values(actions)) if (action) action.paused = paused;
+        skipResumeDeltaRef.current = false;
+    }, -1);
 
     useEffect(() => {
         return () => {
@@ -426,12 +447,14 @@ export function ModularAvatar({
     onReadinessChange,
     onActiveClipChange,
     groupRef,
+    presentation,
 }: {
     config: AvatarConfig,
     onAnimationsLoaded?: (animations: string[]) => void,
     onReadinessChange?: (isReady: boolean, details?: { parts: string[]; meshCount: number }) => void,
     onActiveClipChange?: (clip: THREE.AnimationClip | null) => void,
     groupRef?: React.RefObject<THREE.Group | null>,
+    presentation?: AvatarPresentationOptions,
 }) {
     const fallbackRootRef = useRef<THREE.Group | null>(null);
     if (fallbackRootRef.current == null) {
@@ -550,18 +573,49 @@ export function ModularAvatar({
     }, [clipNames, onAnimationsLoaded]);
 
     const isIdle = currentAnim === 'Idle';
+    const shared = presentation?.mode === 'shared';
+    const active = presentation?.active;
+    const onPresentationChange = presentation?.onChange;
+    const presentationSignature = JSON.stringify(config);
+    const presentationLeaseRef = useRef<ReturnType<typeof createAvatarPresentationLease> | null>(null);
+
+    useLayoutEffect(() => {
+        if (!shared || !onPresentationChange) return;
+        const lease = createAvatarPresentationLease();
+        presentationLeaseRef.current = lease;
+        return () => {
+            lease.revoke();
+            if (presentationLeaseRef.current === lease) presentationLeaseRef.current = null;
+            onPresentationChange(null);
+        };
+    }, [shared, onPresentationChange, presentationSignature]);
+
+    useLayoutEffect(() => {
+        if (!shared || !onPresentationChange) return;
+        const criticalError = !!error && !activeClip;
+        const deferredError = !!activeClip && (deferredStatus === 'error' || !!error);
+        const state = presentationLeaseRef.current?.update({
+            phase: criticalError ? 'critical-error' : deferredError ? 'deferred-error' : activeClip ? 'ready' : 'critical-loading',
+            error: criticalError ? 'animation-critical-unavailable' : deferredError ? 'animation-deferred-unavailable' : undefined,
+            active: active !== false,
+            canNotifyInitialFrame: isAvatarReady && isIdle,
+            notifyInitialFrame,
+            retry,
+        });
+        if (state) onPresentationChange(state);
+    }, [shared, onPresentationChange, presentationSignature, active, activeClip, deferredStatus, error, isAvatarReady, isIdle, notifyInitialFrame, retry]);
 
     return (
         <group ref={handleGroupRef}>
             {/* Raccorder notifyInitialFrame du hook T10 à un probe de frame, armé après readiness des pièces ET action Idle */}
-            <AvatarFrameNotifier
+            {!shared && <AvatarFrameNotifier
                 ready={isAvatarReady}
                 isIdle={isIdle}
                 onFrameSubmitted={notifyInitialFrame}
-            />
+            />}
 
             {/* UI Html de chargement/erreur avec bouton « Réessayer les animations » ; différé en échec n'efface pas l'avatar */}
-            {error && !activeClip && (
+            {!shared && error && !activeClip && (
                 <Html center>
                     <div className="flex flex-col items-center bg-white/90 p-4 rounded-2xl shadow-xl backdrop-blur-md text-center max-w-xs">
                         <p className="text-xs font-bold text-red-600 mb-2">Erreur de chargement des animations</p>
@@ -576,7 +630,7 @@ export function ModularAvatar({
                 </Html>
             )}
 
-            {deferredStatus === 'error' && (
+            {!shared && deferredStatus === 'error' && (
                 <Html position={[0, -20, 0]} center>
                     <div className="bg-amber-100/90 border border-amber-300 text-amber-900 px-3 py-1 rounded-lg text-xs flex items-center gap-2 shadow-md">
                         <span>Animations différées indisponibles</span>
@@ -595,22 +649,22 @@ export function ModularAvatar({
             {config.head && config.head !== 'none' &&
                 <AvatarPart key={`head-${config.head}`} path={`${MODELS_URL}/${config.head}.fbx`}
                             partKey="head" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
-                            animations={activeAnimations} currentAnim={currentAnim}/>}
+                            animations={activeAnimations} currentAnim={currentAnim} active={active}/>}
 
             {config.body && config.body !== 'none' &&
                 <AvatarPart key={`body-${config.body}`} path={`${MODELS_URL}/${config.body}.fbx`}
                             partKey="body" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
-                            animations={activeAnimations} currentAnim={currentAnim}/>}
+                            animations={activeAnimations} currentAnim={currentAnim} active={active}/>}
 
             {config.legs && config.legs !== 'none' &&
                 <AvatarPart key={`legs-${config.legs}`} path={`${MODELS_URL}/${config.legs}.fbx`}
                             partKey="legs" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
-                            animations={activeAnimations} currentAnim={currentAnim}/>}
+                            animations={activeAnimations} currentAnim={currentAnim} active={active}/>}
 
             {config.feet && config.feet !== 'none' &&
                 <AvatarPart key={`feet-${config.feet}`} path={`${MODELS_URL}/${config.feet}.fbx`}
                             partKey="feet" onPartReady={handlePartReady} onPartUnmount={handlePartUnmount}
-                            animations={activeAnimations} currentAnim={currentAnim}/>}
+                            animations={activeAnimations} currentAnim={currentAnim} active={active}/>}
 
             {config.accessory && config.accessory !== 'none' && (
                 <AvatarPart
@@ -622,6 +676,7 @@ export function ModularAvatar({
                     customTransform={accessoryTransform}
                     animations={activeAnimations}
                     currentAnim={currentAnim}
+                    active={active}
                 />
             )}
         </group>
