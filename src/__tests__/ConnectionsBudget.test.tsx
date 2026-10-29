@@ -1,119 +1,80 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
-import React from 'react';
-import { http, HttpResponse } from 'msw';
-import { server } from './mocks/server';
-import { render } from './utils/test-utils';
+import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {screen, waitFor, fireEvent, act} from '@testing-library/react';
+import React, {useLayoutEffect, useSyncExternalStore} from 'react';
+import {http, HttpResponse} from 'msw';
+import {Group, Mesh, BoxGeometry, MeshBasicMaterial, Scene, PerspectiveCamera} from 'three';
+import {server} from './mocks/server';
+import {render} from './utils/test-utils';
 import Connections from '../pages/Connections';
+import AvatarViewportProvider from '../components/3D/AvatarViewportProvider';
+import type {AvatarViewportSession} from '../lib/avatarViewportContext';
 
-const mock30Connections = Array.from({ length: 30 }, (_, i) => ({
-  id: `user_${i + 1}`,
-  username: `Ami_${i + 1}`,
-  caps: (i + 1) * 10,
-  score: (i + 1) * 100,
-  title: 'Camarade',
-  avatar: {
-    head: 'head_base',
-    body: 'body_tshirt',
-    legs: 'legs_jeans',
-    feet: 'shoes_sneakers',
-    accessory: 'none',
-    gender: 'Men' as const,
-  },
-}));
+const fixtures = vi.hoisted(() => ({live: 0, created: 0, navigate: vi.fn(), observed: new Set<Element>()}));
+let session: AvatarViewportSession;
+const people = Array.from({length: 30}, (_, i) => ({id: `user_${i + 1}`, username: `Ami_${i + 1}`, caps: (i + 1) * 10,
+    score: (i + 1) * 100, title: 'Camarade', avatar: {head: 'head_base', body: 'body_tshirt', legs: 'legs_jeans',
+        feet: 'shoes_sneakers', accessory: 'none', gender: 'Men' as const}}));
 
-// Simule useInView renvoyant true pour tester la concurrence des 30 candidats simultanés
-vi.mock('framer-motion', async () => {
-  const actual = await vi.importActual('framer-motion');
-  return {
-    ...actual,
-    useInView: vi.fn().mockReturnValue(true),
-  };
-});
+vi.mock('react-router-dom', async original => ({...await original<typeof import('react-router-dom')>(), useNavigate: () => fixtures.navigate}));
+vi.mock('../components/3D/SharedAvatarRenderer', () => ({default: function CopyBackend({session: current}: {session: AvatarViewportSession}) {
+    session = current;
+    const snapshot = useSyncExternalStore(current.registry.subscribe, current.registry.getSnapshot);
+    React.useEffect(() => { fixtures.created++; fixtures.live++; return () => { fixtures.live--; }; }, []);
+    useLayoutEffect(() => {
+        for (const job of snapshot.jobs) {
+            if (!job.ready) {
+                const group = new Group(); group.add(new Mesh(new BoxGeometry(), new MeshBasicMaterial()));
+                const token = current.registry.jobToken(job);
+                current.registry.attachScene(token, new Scene(), new PerspectiveCamera());
+                current.registry.setSceneStatus(token, {signature: job.signature, ready: true, group, expectedParts: ['head'], framing: null, frameSubmitted: false});
+            }
+        }
+        for (const view of snapshot.views) if (view.visible && view.frame?.signature !== view.signature) {
+            view.target.getContext('2d')!.drawImage(document.createElement('canvas'), 0, 0);
+            current.registry.confirmCopy(current.registry.copyToken(view), {copied: true, meshCount: 1, drawCalls: 1, timestamp: performance.now()});
+        }
+    }, [current, snapshot]);
+    return <canvas data-testid="shared-source-double"/>;
+}}));
 
-// Mock AvatarCanvas pour compter les montages réels
-const avatarCanvasMounts = vi.hoisted(() => ({ count: 0, activeInstances: new Set<string>() }));
-vi.mock('../components/3D/AvatarCanvas', () => ({
-  default: function MockAvatarCanvas({ config }: { config: Record<string, unknown> }) {
-    React.useEffect(() => {
-      avatarCanvasMounts.count++;
-      return () => {
-        avatarCanvasMounts.count--;
-      };
-    }, []);
-    return <div data-testid="avatar-canvas-instance" data-gender={String(config?.gender || 'Men')}>Canvas 3D</div>;
-  },
-}));
-
-describe('Connections 3D Thumbnail Budget (T14c / REL-01)', () => {
-  beforeEach(() => {
-    avatarCanvasMounts.count = 0;
-    avatarCanvasMounts.activeInstances.clear();
-    server.use(
-      http.get('*/auth/connections/', () => {
-        return HttpResponse.json(mock30Connections);
-      })
-    );
-  });
-
-  it('affiche les 30 profils mais borne à au plus 2 AvatarCanvas 3D montés simultanément', async () => {
-    render(<Connections />);
-
-    // Attente du chargement des connexions
-    await waitFor(() => {
-      expect(screen.getByText('Ami_1')).toBeInTheDocument();
-      expect(screen.getByText('Ami_30')).toBeInTheDocument();
+function Page() { return <AvatarViewportProvider><Connections/></AvatarViewportProvider>; }
+describe('Connections shared budget: all thirty people, one source (deterministic copies)', () => {
+    beforeEach(() => {
+        fixtures.live = 0; fixtures.created = 0; fixtures.navigate.mockClear(); fixtures.observed.clear();
+        server.use(http.get('*/auth/connections/', () => HttpResponse.json(people)));
+        vi.spyOn(HTMLDivElement.prototype, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 128, 160));
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({drawImage: vi.fn(), clearRect: vi.fn()}) as unknown as CanvasRenderingContext2D);
+        class Observer {
+            private nodes = new Set<Element>();
+            observe(node: Element) { this.nodes.add(node); fixtures.observed.add(node); }
+            disconnect() { this.nodes.forEach(node => fixtures.observed.delete(node)); this.nodes.clear(); }
+            unobserve(node: Element) { this.nodes.delete(node); fixtures.observed.delete(node); }
+        }
+        vi.stubGlobal('ResizeObserver', Observer); vi.stubGlobal('IntersectionObserver', Observer);
     });
-
-    // 30 cartes sont présentes dans le DOM
-    const thumbnails = screen.getAllByTestId(/^avatar-thumb-user_/);
-    expect(thumbnails).toHaveLength(30);
-
-    // Au plus 2 AvatarCanvas sont montés
-    await waitFor(() => {
-      const activeCanvases = screen.queryAllByTestId('avatar-canvas-instance');
-      expect(activeCanvases.length).toBeLessThanOrEqual(2);
+    it('affiche trente cartes et trente cellules certifiées, sans initiales pour des avatars valides', async () => {
+        const view = render(<Page/>);
+        await screen.findByText('Ami_30');
+        await waitFor(() => expect(view.container.querySelectorAll('[data-avatar-state="frame-ready"]')).toHaveLength(30));
+        expect(screen.getAllByTestId(/^avatar-thumb-user_/)).toHaveLength(30);
+        expect(session.registry.getSnapshot().views).toHaveLength(30);
+        expect(screen.queryAllByLabelText(/^Avatar de Ami_/)).toHaveLength(0);
+        expect(screen.getAllByTestId('shared-source-double')).toHaveLength(1);
+        expect(fixtures.live).toBe(1);
     });
-
-    // Les candidats non admis affichent un placeholder stable avec l'initiale et aria-label
-    const placeholders = screen.getAllByLabelText(/^Avatar de Ami_/);
-    expect(placeholders.length).toBeGreaterThanOrEqual(28);
-    // Vérification que le premier placeholder non admis affiche bien la première lettre
-    expect(placeholders[0]).toHaveTextContent('A');
-  });
-
-  it('rendu en StrictMode respecte le plafond de 2 et nettoie les réservations au démontage', async () => {
-    const { unmount } = render(
-      <React.StrictMode>
-        <Connections />
-      </React.StrictMode>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('Ami_1')).toBeInTheDocument();
+    it('StrictMode conserve une seule source vivante et nettoie toutes les réservations/observateurs', async () => {
+        const view = render(<React.StrictMode><Page/></React.StrictMode>);
+        await waitFor(() => expect(view.container.querySelectorAll('[data-avatar-state="frame-ready"]')).toHaveLength(30));
+        expect(fixtures.live).toBe(1); expect(fixtures.created).toBeGreaterThanOrEqual(1);
+        view.unmount(); await act(async () => {});
+        expect(fixtures.live).toBe(0); expect(fixtures.observed.size).toBe(0);
+        expect(session.registry.getSnapshot().views).toHaveLength(0);
+        expect(session.registry.getSnapshot().jobs).toHaveLength(0);
     });
-
-    await waitFor(() => {
-      const activeCanvases = screen.queryAllByTestId('avatar-canvas-instance');
-      expect(activeCanvases.length).toBeLessThanOrEqual(2);
+    it('préserve un vrai clic vers le trentième profil', async () => {
+        render(<Page/>);
+        const last = await screen.findByText('Ami_30');
+        fireEvent.click(last.closest('div.cursor-pointer')!);
+        expect(fixtures.navigate).toHaveBeenCalledWith('/profile/user_30');
     });
-
-    // Au démontage complet de la page (ex: départ vers une autre route)
-    unmount();
-
-    // Tous les canvas 3D doivent être démontés, 0 instance vivante
-    expect(avatarCanvasMounts.count).toBe(0);
-  });
-
-  it('accès préservé aux 30 profils par clic', async () => {
-    render(<Connections />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Ami_30')).toBeInTheDocument();
-    });
-
-    // Chaque profil peut être cliqué sans blocage par le scheduler
-    const profile30 = screen.getByText('Ami_30').closest('div[class*="cursor-pointer"]');
-    expect(profile30).toBeInTheDocument();
-  });
 });

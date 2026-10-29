@@ -14,11 +14,6 @@ vi.mock('../components/3D/SafeAvatar', () => ({
   },
 }));
 
-vi.mock('../hooks/useThumbnailBudget', () => ({
-  ThumbnailBudgetProvider: ({children}: {children: React.ReactNode}) => <>{children}</>,
-  useThumbnailSlot: () => true,
-}));
-
 vi.mock('@tanstack/react-query', async () => ({
   ...await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query'),
   useQuery: () => ({
@@ -51,6 +46,7 @@ describe('Connexions - cadrage des miniatures (T30b)', () => {
     expect(await screen.findByTestId('safe-avatar-stub')).toBeInTheDocument();
     expect(avatarProps.last).toMatchObject({
       framing: 'thumbnail',
+      renderMode: 'shared',
       view: 'connections-thumbnail',
       instanceId: 'connections-7',
       disableZoom: true,
@@ -63,13 +59,11 @@ describe('Connexions - cadrage des miniatures (T30b)', () => {
     expect(card).not.toHaveStyle({transform: 'translateX(-20px)'});
   });
 
-  it('prépare une vraie frame hors route puis suspend la miniature, et la réactive sans remontage', async () => {
+  it('conserve la cellule hors route sans demander une passe, puis la réactive sans remontage', async () => {
     const view = render(<Connections active={false}/>);
     const avatar = await screen.findByTestId('safe-avatar-stub');
-    expect(avatarProps.last?.active).toBe(true);
-    act(() => (avatarProps.last?.onFrameSubmitted as () => void)());
     expect(avatarProps.last?.active).toBe(false);
-    view.rerender(<Connections active/>);
+    act(() => view.rerender(<Connections active/>));
     expect(avatarProps.last?.active).toBe(true);
     expect(screen.getByTestId('safe-avatar-stub')).toBe(avatar);
   });

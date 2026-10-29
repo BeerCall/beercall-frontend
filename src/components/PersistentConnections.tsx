@@ -5,9 +5,10 @@ import type { SceneMetricsRecord } from '../lib/sceneMetrics';
 
 const Connections = lazy(() => import('../pages/Connections'));
 
-/** Two budgeted thumbnails, prepared only after the map has become interactive.
- * Keep positive layout bounds and the rendered buffers on route changes. Hidden
- * thumbnails stop their frameloops once a correctly framed frame was submitted.
+/** Retained presentation cells, mounted after the map becomes interactive.
+ * Session warmup prepares the shared engine independently of this hidden page.
+ * Keep layout/scroll and last 2D frames on route changes; hidden cells stop
+ * requesting animation passes, without owning any per-thumbnail WebGL context.
  * AppSession's user key destroys this cache on logout/account change.
  */
 export default function PersistentConnections() {
