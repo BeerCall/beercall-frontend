@@ -66,12 +66,19 @@ export function invalidateSceneInstance(view: string, instanceId: string, genera
     const w = typeof window === 'undefined' ? undefined : window as unknown as {
         __bench?: { marks: Record<string, unknown>; sceneMetrics?: Record<string, SceneMetricsRecord> };
         __beercall_scene_metrics?: Record<string, SceneMetricsRecord>;
+        __beercall_scene_metrics_by_view?: Record<string, Record<string, SceneMetricsRecord>>;
     };
-    for (const record of new Set([...records, ...Object.values(w?.__beercall_scene_metrics ?? {})])) {
+    for (const record of new Set([...records, ...Object.values(w?.__beercall_scene_metrics ?? {}),
+        ...Object.values(w?.__beercall_scene_metrics_by_view?.[view] ?? {})])) {
         if (record.view !== view || record.generation !== generation ||
             (record.instanceId !== instanceId && record.kind !== 'sceneUsable')) continue;
         const index = records.indexOf(record);
         if (index >= 0) records.splice(index, 1);
+        const scoped = w?.__beercall_scene_metrics_by_view?.[view];
+        if (scoped?.[record.kind] === record) {
+            delete scoped[record.kind];
+            if (!Object.keys(scoped).length) delete w!.__beercall_scene_metrics_by_view![view];
+        }
         if (w?.__beercall_scene_metrics?.[record.kind] === record) {
             delete w.__beercall_scene_metrics[record.kind];
             if (w.__bench?.marks[record.kind] === record.timestamp) delete w.__bench.marks[record.kind];
@@ -169,6 +176,7 @@ export function recordSceneSignal(
                 sceneMetrics?: Record<string, unknown>;
             };
             __beercall_scene_metrics?: Record<string, unknown>;
+            __beercall_scene_metrics_by_view?: Record<string, Record<string, SceneMetricsRecord>>;
         };
 
         if (w.__bench) {
@@ -188,6 +196,11 @@ export function recordSceneSignal(
 
         w.__beercall_scene_metrics = w.__beercall_scene_metrics || {};
         w.__beercall_scene_metrics[kind] = record;
+        // Different mounted views may submit the same kind concurrently.
+        // Keep their active readiness independent of the legacy latest-by-kind snapshot.
+        w.__beercall_scene_metrics_by_view ??= {};
+        const scoped = w.__beercall_scene_metrics_by_view[view!] ??= {};
+        scoped[kind] = record;
     }
 
     // 4. Calcul de sceneUsable = max(mapInteractive, avatarFrameSubmitted) sur dashboard
@@ -275,8 +288,9 @@ export function clearSceneMetrics(): void {
         performance.clearMarks?.(`beercall:${kind}`);
     }
     if (typeof window !== 'undefined') {
-        const w = window as unknown as { __beercall_scene_metrics?: Record<string, unknown>; __bench?: { marks: Record<string, unknown> } };
+        const w = window as unknown as { __beercall_scene_metrics?: Record<string, unknown>; __beercall_scene_metrics_by_view?: Record<string, unknown>; __bench?: { marks: Record<string, unknown> } };
         delete w.__beercall_scene_metrics;
+        delete w.__beercall_scene_metrics_by_view;
         for (const kind of kinds) if (w.__bench?.marks) delete w.__bench.marks[kind];
     }
 }

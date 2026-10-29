@@ -5,7 +5,7 @@ import type { RootState } from '@react-three/fiber';
 import type { MapRef } from 'react-map-gl/maplibre';
 import SceneReadyProbe from '../components/3D/SceneReadyProbe';
 import { MapSection } from '../components/Dashboard/MapSection';
-import { clearSceneMetrics, getInitialDashboardSceneSignal, getLatestSceneSignal, getSceneMetrics, recordSceneSignal, registerSceneInstance, unregisterSceneInstance } from '../lib/sceneMetrics';
+import { clearSceneMetrics, getInitialDashboardSceneSignal, getLatestSceneSignal, getSceneMetrics, recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, type SceneMetricsRecord } from '../lib/sceneMetrics';
 
 const mock = vi.hoisted(() => ({
   frame: undefined as ((state: RootState) => void) | undefined,
@@ -32,6 +32,28 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); clearSceneMetrics(); });
 
 describe('submitted frame signals', () => {
+  it('keeps dashboard readiness independent from another view submitting and invalidating its avatar', () => {
+    const w = window as unknown as { __beercall_scene_metrics_by_view?: Record<string, Record<string, SceneMetricsRecord>> };
+    const generation = registerSceneInstance('dashboard', 'map');
+    registerSceneInstance('dashboard', 'player');
+    recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: 'map', generation, timestamp: 100 });
+    const player = recordSceneSignal('avatarFrameSubmitted', { view: 'dashboard', instanceId: 'player', generation, timestamp: 110, drawCalls: 4 });
+    const other = registerSceneInstance('full', 'other');
+    recordSceneSignal('avatarFrameSubmitted', { view: 'full', instanceId: 'other', generation: other, timestamp: 120, drawCalls: 2 });
+    expect(w.__beercall_scene_metrics_by_view?.dashboard.avatarFrameSubmitted).toBe(player);
+    expect(w.__beercall_scene_metrics_by_view?.dashboard.sceneUsable.timestamp).toBe(110);
+    unregisterSceneInstance('full', 'other', other);
+    expect(w.__beercall_scene_metrics_by_view?.full).toBeUndefined();
+    expect(w.__beercall_scene_metrics_by_view?.dashboard.avatarFrameSubmitted).toBe(player);
+    invalidateSceneInstance('dashboard', 'player', generation);
+    expect(w.__beercall_scene_metrics_by_view?.dashboard.avatarFrameSubmitted).toBeUndefined();
+    expect(w.__beercall_scene_metrics_by_view?.dashboard.sceneUsable).toBeUndefined();
+    expect(w.__beercall_scene_metrics_by_view?.dashboard.mapInteractive).toBeDefined();
+    unregisterSceneInstance('dashboard', 'map', generation);
+    expect(w.__beercall_scene_metrics_by_view?.dashboard).toBeUndefined();
+    clearSceneMetrics();
+    expect(w.__beercall_scene_metrics_by_view).toBeUndefined();
+  });
   it('does not certify useFrame before render, zero draws or an unchanged root counter', () => {
     const submitted = vi.fn();
     render(<SceneReadyProbe kind="avatar" id="avatar" view="dashboard" ready onFrameSubmitted={submitted} />);
