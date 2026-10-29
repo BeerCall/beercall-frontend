@@ -29,8 +29,8 @@ vi.mock('../hooks/usePushNotifications', () => ({
     usePushNotifications: () => ({ subscribeToNotifications: vi.fn().mockResolvedValue(true) }),
 }));
 
-vi.mock('../components/3D/AvatarCanvas', () => ({
-    default: () => <div data-testid="avatar-canvas">Avatar 3D Prêt</div>,
+vi.mock('../components/3D/SafeAvatar', () => ({
+    default: ({renderMode}: {renderMode: string}) => <div data-testid="avatar-canvas" data-render-mode={renderMode}>Avatar partagé demandé</div>,
 }));
 
 describe('Map Readiness & onLoad lifecycle (CHAL-07)', () => {
@@ -162,6 +162,7 @@ describe('Map Readiness & onLoad lifecycle (CHAL-07)', () => {
             // L'avatar 3D est désormais autorisé et rendu sans attendre
             const canvas = await screen.findByTestId('avatar-canvas');
             expect(canvas).toBeInTheDocument();
+            expect(canvas).toHaveAttribute('data-render-mode', 'shared');
 
             // SÉPARATION T10C : onLoad seul N'ÉMET PAS mapInteractive
             expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();

@@ -5,6 +5,8 @@ import { MapSection } from '../components/Dashboard/MapSection';
 import { mapMockControl } from '../../setupTests';
 import { clearSceneMetrics, getLatestSceneSignal } from '../lib/sceneMetrics';
 import type { MapRef } from 'react-map-gl/maplibre';
+vi.mock('../components/3D/SafeAvatar', () => ({default: ({renderMode, active}: {renderMode: string; active: boolean}) =>
+  <div data-testid="safe-avatar-container" data-render-mode={renderMode} data-active={String(active)}/>}));
 
 // Fake MapLibre Map instance avec gestionnaire d'événements
 class FakeMapLibreMap {
@@ -12,6 +14,10 @@ class FakeMapLibreMap {
   public resizeCalled = 0;
   public repaintCalled = 0;
   public stopCalled = 0;
+  getCenter() { return {lng: 3.5, lat: 49.25}; }
+  getZoom() { return 15; }
+  getBearing() { return 37; }
+  getPitch() { return 51; }
 
   on(event: string, fn: (evt?: unknown) => void) {
     if (!this.listeners.has(event)) {
@@ -314,6 +320,7 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
 
     rerender(<MapSection {...props} canCreateFromLocation={true}/>);
     const player = screen.getByTestId('safe-avatar-container');
+    expect(player).toHaveAttribute('data-render-mode', 'shared');
     expect(screen.getByRole('button', { name: 'Créer un Beer Call' })).toBeInTheDocument();
     rerender(<MapSection {...props} active={false}/>);
     expect(screen.getByTestId('safe-avatar-container')).toBe(player);
@@ -331,5 +338,41 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     expect(player.closest('[inert]')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Créer un Beer Call' }));
     expect(openCamera).toHaveBeenCalledOnce();
+  });
+
+  it('manual retry replaces only the map, preserves its camera and rejects every retired callback', () => {
+    const oldMap = new FakeMapLibreMap();
+    const mapRef = createFakeMapRef(oldMap);
+    const openCamera = vi.fn();
+    render(<MapSection mapRef={mapRef} userLocation={{lat: 48, lng: 2}} isNightMode={false}
+      canCreateFromLocation={false} squadDetails={null} profile={dummyProfile} handleMapPointerDown={vi.fn()}
+      handleMapPointerMove={vi.fn()} cancelLongPress={vi.fn()} handleManualRecenter={vi.fn()}
+      handleBeerCallClick={vi.fn()} openCamera={openCamera} setIsWorldsModalOpen={vi.fn()}/>);
+    act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
+    const oldNode = screen.getByTestId('mock-map');
+    const oldLoad = mapMockControl.latestProps!.onLoad!;
+    const oldIdle = mapMockControl.latestProps!.onIdle!;
+    act(() => oldMap.fire('webglcontextlost'));
+    fireEvent.click(screen.getByRole('button', {name: 'Réessayer la carte'}));
+    expect(screen.getByTestId('mock-map')).not.toBe(oldNode);
+    expect(screen.getAllByTestId('mock-map')).toHaveLength(1);
+    expect(mapMockControl.latestProps!.initialViewState).toEqual({longitude: 3.5, latitude: 49.25, zoom: 15, bearing: 37, pitch: 51});
+    expect(oldMap.getListenerCount('webglcontextlost')).toBe(0);
+    expect(oldMap.getListenerCount('webglcontextrestored')).toBe(0);
+    const nextMap = new FakeMapLibreMap();
+    mapRef.current = createFakeMapRef(nextMap).current;
+    act(() => { oldLoad(); oldIdle(); oldMap.fire('webglcontextrestored'); mapMockControl.triggerIdle(); });
+    expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+    expect(screen.getByRole('status', {name: 'Statut carte'})).toBeInTheDocument();
+    act(() => { (mapMockControl.latestProps!.onLoad as (event: {target: unknown}) => void)({target: nextMap}); });
+    expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+    act(() => oldIdle());
+    expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+    act(() => mapMockControl.triggerIdle());
+    expect(getLatestSceneSignal('mapInteractive')).toBeDefined();
+    expect(screen.queryByRole('status', {name: 'Statut carte'})).not.toBeInTheDocument();
+    expect(nextMap.getListenerCount('webglcontextlost')).toBe(1);
+    expect(screen.queryByRole('button', {name: 'Créer un Beer Call'})).not.toBeInTheDocument();
+    expect(openCamera).not.toHaveBeenCalled();
   });
 });

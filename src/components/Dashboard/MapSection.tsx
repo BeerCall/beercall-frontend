@@ -8,7 +8,27 @@ import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
 import { QueryClientContext } from '@tanstack/react-query';
 import { useLocationStore } from '../../store/useLocationStore';
 import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
-import SafeAvatar, { preloadAvatarCanvas } from '../3D/SafeAvatar';
+import SafeAvatar from '../3D/SafeAvatar';
+
+interface NativeMap {
+    on?: (event: string, fn: (evt?: unknown) => void) => void;
+    off?: (event: string, fn: (evt?: unknown) => void) => void;
+    resize?: () => void;
+    triggerRepaint?: () => void;
+    stop?: () => void;
+    getCenter?: () => {lng: number; lat: number};
+    getZoom?: () => number;
+    getBearing?: () => number;
+    getPitch?: () => number;
+}
+type MapView = {longitude: number; latitude: number; zoom: number; bearing: number; pitch: number};
+function readMapView(map: NativeMap | null): MapView | undefined {
+    try {
+        const center = map?.getCenter?.();
+        const view = {longitude: center?.lng, latitude: center?.lat, zoom: map?.getZoom?.(), bearing: map?.getBearing?.(), pitch: map?.getPitch?.()};
+        return Object.values(view).every(value => typeof value === 'number' && Number.isFinite(value)) ? view as MapView : undefined;
+    } catch { return undefined; }
+}
 
 // MapLibre retire son style pendant contextlost. react-map-gl ne protège pas
 // setProps contre ce style null : ne pas rerendre l'adaptateur avant restored
@@ -22,7 +42,7 @@ const RetainedNativeMap = React.memo(function RetainedNativeMap({ element }: {
     frozen: boolean;
 }) {
     return element;
-}, (_previous, next) => next.frozen);
+}, (previous, next) => next.frozen && previous.element.key === next.element.key);
 
 interface MapSectionProps {
     mapRef: React.RefObject<MapRef | null>;
@@ -106,7 +126,6 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         if (!visible || !canWarm3d || !profile?.avatar) return;
         let cancelled = false;
         // Loading code/Idle can overlap map style/tiles, not start after onLoad.
-        void preloadAvatarCanvas().catch(() => {});
         if (queryClient) void import('../../hooks/useAvatarAnimations')
             .then(module => { if (!cancelled) void module.preloadAvatarAnimations(queryClient); })
             .catch(() => {});
@@ -123,15 +142,21 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     // error must invalidate map metrics, not tear down an already-loaded avatar.
     const [hasMapLoaded, setHasMapLoaded] = React.useState(false);
     const [isMapContextLost, setIsMapContextLost] = React.useState(false);
-    const mapInstanceRef = React.useRef<{
-        on?: (event: string, fn: (evt?: unknown) => void) => void;
-        off?: (event: string, fn: (evt?: unknown) => void) => void;
-        resize?: () => void;
-        triggerRepaint?: () => void;
-        stop?: () => void;
-    } | null>(null);
+    const [mapEpoch, setMapEpoch] = React.useState(0);
+    const [rebuilding, setRebuilding] = React.useState(false);
+    const [initialMapView, setInitialMapView] = React.useState<MapView>(() => ({
+        longitude: userLocation?.lng ?? 2.3522, latitude: userLocation?.lat ?? 48.8566,
+        zoom: userLocation ? 14 : 12, pitch: 45, bearing: 0,
+    }));
+    const mapInstanceRef = React.useRef<NativeMap | null>(null);
+    const retiredMaps = React.useRef(new WeakSet<object>());
+    const savedView = React.useRef<MapView | undefined>(undefined);
+    const listeners = React.useRef<{map: NativeMap; epoch: number; lost: () => void; restored: () => void} | null>(null);
 
-    const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; submitted: boolean; suspended: boolean }>({ mounted: false, loaded: false, submitted: false, suspended: false });
+    const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; everLoaded: boolean; submitted: boolean;
+        suspended: boolean; epoch: number; recovery: 'normal' | 'lost' | 'restoring' | 'rebuilding' }>({
+        mounted: false, loaded: false, everLoaded: false, submitted: false, suspended: false, epoch: 0, recovery: 'normal',
+    });
     React.useLayoutEffect(() => {
         const state = lifecycle.current;
         state.mounted = true;
@@ -144,8 +169,11 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     }, [mapId]);
 
     const handleContextLost = React.useCallback(() => {
-        setIsMapContextLost(true);
         const state = lifecycle.current;
+        if (!state.mounted || state.recovery === 'lost' || state.recovery === 'rebuilding') return;
+        savedView.current = readMapView(mapInstanceRef.current) ?? savedView.current;
+        state.recovery = 'lost';
+        setIsMapContextLost(true);
         if (state.generation !== undefined) {
             invalidateSceneInstance('dashboard', mapId, state.generation);
         }
@@ -155,6 +183,8 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
 
     const handleContextRestored = React.useCallback(() => {
         const state = lifecycle.current;
+        if (!state.mounted || state.recovery !== 'lost') return;
+        state.recovery = 'restoring';
         try {
             mapInstanceRef.current?.resize?.();
             mapInstanceRef.current?.triggerRepaint?.();
@@ -162,44 +192,50 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             // Tolérance environnements de simulation
         }
         // Réarmer la vérification pour certification au prochain idle valide
-        state.loaded = true;
+        state.loaded = state.everLoaded;
         state.submitted = false;
     }, []);
 
-    const attachMapInstance = React.useCallback((map: {
-        on?: (event: string, fn: (evt?: unknown) => void) => void;
-        off?: (event: string, fn: (evt?: unknown) => void) => void;
-        resize?: () => void;
-        triggerRepaint?: () => void;
-        stop?: () => void;
-    } | null) => {
-        if (!map || map === mapInstanceRef.current) return;
-        if (mapInstanceRef.current) {
-            mapInstanceRef.current.off?.('webglcontextlost', handleContextLost);
-            mapInstanceRef.current.off?.('webglcontextrestored', handleContextRestored);
-        }
+    const detachMapInstance = React.useCallback(() => {
+        const current = listeners.current;
+        current?.map.off?.('webglcontextlost', current.lost);
+        current?.map.off?.('webglcontextrestored', current.restored);
+        listeners.current = null;
+        mapInstanceRef.current = null;
+    }, []);
+    const attachMapInstance = React.useCallback((map: NativeMap | null) => {
+        if (!map || retiredMaps.current.has(map) || map === mapInstanceRef.current) return;
+        detachMapInstance();
         mapInstanceRef.current = map;
-        map.on?.('webglcontextlost', handleContextLost);
-        map.on?.('webglcontextrestored', handleContextRestored);
-    }, [handleContextLost, handleContextRestored]);
+        const current = () => lifecycle.current.mounted && lifecycle.current.epoch === mapEpoch && mapInstanceRef.current === map;
+        const lost = () => { if (current()) handleContextLost(); };
+        const restored = () => { if (current()) handleContextRestored(); };
+        listeners.current = {map, epoch: mapEpoch, lost, restored};
+        map.on?.('webglcontextlost', lost);
+        map.on?.('webglcontextrestored', restored);
+    }, [detachMapInstance, mapEpoch, handleContextLost, handleContextRestored]);
+
+    const retryMap = React.useCallback(() => {
+        const state = lifecycle.current;
+        if (!state.mounted || state.recovery !== 'lost') return;
+        const map = mapInstanceRef.current;
+        const camera = readMapView(map) ?? savedView.current;
+        if (camera) setInitialMapView(camera);
+        if (map) retiredMaps.current.add(map);
+        detachMapInstance();
+        state.epoch++;
+        state.loaded = false; state.everLoaded = false; state.submitted = false; state.recovery = 'rebuilding';
+        setRebuilding(true);
+        setMapEpoch(state.epoch);
+    }, [detachMapInstance]);
 
     React.useEffect(() => {
-        const map = mapRef.current?.getMap?.() as {
-            on?: (event: string, fn: (evt?: unknown) => void) => void;
-            off?: (event: string, fn: (evt?: unknown) => void) => void;
-            resize?: () => void;
-            triggerRepaint?: () => void;
-            stop?: () => void;
-        } | undefined;
+        const map = mapRef.current?.getMap?.() as NativeMap | undefined;
         if (map) attachMapInstance(map);
         return () => {
-            if (mapInstanceRef.current) {
-                mapInstanceRef.current.off?.('webglcontextlost', handleContextLost);
-                mapInstanceRef.current.off?.('webglcontextrestored', handleContextRestored);
-                mapInstanceRef.current = null;
-            }
+            if (listeners.current?.epoch === mapEpoch) detachMapInstance();
         };
-    }, [mapRef, attachMapInstance, handleContextLost, handleContextRestored]);
+    }, [mapRef, attachMapInstance, mapEpoch, detachMapInstance]);
 
     React.useLayoutEffect(() => {
         const update = () => {
@@ -222,36 +258,37 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     }, [visible, mapId, mapRef]);
     const handleMapLoad = React.useCallback((event?: { target?: unknown }) => {
         const state = lifecycle.current;
-        if (!state.mounted) return;
-        const targetMap = (event?.target ?? mapRef.current?.getMap?.()) as {
-            on?: (event: string, fn: (evt?: unknown) => void) => void;
-            off?: (event: string, fn: (evt?: unknown) => void) => void;
-            resize?: () => void;
-            triggerRepaint?: () => void;
-            stop?: () => void;
-        } | undefined;
+        if (!state.mounted || state.epoch !== mapEpoch || state.recovery === 'lost') return;
+        const targetMap = (event?.target ?? mapRef.current?.getMap?.()) as NativeMap | undefined;
+        if ((targetMap && retiredMaps.current.has(targetMap)) || (state.recovery === 'rebuilding' && !targetMap)) return;
         if (targetMap) {
             attachMapInstance(targetMap);
         }
         if (state.generation === undefined) state.generation = registerSceneInstance('dashboard', mapId);
         state.loaded = true;
+        state.everLoaded = true;
+        if (state.recovery === 'rebuilding') state.recovery = 'restoring';
         setHasMapLoaded(true);
         handleMapLoaded?.();
-    }, [mapId, handleMapLoaded, mapRef, attachMapInstance]);
-    const handleMapIdle = React.useCallback(() => {
+    }, [mapId, mapEpoch, handleMapLoaded, mapRef, attachMapInstance]);
+    const handleMapIdle = React.useCallback((event?: {target?: unknown}) => {
         const state = lifecycle.current;
-        if (state.mounted && state.loaded && !state.suspended && !document.hidden && state.generation !== undefined) {
+        if (state.epoch !== mapEpoch || (event?.target && event.target !== mapInstanceRef.current)) return;
+        if (state.mounted && state.loaded && state.recovery !== 'lost' && state.recovery !== 'rebuilding' && !state.suspended && !document.hidden && state.generation !== undefined) {
             if (!state.submitted) {
                 state.submitted = !!recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: mapId, generation: state.generation });
             }
             setIsMapContextLost(false);
+            setRebuilding(false);
+            state.recovery = 'normal';
         }
-    }, [mapId]);
+    }, [mapId, mapEpoch]);
     const handleMapError = React.useCallback(() => {
         const state = lifecycle.current;
+        if (state.epoch !== mapEpoch) return;
         if (state.generation !== undefined) unregisterSceneInstance('dashboard', mapId, state.generation);
         state.generation = undefined; state.loaded = false; state.submitted = false;
-    }, [mapId]);
+    }, [mapId, mapEpoch]);
 
     // Sur iPhone (DPR 3), MapLibre rendrait sinon 9 fois plus de pixels que le
     // nécessaire. On plafonne le ratio comme les Canvas 3D et on supprime les
@@ -264,14 +301,9 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     }), []);
 
     const mapElement = (
-        <Map ref={mapRef}
+        <Map key={mapEpoch} ref={mapRef}
             {...mapRuntimeOptions}
-            initialViewState={{
-                longitude: userLocation?.lng || 2.3522,
-                latitude: userLocation?.lat || 48.8566,
-                zoom: userLocation ? 14 : 12,
-                pitch: 45
-            }}
+            initialViewState={initialMapView}
             mapStyle={mapStyle} interactive={true}
             onLoad={handleMapLoad}
             onIdle={handleMapIdle}
@@ -296,9 +328,10 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                 <div
                     role="status"
                     aria-label="Statut carte"
-                    className="absolute inset-x-4 top-[calc(60px+env(safe-area-inset-top))] z-30 p-3 bg-amber-500/95 text-white text-xs font-bold text-center rounded-xl shadow-lg backdrop-blur-sm pointer-events-none transition-all"
+                    className="absolute inset-x-4 top-[calc(60px+env(safe-area-inset-top))] z-30 p-3 bg-amber-500/95 text-white text-xs font-bold text-center rounded-xl shadow-lg backdrop-blur-sm transition-all"
                 >
                     Carte momentanément indisponible
+                    <button type="button" disabled={rebuilding} onClick={retryMap} className="ml-3 underline disabled:opacity-50">Réessayer la carte</button>
                 </div>
             )}
 
@@ -412,7 +445,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                                 {profile?.avatar ? (
                                     (hasMapLoaded || Boolean(isMapReady)) ? (
                                         <Suspense fallback={<AvatarLoadingIndicator phase="canvas-suspense"/>}>
-                                            <SafeAvatar config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard" active={active && hasLiveLocation}/>
+                                            <SafeAvatar config={profile.avatar} renderMode="shared" disableZoom={true} disablePan={true} view="dashboard" active={active && hasLiveLocation}/>
                                         </Suspense>
                                     ) : (
                                         <AvatarLoadingIndicator phase="map-bootstrap"/>
