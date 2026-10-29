@@ -1,5 +1,5 @@
 // src/pages/ChatPage.tsx
-import {useState, useEffect, useRef, Suspense} from 'react';
+import {useState, useEffect, useRef} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {motion, AnimatePresence, useInView} from 'framer-motion';
 import {ChevronLeft, Send, MessageCircle, User as UserIcon} from 'lucide-react';
@@ -22,6 +22,14 @@ function MessageBubble({message, isOwn}: { message: ChatMessage, isOwn: boolean 
     const ref = useRef(null);
     const isInView = useInView(ref, {margin: "50px"});
     const { data: senderProfile } = useProfile(String(message.userId));
+    const senderId = String(message.userId);
+    const signature = senderProfile ? JSON.stringify(senderProfile.avatar ?? null) : undefined;
+    const [retained, setRetained] = useState({senderId, signature, avatar: senderProfile?.avatar});
+    if (retained.senderId !== senderId || (signature !== undefined && signature !== retained.signature)) {
+        setRetained({senderId, signature, avatar: senderProfile?.avatar});
+    }
+    const avatar = senderProfile?.avatar ?? (retained.senderId === senderId ? retained.avatar : undefined);
+    const hasHead = !!avatar?.head && avatar.head !== 'none';
 
     return (
         <motion.div
@@ -34,15 +42,10 @@ function MessageBubble({message, isOwn}: { message: ChatMessage, isOwn: boolean 
             {/* Avatar */}
             <div
                 className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white font-black text-xs shadow overflow-hidden relative ${isOwn ? 'bg-amber-500' : 'bg-gray-400'}`}>
-                {senderProfile?.avatar && senderProfile.avatar.head ? (
-                    isInView ? (
-                        <Suspense fallback={<div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>}>
-                            <SafeAvatar config={senderProfile.avatar} headOnly={true} disableZoom={true} disablePan={true}/>
-                        </Suspense>
-                    ) : null
-                ) : (
-                    <UserIcon size={18}/>
-                )}
+                {hasHead ? <SafeAvatar config={avatar!} renderMode="shared" headOnly disableZoom disablePan
+                    instanceId={`chat-head-${message.id}`} view="chat-head" active={isInView}/>
+                    : !senderProfile && !retained.signature ? <span role="status" className="animate-pulse" aria-label="Préparation du portrait">…</span>
+                    : <UserIcon size={18} aria-label="Avatar indisponible"/>}
             </div>
 
             {/* Bulle */}
