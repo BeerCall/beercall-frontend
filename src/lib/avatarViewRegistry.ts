@@ -218,10 +218,26 @@ export class AvatarViewRegistry {
     private acquireJob(request: AvatarViewRequest): AvatarRenderJob {
         const signature = avatarViewSignature(request);
         // Portraits are synchronised by signature. Body/profile scenes may only
-        // adopt a cached, unowned assembly, never a concurrent neighbour's group.
+        // adopt an unowned/completed-warmup assembly, never a concurrent neighbour's group.
         const cached = [...this.jobs.values()].find(job => job.signature === signature &&
-            (request.mode === 'head' || job.subscribers.size === 0));
-        if (cached) { cached.lastUsed = ++this.clock; return cached; }
+            (request.mode === 'head' || job.subscribers.size === 0 ||
+                (job.ready && !!job.frame && [...job.subscribers].every(id => {
+                    const view = this.views.get(id);
+                    return !!view && view.prepare === false && !view.visible;
+                }))));
+        if (cached) {
+            if (request.mode !== 'head' && cached.subscribers.size > 0) {
+                // A completed warmup owns retained pixels, not a concurrent view.
+                // Detach it atomically before adopting its prepared assembly.
+                for (const id of cached.subscribers) {
+                    const previous = this.views.get(id);
+                    if (previous) previous.jobId = '';
+                }
+                cached.subscribers.clear();
+            }
+            cached.lastUsed = ++this.clock;
+            return cached;
+        }
         const epoch = ++this.sequence;
         const job: AvatarRenderJob = {id: `avatar-job-${epoch}`, epoch, signature,
             config: normalizeAvatarConfig(request.config, request.mode), mode: request.mode, revision: request.revision,

@@ -42,6 +42,42 @@ describe('session avatar view registry', () => {
         }
     });
 
+    it('adopts a completed inactive warmup without rebuilding, while preserving its pixels and isolating reactivation', () => {
+        const registry = new AvatarViewRegistry();
+        const warmRequest = request('warmup', {visible: false, prepare: true});
+        const warm = registry.register(warmRequest);
+        const prepared = attach(registry, warm);
+        registry.confirmCopy(prepared.copy, evidence);
+        registry.update(warm, {...warmRequest, prepare: false});
+        const retained = registry.getView(warm)!.frame;
+        const live = registry.register(request('visible'));
+        expect(registry.getView(live)!.jobId).toBe(prepared.job.id);
+        expect(registry.getJob(prepared.job.id)!.group).toBe(prepared.job.group);
+        expect(registry.getView(warm)!.jobId).toBe('');
+        expect(registry.getView(warm)!.frame).toBe(retained);
+        expect(registry.confirmCopy(prepared.copy, evidence)).toBe(false);
+        registry.update(warm, {...warmRequest, visible: true, prepare: false});
+        const separate = attach(registry, warm);
+        expect(separate.job.id).not.toBe(prepared.job.id);
+        expect(separate.job.group).not.toBe(prepared.job.group);
+        expect(registry.getView(live)!.jobId).toBe(prepared.job.id);
+        expect(warmRequest.target.getContext).not.toHaveBeenCalled();
+    });
+
+    it('never adopts an unfinished warmup or a normal retained hidden view with a live subscriber', () => {
+        const registry = new AvatarViewRegistry();
+        const unfinished = registry.register(request('unfinished', {visible: false, prepare: true}));
+        const hidden = registry.register(request('normal-hidden', {visible: false}));
+        const normal = attach(registry, hidden);
+        // Even a painted ordinary hidden view retains its independent assembly.
+        registry.update(hidden, {...request('normal-hidden'), prepare: true, visible: false});
+        registry.confirmCopy(normal.copy, evidence);
+        registry.update(hidden, {...request('normal-hidden'), visible: false, prepare: undefined});
+        const live = registry.register(request('visible'));
+        expect(registry.getView(live)!.jobId).not.toBe(registry.getView(unfinished)!.jobId);
+        expect(registry.getView(live)!.jobId).not.toBe(registry.getView(hidden)!.jobId);
+    });
+
     it('deduplicates head jobs for all subscribers and retains one referenced portrait on detach', () => {
         const registry = new AvatarViewRegistry();
         const a = registry.register(request('a', {mode: 'head'}));
