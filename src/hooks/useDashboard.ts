@@ -52,7 +52,6 @@ export const useDashboard = () => {
     const { userLocation, acquiredAt, hasSessionFix, locationStatus, startTracking, stopTracking } = useLocationStore();
     const canCreateFromLocation = hasSessionFix && locationStatus === 'available' && userLocation !== null;
     const locationMessage = gpsMessage({ userLocation, acquiredAt, hasSessionFix, locationStatus });
-    const retryGPS = useCallback(() => { stopTracking(); startTracking(); }, [startTracking, stopTracking]);
     const isActiveApero = squadDetails?.active_beer_call?.some((call: { id: string }) => call.id === isWorldsModalOpen);
 
     // Fermer l'écran de jeu quand on change de squad
@@ -67,6 +66,9 @@ export const useDashboard = () => {
     const mapRef = useRef<MapRef>(null);
     const longPressTimer = useRef<number | null>(null);
     const longPressStart = useRef<{ x: number; y: number } | null>(null);
+    const longPressSeq = useRef(0);
+    const activeRef = useRef(active);
+    const routeIdRef = useRef(id);
     const hasCentered = useRef(false);
     const [copied, setCopied] = useState(false);
     const [showPushBanner, setShowPushBanner] = useState(() => 'Notification' in window && Notification.permission === 'default');
@@ -85,11 +87,30 @@ export const useDashboard = () => {
         }
     };
 
-    const cancelLongPress = useCallback((event?: unknown) => {
+    const cancelLongPress = useCallback(() => {
+        longPressSeq.current += 1;
+        if (longPressTimer.current) {
+            window.clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+        longPressStart.current = null;
+    }, []);
+
+    // Toute frontière de route ou perte d'activité interrompt un maintien en cours,
+    // et le démontage nettoie le timer restant.
+    useEffect(() => {
+        activeRef.current = active;
+        routeIdRef.current = id;
+        cancelLongPress();
+        return () => {
+            cancelLongPress();
+        };
+    }, [active, id, cancelLongPress]);
+
+    const handleMapPointerMove = useCallback((event?: unknown) => {
         const ev = event as { originalEvent?: { touches?: unknown[] }, point?: { x: number, y: number } } | undefined;
         if (ev?.originalEvent?.touches && ev.originalEvent.touches.length > 1) {
-            if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
-            longPressTimer.current = null;
+            cancelLongPress();
             return;
         }
 
@@ -97,50 +118,53 @@ export const useDashboard = () => {
             const dx = ev.point.x - longPressStart.current.x;
             const dy = ev.point.y - longPressStart.current.y;
             if (Math.hypot(dx, dy) > 12) {
-                if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
-                longPressTimer.current = null;
+                cancelLongPress();
             }
-        } else {
-            if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
-            longPressTimer.current = null;
         }
-    }, []);
+    }, [cancelLongPress]);
 
     const handleMapPointerDown = useCallback((event: unknown) => {
         const ev = event as { originalEvent?: { target?: { closest?: (s: string) => boolean }, touches?: unknown[] }, point?: { x: number, y: number }, lngLat?: { toArray: () => [number, number] } };
         if (ev.originalEvent?.target?.closest?.('button, a, input, [role="button"]')) return;
-        
+
+        // Un nouvel appui remplace toujours le maintien précédent.
+        cancelLongPress();
+
         if (ev.originalEvent?.touches && ev.originalEvent.touches.length > 1) {
-            cancelLongPress();
             return;
         }
 
-        if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+        // Copie immédiate : l'événement peut être réutilisé/muté par MapLibre avant le déclenchement.
+        const coordinates = ev.lngLat ? ev.lngLat.toArray() : null;
+        const pressSeq = longPressSeq.current;
+        const pressRouteId = routeIdRef.current;
 
         longPressStart.current = {x: ev.point?.x || 0, y: ev.point?.y || 0};
         longPressTimer.current = window.setTimeout(() => {
-            if (ev.lngLat) {
-                const [lng, lat] = ev.lngLat.toArray();
-                setScheduleCoordinates({lng, lat});
-                setIsScheduleModalOpen(true);
-            }
+            longPressTimer.current = null;
+            longPressStart.current = null;
+            if (pressSeq !== longPressSeq.current) return;
+            if (!activeRef.current || routeIdRef.current !== pressRouteId) return;
+            if (!coordinates) return;
+            const [lng, lat] = coordinates;
+            if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+            setScheduleCoordinates({lng, lat});
+            setIsScheduleModalOpen(true);
         }, 700);
     }, [cancelLongPress]);
 
-    const openCamera = useCallback((location = userLocation, apero: BeerCall | null = null) => {
-        let captureLocation = location;
-        if (apero === null) {
-            const current = useLocationStore.getState();
-            if (!current.hasSessionFix || current.locationStatus !== 'available' || !current.userLocation) {
-                toast.error('GPS actuel nécessaire', gpsMessage(current) ?? 'Une nouvelle position GPS est nécessaire pour créer.');
-                return;
-            }
-            captureLocation = current.userLocation;
+    // Toute preuve photo (création immédiate ou démarrage d'un apero programmé)
+    // exige un fix live et utilise ses coordonnées, jamais celles du marqueur.
+    const openCamera = useCallback((_location?: { lng: number; lat: number }, apero: BeerCall | null = null) => {
+        const current = useLocationStore.getState();
+        if (!current.hasSessionFix || current.locationStatus !== 'available' || !current.userLocation) {
+            toast.error('GPS actuel nécessaire', gpsMessage(current) ?? 'Une nouvelle position GPS est nécessaire pour créer.');
+            return;
         }
-        setPhotoLocation(captureLocation);
+        setPhotoLocation(current.userLocation);
         setStartingScheduledApero(apero);
         if (fileInputRef.current) fileInputRef.current.click();
-    }, [userLocation]);
+    }, []);
 
     const handlePhotoCapture = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -179,23 +203,24 @@ export const useDashboard = () => {
     }, [userLocation, acquiredAt, hasSessionFix, locationStatus]);
 
     useEffect(() => {
-        if (!active) return;
-        const handleFirstInteraction = () => {
-            startTracking();
-            window.removeEventListener('click', handleFirstInteraction);
-            window.removeEventListener('touchstart', handleFirstInteraction);
+        if (!active) {
+            stopTracking();
+            return;
+        }
+        // Acquisition au montage actif, sans attendre un clic arbitraire.
+        startTracking();
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') startTracking();
+            else stopTracking();
         };
-        
-        window.addEventListener('click', handleFirstInteraction);
-        window.addEventListener('touchstart', handleFirstInteraction);
+        document.addEventListener('visibilitychange', handleVisibility);
 
         return () => {
-            window.removeEventListener('click', handleFirstInteraction);
-            window.removeEventListener('touchstart', handleFirstInteraction);
+            document.removeEventListener('visibilitychange', handleVisibility);
             stopTracking();
-            if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+            cancelLongPress();
         };
-    }, [active, startTracking, stopTracking]);
+    }, [active, startTracking, stopTracking, cancelLongPress]);
 
     useEffect(() => {
         if (active && id && userLocation && mapRef.current && !hasCentered.current) {
@@ -247,7 +272,6 @@ export const useDashboard = () => {
         locationStatus,
         canCreateFromLocation,
         locationMessage,
-        retryGPS,
         isNightMode,
         isMapReady,
         handleMapLoaded,
@@ -275,6 +299,7 @@ export const useDashboard = () => {
         mapRef,
         handleMapPointerDown,
         cancelLongPress,
+        handleMapPointerMove,
         openCamera,
         handlePhotoCapture,
         focusOnLocation,

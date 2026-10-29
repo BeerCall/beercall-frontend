@@ -3,12 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const sdk = vi.hoisted(() => ({
     initializeApp: vi.fn(() => ({ name: 'test-app' })),
     getMessaging: vi.fn(() => ({ app: 'test-app' })),
+    isSupported: vi.fn(async () => true),
     getDatabase: vi.fn(() => ({ app: 'test-app' })),
     ref: vi.fn((_db: unknown, path: string) => ({ path })),
 }));
 
 vi.mock('firebase/app', () => ({ initializeApp: sdk.initializeApp }));
-vi.mock('firebase/messaging', () => ({ getMessaging: sdk.getMessaging }));
+vi.mock('firebase/messaging', () => ({ getMessaging: sdk.getMessaging, isSupported: sdk.isSupported }));
 vi.mock('firebase/database', () => ({ getDatabase: sdk.getDatabase, ref: sdk.ref }));
 
 const keys = ['API_KEY', 'AUTH_DOMAIN', 'PROJECT_ID', 'STORAGE_BUCKET', 'MESSAGING_SENDER_ID', 'APP_ID', 'DATABASE_URL'];
@@ -24,9 +25,10 @@ describe('Firebase optionnel', () => {
     beforeEach(() => {
         vi.resetModules();
         vi.clearAllMocks();
+        sdk.isSupported.mockResolvedValue(true);
         for (const key of keys) vi.stubEnv(`VITE_FIREBASE_${key}`, '');
     });
-    afterEach(() => vi.unstubAllEnvs());
+    afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
     it('ne démarre aucun SDK sans configuration', async () => {
         const firebase = await import('../lib/firebase');
@@ -51,6 +53,7 @@ describe('Firebase optionnel', () => {
     it('initialise les intégrations configurées et conserve les chemins du chat', async () => {
         configure();
         const firebase = await import('../lib/firebase');
+        await firebase.messaging;
         expect(sdk.initializeApp).toHaveBeenCalledOnce();
         expect(sdk.getMessaging).toHaveBeenCalledOnce();
         expect(sdk.getDatabase).toHaveBeenCalledWith({ name: 'test-app' }, 'https://test-project.firebaseio.com');
@@ -62,7 +65,7 @@ describe('Firebase optionnel', () => {
         configure();
         vi.stubEnv('VITE_FIREBASE_DATABASE_URL', '');
         const firebase = await import('../lib/firebase');
-        expect(firebase.messaging).not.toBeNull();
+        expect(await firebase.messaging).not.toBeNull();
         expect(firebase.db).toBeNull();
         expect(sdk.getDatabase).not.toHaveBeenCalled();
     });
@@ -74,5 +77,26 @@ describe('Firebase optionnel', () => {
         expect(firebase.db).not.toBeNull();
         expect(firebase.messaging).toBeNull();
         expect(sdk.getMessaging).not.toHaveBeenCalled();
+    });
+
+    it('ne démarre pas Messaging sans Notification, même si les service workers existent', async () => {
+        configure();
+        vi.stubGlobal('Notification', undefined);
+        const firebase = await import('../lib/firebase');
+        expect(firebase.messaging).toBeNull();
+        expect(firebase.db).not.toBeNull();
+        expect(sdk.getMessaging).not.toHaveBeenCalled();
+        expect(sdk.isSupported).not.toHaveBeenCalled();
+    });
+
+    it.each(['unsupported', 'check-failed', 'initialization-failed'])('tolère Messaging %s sans bloquer le chat', async reason => {
+        configure();
+        if (reason === 'unsupported') sdk.isSupported.mockResolvedValueOnce(false);
+        if (reason === 'check-failed') sdk.isSupported.mockRejectedValueOnce(new Error('IndexedDB unavailable'));
+        if (reason === 'initialization-failed') sdk.getMessaging.mockImplementationOnce(() => { throw new Error('unavailable'); });
+        const firebase = await import('../lib/firebase');
+        expect(await firebase.messaging).toBeNull();
+        expect(firebase.db).not.toBeNull();
+        if (reason !== 'initialization-failed') expect(sdk.getMessaging).not.toHaveBeenCalled();
     });
 });

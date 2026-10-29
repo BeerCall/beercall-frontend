@@ -36,7 +36,9 @@ describe('prepared models with safe FBX fallback', () => {
             } : buffer));
             return undefined;
         });
-        expect((await load(`${base}/head.fbx`)).type).toBe('Group');
+        const result = await load(`${base}/head.fbx`);
+        expect(result.type).toBe('Group');
+        expect(result.userData.beercallSourceSha256).toBe('b'.repeat(64));
         expect(requested).toEqual([`${base}/prepared/manifest.json`, `${base}/prepared/${file}`]);
         expect(mock.fallback).not.toHaveBeenCalled();
     });

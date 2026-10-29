@@ -61,14 +61,15 @@ export default function CreateSquadModal({ isOpen, onClose }: { isOpen: boolean,
                     <motion.div
                         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[3rem] p-8 z-[101] shadow-2xl"
+                        role="dialog" aria-modal="true" aria-labelledby="create-squad-title"
+                        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[3rem] px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] z-[101] shadow-2xl flex flex-col max-h-[90vh] supports-[max-height:90dvh]:max-h-[90dvh]"
                     >
-                        <div className="flex justify-between items-center mb-8">
-                            <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter">Nouvelle Squad</h2>
-                            <button onClick={onClose} className="p-2 bg-gray-100 rounded-full text-gray-400"><X size={20}/></button>
+                        <div className="flex shrink-0 justify-between items-center gap-3 mb-6">
+                            <h2 id="create-squad-title" className="min-w-0 text-2xl font-black text-gray-900 uppercase italic tracking-tighter">Nouvelle Squad</h2>
+                            <button onClick={onClose} aria-label="Fermer" className="shrink-0 w-11 h-11 flex items-center justify-center bg-gray-100 rounded-full text-gray-400"><X size={20}/></button>
                         </div>
 
-                        <div className="space-y-8">
+                        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain space-y-8 pb-1">
                             {/* APERÇU LOGO */}
                             <div className="flex justify-center">
                                 <div
@@ -93,6 +94,7 @@ export default function CreateSquadModal({ isOpen, onClose }: { isOpen: boolean,
                                     {ICONS.map(i => (
                                         <button
                                             key={i.id} onClick={() => setSelectedIcon(i.id)}
+                                            aria-label={`Emblème ${i.id}`} aria-pressed={selectedIcon === i.id}
                                             className={`p-3 rounded-xl border-4 transition-all ${selectedIcon === i.id ? 'border-gray-900 bg-gray-900 text-white' : 'border-transparent bg-gray-50 text-gray-400'}`}
                                         >
                                             {i.icon}
@@ -108,7 +110,8 @@ export default function CreateSquadModal({ isOpen, onClose }: { isOpen: boolean,
                                     {COLORS.map(c => (
                                         <button
                                             key={c} onClick={() => setSelectedColor(c)}
-                                            className={`w-10 h-10 rounded-full border-4 transition-all ${selectedColor === c ? 'border-gray-900 scale-125' : 'border-white shadow-sm'}`}
+                                            aria-label={`Couleur ${c}`} aria-pressed={selectedColor === c}
+                                            className={`w-11 h-11 rounded-full border-4 transition-all ${selectedColor === c ? 'border-gray-900 scale-110' : 'border-white shadow-sm'}`}
                                             style={{ backgroundColor: c }}
                                         />
                                     ))}

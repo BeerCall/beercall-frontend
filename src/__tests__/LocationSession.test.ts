@@ -135,4 +135,29 @@ describe('GPS de session : cache et acquisitions concurrentes', () => {
         start(); pointSuccess(3000, 48); watchSuccess(2000, 99); pointError(3);
         expect(state()).toMatchObject({ acquiredAt: 3000, locationStatus: 'available', hasSessionFix: true, userLocation: { lat: 48, lng: 2 } });
     });
+
+    it('relance une acquisition après un échec terminal, sans doublon pendant la recherche', () => {
+        start(); watchError(1);
+        expect(getPosition).toHaveBeenCalledTimes(1);
+        expect(state().isTracking).toBe(true);
+
+        start();
+        expect(getPosition).toHaveBeenCalledTimes(2);
+        expect(watchPosition).toHaveBeenCalledTimes(2);
+        expect(clearWatch).toHaveBeenCalledWith(42);
+        expect(state()).toMatchObject({ locationStatus: 'searching', hasSessionFix: false });
+        expect(watchCallbacks).toHaveLength(2);
+
+        watchCallbacks[0].success(position(3000, 99));
+        expect(state().hasSessionFix).toBe(false);
+        watchCallbacks[1].success(position(4000, 49));
+        expect(state()).toMatchObject({ hasSessionFix: true, acquiredAt: 4000, userLocation: { lat: 49, lng: 2 } });
+    });
+
+    it('ne relance pas une acquisition quand un fix est déjà disponible', () => {
+        start(); watchSuccess(2000);
+        start();
+        expect(getPosition).toHaveBeenCalledTimes(1);
+        expect(watchPosition).toHaveBeenCalledTimes(1);
+    });
 });

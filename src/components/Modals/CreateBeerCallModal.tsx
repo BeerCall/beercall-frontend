@@ -7,55 +7,10 @@ import {api} from '../../lib/api';
 import {toast} from '../../store/useToastStore';
 import type {BeerCall} from '../../types/dashboard';
 import {useBeerCallJob} from '../../hooks/useBeerCallJob';
+import {processBeerCallImage, ImagePreparationError} from '../../lib/processBeerCallImage';
+import {useLocationStore} from '../../store/useLocationStore';
 
-const processImageForBackend = (file: File): Promise<File> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (event) => {
-            const img = new Image();
-            img.src = event.target?.result as string;
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 1200;
-                const MAX_HEIGHT = 1200;
-                let width = img.width;
-                let height = img.height;
-
-                if (width > height) {
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-                } else {
-                    if (height > MAX_HEIGHT) {
-                        width *= MAX_HEIGHT / height;
-                        height = MAX_HEIGHT;
-                    }
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-
-                // Dessine la photo (efface les métadonnées de rotation d'Apple)
-                ctx?.drawImage(img, 0, 0, width, height);
-
-                // Convertit en pur JPEG
-                canvas.toBlob((blob) => {
-                    if (blob) {
-                        const newFileName = file.name.replace(/\.[^/.]+$/, "") + "_fixed.jpg";
-                        const newFile = new File([blob], newFileName, {type: 'image/jpeg'});
-                        resolve(newFile);
-                    } else {
-                        reject(new Error("Erreur Blob"));
-                    }
-                }, 'image/jpeg', 0.8);
-            };
-        };
-        reader.onerror = (error) => reject(error);
-    });
-};
+type SubmissionPhase = 'idle' | 'preparing' | 'uploading';
 
 interface CreateBeerCallModalProps {
     squadId: string;
@@ -69,7 +24,8 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
     const queryClient = useQueryClient();
     const [draftLocationName, setLocationName] = useState('');
     const locationName = scheduledApero?.location_name || draftLocationName;
-    const [isUploading, setIsSubmitting] = useState(false);
+    const [submissionPhase, setSubmissionPhase] = useState<SubmissionPhase>('idle');
+    const isSubmittingRef = useRef(false);
     const [preview, setPreview] = useState<{file: File; url: string} | null>(null);
     const previewUrl = preview?.file === photoFile ? preview.url : null;
     const [jobId, setJobId] = useState<string | null>(null);
@@ -77,13 +33,79 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
     const handledJob = useRef<string | null>(null);
 
     const { status, rejectReason, trackingUnavailable, trackingPaused, resumeTracking } = useBeerCallJob(squadId, jobId);
+    // Abonnement au fix courant : la perte de permission désactive le bouton
+    // d'une modale déjà ouverte, sans attendre un nouveau clic.
+    const hasLiveFix = useLocationStore(state =>
+        state.hasSessionFix && state.locationStatus === 'available' && state.userLocation !== null);
 
     const isTerminal = status === 'succeeded' || status === 'rejected' || status === 'failed';
-    const isSubmitting = isUploading || Boolean(jobId && !isTerminal);
+    // État dérivé : un job terminé n'est plus en cours de soumission, sans setState dans un effet.
+    const phase: SubmissionPhase = isTerminal ? 'idle' : submissionPhase;
+    const isSubmitting = phase !== 'idle' || Boolean(jobId && !isTerminal);
+
+    const [slowNoticeJobId, setSlowNoticeJobId] = useState<string | null>(null);
+    const [checkingJobId, setCheckingJobId] = useState<string | null>(null);
+    const checkCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Chaque changement de job (ou passage terminal) invalide les timers du précédent :
+    // un callback périmé ne peut ni afficher la notice ni relâcher un autre cooldown.
+    const jobGenerationRef = useRef(0);
+
+    // Le drapeau est indexé par job : changer de job masque la notice sans remise à zéro synchrone.
+    const showSlowNotice = Boolean(jobId) && !isTerminal && slowNoticeJobId === jobId;
+    const isCheckingStatus = Boolean(jobId) && !isTerminal && checkingJobId === jobId;
+
+    useEffect(() => {
+        jobGenerationRef.current += 1;
+        if (checkCooldownTimerRef.current !== null) {
+            window.clearTimeout(checkCooldownTimerRef.current);
+            checkCooldownTimerRef.current = null;
+        }
+
+        if (!jobId || isTerminal) {
+            return;
+        }
+
+        const generation = jobGenerationRef.current;
+        const timer = window.setTimeout(() => {
+            if (jobGenerationRef.current !== generation) return;
+            setSlowNoticeJobId(jobId);
+        }, 10000);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [jobId, isTerminal]);
+
+    useEffect(() => {
+        return () => {
+            jobGenerationRef.current += 1;
+            if (checkCooldownTimerRef.current !== null) {
+                window.clearTimeout(checkCooldownTimerRef.current);
+                checkCooldownTimerRef.current = null;
+            }
+        };
+    }, []);
+
+    const handleCheckStatus = () => {
+        if (isCheckingStatus || !jobId || isTerminal) return;
+        setCheckingJobId(jobId);
+        resumeTracking();
+        if (checkCooldownTimerRef.current !== null) {
+            window.clearTimeout(checkCooldownTimerRef.current);
+        }
+        const generation = jobGenerationRef.current;
+        const checkedJobId = jobId;
+        checkCooldownTimerRef.current = window.setTimeout(() => {
+            checkCooldownTimerRef.current = null;
+            if (jobGenerationRef.current !== generation) return;
+            setCheckingJobId(current => (current === checkedJobId ? null : current));
+        }, 1000);
+    };
 
     useEffect(() => {
         if (!jobId || !isTerminal || handledJob.current === jobId) return;
         handledJob.current = jobId;
+        isSubmittingRef.current = false;
         if (status === 'succeeded') {
             queryClient.invalidateQueries({queryKey: ['squad', squadId]});
             onClose();
@@ -105,9 +127,20 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
         }
     }, [photoFile]);
 
+    const readLiveFix = () => {
+        const current = useLocationStore.getState();
+        return current.hasSessionFix && current.locationStatus === 'available' ? current.userLocation : null;
+    };
+
     const handleSubmit = async () => {
-        if (!photoFile || !location || !locationName.trim()) return;
-        setIsSubmitting(true);
+        if (isSubmittingRef.current || Boolean(jobId && !isTerminal) || !photoFile || !location || !locationName.trim()) return;
+        const startFix = readLiveFix();
+        if (!startFix) {
+            toast.error("GPS actuel nécessaire", "Une position GPS actuelle est nécessaire pour lancer l'appel.");
+            return;
+        }
+        isSubmittingRef.current = true;
+        setSubmissionPhase('preparing');
         const requestKey = isTerminal ? crypto.randomUUID() : idempotencyKey;
         if (isTerminal) {
             setIdempotencyKey(requestKey);
@@ -115,12 +148,23 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
         }
 
         try {
-            const fixedPhoto = await processImageForBackend(photoFile);
+            const fixedPhoto = await processBeerCallImage(photoFile);
+
+            // La préparation photo est asynchrone : revalider le fix juste avant le POST.
+            const postFix = readLiveFix();
+            if (!postFix) {
+                isSubmittingRef.current = false;
+                setSubmissionPhase('idle');
+                toast.error("GPS actuel nécessaire", "La position GPS a changé pendant la préparation. Rapproche-toi et réessaie.");
+                return;
+            }
+
+            setSubmissionPhase('uploading');
 
             const formData = new FormData();
             formData.append('file', fixedPhoto);
-            formData.append('latitude', location.lat.toString());
-            formData.append('longitude', location.lng.toString());
+            formData.append('latitude', postFix.lat.toString());
+            formData.append('longitude', postFix.lng.toString());
             formData.append('location_name', locationName.trim());
             
             let res: AxiosResponse<{job_id?: string}>;
@@ -143,20 +187,43 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
 
             if (res.data?.job_id) {
                 setJobId(res.data.job_id);
+                setSubmissionPhase('idle');
             } else {
+                isSubmittingRef.current = false;
+                setSubmissionPhase('idle');
                 queryClient.invalidateQueries({queryKey: ['squad', squadId]});
                 onClose();
             }
         } catch (err) {
-            const axiosError = err as { response?: { data?: { detail?: string } } };
-            const errorMessage = axiosError.response?.data?.detail || "Erreur serveur inattendue";
-            toast.error("Erreur 🚨", errorMessage);
-        } finally {
-            setIsSubmitting(false);
+            isSubmittingRef.current = false;
+            setSubmissionPhase('idle');
+            if (err instanceof ImagePreparationError) {
+                toast.error("Erreur 🚨", err.message);
+            } else {
+                const axiosError = err as { response?: { data?: { detail?: string } } };
+                const errorMessage = axiosError.response?.data?.detail || "Erreur serveur inattendue";
+                toast.error("Erreur 🚨", errorMessage);
+            }
         }
     };
 
-    const isFormValid = location !== null && locationName.trim().length > 0;
+    const isFormValid = location !== null && locationName.trim().length > 0 && hasLiveFix;
+
+    const getButtonLabel = () => {
+        if (jobId && !isTerminal) {
+            if (status === 'running') {
+                return 'VÉRIFICATION DE LA PHOTO…';
+            }
+            return 'PHOTO EN ATTENTE DE VÉRIFICATION…';
+        }
+        if (phase === 'preparing') {
+            return 'PRÉPARATION DE LA PHOTO…';
+        }
+        if (phase === 'uploading') {
+            return 'ENVOI DE LA PHOTO…';
+        }
+        return 'LANCER L\'APPEL';
+    };
 
     return (
         <AnimatePresence>
@@ -215,12 +282,25 @@ export default function CreateBeerCallModal({squadId, photoFile, location, sched
                                         className="ml-2 underline">Reprendre le suivi</button>}
                                 </div>
                             )}
+                            {showSlowNotice && !isTerminal && Boolean(jobId) && (
+                                <div role="status" className="mb-3 text-sm text-gray-900">
+                                    La vérification prend plus de temps que prévu.
+                                    <button
+                                        type="button"
+                                        onClick={handleCheckStatus}
+                                        disabled={isCheckingStatus}
+                                        className="ml-2 underline disabled:opacity-50"
+                                    >
+                                        Vérifier le statut
+                                    </button>
+                                </div>
+                            )}
                             <button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting || !isFormValid}
                                 className="w-full bg-beer text-white p-6 rounded-[2.5rem] font-black text-xl shadow-xl shadow-beer/30 flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                             >
-                                {isSubmitting ? 'ANALYSE IA EN COURS...' : 'LANCER L\'APPEL'} <Send size={24}/>
+                                {getButtonLabel()} <Send size={24}/>
                             </button>
                         </div>
                     </motion.div>

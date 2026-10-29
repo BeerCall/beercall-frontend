@@ -1,12 +1,12 @@
 import {useNavigate} from 'react-router-dom';
 import {useQuery} from '@tanstack/react-query';
-import React, { Suspense } from 'react';
+import { Suspense, useRef, useState, useCallback } from 'react';
 import {ChevronLeft, Users, Trophy, ArrowRight} from 'lucide-react';
 import {api} from '../lib/api';
-const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
-import {motion, useInView} from 'framer-motion';
-import {useRef} from "react";
+import SafeAvatar from '../components/3D/SafeAvatar';
+import {useInView} from 'framer-motion';
 import type {AvatarConfig} from '../types/avatar';
+import {ThumbnailBudgetProvider, useThumbnailSlot} from '../hooks/useThumbnailBudget';
 
 // Interface basée sur l'objet que tu m'as fourni
 interface Connection {
@@ -25,29 +25,38 @@ interface Connection {
     };
 }
 
-const AvatarThumbnail = ({config}: { config: AvatarConfig }) => {
-    const ref = useRef(null);
+const AvatarThumbnail = ({id, config, username, active}: { id: string; config: AvatarConfig; username: string; active: boolean }) => {
+    const ref = useRef<HTMLDivElement>(null);
     // margin: "100px" permet de charger l'avatar juste avant qu'il n'entre dans l'écran
     const isInView = useInView(ref, {margin: "100px"});
+    const isGranted = useThumbnailSlot(id, isInView, ref);
+    const signature = JSON.stringify(config);
+    const [submittedSignature, setSubmittedSignature] = useState<string | null>(null);
+    const handleFrameSubmitted = useCallback(() => setSubmittedSignature(signature), [signature]);
 
     return (
-        <div ref={ref} className="w-full h-full relative">
-            {isInView ? (
+        <div ref={ref} className="w-full h-full relative" data-testid={`avatar-thumb-${id}`}>
+            {isGranted ? (
                 <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-beer"></div></div>}>
-                    <AvatarCanvas config={config} disableZoom={true} disablePan={true}/>
+                    <SafeAvatar config={config} disableZoom={true} disablePan={true}
+                                framing="thumbnail" view="connections-thumbnail"
+                                active={active || submittedSignature !== signature}
+                                onFrameSubmitted={handleFrameSubmitted}
+                                instanceId={`connections-${id}`}/>
                 </Suspense>
             ) : (
-                // Si la carte est hors écran, on détruit le Canvas et on libère la carte graphique
-                <div className="absolute inset-0 bg-gray-50 flex items-center justify-center">
-                    <div className="w-6 h-6 border-4 border-beer/30 border-t-beer rounded-full animate-spin"></div>
+                // Miniature non admise au budget ou hors écran : placeholder stable et accessible
+                <div className="absolute inset-0 bg-gray-100 flex items-center justify-center text-gray-400 font-black text-2xl select-none" aria-label={`Avatar de ${username}`}>
+                    {username ? username.charAt(0).toUpperCase() : '?'}
                 </div>
             )}
         </div>
     );
 };
 
-export default function Connections() {
+export default function Connections({active = true}: { active?: boolean }) {
     const navigate = useNavigate();
+    const listRef = useRef<HTMLDivElement>(null);
 
     // 📡 Requête pour récupérer tes relations
     const {data: connections, isLoading} = useQuery({
@@ -65,45 +74,43 @@ export default function Connections() {
     );
 
     return (
-        <div className="h-full w-full bg-[#f8fafc] flex flex-col font-sans overflow-hidden">
-            {/* HEADER FIXE */}
-            <header
-                className="p-6 pt-[calc(18px+env(safe-area-inset-top))] flex items-center gap-4 bg-white/80 backdrop-blur-md border-b border-gray-100 z-20 shrink-0">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="p-3 bg-white shadow-md rounded-full text-gray-700 hover:scale-110 active:scale-90 transition-transform"
-                >
-                    <ChevronLeft size={24}/>
-                </button>
-                <div>
-                    <h1 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter flex items-center gap-2">
-                        Connexions <Users size={20} className="text-beer"/>
-                    </h1>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Tes compagnons de
-                        bar</p>
-                </div>
-            </header>
+        <ThumbnailBudgetProvider maxSlots={2} containerRef={listRef}>
+            <div className="h-full w-full bg-[#f8fafc] flex flex-col font-sans overflow-hidden">
+                {/* HEADER FIXE */}
+                <header
+                    className="p-6 pt-[calc(18px+env(safe-area-inset-top))] flex items-center gap-4 bg-white/80 backdrop-blur-md border-b border-gray-100 z-20 shrink-0">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-3 bg-white shadow-md rounded-full text-gray-700 hover:scale-110 active:scale-90 transition-transform"
+                    >
+                        <ChevronLeft size={24}/>
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter flex items-center gap-2">
+                            Connexions <Users size={20} className="text-beer"/>
+                        </h1>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Tes compagnons de
+                            bar</p>
+                    </div>
+                </header>
 
-            {/* LISTE DES CONNEXIONS */}
-            <div className="flex-1 overflow-y-auto p-6 pb-32 space-y-6">
-                {connections && connections.length > 0 ? (
-                    connections.map((user, index) => (
-                        <motion.div
-                            key={user.id}
-                            initial={{opacity: 0, x: -20}}
-                            animate={{opacity: 1, x: 0}}
-                            transition={{delay: index * 0.1}}
-                            onClick={() => navigate(`/profile/${user.id}`)}
-                            className="bg-white rounded-[2.5rem] p-4 shadow-xl shadow-gray-200/50 border-2 border-transparent hover:border-beer transition-all group cursor-pointer flex items-center gap-4 h-48"
-                        >
-                            {/* MINIATURE AVATAR 3D */}
+                {/* LISTE DES CONNEXIONS */}
+                <div ref={listRef} className="flex-1 overflow-y-auto p-6 pb-32 space-y-6">
+                    {connections && connections.length > 0 ? (
+                        connections.map((user) => (
                             <div
-                                className="w-32 h-40 shrink-0 bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
+                                key={user.id}
+                                onClick={() => navigate(`/profile/${user.id}`)}
+                                className="bg-white rounded-[2.5rem] p-3 min-[400px]:p-4 shadow-xl shadow-gray-200/50 border-2 border-transparent hover:border-beer transition-all group cursor-pointer flex items-center gap-2 min-[400px]:gap-4 h-48"
+                            >
+                                {/* MINIATURE AVATAR 3D */}
+                                <div
+                                    className="w-24 h-32 min-[400px]:w-32 min-[400px]:h-40 shrink-0 bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
 
-                                <AvatarThumbnail config={user.avatar}/>
+                                    <AvatarThumbnail id={user.id} config={user.avatar} username={user.username} active={active}/>
 
-                                <div className="absolute inset-0 z-10"/>
-                            </div>
+                                    <div className="absolute inset-0 z-10"/>
+                                </div>
 
                             {/* INFOS JOUEUR */}
                             {/* 🚀 L'ajout de min-w-0 empêche Flexbox de pousser les éléments hors de l'écran */}
@@ -117,7 +124,7 @@ export default function Connections() {
                                     {user.username}
                                 </h3>
 
-                                <div className="flex items-center gap-2.5 mt-1">
+                                <div className="flex items-center gap-2.5 mt-1 flex-wrap">
                                     <div
                                         className="flex items-center gap-1.5 bg-gradient-to-br from-amber-100 to-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/50 shadow-sm shrink-0">
                                         <Trophy size={14} className="text-amber-500 drop-shadow-sm"/>
@@ -137,10 +144,10 @@ export default function Connections() {
                             {/* BOUTON ACTION */}
                             {/* 🚀 J'ai retiré la div pr-4 inutile et mis le shrink-0 pour garantir qu'il ne s'écrase jamais */}
                             <div
-                                className="w-12 h-12 shrink-0 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 group-hover:bg-beer group-hover:text-white transition-all shadow-inner group-hover:shadow-beer/30">
+                                className="w-11 h-11 min-[400px]:w-12 min-[400px]:h-12 shrink-0 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 group-hover:bg-beer group-hover:text-white transition-all shadow-inner group-hover:shadow-beer/30">
                                 <ArrowRight size={20}/>
                             </div>
-                        </motion.div>
+                        </div>
                     ))
                 ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center px-10">
@@ -155,5 +162,6 @@ export default function Connections() {
                 )}
             </div>
         </div>
+        </ThumbnailBudgetProvider>
     );
 }

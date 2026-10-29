@@ -102,6 +102,7 @@ describe('Map Readiness & onLoad lifecycle (CHAL-07)', () => {
             profile: dummyProfile,
             handleMapPointerDown: vi.fn(),
             cancelLongPress: vi.fn(),
+            handleMapPointerMove: vi.fn(),
             handleManualRecenter: vi.fn(),
             handleBeerCallClick: vi.fn(),
             openCamera: vi.fn(),

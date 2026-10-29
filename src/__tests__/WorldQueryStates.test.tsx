@@ -135,7 +135,8 @@ describe('Mondes : attente, panne, vide, fiabilité et refetch (T06 / CHAL-04)',
 
         expect(await screen.findByText('Aucun participant dans ce monde')).toBeInTheDocument();
         expect(screen.getByText('0 Soldat(s)')).toBeInTheDocument();
-        expect(screen.getByText('Au moins 2 participants au Bar sont nécessaires')).toBeInTheDocument();
+        expect(screen.queryByText(/Au moins 2 participants au Bar sont nécessaires/i)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Démarrer la partie' })).toBeDisabled();
         expect(screen.queryByRole('button', { name: /Lancer le jeu/i })).not.toBeInTheDocument();
         expect(barWorldCaptor).toHaveBeenLastCalledWith(
             expect.objectContaining({

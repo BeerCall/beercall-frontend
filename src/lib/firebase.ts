@@ -1,5 +1,5 @@
 import {initializeApp} from 'firebase/app';
-import {getMessaging} from 'firebase/messaging';
+import {getMessaging, isSupported} from 'firebase/messaging';
 import {getDatabase, ref} from 'firebase/database';
 
 // Récupère ces valeurs dans Console Firebase > Paramètres > Général > Tes applications (Web)
@@ -19,10 +19,11 @@ const app = firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.
     ? initializeApp(firebaseConfig)
     : null;
 
-// On exporte l'instance messaging.
-// Sécurité : On vérifie que le navigateur supporte bien les Service Workers avant de l'initialiser
-export const messaging = app && firebaseConfig.messagingSenderId && typeof window !== 'undefined' && 'serviceWorker' in navigator
-    ? getMessaging(app)
+// Messaging is optional, including on Safari tabs without the Push/Notification APIs.
+// The SDK also checks IndexedDB availability asynchronously before initialization.
+export const messaging = app && firebaseConfig.messagingSenderId && typeof window !== 'undefined' &&
+    typeof Notification !== 'undefined' && 'serviceWorker' in navigator
+    ? isSupported().then(supported => supported ? getMessaging(app) : null).catch(() => null)
     : null;
 
 // 📡 REALTIME DATABASE (pour le chat)

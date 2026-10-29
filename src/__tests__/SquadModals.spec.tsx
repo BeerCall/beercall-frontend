@@ -60,9 +60,8 @@ describe('Squad Modals', () => {
         render(<CreateSquadModal isOpen={true} onClose={onClose} />);
         
         await user.type(screen.getByPlaceholderText(/Nom de la Squad/i), 'MySquad');
-        const choices = screen.getAllByRole('button', { name: '' });
-        await user.click(choices[4]);
-        await user.click(choices[9]);
+        await user.click(screen.getByRole('button', { name: 'Emblème rocket' }));
+        await user.click(screen.getByRole('button', { name: 'Couleur #10B981' }));
         await user.click(screen.getByRole('button', { name: /CRÉER LA SQUAD/i }));
         
         await waitFor(() => {

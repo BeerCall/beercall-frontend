@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook, screen, fireEvent } from '@testing-library/react';
-import type { PropsWithChildren } from 'react';
+import { StrictMode, type PropsWithChildren } from 'react';
 import type { MapRef } from 'react-map-gl/maplibre';
 import { render } from './utils/test-utils';
 import { useDashboard } from '../hooks/useDashboard';
@@ -61,29 +61,60 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(useToastStore.getState().toasts.at(-1)?.message).not.toContain('Recherche en cours');
     });
 
-    it.each([null, 1234])('conserve le repère du cache et expose son ancienneté (%s)', date => {
-        cache(date);
+    it('sans fix live : aucun joueur, aucun texte GPS mémorisé, cache conservé et création bloquée', () => {
+        cache(1234);
         render(<Dashboard />);
-        act(() => { state().startTracking(); watches[0].error?.(gpsError); });
-        expect(screen.getByText(/Position mémorisée —/)).toHaveTextContent(date === null ? 'ancienneté inconnue' : new Date(date).toLocaleString());
-        const marker = screen.getByRole('button', { name: 'Position mémorisée — création indisponible' });
-        expect(marker).toHaveAttribute('aria-disabled', 'true');
+        act(() => { watches.at(-1)!.error?.(gpsError); });
+
+        expect(screen.queryByText(/Position mémorisée —/)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Position mémorisée/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Relancer la localisation' })).toBeInTheDocument();
+        expect(state().userLocation).toEqual({ lat: 40, lng: 3 });
+        expect(state().hasSessionFix).toBe(false);
+
         const input = screen.getByLabelText('Photo du Beer Call');
         const click = vi.spyOn(input, 'click').mockImplementation(() => {});
-        fireEvent.click(marker);
-        fireEvent.keyDown(marker, { key: 'Enter' });
-        fireEvent.keyDown(marker, { key: ' ' });
         expect(click).not.toHaveBeenCalled();
-        expect(state().userLocation).toEqual({ lat: 40, lng: 3 });
     });
 
-    it('retry invalide le suivi puis un nouveau watch réactive la création', () => {
+    it('affiche le joueur et recentre seulement avec un fix live', () => {
+        cache(1234);
+        render(<Dashboard />);
+        expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+
+        act(() => watches.at(-1)!.success(position(4000, 48, 2)));
+
+        expect(screen.getByRole('button', { name: 'Créer un Beer Call' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Me recentrer' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Relancer la localisation' })).not.toBeInTheDocument();
+
+        // Avec un fix, le bouton recentre : aucune nouvelle acquisition.
+        const before = watches.length;
+        fireEvent.click(screen.getByRole('button', { name: 'Me recentrer' }));
+        expect(watches).toHaveLength(before);
+        expect(state().hasSessionFix).toBe(true);
+    });
+
+    it('le bouton geoloc relance une acquisition GPS quand aucun fix live n existe', () => {
+        render(<Dashboard />);
+        act(() => watches.at(-1)!.error?.(gpsError));
+        const before = watches.length;
+
+        fireEvent.click(screen.getByRole('button', { name: 'Relancer la localisation' }));
+
+        expect(watches).toHaveLength(before + 1);
+        expect(state()).toMatchObject({ isTracking: true, locationStatus: 'searching', hasSessionFix: false });
+    });
+
+    it('relance après un échec puis un nouveau watch réactive la création', () => {
         cache();
         const { result, click } = mountHook();
         act(() => { state().startTracking(); watches[0].error?.(gpsError); });
         act(() => result.current.openCamera());
         expect(click).not.toHaveBeenCalled();
-        act(() => result.current.retryGPS());
+        expect((result.current as unknown as Record<string, unknown>).retryGPS).toBeUndefined();
+        act(() => state().startTracking());
         expect(result.current.locationStatus).toBe('searching');
         act(() => watches[1].success(position(2000, 49, 4)));
         expect(result.current.canCreateFromLocation).toBe(true);
@@ -130,14 +161,91 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(useToastStore.getState().toasts.at(-1)?.title).toBe('Position mémorisée');
     });
 
-    it('garde le démarrage programmé avec ses coordonnées explicites sans nouveau fix', () => {
+    it('refuse le démarrage programmé sans fix live, même avec des coordonnées explicites', () => {
         cache();
         const { result, click } = mountHook();
         const scheduled: BeerCall = { id: 'scheduled', creator_name: 'User', creator_id: 1, location_name: 'Lieu prévu',
             longitude: 5, latitude: 50, status: 'scheduled', participants_count: 0, has_responded: false, can_start: true };
         act(() => result.current.openCamera({ lat: 50, lng: 5 }, scheduled));
+        expect(click).not.toHaveBeenCalled();
+        expect(result.current.photoLocation).toBeNull();
+        expect(result.current.startingScheduledApero).toBeNull();
+        expect(state().hasSessionFix).toBe(false);
+    });
+
+    it('démarre un apero programmé avec le fix live, jamais avec les coordonnées du marqueur', () => {
+        const { result, click } = mountHook();
+        act(() => watches[0].success(position(2000, 48.1, 2.1)));
+        const scheduled: BeerCall = { id: 'scheduled', creator_name: 'User', creator_id: 1, location_name: 'Lieu prévu',
+            longitude: 5, latitude: 50, status: 'scheduled', participants_count: 0, has_responded: false, can_start: true };
+        act(() => result.current.openCamera({ lat: 50, lng: 5 }, scheduled));
         expect(click).toHaveBeenCalledTimes(1);
-        expect(result.current.photoLocation).toEqual({ lat: 50, lng: 5 });
+        expect(result.current.photoLocation).toEqual({ lat: 48.1, lng: 2.1 });
         expect(result.current.startingScheduledApero).toEqual(scheduled);
+        expect(result.current.startingScheduledApero).toMatchObject({ id: 'scheduled', location_name: 'Lieu prévu' });
+    });
+
+    it('démarre le suivi au montage actif et l arrête au démontage', () => {
+        const { unmount } = renderHook(() => useDashboard());
+        expect(watches).toHaveLength(1);
+        expect(points).toHaveLength(1);
+        expect(state().isTracking).toBe(true);
+
+        act(() => unmount());
+        expect(state().isTracking).toBe(false);
+    });
+
+    it('dix rerenders ne doublent ni le point ni le watch', () => {
+        const { rerender } = renderHook(() => useDashboard());
+        for (let i = 0; i < 10; i++) act(() => rerender());
+        expect(points).toHaveLength(1);
+        expect(watches).toHaveLength(1);
+    });
+
+    it('arrête à la mise en arrière-plan et reprend une seule fois au retour visible', () => {
+        renderHook(() => useDashboard());
+        const setVisibility = (value: DocumentVisibilityState) => {
+            Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => value });
+            act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+        };
+        try {
+            setVisibility('hidden');
+            expect(state()).toMatchObject({ isTracking: false, locationStatus: 'idle' });
+            setVisibility('visible');
+            expect(watches).toHaveLength(2);
+            setVisibility('visible');
+            expect(watches).toHaveLength(2);
+        } finally {
+            Reflect.deleteProperty(document, 'visibilityState');
+        }
+    });
+
+    it('sous StrictMode, un seul watch reste actif et les callbacks périmés sont ignorés', () => {
+        renderHook(() => useDashboard(), { wrapper: ({ children }) => <StrictMode>{children}</StrictMode> });
+        expect(state().isTracking).toBe(true);
+        expect(watches.length).toBeGreaterThanOrEqual(1);
+
+        act(() => watches.at(-1)!.success(position(2000, 49)));
+        expect(state()).toMatchObject({ hasSessionFix: true, acquiredAt: 2000, userLocation: { lat: 49, lng: 2 } });
+
+        // Si StrictMode a bien rejoué l'effet, le callback de la génération précédente
+        // ne doit plus déplacer le fix.
+        if (watches.length > 1) {
+            act(() => watches[0].success(position(3000, 90)));
+            expect(state()).toMatchObject({ acquiredAt: 2000, userLocation: { lat: 49, lng: 2 } });
+        }
+    });
+
+    it('un refus ne relance pas de lui-même et une demande explicite réussit', () => {
+        renderHook(() => useDashboard());
+        act(() => watches[0].error?.(gpsError));
+        expect(points).toHaveLength(1);
+        expect(watches).toHaveLength(1);
+        expect(state().isTracking).toBe(true);
+
+        act(() => state().startTracking());
+        expect(watches).toHaveLength(2);
+        act(() => watches[1].success(position(2000, 49)));
+        expect(state()).toMatchObject({ hasSessionFix: true, userLocation: { lat: 49, lng: 2 } });
     });
 });

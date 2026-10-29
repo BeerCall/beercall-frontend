@@ -38,9 +38,9 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({
 }) => {
     return (
         <div
-            className="absolute bottom-[calc(248px_+_env(safe-area-inset-bottom))] w-full px-4 z-[70] pointer-events-none">
+            className="relative w-full px-4 mb-1 pointer-events-none">
             <div
-                className="flex gap-4 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto items-center">
+                className="flex gap-4 overflow-x-auto pb-0 pt-2 px-2 snap-x snap-mandatory hide-scrollbar pointer-events-auto items-center">
 
             {/* 1. CARTE PROGRAMMÉE (Dynamique) */}
             {squadDetails?.scheduled_beer_calls?.map((call: BeerCall) => (

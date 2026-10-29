@@ -17,16 +17,6 @@ import {
 } from '../../lib/renderPolicy';
 import WorldContactShadows from './WorldContactShadows';
 
-// --- FILTRE ANTI-WARNINGS ---
-const silenceWarnings = () => {
-    const originalWarn = console.warn;
-    console.warn = (...args) => {
-        const msg = args.join(' ');
-        if (msg.includes('THREE.') || msg.includes('X4122') || msg.includes('skinning weights')) return;
-        originalWarn(...args);
-    };
-};
-
 type LegacyMaterial = THREE.Material & {
     color?: THREE.Color;
     map?: THREE.Texture & { colorSpace?: string; encoding?: number };
@@ -337,7 +327,6 @@ export default function BarWorld({
         });
     };
 
-    useMemo(() => silenceWarnings(), []);
     const navigate = useNavigate();
 
     // 🌟 Agrégation de la readiness du décor et des avatars (T12B / REV-04 / REV-06)

@@ -107,4 +107,54 @@ describe('Roue paginée sans popup de confirmation', () => {
         expect(screen.getByRole('status')).toHaveTextContent('Chargement des squads');
         expect(screen.getByRole('button', { name: 'Profil' })).toBeInTheDocument();
     });
+
+    it('applique squadLabel sous les badges tout en préservant le aria-label complet et le nom actif complet', () => {
+        const testSquads: Squad[] = [
+            { id: 1, name: 'Les Amis du Bar', icon: 'beer', color: '#F59E0B', invite_code: 'BAR' },
+            { id: 2, name: 'BeerCall', icon: 'rocket', color: '#10B981', invite_code: 'BEER' },
+            { id: 3, name: 'Équipe du jeudi', icon: 'fire', color: '#EF4444', invite_code: 'JEU' },
+        ];
+        render(<SquadWheel squads={testSquads} currentSquadId="1" onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()} />);
+
+        // Les labels sous les badges utilisent squadLabel
+        expect(screen.getByText('LADB')).toBeInTheDocument();
+        expect(screen.getByText('BeerCall')).toBeInTheDocument();
+        expect(screen.getByText('ÉDJ')).toBeInTheDocument();
+
+        // Les aria-label sur les boutons restent complets
+        expect(screen.getByRole('button', { name: 'Les Amis du Bar' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'BeerCall' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Équipe du jeudi' })).toBeInTheDocument();
+
+        // T25b : plus de doublon bas du nom actif ; le nom complet reste sur le bouton.
+        expect(document.querySelector('[data-wheel-active]')).toBeNull();
+    });
+
+    it('applique la palette de carte aux textes de la roue, sans rectangle blanc', () => {
+        const testSquads: Squad[] = [
+            { id: 1, name: 'Squad Un', icon: 'beer', color: '#F59E0B', invite_code: 'SQ1' },
+            { id: 2, name: 'Squad Deux', icon: 'pizza', color: '#3B82F6', invite_code: 'SQ2' },
+        ];
+        const { rerender } = render(<SquadWheel squads={testSquads} currentSquadId="1" onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()} />);
+
+        const labels = document.querySelectorAll('[data-wheel-label]');
+        expect(labels.length).toBeGreaterThan(0);
+        labels.forEach(label => {
+            expect(label).not.toHaveClass('bg-white');
+            expect(label).toHaveClass('rounded', 'px-1', 'text-gray-900', 'drop-shadow-[0_1px_2px_rgba(255,255,255,0.95)]');
+        });
+
+        // Nuit : orange de la charte, ombre sombre.
+        rerender(<SquadWheel squads={testSquads} currentSquadId="1" isNightMode onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()} />);
+        document.querySelectorAll('[data-wheel-label]').forEach(label => {
+            expect(label).not.toHaveClass('bg-white');
+            expect(label).toHaveClass('text-beer-light', 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]');
+        });
+
+        // Cas de chargement
+        rerender(<SquadWheel squads={[]} isLoading onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()} />);
+        const loadingText = screen.getByRole('status');
+        expect(loadingText).toHaveClass('rounded', 'px-1', 'text-gray-900');
+        expect(loadingText).not.toHaveClass('bg-white');
+    });
 });

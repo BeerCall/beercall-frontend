@@ -1,5 +1,5 @@
 // src/pages/ChatPage.tsx
-import React, {useState, useEffect, useRef, Suspense} from 'react';
+import {useState, useEffect, useRef, Suspense} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {motion, AnimatePresence, useInView} from 'framer-motion';
 import {ChevronLeft, Send, MessageCircle, User as UserIcon} from 'lucide-react';
@@ -7,9 +7,9 @@ import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useSquadWebSocket} from '../hooks/useSquadWebSocket';
 import {useChat} from '../hooks/useChat';
 import {useProfile} from '../hooks/useProfile';
+import {useChatViewport} from '../hooks/useChatViewport';
 import type {ChatMessage} from '../types/chat';
-
-const AvatarCanvas = React.lazy(() => import('../components/3D/AvatarCanvas'));
+import SafeAvatar from '../components/3D/SafeAvatar';
 
 // ⏱️ Formate un timestamp en heure (ex: 14:32)
 const formatTime = (ts: number) => {
@@ -37,7 +37,7 @@ function MessageBubble({message, isOwn}: { message: ChatMessage, isOwn: boolean 
                 {senderProfile?.avatar && senderProfile.avatar.head ? (
                     isInView ? (
                         <Suspense fallback={<div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>}>
-                            <AvatarCanvas config={senderProfile.avatar} headOnly={true} disableZoom={true} disablePan={true}/>
+                            <SafeAvatar config={senderProfile.avatar} headOnly={true} disableZoom={true} disablePan={true}/>
                         </Suspense>
                     ) : null
                 ) : (
@@ -56,7 +56,7 @@ function MessageBubble({message, isOwn}: { message: ChatMessage, isOwn: boolean 
                             ? 'bg-amber-500 text-white rounded-br-md'
                             : 'bg-white text-gray-900 border border-gray-100 rounded-bl-md'
                     }`}>
-                    <span className="whitespace-pre-wrap break-words">{message.text}</span>
+                    <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.text}</span>
                 </div>
                 <span className="text-[10px] text-gray-400 mt-0.5 px-1">{formatTime(message.timestamp)}</span>
             </div>
@@ -83,11 +83,19 @@ export default function ChatPage() {
 
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
-    const bottomRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const messagesRef = useRef<HTMLDivElement>(null);
+    const viewport = useChatViewport(containerRef);
 
-    // 🔃 Auto-scroll vers le bas à chaque nouveau message
+    // 🔃 Auto-scroll dans la seule liste de messages, jamais vers un ancêtre.
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({behavior: 'smooth'});
+        const list = messagesRef.current;
+        if (!list) return;
+        if (typeof list.scrollTo === 'function') {
+            list.scrollTo({top: list.scrollHeight, behavior: 'smooth'});
+        } else {
+            list.scrollTop = list.scrollHeight;
+        }
     }, [messages]);
 
     const currentUserId = profile?.id;
@@ -111,25 +119,28 @@ export default function ChatPage() {
     };
 
     return (
-        <div className="h-screen w-full flex flex-col bg-[#f8fafc] overflow-hidden">
+        <div ref={containerRef}
+             className="absolute inset-x-0 flex flex-col bg-[#f8fafc] overflow-hidden"
+             style={{top: viewport.top, height: viewport.height}}>
             {/* 🧾 HEADER */}
             <header className="pt-[calc(10px+env(safe-area-inset-top))] shrink-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm z-10">
                 <button
                     onClick={() => navigate(-1)}
-                    className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"
+                    aria-label="Retour"
+                    className="p-2 min-w-11 min-h-11 flex items-center justify-center bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition-colors shrink-0"
                 >
                     <ChevronLeft size={20}/>
                 </button>
 
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow shrink-0">
                         <MessageCircle size={20}/>
                     </div>
-                    <div>
-                        <h1 className="text-lg font-black text-gray-900 uppercase italic tracking-tighter leading-none">
+                    <div className="min-w-0">
+                        <h1 className="text-lg font-black text-gray-900 uppercase italic tracking-tighter leading-none truncate break-all">
                             {beerCall ? beerCall.location_name || 'Chat Apéro' : (squad?.name || 'Chat Squad')}
                         </h1>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mt-0.5">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mt-0.5 truncate">
                             {beerCall ? `${squad?.name || 'Squad'} · En direct` : 'En direct'}
                         </p>
                     </div>
@@ -137,7 +148,7 @@ export default function ChatPage() {
             </header>
 
             {/* 💬 ZONE MESSAGES */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            <div ref={messagesRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3">
                 {error ? (
                     <div className="h-full flex flex-col items-center justify-center text-center px-6">
                         <div className="w-14 h-14 rounded-2xl bg-red-100 text-red-500 flex items-center justify-center mb-3">
@@ -172,31 +183,31 @@ export default function ChatPage() {
                                 />
                             ))}
                         </AnimatePresence>
-                        <div ref={bottomRef}/>
                     </>
                 )}
             </div>
 
             {/* 📝 SAISIE */}
-            <footer className="shrink-0 bg-white border-t border-gray-100 px-4 py-3 flex items-end gap-2 z-10">
+            <footer className="shrink-0 min-w-0 bg-white border-t border-gray-100 px-4 py-3 flex items-end gap-2 z-10 pb-[max(12px,env(safe-area-inset-bottom))]">
                 <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
-                        // Enter = envoi, Shift+Enter = nouvelle ligne
-                        if (e.key === 'Enter' && !e.shiftKey) {
+                        // Enter = envoi, Shift+Enter = nouvelle ligne, IME respecté
+                        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                             e.preventDefault();
                             handleSend();
                         }
                     }}
                     rows={1}
                     placeholder="Écris un message..."
-                    className="flex-1 resize-none rounded-2xl bg-gray-100 border border-transparent focus:border-amber-400 focus:bg-white focus:outline-none px-4 py-3 text-sm transition-colors max-h-32"
+                    className="text-base flex-1 min-w-0 w-full resize-none rounded-2xl bg-gray-100 border border-transparent focus:border-amber-400 focus:bg-white focus:outline-none px-4 py-3 transition-colors max-h-32"
                 />
                 <button
                     onClick={handleSend}
                     disabled={!input.trim() || sending}
-                    className="p-3 rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/30 disabled:opacity-40 disabled:shadow-none hover:bg-amber-600 transition-all"
+                    aria-label="Envoyer"
+                    className="shrink-0 w-11 h-11 flex items-center justify-center rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/30 disabled:opacity-40 disabled:shadow-none hover:bg-amber-600 transition-all"
                 >
                     <Send size={18}/>
                 </button>
