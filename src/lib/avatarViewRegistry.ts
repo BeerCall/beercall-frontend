@@ -78,10 +78,55 @@ export class AvatarViewRegistry {
     private clock = 0;
     private version = 0;
     private ended = false;
-    readonly generation = 1;
+    private contextGeneration = 1;
+    private sourceVersion = 0;
+    private gpuStatus: 'ready' | 'lost' | 'restoring' = 'ready';
+    private sourceRetry?: () => void;
+    private replacingSource = false;
+    get generation() { return this.contextGeneration; }
+    get sourceEpoch() { return this.sourceVersion; }
+    get contextStatus() { return this.gpuStatus; }
+    get retryPending() { return this.replacingSource; }
     private snapshot: {version: number; jobs: readonly AvatarRenderJob[]; views: readonly AvatarViewRecord[]} = {version: 0, jobs: [], views: []};
 
     getSnapshot = () => this.snapshot;
+    setSourceRetry(handler: () => void): () => void {
+        if (this.ended) return () => {};
+        this.sourceRetry = handler;
+        return () => { if (this.sourceRetry === handler) this.sourceRetry = undefined; };
+    }
+    markSourceLost(epoch: number): boolean {
+        if (this.ended || epoch !== this.sourceVersion || this.gpuStatus === 'lost') return false;
+        this.contextGeneration++;
+        this.gpuStatus = 'lost'; this.replacingSource = false;
+        // 2D frames and CPU assemblies remain intact; only their GPU certificates expire.
+        this.publish(); return true;
+    }
+    markSourceRestored(epoch: number): boolean {
+        if (this.ended || epoch !== this.sourceVersion || this.gpuStatus !== 'lost' || this.replacingSource) return false;
+        this.gpuStatus = 'restoring';
+        this.publish(); return true;
+    }
+    retrySource(): boolean {
+        if (this.ended || this.gpuStatus !== 'lost' || this.replacingSource || !this.sourceRetry) return false;
+        this.replacingSource = true;
+        this.publish(); this.sourceRetry(); return true;
+    }
+    beginSourceReplacement(epoch: number): boolean {
+        if (this.ended || epoch !== this.sourceVersion || !this.replacingSource) return false;
+        this.contextGeneration++; this.sourceVersion++;
+        this.gpuStatus = 'restoring';
+        for (const job of this.jobs.values()) {
+            job.ready = false; job.scene = undefined; job.camera = undefined; job.group = undefined;
+            job.presentation = null; job.retryModels = undefined; job.modelError = undefined;
+        }
+        this.publish(); return true;
+    }
+    sourceReleaseUnavailable(epoch: number): void {
+        if (this.ended || epoch !== this.sourceVersion) return;
+        this.replacingSource = false;
+        this.publish();
+    }
     subscribe = (listener: () => void) => {
         if (this.ended) return () => {};
         this.listeners.add(listener);
@@ -178,13 +223,17 @@ export class AvatarViewRegistry {
     confirmCopy(token: AvatarCopyToken, evidence: {drawCalls: number; meshCount: number; copied: boolean; timestamp: number}): boolean {
         const job = this.resolveJob(token);
         const view = this.views.get(token.viewId);
-        if (!job || !view || view.lease !== token.lease || view.jobId !== job.id || view.signature !== token.signature ||
+        if (this.gpuStatus === 'lost' || !job || !view || view.lease !== token.lease || view.jobId !== job.id || view.signature !== token.signature ||
             !job.ready || !evidence.copied || evidence.drawCalls <= 0 || evidence.meshCount <= 0 ||
             view.width <= 0 || view.height <= 0 || (!view.visible && !view.prepare)) return false;
         const first = view.frame?.signature !== token.signature || view.frame?.generation !== token.generation;
         view.frame = {signature: token.signature, generation: token.generation, timestamp: evidence.timestamp,
             drawCalls: evidence.drawCalls, copies: (view.frame?.copies ?? 0) + 1};
         job.frame = view.frame;
+        if (this.gpuStatus === 'restoring' && [...this.views.values()].every(candidate =>
+            (!candidate.visible && !candidate.prepare) || (candidate.frame?.generation === this.generation && candidate.frame.signature === candidate.signature))) {
+            this.gpuStatus = 'ready'; this.replacingSource = false;
+        }
         if (first) this.publish();
         job.presentation?.notifyFrameCopied();
         view.onFrameCopied?.();
@@ -198,6 +247,7 @@ export class AvatarViewRegistry {
     clearSession(): void {
         if (this.ended) return;
         this.ended = true;
+        this.sourceRetry = undefined; this.replacingSource = false;
         for (const view of this.views.values()) {
             view.onFrameCopied = undefined;
             // Session reset may erase private presentation; ordinary eviction never does.

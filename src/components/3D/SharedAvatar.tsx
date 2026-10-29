@@ -109,7 +109,7 @@ function SharedAvatarCell({session, config, mode = 'full', active = true, instan
     };
     return <div ref={container} className={className} data-avatar-view={id} data-avatar-instance={instanceId}
         data-avatar-view-name={viewName} data-avatar-signature={view?.signature}
-        data-avatar-state={modelError ? 'model-error' : animationError ? phase : ready && !retrying ? 'frame-ready' : 'preparing'}
+        data-avatar-state={session.registry.contextStatus === 'lost' ? 'context-lost' : modelError ? 'model-error' : animationError ? phase : ready && !retrying ? 'frame-ready' : 'preparing'}
         data-avatar-framing={mode !== 'full' ? ready && !retrying ? 'ready' : 'pending' : undefined}
         data-avatar-framing-info={job?.framing ? JSON.stringify(job.framing) : undefined}>
         <canvas ref={canvas} className="h-full w-full" aria-hidden="true" data-avatar-cell="2d"/>
@@ -125,6 +125,14 @@ function SharedAvatarCell({session, config, mode = 'full', active = true, instan
             <p>Modèle d’avatar indisponible</p>
             <button type="button" onClick={() => job?.retryModels?.()} className="font-bold underline">Réessayer le modèle</button>
         </div>}
+        {session.registry.contextStatus === 'lost' && <div role="status" aria-label="Contexte WebGL perdu"
+            className="absolute inset-x-0 bottom-0 rounded-lg bg-amber-50/95 p-2 text-center text-xs text-amber-900">
+            <p>Affichage des avatars suspendu (WebGL)</p>
+            <button type="button" disabled={session.registry.retryPending} onClick={() => session.registry.retrySource()}
+                className="font-bold underline disabled:opacity-50">Réessayer l’affichage</button>
+        </div>}
+        {session.registry.contextStatus === 'restoring' && !ready && <div role="status" aria-label="Restauration de l’affichage"
+            className="absolute inset-x-0 bottom-0 rounded-lg bg-amber-50/95 p-2 text-center text-xs text-amber-900">Restauration des avatars…</div>}
     </div>;
 }
 

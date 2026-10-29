@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore} from 'react';
-import {Canvas, createPortal, useFrame, type EventManager} from '@react-three/fiber';
-import {PerspectiveCamera, Scene} from 'three';
+import {Canvas, createPortal, useFrame, useThree, type EventManager} from '@react-three/fiber';
+import {PerspectiveCamera, Scene, type WebGLRenderer} from 'three';
 import AvatarScene, {type AvatarSceneStatus} from './AvatarScene';
 import {AvatarRenderBoundary} from './AvatarRenderBoundary';
 import {useModel} from '../../hooks/useModel';
@@ -28,7 +28,7 @@ function ModelFailure({session, job, reset}: {session: AvatarViewportSession; jo
     return null;
 }
 
-function JobPortal({session, job, active}: {session: AvatarViewportSession; job: AvatarRenderJob; active: boolean}) {
+function JobPortal({session, job, active, generation}: {session: AvatarViewportSession; job: AvatarRenderJob; active: boolean; generation: number}) {
     const scene = useMemo(() => new Scene(), []);
     const camera = useMemo(() => {
         const result = new PerspectiveCamera(45, job.width / Math.max(1, job.height), 0.1, 2000);
@@ -36,7 +36,7 @@ function JobPortal({session, job, active}: {session: AvatarViewportSession; job:
         result.lookAt(0, 80, 0);
         return result;
     }, [job.width, job.height]);
-    const token = useMemo(() => session.registry.jobToken(job), [session, job]);
+    const token = useMemo(() => ({...session.registry.jobToken(job), generation}), [session, job, generation]);
     useLayoutEffect(() => { session.registry.attachScene(token, scene, camera); }, [session, token, scene, camera]);
     const onStatus = useCallback((status: AvatarSceneStatus | null) => { session.registry.setSceneStatus(token, status); }, [session, token]);
     const onPresentation = useCallback((state: AvatarPresentationState | null) => { session.registry.setPresentation(token, state); }, [session, token]);
@@ -51,7 +51,7 @@ function RenderPass({session, jobs, visible}: {session: AvatarViewportSession; j
     const frames = useMemo(() => new WeakMap<HTMLCanvasElement, HTMLCanvasElement>(), []);
     const lastCycle = useRef(-Infinity);
     useFrame(({gl}) => {
-        if (!visible || document.hidden) return;
+        if (!visible || document.hidden || session.registry.contextStatus === 'lost') return;
         const next = jobs.filter(job => !mounted.includes(job.id)).slice(0, 2).map(job => job.id);
         if (next.length) setMounted(previous => [...previous.filter(id => session.registry.getJob(id)), ...next]);
         const now = performance.now();
@@ -60,12 +60,63 @@ function RenderPass({session, jobs, visible}: {session: AvatarViewportSession; j
         renderSharedAvatarCycle(gl, session, frames, now);
     }, 1);
     return jobs.filter(job => mounted.includes(job.id)).map(job => <JobPortal key={job.id}
-        session={session} job={job} active={session.registry.isActive(job) && visible}/>);
+        session={session} job={job} generation={session.registry.generation}
+        active={session.registry.isActive(job) && visible && session.registry.contextStatus !== 'lost'}/>);
+}
+
+function SourceLifecycle({session, epoch, attach}: {session: AvatarViewportSession; epoch: number; attach: (gl: WebGLRenderer) => () => void}) {
+    const gl = useThree(state => state.gl);
+    useEffect(() => {
+        const detach = attach(gl);
+        const lost = (event: Event) => { event.preventDefault(); session.registry.markSourceLost(epoch); };
+        const restored = () => { session.registry.markSourceRestored(epoch); };
+        gl.domElement.addEventListener('webglcontextlost', lost);
+        gl.domElement.addEventListener('webglcontextrestored', restored);
+        return () => {
+            gl.domElement.removeEventListener('webglcontextlost', lost);
+            gl.domElement.removeEventListener('webglcontextrestored', restored);
+            detach();
+        };
+    }, [session, epoch, gl, attach]);
+    return null;
+}
+
+function SourceFailure({session, epoch}: {session: AvatarViewportSession; epoch: number}) {
+    useEffect(() => { session.registry.markSourceLost(epoch); }, [session, epoch]);
+    return null;
 }
 
 export default function SharedAvatarRenderer({session}: {session: AvatarViewportSession}) {
     const {jobs} = useSyncExternalStore(session.registry.subscribe, session.registry.getSnapshot, session.registry.getSnapshot);
     const [visible, setVisible] = useState(() => !document.hidden);
+    const renderer = useRef<WebGLRenderer | undefined>(undefined);
+    const epoch = session.registry.sourceEpoch;
+    const attachRenderer = useCallback((gl: WebGLRenderer) => {
+        renderer.current = gl;
+        return () => { if (renderer.current === gl) renderer.current = undefined; };
+    }, []);
+    useEffect(() => session.registry.setSourceRetry(() => {
+        const gl = renderer.current;
+        const replace = () => { session.registry.beginSourceReplacement(epoch); };
+        if (!gl) { replace(); return; }
+        const context = gl.getContext();
+        if (!context.isContextLost() && !context.getExtension('WEBGL_lose_context')) {
+            session.registry.sourceReleaseUnavailable(epoch);
+            return;
+        }
+        const released = () => {
+            gl.domElement.removeEventListener('webglcontextlost', released);
+            if (renderer.current === gl) renderer.current = undefined;
+            replace();
+        };
+        // Destroy before creating the replacement, not one retry/Canvas per cell.
+        if (context.isContextLost()) { gl.dispose(); released(); }
+        else {
+            gl.domElement.addEventListener('webglcontextlost', released, {once: true});
+            gl.dispose(); gl.forceContextLoss();
+            if (context.isContextLost()) released();
+        }
+    }), [session, epoch]);
     useEffect(() => {
         const update = () => setVisible(!document.hidden);
         document.addEventListener('visibilitychange', update);
@@ -74,8 +125,11 @@ export default function SharedAvatarRenderer({session}: {session: AvatarViewport
     const size = sharedAvatarSourceSize(jobs, session);
     return <div aria-hidden="true" data-avatar-source="shared" className="pointer-events-none fixed -left-[10000px] top-0"
         style={{width: size.width, height: size.height}}>
+        <AvatarRenderBoundary key={epoch} fallback={<SourceFailure session={session} epoch={epoch}/>}>
         <Canvas dpr={size.dpr} gl={{alpha: true, antialias: true, preserveDrawingBuffer: false}} events={noEvents}>
+            <SourceLifecycle session={session} epoch={epoch} attach={attachRenderer}/>
             <RenderPass session={session} jobs={jobs} visible={visible}/>
         </Canvas>
+        </AvatarRenderBoundary>
     </div>;
 }
