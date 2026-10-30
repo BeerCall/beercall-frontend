@@ -75,7 +75,7 @@ function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
 
     return (
         <QueryClientProvider client={queryClient}>
-            <BrowserRouter>
+            <BrowserRouter unstable_useTransitions={false}>
                 <AvatarViewportProvider>
                 <ToastContainer/>
                 {diagnostics && <Suspense fallback={null}><PerformancePanel/></Suspense>}
