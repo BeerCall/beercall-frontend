@@ -375,4 +375,25 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     expect(screen.queryByRole('button', {name: 'Créer un Beer Call'})).not.toBeInTheDocument();
     expect(openCamera).not.toHaveBeenCalled();
   });
+
+  it('keeps native recovery outside the map stacking context and hides it when the retained route is invisible', () => {
+    const fakeMap = new FakeMapLibreMap();
+    const props: React.ComponentProps<typeof MapSection> = {
+      mapRef: createFakeMapRef(fakeMap), userLocation: {lat: 48, lng: 2}, isNightMode: false, squadDetails: null,
+      profile: dummyProfile, handleMapPointerDown: vi.fn(), handleMapPointerMove: vi.fn(), cancelLongPress: vi.fn(),
+      handleManualRecenter: vi.fn(), handleBeerCallClick: vi.fn(), openCamera: vi.fn(), setIsWorldsModalOpen: vi.fn(),
+    };
+    const content = (visible: boolean) => <div data-testid="map-stacking-context" style={{position: 'relative', zIndex: 0}}>
+      <MapSection {...props} visible={visible}/>
+    </div>;
+    const view = render(content(true));
+    act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); fakeMap.fire('webglcontextlost'); });
+    const status = screen.getByRole('status', {name: 'Statut carte'});
+    expect(status.closest('[data-testid="map-stacking-context"]')).toBeNull();
+    expect(screen.getByRole('button', {name: 'Réessayer la carte'})).toBeEnabled();
+    view.rerender(content(false));
+    expect(screen.queryByRole('status', {name: 'Statut carte'})).toBeNull();
+    view.rerender(content(true));
+    expect(screen.getByRole('status', {name: 'Statut carte'})).toBeInTheDocument();
+  });
 });

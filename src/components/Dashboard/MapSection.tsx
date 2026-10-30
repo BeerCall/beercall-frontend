@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react';
+import {createPortal} from 'react-dom';
 import Map, { Marker, NavigationControl, type MapRef, type MapLayerMouseEvent, type MapLayerTouchEvent } from 'react-map-gl/maplibre';
 import { motion } from 'framer-motion';
 import { User as UserIcon, RefreshCw } from 'lucide-react';
@@ -321,20 +322,16 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     );
 
     return (
+        <>
+        {visible && isMapContextLost && typeof document !== 'undefined' && createPortal(
+            <div role="status" aria-label="Statut carte"
+                className="fixed inset-x-4 bottom-[calc(80px+env(safe-area-inset-bottom))] z-[110] flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-950 shadow-lg">
+                <p>Carte momentanément indisponible</p>
+                <button type="button" disabled={rebuilding}
+                    onClick={event => { event.stopPropagation(); retryMap(); }} onKeyDown={event => event.stopPropagation()}
+                    className="min-h-11 rounded-lg bg-amber-700 px-3 text-white disabled:opacity-50">Réessayer la carte</button>
+            </div>, document.body)}
         <MapContentsContext.Provider value={<>
-            
-            {/* STATUT CONTEXTE WEBGL PERDU */}
-            {isMapContextLost && (
-                <div
-                    role="status"
-                    aria-label="Statut carte"
-                    className="absolute inset-x-4 top-[calc(60px+env(safe-area-inset-top))] z-30 p-3 bg-amber-500/95 text-white text-xs font-bold text-center rounded-xl shadow-lg backdrop-blur-sm transition-all"
-                >
-                    Carte momentanément indisponible
-                    <button type="button" disabled={rebuilding} onClick={retryMap} className="ml-3 underline disabled:opacity-50">Réessayer la carte</button>
-                </div>
-            )}
-
             {/* BOUTON RECENTRER / RELANCER LA LOCALISATION */}
             <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-[20px] z-10">
                 <button onClick={handleLocateClick}
@@ -486,5 +483,6 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         </>}>
             <RetainedNativeMap element={mapElement} frozen={isMapContextLost}/>
         </MapContentsContext.Provider>
+        </>
     );
 });
