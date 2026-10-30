@@ -396,4 +396,22 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     view.rerender(content(true));
     expect(screen.getByRole('status', {name: 'Statut carte'})).toBeInTheDocument();
   });
+
+  it('recertifies a loaded map after real restoration even when an earlier tile error removed its metric generation', () => {
+    const fakeMap = new FakeMapLibreMap();
+    render(<MapSection mapRef={createFakeMapRef(fakeMap)} userLocation={{lat: 48, lng: 2}} isNightMode={false}
+      squadDetails={null} profile={dummyProfile} handleMapPointerDown={vi.fn()} handleMapPointerMove={vi.fn()}
+      cancelLongPress={vi.fn()} handleManualRecenter={vi.fn()} handleBeerCallClick={vi.fn()}
+      openCamera={vi.fn()} setIsWorldsModalOpen={vi.fn()}/>);
+    act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
+    expect(getLatestSceneSignal('mapInteractive')).toBeDefined();
+    act(() => { mapMockControl.triggerError(); mapMockControl.triggerIdle(); });
+    expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+    act(() => { fakeMap.fire('webglcontextlost'); fakeMap.fire('webglcontextrestored'); });
+    expect(screen.getByRole('status', {name: 'Statut carte'})).toBeInTheDocument();
+    expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+    act(() => mapMockControl.triggerIdle());
+    expect(getLatestSceneSignal('mapInteractive')).toBeDefined();
+    expect(screen.queryByRole('status', {name: 'Statut carte'})).toBeNull();
+  });
 });

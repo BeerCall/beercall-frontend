@@ -194,8 +194,9 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         }
         // Réarmer la vérification pour certification au prochain idle valide
         state.loaded = state.everLoaded;
+        if (state.loaded && state.generation === undefined) state.generation = registerSceneInstance('dashboard', mapId);
         state.submitted = false;
-    }, []);
+    }, [mapId]);
 
     const detachMapInstance = React.useCallback(() => {
         const current = listeners.current;
