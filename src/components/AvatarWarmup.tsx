@@ -26,7 +26,12 @@ function SessionWarmup({session}: {session: AvatarViewportSession}) {
     const registrySnapshot = useSyncExternalStore(session.registry.subscribe, session.registry.getSnapshot, session.registry.getSnapshot);
     const handles = useRef(new Map<string, AvatarViewHandle>());
     const demandSequence = useRef(0);
-    useEffect(() => { void preloadAvatarAnimations(client); }, [client]);
+    useEffect(() => {
+        void preloadAvatarAnimations(client);
+        void import('../pages/Profile.tsx').catch(() => {});
+        void import('../pages/Connections').catch(() => {});
+        void import('../pages/ChatPage').catch(() => {});
+    }, [client]);
 
     const demands = (() => {
         const manifest = client.getQueryData<AnimationManifest>(['avatar-animations', 'manifest', 1]);
@@ -41,7 +46,7 @@ function SessionWarmup({session}: {session: AvatarViewportSession}) {
         };
         if (profile.data?.avatar) {
             add(profile.data.avatar, 'full', 96, 128, true);
-            add(profile.data.avatar, 'profile', window.innerWidth, Math.max(1, window.innerHeight / 2 - 132), true);
+            add(profile.data.avatar, 'profile', window.innerWidth, Math.max(1, Math.round(window.innerHeight / 2 - 132)), true);
         }
         const known: AvatarConfig[] = [...(connections.data ?? []).map(connection => connection.avatar)];
         for (const query of cache.findAll({queryKey: ['profile']})) {
@@ -49,7 +54,8 @@ function SessionWarmup({session}: {session: AvatarViewportSession}) {
             if (data?.avatar && data !== profile.data) known.push(data.avatar);
         }
         for (const config of known) {
-            add(config, 'thumbnail', window.innerWidth >= 400 ? 128 : 96, window.innerWidth >= 400 ? 160 : 128, false);
+            // Connections cards wrap thumbnails in w-24 h-32 / min-[400px]:w-32 min-[400px]:h-40 with border-2 (4px border).
+            add(config, 'thumbnail', window.innerWidth >= 400 ? 124 : 92, window.innerWidth >= 400 ? 156 : 124, false);
             add(config, 'head', 36, 36, false);
         }
         return result;

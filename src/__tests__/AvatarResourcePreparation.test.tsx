@@ -140,6 +140,21 @@ describe('real loader readers and useful session warmup', () => {
         expect(s.preparation.getSnapshot()).toEqual([]);
     });
 
+    it.each([{viewport: 390, width: 92, height: 124}, {viewport: 420, width: 124, height: 156}])(
+        'prepares the real inner thumbnail size at viewport $viewport, excluding its four border pixels', async ({viewport, width, height}) => {
+            vi.stubGlobal('innerWidth', viewport);
+            const s = createAvatarViewportSession();
+            fixtures.profile = {data: {avatar: {head: 'player'}}};
+            fixtures.connections = {data: [{avatar: {head: 'contact'}}]};
+            const view = mount(s, <AvatarWarmup/>);
+            await waitFor(() => expect(s.registry.getSnapshot().views.filter(view => view.prepare)).toHaveLength(2));
+            act(() => certifyPrepared(s));
+            await waitFor(() => expect(s.registry.getSnapshot().jobs.some(job => job.mode === 'thumbnail')).toBe(true));
+            expect(s.registry.getSnapshot().jobs.find(job => job.mode === 'thumbnail')).toMatchObject({width, height});
+            view.unmount(); s.dispose(); vi.unstubAllGlobals();
+        },
+    );
+
     it('preserves the exact connections query key and endpoint', async () => {
         const get = vi.spyOn(api, 'get').mockResolvedValue({data: []});
         const client = new QueryClient();

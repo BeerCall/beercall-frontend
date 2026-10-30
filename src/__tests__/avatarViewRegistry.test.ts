@@ -42,6 +42,42 @@ describe('session avatar view registry', () => {
         }
     });
 
+    it('prepares an unpainted hidden body in place, then releases only its warmup subscription', () => {
+        const registry = new AvatarViewRegistry();
+        const hidden = registry.register(request('retained', {visible: false}));
+        const originalJob = registry.getView(hidden)!.jobId;
+        const warmRequest = request('warmup', {visible: false, prepare: true});
+        const warm = registry.register(warmRequest);
+        expect(registry.getView(warm)!.jobId).toBe(originalJob);
+        expect(registry.getSnapshot().jobs).toHaveLength(1);
+        const prepared = attach(registry, warm);
+        expect(registry.confirmCopy(prepared.copy, evidence)).toBe(true);
+        registry.update(warm, {...warmRequest, prepare: false});
+        expect(registry.getView(warm)!.jobId).toBe('');
+        expect(registry.getView(warm)!.frame?.signature).toBe(prepared.job.signature);
+        expect(registry.getView(hidden)!.jobId).toBe(originalJob);
+        registry.update(hidden, request('retained'));
+        expect(registry.getView(hidden)!.jobId).toBe(originalJob);
+        expect(registry.getJob(originalJob)!.subscribers).toEqual(new Set(['retained']));
+    });
+
+    it('replaces an unpainted placeholder assembly with an actually prepared job and rejects its old callbacks', () => {
+        const registry = new AvatarViewRegistry();
+        const visible = registry.register(request('visible'));
+        const old = attach(registry, visible);
+        const warmRequest = request('warmup', {visible: false, prepare: true});
+        const warm = registry.register(warmRequest);
+        const prepared = attach(registry, warm);
+        expect(prepared.job.id).not.toBe(old.job.id);
+        registry.confirmCopy(prepared.copy, evidence);
+        registry.update(warm, {...warmRequest, prepare: false});
+        registry.update(visible, request('visible'));
+        expect(registry.getView(visible)!.jobId).toBe(prepared.job.id);
+        expect(registry.getJob(old.job.id)).toBeUndefined();
+        expect(registry.setSceneStatus(old.token, null)).toBe(false);
+        expect(registry.getView(visible)!.frame).toBeUndefined();
+    });
+
     it('adopts a completed inactive warmup without rebuilding, while preserving its pixels and isolating reactivation', () => {
         const registry = new AvatarViewRegistry();
         const warmRequest = request('warmup', {visible: false, prepare: true});

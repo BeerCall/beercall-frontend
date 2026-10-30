@@ -150,16 +150,34 @@ export class AvatarViewRegistry {
         const view = this.resolve(handle);
         if (!view || request.id !== view.id) return false;
         const signature = avatarViewSignature(request);
-        if (signature !== view.signature || !this.jobs.has(view.jobId)) {
-            this.jobs.get(view.jobId)?.subscribers.delete(view.id);
+        const currentJob = this.jobs.get(view.jobId);
+        const canAdoptPrepared = !view.frame && !currentJob?.frame && request.mode !== 'head' &&
+            [...this.jobs.values()].some(job => job.id !== view.jobId && job.signature === signature &&
+                job.ready && !!job.frame && [...job.subscribers].every(id => {
+                    const candidate = this.views.get(id);
+                    return !!candidate && candidate.prepare === false && !candidate.visible;
+                }));
+        if (signature !== view.signature || !currentJob || canAdoptPrepared) {
+            if (currentJob) {
+                currentJob.subscribers.delete(view.id);
+                if (canAdoptPrepared && currentJob.subscribers.size === 0 && !currentJob.frame) {
+                    this.jobs.delete(currentJob.id);
+                }
+            }
             const job = this.acquireJob(request);
             job.subscribers.add(view.id);
             view.signature = signature;
             view.jobId = job.id;
         }
         Object.assign(view, request);
-        const job = this.jobs.get(view.jobId)!;
-        job.lastUsed = ++this.clock;
+        const job = this.jobs.get(view.jobId);
+        if (job) {
+            if (view.prepare === false && !view.visible && job.subscribers.size > 1) {
+                job.subscribers.delete(view.id);
+                view.jobId = '';
+            }
+            job.lastUsed = ++this.clock;
+        }
         this.evict();
         this.publish();
         return true;
@@ -269,14 +287,20 @@ export class AvatarViewRegistry {
         const signature = avatarViewSignature(request);
         // Portraits are synchronised by signature. Body/profile scenes may only
         // adopt an unowned/completed-warmup assembly, never a concurrent neighbour's group.
-        const cached = [...this.jobs.values()].find(job => job.signature === signature &&
+        // A warmup request may also prepare an unrendered hidden view's assembly in place.
+        const candidates = [...this.jobs.values()].filter(job => job.signature === signature &&
             (request.mode === 'head' || job.subscribers.size === 0 ||
+                (request.prepare === true && !job.frame && job.subscribers.size === 1 && [...job.subscribers].every(id => {
+                    const view = this.views.get(id);
+                    return !!view && !view.visible && !view.prepare;
+                })) ||
                 (job.ready && !!job.frame && [...job.subscribers].every(id => {
                     const view = this.views.get(id);
                     return !!view && view.prepare === false && !view.visible;
                 }))));
+        const cached = candidates.find(job => job.ready && !!job.frame) ?? candidates[0];
         if (cached) {
-            if (request.mode !== 'head' && cached.subscribers.size > 0) {
+            if (request.mode !== 'head' && !request.prepare && cached.subscribers.size > 0) {
                 // A completed warmup owns retained pixels, not a concurrent view.
                 // Detach it atomically before adopting its prepared assembly.
                 for (const id of cached.subscribers) {
