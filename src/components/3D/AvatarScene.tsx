@@ -1,4 +1,4 @@
-import {Suspense, useMemo, useEffect, useLayoutEffect, useRef, useState, useCallback} from 'react';
+import {memo, Suspense, useMemo, useEffect, useLayoutEffect, useRef, useState, useCallback} from 'react';
 import {useThree} from '@react-three/fiber';
 import {
     OrbitControls,
@@ -306,7 +306,16 @@ export interface AvatarSceneProps {
     onFrameSubmitted?: () => void;
     presentation?: AvatarPresentationOptions;
     onStatusChange?: (status: AvatarSceneStatus | null) => void;
+    /** Changes only once a restored GPU can rebuild its shadow resources. */
+    shadowRevision?: number;
 }
+
+const PreparedContactShadow = memo(function PreparedContactShadow({revision, ready, clip}: {
+    revision: number; ready: boolean; clip: THREE.AnimationClip | null;
+}) {
+    return <ContactShadows position={[0, 0, 0]} opacity={0.6} scale={200} blur={2} far={200} resolution={256}
+        frames={1} color="#000000" userData={{avatarShadowRevision: revision, avatarReady: ready, clip: clip?.name}}/>;
+});
 
 export default function AvatarScene(props: AvatarSceneProps) {
     const {config, mode} = props;
@@ -330,6 +339,7 @@ function AvatarSceneContent({
                                           presentation,
                                           onStatusChange,
                                           signature,
+                                          shadowRevision = 0,
                                       }: AvatarSceneProps & {signature: string}) {
     const headOnly = mode === 'head';
     const shared = presentation?.mode === 'shared';
@@ -441,9 +451,10 @@ function AvatarSceneContent({
                     />}
                     {/* Une seule passe : l'ombre est un halo statique sous l'avatar, la
                         recalculer à chaque frame doublait les draw calls du Canvas. */}
-                    {!headOnly && <ContactShadows position={[0, 0, 0]} opacity={0.6}
+                    {!headOnly && (shared ? <PreparedContactShadow revision={shadowRevision} ready={isAvatarReady} clip={activeClip}/>
+                        : <ContactShadows position={[0, 0, 0]} opacity={0.6}
                                                   scale={200} blur={2} far={200} resolution={256}
-                                                  frames={1} color="#000000"/>}
+                                                  frames={1} color="#000000"/>)}
                 </Suspense>
 
                 {!shared && !isThumbnail && (

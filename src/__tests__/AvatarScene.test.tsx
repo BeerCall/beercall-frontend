@@ -137,4 +137,20 @@ describe('isolated avatar scenes', () => {
         view.rerender(scene('second'));
         expect(onStatus.mock.lastCall![0]!.ready).toBe(true);
     });
+
+    it('retains shared static shadows across activity changes, but refreshes them for a new GPU revision', () => {
+        const p = portal(128, 160);
+        const config = {head: 'head', body: 'body'};
+        const scene = (active: boolean, revision: number) => <portalContext.Provider value={p}><AvatarScene config={config}
+            mode="full" active={active} presentation={{...shared, active}} shadowRevision={revision}/></portalContext.Provider>;
+        const view = render(scene(true, 1));
+        const initial = fixtures.shadows.mock.calls.length;
+        expect(initial).toBeGreaterThan(0);
+        view.rerender(scene(false, 1));
+        expect(fixtures.shadows).toHaveBeenCalledTimes(initial);
+        view.rerender(scene(true, 1));
+        expect(fixtures.shadows).toHaveBeenCalledTimes(initial);
+        view.rerender(scene(true, 2));
+        expect(fixtures.shadows).toHaveBeenCalledTimes(initial + 1);
+    });
 });

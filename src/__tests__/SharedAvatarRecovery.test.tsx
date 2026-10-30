@@ -237,4 +237,15 @@ describe('shared recovery lifecycle (DOM simulation, not native Safari qualifica
         expect(session.registry.getSnapshot().views[0].visible).toBe(true);
         expect(session.registry.getSnapshot().views[0].config.head).toBe('new-head');
     });
+
+    it('does not spend a shadow revision while the GPU is lost, then rearms once it is restored', () => {
+        const session = createAvatarViewportSession(); const view = render(host(session));
+        const source = () => view.container.querySelector('[data-avatar-source]') as HTMLElement;
+        const initial = source().dataset.avatarShadowRevision;
+        act(() => lose(renderers[0]));
+        expect(source().dataset.avatarShadowRevision).toBe(initial);
+        act(() => restore(renderers[0]));
+        expect(source().dataset.avatarShadowRevision).toBe(String(session.registry.generation));
+        expect(source().dataset.avatarShadowRevision).not.toBe(initial);
+    });
 });

@@ -30,7 +30,9 @@ function ModelFailure({session, job, reset}: {session: AvatarViewportSession; jo
 
 // A view certification updates the registry, not every cached assembly. In
 // particular, rerendering Drei ContactShadows resets its one-frame pass counter.
-export const SharedAvatarJob = memo(function SharedAvatarJob({session, job, active, generation}: {session: AvatarViewportSession; job: AvatarRenderJob; active: boolean; generation: number}) {
+export const SharedAvatarJob = memo(function SharedAvatarJob({session, job, active, generation, shadowRevision = 0}: {
+    session: AvatarViewportSession; job: AvatarRenderJob; active: boolean; generation: number; shadowRevision?: number;
+}) {
     const scene = useMemo(() => new Scene(), []);
     const camera = useMemo(() => {
         const result = new PerspectiveCamera(45, job.width / Math.max(1, job.height), 0.1, 2000);
@@ -43,12 +45,14 @@ export const SharedAvatarJob = memo(function SharedAvatarJob({session, job, acti
     const onStatus = useCallback((status: AvatarSceneStatus | null) => { session.registry.setSceneStatus(token, status); }, [session, token]);
     const onPresentation = useCallback((state: AvatarPresentationState | null) => { session.registry.setPresentation(token, state); }, [session, token]);
     return createPortal(<AvatarRenderBoundary fallback={reset => <ModelFailure session={session} job={job} reset={reset}/>}>
-        <AvatarScene config={job.config} mode={job.mode} active={active} onStatusChange={onStatus}
+        <AvatarScene config={job.config} mode={job.mode} active={active} onStatusChange={onStatus} shadowRevision={shadowRevision}
             presentation={{mode: 'shared', active, onChange: onPresentation}}/>
     </AvatarRenderBoundary>, scene, {camera, size: {width: job.width, height: job.height, top: 0, left: 0}, events: {enabled: false}});
 });
 
-function RenderPass({session, jobs, visible}: {session: AvatarViewportSession; jobs: readonly AvatarRenderJob[]; visible: boolean}) {
+function RenderPass({session, jobs, visible, shadowRevision}: {
+    session: AvatarViewportSession; jobs: readonly AvatarRenderJob[]; visible: boolean; shadowRevision: number;
+}) {
     const [mounted, setMounted] = useState<readonly string[]>([]);
     const frames = useMemo(() => new WeakMap<HTMLCanvasElement, HTMLCanvasElement>(), []);
     const lastCycle = useRef(-Infinity);
@@ -67,7 +71,7 @@ function RenderPass({session, jobs, visible}: {session: AvatarViewportSession; j
         renderSharedAvatarCycle(gl, session, frames, now);
     }, 1);
     return jobs.filter(job => mounted.includes(job.id)).map(job => <SharedAvatarJob key={job.id}
-        session={session} job={job} generation={session.registry.generation}
+        session={session} job={job} generation={session.registry.generation} shadowRevision={shadowRevision}
         active={session.registry.isActive(job) && visible && session.registry.contextStatus !== 'lost'}/>);
 }
 
@@ -98,6 +102,10 @@ export default function SharedAvatarRenderer({session}: {session: AvatarViewport
     const [visible, setVisible] = useState(() => !document.hidden);
     const renderer = useRef<WebGLRenderer | undefined>(undefined);
     const epoch = session.registry.sourceEpoch;
+    const [shadowRevision, setShadowRevision] = useState(session.registry.generation);
+    if (session.registry.contextStatus !== 'lost' && shadowRevision !== session.registry.generation) {
+        setShadowRevision(session.registry.generation);
+    }
     const attachRenderer = useCallback((gl: WebGLRenderer) => {
         renderer.current = gl;
         return () => { if (renderer.current === gl) renderer.current = undefined; };
@@ -143,12 +151,13 @@ export default function SharedAvatarRenderer({session}: {session: AvatarViewport
                 onKeyDown={event => event.stopPropagation()}
                 className="min-h-11 rounded-lg bg-amber-600 px-3 font-bold text-white disabled:opacity-50">Réessayer les avatars</button>
         </div>}
-        <div aria-hidden="true" data-avatar-source="shared" className="pointer-events-none fixed -left-[10000px] top-0"
+        <div aria-hidden="true" data-avatar-source="shared" data-avatar-shadow-revision={shadowRevision}
+            className="pointer-events-none fixed -left-[10000px] top-0"
         style={{width: Math.ceil(size.width) + 1, height: Math.ceil(size.height) + 1}}>
         <AvatarRenderBoundary key={epoch} fallback={<SourceFailure session={session} epoch={epoch}/>}>
         <Canvas dpr={size.dpr} gl={{alpha: true, antialias: true, preserveDrawingBuffer: false}} events={noEvents}>
             <SourceLifecycle session={session} epoch={epoch} attach={attachRenderer}/>
-            <RenderPass session={session} jobs={jobs} visible={visible}/>
+            <RenderPass session={session} jobs={jobs} visible={visible} shadowRevision={shadowRevision}/>
         </Canvas>
         </AvatarRenderBoundary>
     </div>
