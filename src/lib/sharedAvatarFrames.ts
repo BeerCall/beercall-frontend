@@ -53,43 +53,78 @@ export function presentSharedAvatarFrame(buffer: HTMLCanvasElement, target: HTML
     }
 }
 
+// A failed initial target must not freeze a shared job forever in cached-reveal
+// mode. This state is owned by one render pass and dies with its WeakMap key.
+const initialCopyAttempts = new WeakMap<WeakMap<HTMLCanvasElement, HTMLCanvasElement>, WeakMap<HTMLCanvasElement, string>>();
+
 /** Manual pass, called after portal mixers. The emitted duration is a CPU/sync proxy, not GPU time. */
 export function renderSharedAvatarCycle(gl: WebGLRenderer, session: AvatarViewportSession,
     previousFrames: WeakMap<HTMLCanvasElement, HTMLCanvasElement>, now = performance.now()) {
     const start = performance.now();
     const {registry} = session;
-    for (const job of registry.getSnapshot().jobs) {
-        if (!registry.isActive(job) || !job.ready || !job.scene || !job.camera || !job.group || gl.getContext().isContextLost()) continue;
+    const snapshot = registry.getSnapshot();
+    let attempts = initialCopyAttempts.get(previousFrames);
+    if (!attempts) { attempts = new WeakMap(); initialCopyAttempts.set(previousFrames, attempts); }
+    const isViewUncertified = (id: string) => {
+        const view = snapshot.views.find(candidate => candidate.id === id);
+        return !!view && (view.visible || !!view.prepare) &&
+            (view.frame?.signature !== view.signature || view.frame?.generation !== registry.generation);
+    };
+    const activeJobs = snapshot.jobs.filter(job =>
+        registry.isActive(job) && job.ready && !!job.scene && !!job.camera && !!job.group && !gl.getContext().isContextLost());
+    const uncertifiedJobs = activeJobs.filter(job => [...job.subscribers].some(isViewUncertified));
+    const certifiedJobs = activeJobs.filter(job => ![...job.subscribers].some(isViewUncertified));
+    // Initial reveals go first, but all other active jobs continue animating.
+    // No per-cycle quota or CPU cutoff may silently reduce their cadence.
+    const scheduledJobs = [...uncertifiedJobs, ...certifiedJobs];
+
+    for (const job of scheduledJobs) {
+        if (!job.scene || !job.camera || !job.group || gl.getContext().isContextLost()) continue;
         let meshCount = 0;
         job.group.traverse(object => { if ('isMesh' in object && object.isMesh && object.visible) meshCount++; });
         if (meshCount === 0) continue;
         const width = Math.round(job.width * job.dpr);
         const height = Math.round(job.height * job.dpr);
         if (width <= 0 || height <= 0) continue;
-        const rootDpr = gl.getPixelRatio();
-        const autoReset = gl.info.autoReset;
-        const before = gl.info.render.calls;
-        const renderStart = performance.now();
-        let calls = 0;
-        try {
-            gl.info.autoReset = false;
-            gl.setScissorTest(false);
-            gl.setViewport(0, 0, width / rootDpr, height / rootDpr);
-            gl.clear(true, true, true);
-            gl.setScissor(0, 0, width / rootDpr, height / rootDpr);
-            gl.setScissorTest(true);
-            gl.render(job.scene, job.camera);
-            calls = gl.info.render.calls - before;
-        } finally { gl.info.autoReset = autoReset; gl.setScissorTest(false); }
-        const renderMs = performance.now() - renderStart;
-        if (calls <= 0 || gl.getContext().isContextLost()) continue;
+
+        const hasPreparedBuffer = !!job.lastFrame && job.lastFrame.width === width && job.lastFrame.height === height &&
+            job.frame?.signature === job.signature && job.frame?.generation === registry.generation && job.frame.drawCalls > 0;
+        const attemptKey = `${job.signature}:${registry.generation}`;
+        const initialTargets = snapshot.views.filter(view => job.subscribers.has(view.id) && isViewUncertified(view.id) &&
+            attempts.get(view.target) !== attemptKey);
+        const needsInitialCopyOnly = hasPreparedBuffer && initialTargets.length > 0;
+
+        let calls = job.frame?.drawCalls ?? 0;
+        let renderMs = 0;
+        let captureMs = 0;
         const buffer = job.lastFrame ?? document.createElement('canvas');
-        const captureStart = performance.now();
-        if (!captureSharedAvatarFrame(gl.domElement, buffer, width, height)) continue;
-        const captureMs = performance.now() - captureStart;
+
+        if (!needsInitialCopyOnly) {
+            const rootDpr = gl.getPixelRatio();
+            const autoReset = gl.info.autoReset;
+            const before = gl.info.render.calls;
+            const renderStart = performance.now();
+            try {
+                gl.info.autoReset = false;
+                gl.setViewport(0, 0, width / rootDpr, height / rootDpr);
+                gl.setScissor(0, 0, width / rootDpr, height / rootDpr);
+                gl.setScissorTest(true);
+                gl.clear(true, true, true);
+                gl.render(job.scene, job.camera);
+                calls = gl.info.render.calls - before;
+            } finally { gl.info.autoReset = autoReset; gl.setScissorTest(false); }
+            renderMs = performance.now() - renderStart;
+            if (calls <= 0 || gl.getContext().isContextLost()) continue;
+            const captureStart = performance.now();
+            if (!captureSharedAvatarFrame(gl.domElement, buffer, width, height)) continue;
+            captureMs = performance.now() - captureStart;
+        }
+
         for (const id of job.subscribers) {
-            const view = registry.getSnapshot().views.find(candidate => candidate.id === id);
+            const view = snapshot.views.find(candidate => candidate.id === id);
             if (!view || (!view.visible && !view.prepare)) continue;
+            if (needsInitialCopyOnly && !initialTargets.includes(view)) continue;
+            if (needsInitialCopyOnly) attempts.set(view.target, attemptKey);
             const token: AvatarCopyToken = registry.copyToken(view);
             const copyStart = performance.now();
             const presented = presentSharedAvatarFrame(buffer, view.target, previousFrames.get(view.target));

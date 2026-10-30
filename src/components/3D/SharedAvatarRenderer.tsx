@@ -57,7 +57,12 @@ function RenderPass({session, jobs, visible}: {session: AvatarViewportSession; j
         const next = jobs.filter(job => !mounted.includes(job.id)).slice(0, 2).map(job => job.id);
         if (next.length) setMounted(previous => [...previous.filter(id => session.registry.getJob(id)), ...next]);
         const now = performance.now();
-        if (now - lastCycle.current < 1000 / 30 - 0.5) return;
+        const snapshot = session.registry.getSnapshot();
+        const needsImmediateReveal = snapshot.views.some(view =>
+            (view.visible || !!view.prepare) &&
+            (view.frame?.signature !== view.signature || view.frame?.generation !== session.registry.generation) &&
+            !!session.registry.getJob(view.jobId)?.ready);
+        if (!needsImmediateReveal && now - lastCycle.current < 1000 / 30 - 0.5) return;
         lastCycle.current = now;
         renderSharedAvatarCycle(gl, session, frames, now);
     }, 1);

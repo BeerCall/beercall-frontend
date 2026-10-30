@@ -118,4 +118,58 @@ describe('shared avatar frame passes (deterministic backend, no pixel claim)', (
         expect(s.registry.getView(large.handle)!.target.width).toBe(585);
         expect(s.registry.getView(large.handle)!.target.height).toBe(633);
     });
+
+    it('copies a real retained portrait for a new subscriber, then resumes rendering the whole job', () => {
+        const s = session(); const gl = renderer(); const frames = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+        const a = ready(s, request('a', {mode: 'head'}));
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        const calls = gl.render.mock.calls.length;
+        const b = s.registry.register(request('b', {mode: 'head'}));
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        expect(gl.render).toHaveBeenCalledTimes(calls);
+        expect(s.registry.getView(b)!.frame).toMatchObject({signature: a.job.signature, generation: s.registry.generation, copies: 1});
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        expect(gl.render).toHaveBeenCalledTimes(calls + 1);
+        expect(s.registry.getView(a.handle)!.frame?.copies).toBe(2);
+        expect(s.registry.getView(b)!.frame?.copies).toBe(2);
+    });
+
+    it('a failed initial cached copy cannot freeze its neighbours or the other subscribers', () => {
+        const s = session(); const gl = renderer(); const frames = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+        const a = ready(s, request('a', {mode: 'head'})); const body = ready(s, request('body'));
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        const bad = request('bad', {mode: 'head'});
+        bad.target.getContext('2d');
+        contexts.get(bad.target)!.drawImage.mockImplementation(() => { throw new Error('Synthetic target copy failure'); });
+        const b = s.registry.register(bad);
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        expect(s.registry.getView(body.handle)!.frame?.copies).toBe(2);
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        expect(s.registry.getView(a.handle)!.frame?.copies).toBe(2);
+        expect(s.registry.getView(body.handle)!.frame?.copies).toBe(3);
+        expect(s.registry.getView(b)!.frame).toBeUndefined();
+    });
+
+    it('does not use a retained cache to certify the next GPU generation without rendering it', () => {
+        const s = session(); const gl = renderer(); const frames = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+        const a = ready(s, request('a', {mode: 'head'}));
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        s.registry.markSourceLost(s.registry.sourceEpoch); s.registry.markSourceRestored(s.registry.sourceEpoch);
+        const b = s.registry.register(request('b', {mode: 'head'}));
+        const calls = gl.render.mock.calls.length;
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        expect(gl.render).toHaveBeenCalledTimes(calls + 1);
+        expect(s.registry.getView(a.handle)!.frame?.generation).toBe(s.registry.generation);
+        expect(s.registry.getView(b)!.frame?.generation).toBe(s.registry.generation);
+    });
+
+    it('continues all certified visible jobs even when an earlier pass exceeds twelve milliseconds', () => {
+        const s = session(); const gl = renderer(); const frames = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+        const jobs = ['a', 'b', 'c', 'd'].map(id => ready(s, request(id)));
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        let clock = 0;
+        vi.spyOn(performance, 'now').mockImplementation(() => { clock += 20; return clock; });
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        for (const job of jobs) expect(s.registry.getView(job.handle)!.frame?.copies).toBe(2);
+    });
 });
