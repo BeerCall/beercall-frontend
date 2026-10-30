@@ -62,8 +62,10 @@ function SharedAvatarCell({session, config, mode = 'full', active = true, instan
         const target = canvas.current;
         if (!node || !target) return;
         let intersecting = true;
+        let disposed = false;
         let pendingMeasure: number | undefined;
         const update = () => {
+            if (disposed) return;
             if (pendingMeasure !== undefined) cancelAnimationFrame(pendingMeasure);
             pendingMeasure = undefined;
             const rect = node.getBoundingClientRect();
@@ -79,6 +81,7 @@ function SharedAvatarCell({session, config, mode = 'full', active = true, instan
             else handle.current = session.registry.register(request);
         };
         const schedule = () => {
+            if (disposed) return;
             if (pendingMeasure === undefined) pendingMeasure = requestAnimationFrame(update);
         };
         update();
@@ -87,11 +90,13 @@ function SharedAvatarCell({session, config, mode = 'full', active = true, instan
         const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(schedule) : undefined;
         resize?.observe(node);
         const intersection = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => {
+            if (disposed) return;
             const entry = entries.find(entry => entry.target === node);
             if (entry) { intersecting = entry.isIntersecting; update(); }
         }) : undefined;
         intersection?.observe(node);
         return () => {
+            disposed = true;
             resize?.disconnect(); intersection?.disconnect();
             if (pendingMeasure !== undefined) cancelAnimationFrame(pendingMeasure);
         };

@@ -27,9 +27,9 @@ vi.mock('@react-three/fiber', () => ({
     useFrame: () => {}, createPortal: (children: React.ReactNode) => children,
 }));
 
-function host(session: AvatarViewportSession) {
+function host(session: AvatarViewportSession, active = true, head = 'fixture-a') {
     return <QueryClientProvider client={new QueryClient()}><AvatarViewportContext.Provider value={session}>
-        <SharedAvatar config={{head: 'fixture-a'}} mode="head"/><SharedAvatar config={{head: 'fixture-b'}} mode="head"/>
+        <SharedAvatar config={{head}} active={active} mode="head"/><SharedAvatar config={{head: 'fixture-b'}} mode="head"/>
         <SharedAvatarRenderer session={session}/>
     </AvatarViewportContext.Provider></QueryClientProvider>;
 }
@@ -210,5 +210,31 @@ describe('shared recovery lifecycle (DOM simulation, not native Safari qualifica
         expect(Math.floor(Number.parseFloat(source.style.width) * 1.5)).toBeGreaterThanOrEqual(Math.round(63 * 1.5));
         expect(Math.floor(Number.parseFloat(source.style.height) * 1.5)).toBeGreaterThanOrEqual(Math.round(63 * 1.5));
         view.unmount(); session.dispose();
+    });
+
+    it('rejects observers already disconnected after an activity/config change, including callbacks delivered late', async () => {
+        const intersections: IntersectionObserverCallback[] = []; const resizes: ResizeObserverCallback[] = [];
+        vi.stubGlobal('IntersectionObserver', class {
+            constructor(callback: IntersectionObserverCallback) { intersections.push(callback); }
+            observe() {} disconnect() {}
+        });
+        vi.stubGlobal('ResizeObserver', class {
+            constructor(callback: ResizeObserverCallback) { resizes.push(callback); }
+            observe() {} disconnect() {}
+        });
+        const session = createAvatarViewportSession(); const view = render(host(session, false, 'old-head'));
+        const target = view.container.querySelector('[data-avatar-view]')!;
+        view.rerender(host(session, true, 'new-head'));
+        const current = session.registry.getSnapshot().views[0];
+        expect(current.visible).toBe(true); expect(current.config.head).toBe('new-head');
+        const version = session.registry.getSnapshot().version;
+        act(() => {
+            intersections[0]([{target, isIntersecting: true} as IntersectionObserverEntry], {} as IntersectionObserver);
+            resizes[0]([], {} as ResizeObserver);
+        });
+        await act(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); });
+        expect(session.registry.getSnapshot().version).toBe(version);
+        expect(session.registry.getSnapshot().views[0].visible).toBe(true);
+        expect(session.registry.getSnapshot().views[0].config.head).toBe('new-head');
     });
 });
