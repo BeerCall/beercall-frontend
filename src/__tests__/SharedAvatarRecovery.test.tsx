@@ -198,4 +198,17 @@ describe('shared recovery lifecycle (DOM simulation, not native Safari qualifica
         expect(renderers).toHaveLength(2);
         expect(screen.queryByTestId('avatar-source-recovery')).toBeNull();
     });
+
+    it('allocates enough backing pixels for rounded copies at fractional DPR and odd CSS dimensions', () => {
+        const session = createAvatarViewportSession();
+        session.registry.register({id: 'odd-size', config: {head: 'fixture'}, mode: 'profile', revision: 'fixture',
+            width: 63, height: 63, dpr: 1.5, target: document.createElement('canvas'), visible: true});
+        const view = render(<SharedAvatarRenderer session={session}/>);
+        const source = view.container.querySelector('[data-avatar-source]') as HTMLElement;
+        // Three floors its backing buffer. The copy path rounds its rectangles.
+        // The source must not shrink to 94px while its target needs 95px.
+        expect(Math.floor(Number.parseFloat(source.style.width) * 1.5)).toBeGreaterThanOrEqual(Math.round(63 * 1.5));
+        expect(Math.floor(Number.parseFloat(source.style.height) * 1.5)).toBeGreaterThanOrEqual(Math.round(63 * 1.5));
+        view.unmount(); session.dispose();
+    });
 });

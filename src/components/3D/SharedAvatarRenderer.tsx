@@ -125,6 +125,9 @@ export default function SharedAvatarRenderer({session}: {session: AvatarViewport
         return () => document.removeEventListener('visibilitychange', update);
     }, []);
     const size = sharedAvatarSourceSize(jobs, session);
+    // Three floors drawing-buffer dimensions; cell rectangles are rounded.
+    // One CSS pixel of source-only slack also covers CSS subpixel rounding.
+    // Otherwise an odd height at DPR 1.5 can retain one frame then stop copying.
     return <>
         {session.registry.contextStatus === 'lost' && <div role="status" aria-label="Récupération des avatars"
             data-testid="avatar-source-recovery"
@@ -136,7 +139,7 @@ export default function SharedAvatarRenderer({session}: {session: AvatarViewport
                 className="min-h-11 rounded-lg bg-amber-600 px-3 font-bold text-white disabled:opacity-50">Réessayer les avatars</button>
         </div>}
         <div aria-hidden="true" data-avatar-source="shared" className="pointer-events-none fixed -left-[10000px] top-0"
-        style={{width: size.width, height: size.height}}>
+        style={{width: Math.ceil(size.width) + 1, height: Math.ceil(size.height) + 1}}>
         <AvatarRenderBoundary key={epoch} fallback={<SourceFailure session={session} epoch={epoch}/>}>
         <Canvas dpr={size.dpr} gl={{alpha: true, antialias: true, preserveDrawingBuffer: false}} events={noEvents}>
             <SourceLifecycle session={session} epoch={epoch} attach={attachRenderer}/>
