@@ -58,7 +58,7 @@ function RenderPass({session, jobs, visible, shadowRevision}: {
     const lastCycle = useRef(-Infinity);
     useFrame(({gl}) => {
         if (!visible || document.hidden || session.registry.contextStatus === 'lost') return;
-        const next = jobs.filter(job => !mounted.includes(job.id)).slice(0, 2).map(job => job.id);
+        const next = jobs.filter(job => session.registry.isActive(job) && !mounted.includes(job.id)).slice(0, 2).map(job => job.id);
         if (next.length) setMounted(previous => [...previous.filter(id => session.registry.getJob(id)), ...next]);
         const now = performance.now();
         const snapshot = session.registry.getSnapshot();

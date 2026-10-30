@@ -174,7 +174,8 @@ describe('shared recovery lifecycle (DOM simulation, not native Safari qualifica
     it('retains a cached scene across unrelated registry updates, but updates activity and GPU generation', () => {
         const session = createAvatarViewportSession();
         const handle = session.registry.register({id: 'cached-scene', config: {head: 'fixture'}, mode: 'profile', revision: 'fixture',
-            width: 128, height: 160, dpr: 1, target: document.createElement('canvas'), visible: false});
+            width: 128, height: 160, dpr: 1, target: document.createElement('canvas'), visible: true});
+        session.registry.update(handle, {...session.registry.getView(handle)!, visible: false});
         const job = session.registry.getJob(session.registry.getView(handle)!.jobId)!;
         const view = render(<SharedAvatarJob session={session} job={job} active={false} generation={1}/>);
         expect(sceneRenders).toBe(1);

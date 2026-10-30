@@ -17,6 +17,12 @@ export interface AvatarViewRequest {
     onFrameCopied?: () => void;
 }
 
+function requestFields(request: AvatarViewRequest): AvatarViewRequest {
+    return {id: request.id, config: request.config, mode: request.mode, revision: request.revision,
+        width: request.width, height: request.height, dpr: request.dpr, target: request.target,
+        visible: request.visible, prepare: request.prepare, onFrameCopied: request.onFrameCopied};
+}
+
 export function normalizeAvatarConfig(config: AvatarConfig, mode: AvatarSceneMode): AvatarConfig {
     const normalized: AvatarConfig = {};
     for (const part of mode === 'head' ? ['head'] : ['head', 'body', 'legs', 'feet', 'accessory']) {
@@ -137,10 +143,12 @@ export class AvatarViewRegistry {
         if (this.ended) throw new Error('Avatar session has ended');
         if (this.views.has(request.id)) throw new Error('Avatar view id already registered');
         const lease = ++this.sequence;
-        const job = this.acquireJob(request);
-        const view: AvatarViewRecord = {...request, lease, signature: job.signature, jobId: job.id};
+        // A retained DOM cell is not a request to clone a hidden 3D body. Only
+        // visible consumers and explicit preparation readers allocate a job.
+        const job = request.visible || request.prepare === true ? this.acquireJob(request) : undefined;
+        const view: AvatarViewRecord = {...requestFields(request), lease, signature: avatarViewSignature(request), jobId: job?.id ?? ''};
         this.views.set(view.id, view);
-        job.subscribers.add(view.id);
+        job?.subscribers.add(view.id);
         this.evict();
         this.publish();
         return {id: view.id, lease};
@@ -151,7 +159,8 @@ export class AvatarViewRegistry {
         if (!view || request.id !== view.id) return false;
         const signature = avatarViewSignature(request);
         const currentJob = this.jobs.get(view.jobId);
-        const canAdoptPrepared = !view.frame && !currentJob?.frame && request.mode !== 'head' &&
+        const wantsJob = request.visible || request.prepare === true;
+        const canAdoptPrepared = wantsJob && !view.frame && !currentJob?.frame && request.mode !== 'head' &&
             [...this.jobs.values()].some(job => job.id !== view.jobId && job.signature === signature &&
                 job.ready && !!job.frame && [...job.subscribers].every(id => {
                     const candidate = this.views.get(id);
@@ -164,12 +173,14 @@ export class AvatarViewRegistry {
                     this.jobs.delete(currentJob.id);
                 }
             }
-            const job = this.acquireJob(request);
-            job.subscribers.add(view.id);
+            const job = wantsJob ? this.acquireJob(request) : undefined;
+            job?.subscribers.add(view.id);
             view.signature = signature;
-            view.jobId = job.id;
+            view.jobId = job?.id ?? '';
         }
-        Object.assign(view, request);
+        // A caller may spread a previous record, but cannot supply certificates
+        // or overwrite the internal lease/job identity with those old fields.
+        Object.assign(view, requestFields(request));
         const job = this.jobs.get(view.jobId);
         if (job) {
             if (view.prepare === false && !view.visible && job.subscribers.size > 1) {
@@ -214,6 +225,12 @@ export class AvatarViewRegistry {
         const job = this.resolveJob(token);
         if (!job) return false;
         const changed = job.ready !== !!status?.ready || job.group !== status?.group || job.framing !== status?.framing;
+        if (job.frame && (!status?.ready || job.group !== status.group || job.framing !== status.framing)) {
+            // Clip/framing/assembly changes require a new real render before
+            // this job's old buffer can certify another subscriber. Existing
+            // presentation cells keep their last complete image meanwhile.
+            job.frame = undefined;
+        }
         job.ready = !!status?.ready && !!status.group && status.expectedParts.length > 0;
         job.group = status?.group;
         job.framing = status?.framing;

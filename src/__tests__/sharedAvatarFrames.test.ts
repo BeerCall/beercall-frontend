@@ -97,7 +97,9 @@ describe('shared avatar frame passes (deterministic backend, no pixel claim)', (
         const s = session(); const gl = renderer();
         const empty = ready(s, request('empty'), 0);
         const valid = ready(s, request('valid'));
-        const hidden = ready(s, request('hidden', {visible: false}));
+        const hiddenRequest = request('hidden');
+        const hidden = ready(s, hiddenRequest);
+        s.registry.update(hidden.handle, {...hiddenRequest, visible: false});
         renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, new WeakMap());
         expect(s.registry.getView(empty.handle)!.frame).toBeUndefined();
         expect(s.registry.getView(hidden.handle)!.frame).toBeUndefined();

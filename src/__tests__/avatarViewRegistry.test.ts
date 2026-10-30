@@ -44,7 +44,9 @@ describe('session avatar view registry', () => {
 
     it('prepares an unpainted hidden body in place, then releases only its warmup subscription', () => {
         const registry = new AvatarViewRegistry();
-        const hidden = registry.register(request('retained', {visible: false}));
+        const initial = request('retained');
+        const hidden = registry.register(initial);
+        registry.update(hidden, {...initial, visible: false});
         const originalJob = registry.getView(hidden)!.jobId;
         const warmRequest = request('warmup', {visible: false, prepare: true});
         const warm = registry.register(warmRequest);
@@ -103,7 +105,8 @@ describe('session avatar view registry', () => {
     it('never adopts an unfinished warmup or a normal retained hidden view with a live subscriber', () => {
         const registry = new AvatarViewRegistry();
         const unfinished = registry.register(request('unfinished', {visible: false, prepare: true}));
-        const hidden = registry.register(request('normal-hidden', {visible: false}));
+        const hidden = registry.register(request('normal-hidden'));
+        registry.update(hidden, request('normal-hidden', {visible: false}));
         const normal = attach(registry, hidden);
         // Even a painted ordinary hidden view retains its independent assembly.
         registry.update(hidden, {...request('normal-hidden'), prepare: true, visible: false});
@@ -164,7 +167,11 @@ describe('session avatar view registry', () => {
         registry.update(hidden, {...hiddenRequest, prepare: false});
         const frame = registry.getView(hidden)!.frame;
         for (let i = 0; i < 20; i++) {
-            registry.register(request(`offscreen-${i}`, {visible: false, config: {head: `head-${i}`}}));
+            const value = request(`offscreen-${i}`, {config: {head: `head-${i}`}});
+            const rendered = registry.register(value);
+            const assembled = attach(registry, rendered);
+            registry.confirmCopy(assembled.copy, evidence);
+            registry.update(rendered, {...value, visible: false});
         }
         expect(registry.getSnapshot().jobs.filter(job => !registry.isActive(job))).toHaveLength(16);
         expect(registry.getJob(visibleJob.id)).toBe(visibleJob);
@@ -217,5 +224,50 @@ describe('session avatar view registry', () => {
         unsubscribe();
         expect(listener).toHaveBeenCalledTimes(count);
         expect(() => registry.register(request('new'))).toThrow('session has ended');
+    });
+
+    it('registers thirty hidden cells without building thirty dormant body assemblies, then adopts the prepared scene', () => {
+        const registry = new AvatarViewRegistry();
+        const requests = Array.from({length: 30}, (_, i) => request(`hidden-${i}`, {visible: false}));
+        const handles = requests.map(value => registry.register(value));
+        expect(registry.getSnapshot().views).toHaveLength(30);
+        expect(registry.getSnapshot().jobs).toHaveLength(0);
+        const warmRequest = request('warmup', {visible: false, prepare: true});
+        const warm = registry.register(warmRequest);
+        const prepared = attach(registry, warm);
+        registry.confirmCopy(prepared.copy, evidence);
+        registry.update(warm, {...warmRequest, prepare: false});
+        registry.update(handles[0], {...requests[0], visible: true});
+        expect(registry.getView(handles[0])!.jobId).toBe(prepared.job.id);
+        registry.update(handles[1], {...requests[1], visible: true});
+        expect(registry.getView(handles[1])!.jobId).not.toBe(prepared.job.id);
+        expect(registry.getSnapshot().jobs).toHaveLength(2);
+    });
+
+    it('does not let a spread stale record overwrite internal job identity, signature or a real frame', () => {
+        const registry = new AvatarViewRegistry();
+        const handle = registry.register(request('view'));
+        const old = attach(registry, handle);
+        registry.confirmCopy(old.copy, evidence);
+        const actual = registry.getView(handle)!.frame;
+        const forged = {...registry.getView(handle)!, config: {head: 'latest'}, frame: {...actual!, signature: 'forged'}};
+        registry.update(handle, forged);
+        expect(registry.getView(handle)!.signature).toBe(avatarViewSignature(forged));
+        expect(registry.getView(handle)!.jobId).not.toBe(old.job.id);
+        expect(registry.getView(handle)!.frame).toBe(actual);
+        expect(registry.confirmCopy(old.copy, evidence)).toBe(false);
+    });
+
+    it('invalidates the reusable source certificate when an assembly changes without erasing presented frames', () => {
+        const registry = new AvatarViewRegistry();
+        const handle = registry.register(request('view'));
+        const old = attach(registry, handle);
+        registry.confirmCopy(old.copy, evidence);
+        const presented = registry.getView(handle)!.frame;
+        const replacement = new Group(); replacement.add(new Mesh(new BoxGeometry(), new MeshBasicMaterial()));
+        registry.setSceneStatus(old.token, {signature: old.job.signature, ready: true, group: replacement,
+            expectedParts: ['head'], framing: null, frameSubmitted: false});
+        expect(old.job.frame).toBeUndefined();
+        expect(registry.getView(handle)!.frame).toBe(presented);
     });
 });
