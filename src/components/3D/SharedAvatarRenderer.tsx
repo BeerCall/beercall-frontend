@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore} from 'react';
+import {memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore} from 'react';
 import {Canvas, createPortal, useFrame, useThree, type EventManager} from '@react-three/fiber';
 import {PerspectiveCamera, Scene, type WebGLRenderer} from 'three';
 import AvatarScene, {type AvatarSceneStatus} from './AvatarScene';
@@ -28,7 +28,9 @@ function ModelFailure({session, job, reset}: {session: AvatarViewportSession; jo
     return null;
 }
 
-function JobPortal({session, job, active, generation}: {session: AvatarViewportSession; job: AvatarRenderJob; active: boolean; generation: number}) {
+// A view certification updates the registry, not every cached assembly. In
+// particular, rerendering Drei ContactShadows resets its one-frame pass counter.
+export const SharedAvatarJob = memo(function SharedAvatarJob({session, job, active, generation}: {session: AvatarViewportSession; job: AvatarRenderJob; active: boolean; generation: number}) {
     const scene = useMemo(() => new Scene(), []);
     const camera = useMemo(() => {
         const result = new PerspectiveCamera(45, job.width / Math.max(1, job.height), 0.1, 2000);
@@ -44,7 +46,7 @@ function JobPortal({session, job, active, generation}: {session: AvatarViewportS
         <AvatarScene config={job.config} mode={job.mode} active={active} onStatusChange={onStatus}
             presentation={{mode: 'shared', active, onChange: onPresentation}}/>
     </AvatarRenderBoundary>, scene, {camera, size: {width: job.width, height: job.height, top: 0, left: 0}, events: {enabled: false}});
-}
+});
 
 function RenderPass({session, jobs, visible}: {session: AvatarViewportSession; jobs: readonly AvatarRenderJob[]; visible: boolean}) {
     const [mounted, setMounted] = useState<readonly string[]>([]);
@@ -59,7 +61,7 @@ function RenderPass({session, jobs, visible}: {session: AvatarViewportSession; j
         lastCycle.current = now;
         renderSharedAvatarCycle(gl, session, frames, now);
     }, 1);
-    return jobs.filter(job => mounted.includes(job.id)).map(job => <JobPortal key={job.id}
+    return jobs.filter(job => mounted.includes(job.id)).map(job => <SharedAvatarJob key={job.id}
         session={session} job={job} generation={session.registry.generation}
         active={session.registry.isActive(job) && visible && session.registry.contextStatus !== 'lost'}/>);
 }
@@ -123,7 +125,17 @@ export default function SharedAvatarRenderer({session}: {session: AvatarViewport
         return () => document.removeEventListener('visibilitychange', update);
     }, []);
     const size = sharedAvatarSourceSize(jobs, session);
-    return <div aria-hidden="true" data-avatar-source="shared" className="pointer-events-none fixed -left-[10000px] top-0"
+    return <>
+        {session.registry.contextStatus === 'lost' && <div role="status" aria-label="Récupération des avatars"
+            data-testid="avatar-source-recovery"
+            className="fixed inset-x-4 top-[calc(8px+env(safe-area-inset-top))] z-[120] flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-950 shadow-lg">
+            <p>Affichage des avatars interrompu. Les dernières images sont conservées.</p>
+            <button type="button" disabled={session.registry.retryPending}
+                onClick={event => { event.stopPropagation(); session.registry.retrySource(); }}
+                onKeyDown={event => event.stopPropagation()}
+                className="min-h-11 rounded-lg bg-amber-600 px-3 font-bold text-white disabled:opacity-50">Réessayer les avatars</button>
+        </div>}
+        <div aria-hidden="true" data-avatar-source="shared" className="pointer-events-none fixed -left-[10000px] top-0"
         style={{width: size.width, height: size.height}}>
         <AvatarRenderBoundary key={epoch} fallback={<SourceFailure session={session} epoch={epoch}/>}>
         <Canvas dpr={size.dpr} gl={{alpha: true, antialias: true, preserveDrawingBuffer: false}} events={noEvents}>
@@ -131,5 +143,6 @@ export default function SharedAvatarRenderer({session}: {session: AvatarViewport
             <RenderPass session={session} jobs={jobs} visible={visible}/>
         </Canvas>
         </AvatarRenderBoundary>
-    </div>;
+    </div>
+    </>;
 }

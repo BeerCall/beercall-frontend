@@ -4,7 +4,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {BoxGeometry, Group, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene} from 'three';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import SharedAvatar from '../components/3D/SharedAvatar';
-import SharedAvatarRenderer from '../components/3D/SharedAvatarRenderer';
+import SharedAvatarRenderer, {SharedAvatarJob} from '../components/3D/SharedAvatarRenderer';
 import {AvatarViewportContext, createAvatarViewportSession, type AvatarViewportSession} from '../lib/avatarViewportContext';
 
 function createRenderer() {
@@ -15,6 +15,8 @@ function createRenderer() {
 }
 const fiberContext = createContext<{gl: ReturnType<typeof createRenderer>} | null>(null);
 const renderers: ReturnType<typeof createRenderer>[] = [];
+let sceneRenders = 0;
+vi.mock('../components/3D/AvatarScene', () => ({default: function SceneDouble() { sceneRenders++; return null; }}));
 vi.mock('@react-three/fiber', () => ({
     Canvas: function SourceDouble({children}: React.PropsWithChildren) {
         const [gl] = useState(() => { const renderer = createRenderer(); renderers.push(renderer); return renderer; });
@@ -52,6 +54,7 @@ function restore(gl: ReturnType<typeof createRenderer>) {
 describe('shared recovery lifecycle (DOM simulation, not native Safari qualification)', () => {
     beforeEach(() => {
         renderers.length = 0;
+        sceneRenders = 0;
         vi.spyOn(HTMLDivElement.prototype, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 36, 36));
         vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({drawImage: vi.fn(), clearRect: vi.fn()}) as unknown as CanvasRenderingContext2D);
     });
@@ -166,5 +169,33 @@ describe('shared recovery lifecycle (DOM simulation, not native Safari qualifica
         fireEvent.keyDown(source, {key: 'Enter'}); fireEvent.click(source);
         expect(renderers[0].dispose).toHaveBeenCalledTimes(1);
         expect(surroundingClick).not.toHaveBeenCalled(); expect(surroundingKey).not.toHaveBeenCalled();
+    });
+
+    it('retains a cached scene across unrelated registry updates, but updates activity and GPU generation', () => {
+        const session = createAvatarViewportSession();
+        const handle = session.registry.register({id: 'cached-scene', config: {head: 'fixture'}, mode: 'profile', revision: 'fixture',
+            width: 128, height: 160, dpr: 1, target: document.createElement('canvas'), visible: false});
+        const job = session.registry.getJob(session.registry.getView(handle)!.jobId)!;
+        const view = render(<SharedAvatarJob session={session} job={job} active={false} generation={1}/>);
+        expect(sceneRenders).toBe(1);
+        view.rerender(<SharedAvatarJob session={session} job={job} active={false} generation={1}/>);
+        expect(sceneRenders).toBe(1);
+        view.rerender(<SharedAvatarJob session={session} job={job} active generation={1}/>);
+        expect(sceneRenders).toBe(2);
+        view.rerender(<SharedAvatarJob session={session} job={job} active generation={2}/>);
+        expect(sceneRenders).toBe(3);
+    });
+
+    it('offers one viewport recovery action outside the offscreen source and potentially occluded cells', () => {
+        const session = createAvatarViewportSession(); render(host(session));
+        act(() => { paint(session, 0); paint(session, 1); lose(renderers[0]); });
+        const action = screen.getByRole('button', {name: 'Réessayer les avatars'});
+        expect(action.closest('[data-avatar-source]')).toBeNull();
+        expect(action.closest('[aria-hidden="true"]')).toBeNull();
+        expect(screen.getByTestId('avatar-source-recovery')).toHaveClass('fixed');
+        fireEvent.click(action);
+        expect(renderers[0].dispose).toHaveBeenCalledTimes(1);
+        expect(renderers).toHaveLength(2);
+        expect(screen.queryByTestId('avatar-source-recovery')).toBeNull();
     });
 });
