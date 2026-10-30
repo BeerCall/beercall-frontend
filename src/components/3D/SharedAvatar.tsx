@@ -1,7 +1,7 @@
 import {useCallback, useId, useLayoutEffect, useRef, useState, useSyncExternalStore} from 'react';
 import {useQueryClient} from '@tanstack/react-query';
 import {useAvatarViewport, type AvatarViewportSession} from '../../lib/avatarViewportContext';
-import {normalizeAvatarConfig, type AvatarViewHandle, type AvatarViewRequest} from '../../lib/avatarViewRegistry';
+import {avatarViewSignature, normalizeAvatarConfig, type AvatarViewHandle, type AvatarViewRequest} from '../../lib/avatarViewRegistry';
 import type {AvatarConfig} from '../../types/avatar';
 import type {AnimationManifest} from '../../types/animationPack';
 import type {AvatarSceneMode} from './AvatarScene';
@@ -62,23 +62,39 @@ function SharedAvatarCell({session, config, mode = 'full', active = true, instan
         const target = canvas.current;
         if (!node || !target) return;
         let intersecting = true;
+        let pendingMeasure: number | undefined;
         const update = () => {
+            if (pendingMeasure !== undefined) cancelAnimationFrame(pendingMeasure);
+            pendingMeasure = undefined;
             const rect = node.getBoundingClientRect();
             const request: AvatarViewRequest = {id, config, mode, revision: animationRevision,
-                width: rect.width, height: rect.height, dpr: Math.min(1.5, window.devicePixelRatio || 1), target,
+                // Layout size is stable while a message entrance scales its DOM.
+                width: node.clientWidth || rect.width, height: node.clientHeight || rect.height,
+                dpr: Math.min(1.5, window.devicePixelRatio || 1), target,
                 visible: active && intersecting && rect.width > 0 && rect.height > 0, onFrameCopied};
+            const previous = handle.current && session.registry.getView(handle.current);
+            if (previous && previous.signature === avatarViewSignature(request) && previous.visible === request.visible &&
+                previous.target === target && previous.onFrameCopied === onFrameCopied && previous.jobId) return;
             if (handle.current) session.registry.update(handle.current, request);
             else handle.current = session.registry.register(request);
         };
+        const schedule = () => {
+            if (pendingMeasure === undefined) pendingMeasure = requestAnimationFrame(update);
+        };
         update();
-        const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(update) : undefined;
+        // Updating the shared source size synchronously during observer delivery
+        // can trigger WebKit's ResizeObserver loop. Coalesce outside that phase.
+        const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(schedule) : undefined;
         resize?.observe(node);
         const intersection = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => {
             const entry = entries.find(entry => entry.target === node);
             if (entry) { intersecting = entry.isIntersecting; update(); }
         }) : undefined;
         intersection?.observe(node);
-        return () => { resize?.disconnect(); intersection?.disconnect(); };
+        return () => {
+            resize?.disconnect(); intersection?.disconnect();
+            if (pendingMeasure !== undefined) cancelAnimationFrame(pendingMeasure);
+        };
     }, [session, id, config, mode, animationRevision, active, onFrameCopied]);
 
     useLayoutEffect(() => () => {

@@ -114,4 +114,30 @@ describe('shared recovery lifecycle (DOM simulation, not native Safari qualifica
         expect(removed).toHaveBeenCalledWith('webglcontextlost', expect.any(Function));
         expect(removed).toHaveBeenCalledWith('webglcontextrestored', expect.any(Function));
     });
+
+    it('coalesces observer geometry changes outside delivery, skips identical sizes and cancels on unmount', async () => {
+        const callbacks: ResizeObserverCallback[] = [];
+        vi.stubGlobal('ResizeObserver', class {
+            constructor(callback: ResizeObserverCallback) { callbacks.push(callback); }
+            observe() {} disconnect() {}
+        });
+        const session = createAvatarViewportSession(); const view = render(host(session));
+        const version = session.registry.getSnapshot().version;
+        vi.mocked(HTMLDivElement.prototype.getBoundingClientRect).mockReturnValue(new DOMRect(0, 0, 48, 64));
+        act(() => { callbacks[0]([], {} as ResizeObserver); callbacks[0]([], {} as ResizeObserver); });
+        expect(session.registry.getSnapshot().version).toBe(version);
+        expect(session.registry.getSnapshot().views[0].width).toBe(36);
+        await act(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); });
+        expect(session.registry.getSnapshot().views[0].width).toBe(48);
+        expect(session.registry.getSnapshot().views[1].width).toBe(36);
+        const resized = session.registry.getSnapshot().version;
+        act(() => callbacks[0]([], {} as ResizeObserver));
+        await act(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); });
+        expect(session.registry.getSnapshot().version).toBe(resized);
+        act(() => callbacks[0]([], {} as ResizeObserver));
+        view.unmount();
+        await act(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); });
+        expect(session.registry.getSnapshot().views).toHaveLength(0);
+        session.dispose();
+    });
 });
