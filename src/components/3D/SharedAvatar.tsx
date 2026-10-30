@@ -135,16 +135,19 @@ function SharedAvatarCell({session, config, mode = 'full', active = true, instan
         </div>}
         {animationError && <div role="alert" className="absolute inset-x-0 bottom-0 rounded-lg bg-amber-50/95 p-2 text-center text-xs text-amber-900">
             <p>{phase === 'critical-error' ? 'Erreur de chargement des animations' : 'Animations différées indisponibles'}</p>
-            <button type="button" disabled={retrying} onClick={retryAnimations} className="font-bold underline disabled:opacity-50">Réessayer les animations</button>
+            <button type="button" disabled={retrying} onClick={event => { event.stopPropagation(); retryAnimations(); }}
+                onKeyDown={event => event.stopPropagation()} className="font-bold underline disabled:opacity-50">Réessayer les animations</button>
         </div>}
         {modelError && <div role="alert" className="absolute inset-x-0 bottom-0 rounded-lg bg-amber-50/95 p-2 text-center text-xs text-amber-900">
             <p>Modèle d’avatar indisponible</p>
-            <button type="button" onClick={() => job?.retryModels?.()} className="font-bold underline">Réessayer le modèle</button>
+            <button type="button" onClick={event => { event.stopPropagation(); job?.retryModels?.(); }}
+                onKeyDown={event => event.stopPropagation()} className="font-bold underline">Réessayer le modèle</button>
         </div>}
         {session.registry.contextStatus === 'lost' && <div role="status" aria-label="Contexte WebGL perdu"
             className="absolute inset-x-0 bottom-0 rounded-lg bg-amber-50/95 p-2 text-center text-xs text-amber-900">
             <p>Affichage des avatars suspendu (WebGL)</p>
-            <button type="button" disabled={session.registry.retryPending} onClick={() => session.registry.retrySource()}
+            <button type="button" disabled={session.registry.retryPending} onClick={event => { event.stopPropagation(); session.registry.retrySource(); }}
+                onKeyDown={event => event.stopPropagation()}
                 className="font-bold underline disabled:opacity-50">Réessayer l’affichage</button>
         </div>}
         {session.registry.contextStatus === 'restoring' && !ready && <div role="status" aria-label="Restauration de l’affichage"

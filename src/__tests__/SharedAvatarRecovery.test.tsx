@@ -140,4 +140,31 @@ describe('shared recovery lifecycle (DOM simulation, not native Safari qualifica
         expect(session.registry.getSnapshot().views).toHaveLength(0);
         session.dispose();
     });
+
+    it('recovery buttons do not trigger the surrounding profile card or map player action', async () => {
+        const session = createAvatarViewportSession();
+        const surroundingClick = vi.fn(); const surroundingKey = vi.fn();
+        render(<div onClick={surroundingClick} onKeyDown={surroundingKey}>{host(session)}</div>);
+        const job = session.registry.getSnapshot().jobs[0];
+        const token = session.registry.jobToken(job);
+        const modelRetry = vi.fn(); const animationRetry = vi.fn().mockResolvedValue(undefined);
+        act(() => { session.registry.setModelError(token, modelRetry); });
+        const model = screen.getByRole('button', {name: 'Réessayer le modèle'});
+        fireEvent.keyDown(model, {key: 'Enter'}); fireEvent.click(model);
+        expect(modelRetry).toHaveBeenCalledTimes(1);
+        expect(surroundingClick).not.toHaveBeenCalled(); expect(surroundingKey).not.toHaveBeenCalled();
+        act(() => {
+            session.registry.setModelError(token);
+            session.registry.setPresentation(token, {phase: 'critical-error', active: true, retryAnimations: animationRetry, notifyFrameCopied: vi.fn()});
+        });
+        const animation = screen.getByRole('button', {name: 'Réessayer les animations'});
+        await act(async () => { fireEvent.keyDown(animation, {key: ' '}); fireEvent.click(animation); });
+        expect(animationRetry).toHaveBeenCalledTimes(1);
+        expect(surroundingClick).not.toHaveBeenCalled(); expect(surroundingKey).not.toHaveBeenCalled();
+        act(() => lose(renderers[0]));
+        const source = screen.getAllByRole('button', {name: 'Réessayer l’affichage'})[0];
+        fireEvent.keyDown(source, {key: 'Enter'}); fireEvent.click(source);
+        expect(renderers[0].dispose).toHaveBeenCalledTimes(1);
+        expect(surroundingClick).not.toHaveBeenCalled(); expect(surroundingKey).not.toHaveBeenCalled();
+    });
 });
