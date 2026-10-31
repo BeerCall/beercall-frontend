@@ -16,7 +16,18 @@ import AvatarWarmup from './components/AvatarWarmup';
 const Login = React.lazy(() => import('./pages/Login'));
 const PerformancePanel = React.lazy(() => import('./components/UI/PerformancePanel'));
 const SignUp = React.lazy(() => import('./pages/SignUp.tsx'));
-const Profile = React.lazy(() => import('./pages/Profile.tsx'));
+let preparedProfile: typeof import('./pages/Profile.tsx')['default'] | undefined;
+const loadProfile = () => import('./pages/Profile.tsx').then(module => {
+    preparedProfile = module.default;
+    return module;
+});
+const Profile = React.lazy(loadProfile);
+function ProfileRoute() {
+    // Resolving the ES module alone does not resolve React.lazy's first render.
+    // Select once per route mount so a late preload cannot remount a live editor.
+    const [Page] = useState(() => preparedProfile ?? Profile);
+    return <Page/>;
+}
 const ChatPage = React.lazy(() => import('./pages/ChatPage'));
 
 const createQueryClient = () => new QueryClient({
@@ -55,6 +66,9 @@ function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
     });
     useEffect(() => () => queryClient.clear(), [queryClient]);
     useEffect(() => {
+        if (isAuthenticated) void loadProfile().catch(() => {});
+    }, [isAuthenticated]);
+    useEffect(() => {
         const enable = () => {
             setDiagnostics(true);
             try { sessionStorage.setItem('beercall:perf', '1'); } catch { /* Storage is optional. */ }
@@ -87,8 +101,8 @@ function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
                             <Route path="/signup" element={<ProtectedRoute isAuthenticated={isAuthenticated} requireAuth={false}><SignUp/></ProtectedRoute>} />
 
                             {/* Protected Routes */}
-                            <Route path="/profile" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Profile/></ProtectedRoute>} />
-                            <Route path="/profile/:id" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Profile/></ProtectedRoute>} />
+                            <Route path="/profile" element={<ProtectedRoute isAuthenticated={isAuthenticated}><ProfileRoute/></ProtectedRoute>} />
+                            <Route path="/profile/:id" element={<ProtectedRoute isAuthenticated={isAuthenticated}><ProfileRoute/></ProtectedRoute>} />
                             <Route path="/connections" element={<ProtectedRoute isAuthenticated={isAuthenticated}>{null}</ProtectedRoute>} />
                             <Route path="/dashboard" element={<ProtectedRoute isAuthenticated={isAuthenticated}>{null}</ProtectedRoute>} />
                             <Route path="/squad/:id" element={<ProtectedRoute isAuthenticated={isAuthenticated}>{null}</ProtectedRoute>} />
