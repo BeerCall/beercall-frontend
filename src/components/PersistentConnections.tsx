@@ -3,7 +3,18 @@ import { useLocation } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import type { SceneMetricsRecord } from '../lib/sceneMetrics';
 
-const Connections = lazy(() => import('../pages/Connections'));
+let preparedConnections: typeof import('../pages/Connections')['default'] | undefined;
+const loadConnections = () => import('../pages/Connections').then(module => {
+    preparedConnections = module.default;
+    return module;
+});
+const Connections = lazy(loadConnections);
+function ConnectionsPage({active}: {active: boolean}) {
+    // A module imported by warmup must not suspend again at first reveal.
+    // Keep this choice for the retained page's whole life, including a cold open.
+    const [Page] = useState(() => preparedConnections ?? Connections);
+    return <Page active={active}/>;
+}
 
 /** Retained presentation cells, mounted after the map becomes interactive.
  * Session warmup prepares the shared engine independently of this hidden page.
@@ -18,6 +29,10 @@ export default function PersistentConnections() {
     const onDashboard = pathname === '/dashboard' || /^\/squad\/[^/]+$/.test(pathname);
     const [prepared, setPrepared] = useState(false);
     if (active && !prepared) setPrepared(true);
+
+    useEffect(() => {
+        if (authenticated) void loadConnections().catch(() => {});
+    }, [authenticated]);
 
     useEffect(() => {
         if (!authenticated || !onDashboard || prepared) return;
@@ -50,7 +65,7 @@ export default function PersistentConnections() {
         <div className={`absolute inset-0 ${active ? '' : 'invisible pointer-events-none'}`}
              inert={!active} aria-hidden={!active} data-testid="retained-connections">
             <Suspense fallback={active ? <div role="status">Chargement des connexions…</div> : null}>
-                <Connections active={active}/>
+                <ConnectionsPage active={active}/>
             </Suspense>
         </div>
     );

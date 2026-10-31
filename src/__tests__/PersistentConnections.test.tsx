@@ -30,6 +30,19 @@ describe('retained Connexions preparation', () => {
         performance.clearMarks();
     });
 
+    it('uses the resolved prepared module on the first opening without suspending or recreating its page', async () => {
+        mount();
+        await act(async () => {await vi.dynamicImportSettled();});
+        expect(screen.queryByTestId('retained-connections')).toBeNull();
+        fireEvent.click(screen.getByText('open'));
+        const page = screen.getByTestId('connections-page');
+        expect(screen.queryByText('Chargement des connexions…')).toBeNull();
+        fireEvent.click(screen.getByText('back'));
+        fireEvent.click(screen.getByText('open'));
+        expect(screen.getByTestId('connections-page')).toBe(page);
+        expect(session.mounts).toBe(1);
+    });
+
     it('waits for map interactivity, prepares inertly, and reveals the same page on navigation', async () => {
         mount();
         expect(screen.queryByTestId('retained-connections')).toBeNull();
