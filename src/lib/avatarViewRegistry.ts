@@ -89,6 +89,7 @@ export class AvatarViewRegistry {
     private gpuStatus: 'ready' | 'lost' | 'restoring' = 'ready';
     private sourceRetry?: () => void;
     private replacingSource = false;
+    private activity = new WeakMap<AvatarRenderJob, {active: boolean; revision: number}>();
     get generation() { return this.contextGeneration; }
     get sourceEpoch() { return this.sourceVersion; }
     get contextStatus() { return this.gpuStatus; }
@@ -279,6 +280,8 @@ export class AvatarViewRegistry {
         return [...job.subscribers].some(id => { const view = this.views.get(id); return !!view && (view.visible || !!view.prepare); });
     }
 
+    activityRevision(job: AvatarRenderJob): number { return this.activity.get(job)?.revision ?? 0; }
+
     clearSession(): void {
         if (this.ended) return;
         this.ended = true;
@@ -362,6 +365,13 @@ export class AvatarViewRegistry {
         return !this.ended && token.generation === this.generation && job?.epoch === token.epoch && job.signature === token.signature ? job : undefined;
     }
     private publish() {
+        // Observe every demand transition, not just renderer snapshots: a route
+        // can be hidden and shown again between two animation frames.
+        for (const job of this.jobs.values()) {
+            const previous = this.activity.get(job);
+            const active = this.isActive(job);
+            this.activity.set(job, {active, revision: (previous?.revision ?? 0) + (active && !previous?.active ? 1 : 0)});
+        }
         this.snapshot = {version: ++this.version, jobs: [...this.jobs.values()], views: [...this.views.values()]};
         [...this.listeners].forEach(listener => listener());
     }

@@ -191,4 +191,19 @@ describe('shared avatar frame passes (deterministic backend, no pixel claim)', (
         expect(gl.render).toHaveBeenCalledTimes(rendered + jobs.length);
         for (const job of jobs) expect(s.registry.getView(job.handle)!.frame?.copies).toBe(3);
     });
+
+    it('recognizes an inactive/active round trip even when no renderer frame ran between the route commits', () => {
+        const s = session(); const gl = renderer(); const frames = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+        const value = request('rapid-return'); const job = ready(s, value);
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        const rendered = gl.render.mock.calls.length;
+        s.registry.update(job.handle, {...value, visible: false});
+        s.registry.update(job.handle, value);
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        expect(gl.render).toHaveBeenCalledTimes(rendered);
+        expect(s.registry.getView(job.handle)!.frame?.copies).toBe(2);
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        expect(gl.render).toHaveBeenCalledTimes(rendered + 1);
+        expect(s.registry.getView(job.handle)!.frame?.copies).toBe(3);
+    });
 });
