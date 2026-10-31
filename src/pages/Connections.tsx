@@ -79,7 +79,7 @@ export default function Connections({active = true}: { active?: boolean }) {
                             <div
                                 key={user.id}
                                 onClick={() => navigate(`/profile/${user.id}`)}
-                                className="bg-white rounded-[2.5rem] p-3 min-[400px]:p-4 shadow-xl shadow-gray-200/50 border-2 border-transparent hover:border-beer transition-all group cursor-pointer flex items-center gap-2 min-[400px]:gap-4 h-48"
+                                className="bg-white rounded-[2.5rem] p-3 min-[400px]:p-4 shadow-xl shadow-gray-200/50 border-2 border-transparent hover:border-beer transition-[color,background-color,border-color,box-shadow,transform] group cursor-pointer flex items-center gap-2 min-[400px]:gap-4 h-48"
                             >
                                 {/* MINIATURE AVATAR 3D */}
                                 <div
@@ -122,7 +122,7 @@ export default function Connections({active = true}: { active?: boolean }) {
                             {/* BOUTON ACTION */}
                             {/* 🚀 J'ai retiré la div pr-4 inutile et mis le shrink-0 pour garantir qu'il ne s'écrase jamais */}
                             <div
-                                className="w-11 h-11 min-[400px]:w-12 min-[400px]:h-12 shrink-0 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 group-hover:bg-beer group-hover:text-white transition-all shadow-inner group-hover:shadow-beer/30">
+                                className="w-11 h-11 min-[400px]:w-12 min-[400px]:h-12 shrink-0 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 group-hover:bg-beer group-hover:text-white transition-[color,background-color,border-color,box-shadow,transform] shadow-inner group-hover:shadow-beer/30">
                                 <ArrowRight size={20}/>
                             </div>
                         </div>

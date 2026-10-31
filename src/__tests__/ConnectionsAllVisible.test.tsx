@@ -85,4 +85,13 @@ describe('all intersecting connections, real provider/registry and deterministic
         expect(session.registry.getSnapshot().views[0].visible).toBe(false);
         expect(first.querySelector('[data-avatar-state="frame-ready"]')).toBeInTheDocument();
     });
+
+    it('never transitions inherited visibility while preserving the cards hover feedback', () => {
+        mount();
+        const port = screen.getByTestId('connections-scrollport');
+        expect(port.querySelectorAll('.transition-all')).toHaveLength(0);
+        for (const card of port.children) {
+            expect(card).toHaveClass('hover:border-beer', 'transition-[color,background-color,border-color,box-shadow,transform]');
+        }
+    });
 });
