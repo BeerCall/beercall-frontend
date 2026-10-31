@@ -56,6 +56,7 @@ export function presentSharedAvatarFrame(buffer: HTMLCanvasElement, target: HTML
 // A failed initial target must not freeze a shared job forever in cached-reveal
 // mode. This state is owned by one render pass and dies with its WeakMap key.
 const initialCopyAttempts = new WeakMap<WeakMap<HTMLCanvasElement, HTMLCanvasElement>, WeakMap<HTMLCanvasElement, string>>();
+const previousActiveJobs = new WeakMap<WeakMap<HTMLCanvasElement, HTMLCanvasElement>, Set<string>>();
 
 /** Manual pass, called after portal mixers. The emitted duration is a CPU/sync proxy, not GPU time. */
 export function renderSharedAvatarCycle(gl: WebGLRenderer, session: AvatarViewportSession,
@@ -72,6 +73,8 @@ export function renderSharedAvatarCycle(gl: WebGLRenderer, session: AvatarViewpo
     };
     const activeJobs = snapshot.jobs.filter(job =>
         registry.isActive(job) && job.ready && !!job.scene && !!job.camera && !!job.group && !gl.getContext().isContextLost());
+    const previouslyActive = previousActiveJobs.get(previousFrames) ?? new Set<string>();
+    previousActiveJobs.set(previousFrames, new Set(activeJobs.map(job => job.id)));
     const uncertifiedJobs = activeJobs.filter(job => [...job.subscribers].some(isViewUncertified));
     const certifiedJobs = activeJobs.filter(job => ![...job.subscribers].some(isViewUncertified));
     // Initial reveals go first, but all other active jobs continue animating.
@@ -90,8 +93,13 @@ export function renderSharedAvatarCycle(gl: WebGLRenderer, session: AvatarViewpo
         const hasPreparedBuffer = !!job.lastFrame && job.lastFrame.width === width && job.lastFrame.height === height &&
             job.frame?.signature === job.signature && job.frame?.generation === registry.generation && job.frame.drawCalls > 0;
         const attemptKey = `${job.signature}:${registry.generation}`;
-        const initialTargets = snapshot.views.filter(view => job.subscribers.has(view.id) && isViewUncertified(view.id) &&
-            attempts.get(view.target) !== attemptKey);
+        const resuming = !previouslyActive.has(job.id);
+        // A retained cell can already be certified when its route returns.
+        // Present its genuine retained image in this first animation tick too,
+        // rather than synchronising a costly fresh GPU render before reveal.
+        // All jobs still produce a copy this tick and render normally next tick.
+        const initialTargets = snapshot.views.filter(view => job.subscribers.has(view.id) && (view.visible || !!view.prepare) &&
+            (resuming || (isViewUncertified(view.id) && attempts.get(view.target) !== attemptKey)));
         const needsInitialCopyOnly = hasPreparedBuffer && initialTargets.length > 0;
 
         let calls = job.frame?.drawCalls ?? 0;

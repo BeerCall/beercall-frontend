@@ -174,4 +174,21 @@ describe('shared avatar frame passes (deterministic backend, no pixel claim)', (
         renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
         for (const job of jobs) expect(s.registry.getView(job.handle)!.frame?.copies).toBe(2);
     });
+
+    it('reveals every resumed retained job from its real cache, then renders all animated jobs on the next cycle', () => {
+        const s = session(); const gl = renderer(); const frames = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+        const requests = ['a', 'b', 'c'].map(id => request(id));
+        const jobs = requests.map(value => ready(s, value));
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        const rendered = gl.render.mock.calls.length;
+        jobs.forEach((job, i) => s.registry.update(job.handle, {...requests[i], visible: false}));
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        jobs.forEach((job, i) => s.registry.update(job.handle, requests[i]));
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        expect(gl.render).toHaveBeenCalledTimes(rendered);
+        for (const job of jobs) expect(s.registry.getView(job.handle)!.frame?.copies).toBe(2);
+        renderSharedAvatarCycle(gl as unknown as WebGLRenderer, s, frames);
+        expect(gl.render).toHaveBeenCalledTimes(rendered + jobs.length);
+        for (const job of jobs) expect(s.registry.getView(job.handle)!.frame?.copies).toBe(3);
+    });
 });
