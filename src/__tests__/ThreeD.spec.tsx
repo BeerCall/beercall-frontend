@@ -156,6 +156,7 @@ import * as fiber from '@react-three/fiber';
 
 describe('3D Components Rendering & Observability', () => {
     beforeEach(() => {
+        vi.stubEnv('VITE_FF_GLB_WORLDS', '0');
         vi.clearAllMocks();
         mockActionMap.clear();
         threeUseFrameMock.clear();

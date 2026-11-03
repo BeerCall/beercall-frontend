@@ -1,0 +1,167 @@
+/**
+ * A13 — Types et résolution du manifeste GLB.
+ *
+ * Seules les URLs sous `/models/glb/v1/` sont autorisées.
+ * La résolution par sourceId est stricte : toute pièce inconnue lève une erreur visible.
+ */
+
+export interface GlbManifestItem {
+    key: string;
+    url: string;
+    sha256: string;
+    bytes: number;
+    drawCalls: number;
+    triangles: number;
+    joints: number;
+    textures: number;
+    source: string;
+    sourceId: string;
+    sourceSha256: string;
+    sourceBBox: { min: [number, number, number]; max: [number, number, number] } | null;
+    pipelineVersion: number;
+}
+
+export interface GlbManifest {
+    version: number;
+    pipelineVersion: number;
+    generatedAt: string;
+    items: GlbManifestItem[];
+}
+
+export interface AvatarPartsConfig {
+    head?: string;
+    body?: string;
+    legs?: string;
+    feet?: string;
+    accessory?: string | null;
+    gender?: string;
+}
+
+export interface ResolvedAvatarParts {
+    head: GlbManifestItem;
+    body: GlbManifestItem;
+    legs: GlbManifestItem;
+    feet: GlbManifestItem;
+    accessory: GlbManifestItem | null;
+    gender: 'Men' | 'Women';
+}
+
+const ALLOWED_URL_PREFIX = '/models/glb/v1/';
+let manifestPromise: Promise<GlbManifest> | null = null;
+let cachedManifest: GlbManifest | null = null;
+
+export function validateManifestItem(item: GlbManifestItem): void {
+    if (!item.url || !item.url.startsWith(ALLOWED_URL_PREFIX)) {
+        throw new Error(`URL GLB non autorisée : "${item.url}" (doit débuter par ${ALLOWED_URL_PREFIX})`);
+    }
+    if (!item.sourceId || typeof item.sourceId !== 'string') {
+        throw new Error(`sourceId manquant ou invalide pour l'item : ${JSON.stringify(item)}`);
+    }
+}
+
+export function validateManifest(manifest: GlbManifest): GlbManifest {
+    if (!manifest || !Array.isArray(manifest.items)) {
+        throw new Error('Manifeste GLB invalide : tableau "items" requis');
+    }
+    for (const item of manifest.items) {
+        validateManifestItem(item);
+    }
+    return manifest;
+}
+
+export async function loadGlbManifest(url = '/models/glb/manifest.json'): Promise<GlbManifest> {
+    if (cachedManifest) return cachedManifest;
+    if (manifestPromise) return manifestPromise;
+
+    manifestPromise = (async () => {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Impossible de charger le manifeste GLB depuis ${url} (HTTP ${response.status})`);
+        }
+        const data = (await response.json()) as GlbManifest;
+        validateManifest(data);
+        cachedManifest = data;
+        return data;
+    })().catch((error) => {
+        manifestPromise = null;
+        throw error;
+    });
+
+    return manifestPromise;
+}
+
+export function setGlbManifest(manifest: GlbManifest): void {
+    validateManifest(manifest);
+    cachedManifest = manifest;
+    manifestPromise = Promise.resolve(manifest);
+}
+
+export function getCachedGlbManifest(): GlbManifest | null {
+    return cachedManifest;
+}
+
+export function clearGlbManifest(): void {
+    cachedManifest = null;
+    manifestPromise = null;
+}
+
+export function resolveAvatarParts(
+    config: AvatarPartsConfig,
+    manifest?: GlbManifest,
+): ResolvedAvatarParts {
+    const activeManifest = manifest ?? cachedManifest;
+    if (!activeManifest) {
+        throw new Error('Manifeste GLB non initialisé. Appeler loadGlbManifest() ou fournir le manifeste.');
+    }
+
+    const bySourceId = new Map<string, GlbManifestItem>();
+    for (const item of activeManifest.items) {
+        bySourceId.set(item.sourceId, item);
+    }
+
+    const resolveSlot = (slotName: 'head' | 'body' | 'legs' | 'feet'): GlbManifestItem => {
+        const id = config[slotName];
+        if (!id || typeof id !== 'string' || id.toLowerCase() === 'none') {
+            throw new Error(`Pièce obligatoire manquante : "${slotName}"`);
+        }
+        const found = bySourceId.get(id);
+        if (!found) {
+            throw new Error(`Pièce inconnue dans le catalogue : "${id}" pour le slot "${slotName}"`);
+        }
+        return found;
+    };
+
+    const head = resolveSlot('head');
+    const body = resolveSlot('body');
+    const legs = resolveSlot('legs');
+    const feet = resolveSlot('feet');
+
+    let accessory: GlbManifestItem | null = null;
+    const accId = config.accessory;
+    if (accId && typeof accId === 'string' && accId.toLowerCase() !== 'none' && accId.trim() !== '') {
+        const foundAcc = bySourceId.get(accId);
+        if (!foundAcc) {
+            throw new Error(`Accessoire inconnu dans le catalogue : "${accId}"`);
+        }
+        accessory = foundAcc;
+    }
+
+    // Détermination stricte du genre
+    let gender: 'Men' | 'Women';
+    if (config.gender === 'Men' || config.gender === 'Women') {
+        gender = config.gender;
+    } else {
+        const prefixes = new Set<string>();
+        for (const item of [head, body, legs, feet]) {
+            if (item.sourceId.startsWith('Men_')) prefixes.add('Men');
+            if (item.sourceId.startsWith('Women_')) prefixes.add('Women');
+        }
+        if (prefixes.size === 1) {
+            gender = prefixes.values().next().value as 'Men' | 'Women';
+        } else {
+            throw new Error(`Genre incohérent ou indéterminable depuis les pièces : ${[head.sourceId, body.sourceId, legs.sourceId, feet.sourceId].join(', ')}`);
+        }
+    }
+
+    return { head, body, legs, feet, accessory, gender };
+}

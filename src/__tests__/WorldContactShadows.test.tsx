@@ -55,8 +55,22 @@ vi.mock('../components/3D/AvatarCanvas', () => ({
     },
 }));
 
+vi.mock('../avatar/AvatarRenderer', () => ({
+    AvatarRenderer: ({ config, onReadinessChange }: {
+        config: { head?: string };
+        onReadinessChange?: (ready: boolean, details?: { parts: string[]; meshCount: number }) => void;
+    }) => {
+        React.useEffect(() => {
+            if (onReadinessChange) shadowAvatarControl.callbacks.set(config?.head ?? 'default', onReadinessChange);
+            if (shadowAvatarControl.autoReady) onReadinessChange?.(true, { parts: ['head'], meshCount: 1 });
+        }, [config?.head, onReadinessChange]);
+        return <div data-testid="mock-avatar" />;
+    },
+}));
+
 describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
     beforeEach(() => {
+        vi.stubEnv('VITE_FF_GLB_WORLDS', '0');
         contactShadowsCaptor.mockClear();
         shadowAvatarControl.autoReady = true;
         shadowAvatarControl.callbacks.clear();
@@ -310,6 +324,23 @@ describe('Politique expérimentale d’ombres (T20 / CHAL-06)', () => {
                 username: `Soldat ${i}`,
                 avatar_config: { head: 'default' },
             }));
+
+        it('nouveau chemin optimisé glbWorlds : rend zéro ombre (aucune ombre locale ni partagée)', () => {
+            vi.stubEnv('VITE_FF_GLB_WORLDS', '1');
+            const participants = createParticipants(10);
+
+            render(
+                <BarWorld
+                    aperoId="bc_1"
+                    squadId="sq_1"
+                    participants={participants}
+                    isActiveApero={false}
+                    onSelectPhoto={vi.fn()}
+                />
+            );
+
+            expect(contactShadowsCaptor).not.toHaveBeenCalled();
+        });
 
         it('politique static par défaut : rend N ombres locales avec frames=1 pour N participants', () => {
             const participants = createParticipants(10);

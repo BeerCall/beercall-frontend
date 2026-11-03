@@ -3,6 +3,7 @@ node_modules/
 dist/
 dist-ssr/
 dev-dist/
+.renderer-dist/
 *.local
 
 # Logs
@@ -18,6 +19,9 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Intermédiaires de conversion GLB (régénérables via scripts/glb/convert.mjs)
+scripts/glb/staging/
 
 # Environnement
 .env

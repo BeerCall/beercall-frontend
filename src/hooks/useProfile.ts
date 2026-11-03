@@ -1,6 +1,10 @@
 // src/hooks/useProfile.ts
 import {useQuery} from '@tanstack/react-query';
+import {useState} from 'react';
 import {api} from '../lib/api';
+import type {AvatarSprites} from '../types/avatar';
+import {useDocumentVisible} from './useDocumentVisible';
+import {createSpritePollingPolicy} from './avatarSpritePolling';
 
 export type ItemCategory = 'head' | 'body' | 'legs' | 'feet' | 'accessory';
 export type Gender = 'Men' | 'Women' | 'Unisex';
@@ -56,9 +60,16 @@ export interface UserProfile {
     shop_items: ShopItem[];
     squads: ProfileSquad[];
     stats: UserStats;
+    /** B04 — sprites 2D de la tenue courante (A07/A08). */
+    avatar_sprites?: AvatarSprites;
 }
 
 export function useProfile(userId: string = 'me', enabled = true) {
+    // Abonnement à la visibilité (re-render au changement) ; la politique lit
+    // document.hidden à l'appel de l'interval, jamais pendant le rendu.
+    useDocumentVisible();
+    const [policy] = useState(() => createSpritePollingPolicy({ isActive: () => !document.hidden }));
+
     return useQuery({
         queryKey: ['profile', userId],
         queryFn: async () => {
@@ -70,5 +81,6 @@ export function useProfile(userId: string = 'me', enabled = true) {
         // Garde les données fraîches pour éviter les flashs au passage Signup -> Dashboard
         staleTime: 1000 * 60,
         enabled,
+        refetchInterval: policy,
     });
 }

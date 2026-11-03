@@ -1,50 +1,14 @@
 import {useNavigate} from 'react-router-dom';
-import {useEffect, useRef, useState, type RefObject} from 'react';
+import {useRef} from 'react';
 import {ChevronLeft, Users, Trophy, ArrowRight} from 'lucide-react';
-import SafeAvatar from '../components/3D/SafeAvatar';
-import type {AvatarConfig} from '../types/avatar';
+import {AvatarImage} from '../components/Avatar/AvatarImage';
 import {useConnections} from '../hooks/useConnections';
-
-const AvatarThumbnail = ({id, config, username, active, scrollport}: {
-    id: string; config: AvatarConfig; username: string; active: boolean; scrollport: RefObject<HTMLDivElement | null>;
-}) => {
-    const ref = useRef<HTMLDivElement>(null);
-    const [intersecting, setIntersecting] = useState(true);
-    useEffect(() => {
-        const node = ref.current;
-        if (!node || typeof IntersectionObserver !== 'function') return;
-        const observer = new IntersectionObserver(entries => {
-            const entry = entries.find(entry => entry.target === node);
-            if (entry) setIntersecting(entry.isIntersecting);
-        }, {root: scrollport.current, threshold: 0});
-        observer.observe(node);
-        return () => observer.disconnect();
-    }, [scrollport]);
-    const hasAvatar = config && ['head', 'body', 'legs', 'feet', 'accessory'].some(part =>
-        typeof config[part] === 'string' && config[part] && config[part] !== 'none');
-
-    return (
-        <div ref={ref} className="w-full h-full relative" data-testid={`avatar-thumb-${id}`}>
-            {hasAvatar ? (
-                    <SafeAvatar config={config} renderMode="shared" disableZoom={true} disablePan={true}
-                                framing="thumbnail" view="connections-thumbnail"
-                                 active={active && intersecting}
-                                instanceId={`connections-${id}`}/>
-            ) : (
-                // Initiale uniquement pour une personne réellement sans avatar.
-                <div className="absolute inset-0 bg-gray-100 flex items-center justify-center text-gray-400 font-black text-2xl select-none" aria-label={`Avatar de ${username}`}>
-                    {username ? username.charAt(0).toUpperCase() : '?'}
-                </div>
-            )}
-        </div>
-    );
-};
 
 export default function Connections({active = true}: { active?: boolean }) {
     const navigate = useNavigate();
     const listRef = useRef<HTMLDivElement>(null);
 
-    const {data: connections, isLoading} = useConnections();
+    const {data: connections, isLoading} = useConnections(active);
 
     if (isLoading) return (
         <div className="h-screen flex items-center justify-center bg-[#f8fafc]">
@@ -75,17 +39,26 @@ export default function Connections({active = true}: { active?: boolean }) {
                 {/* LISTE DES CONNEXIONS */}
                 <div ref={listRef} data-testid="connections-scrollport" className="flex-1 min-h-0 overflow-y-auto p-6 pb-32 space-y-6">
                     {connections && connections.length > 0 ? (
-                        connections.map((user) => (
+                        connections.map((user, index) => (
                             <div
                                 key={user.id}
                                 onClick={() => navigate(`/profile/${user.id}`)}
                                 className="bg-white rounded-[2.5rem] p-3 min-[400px]:p-4 shadow-xl shadow-gray-200/50 border-2 border-transparent hover:border-beer transition-[color,background-color,border-color,box-shadow,transform] group cursor-pointer flex items-center gap-2 min-[400px]:gap-4 h-48"
                             >
-                                {/* MINIATURE AVATAR 3D */}
+                                {/* MINIATURE AVATAR 2D */}
                                 <div
                                     className="w-24 h-32 min-[400px]:w-32 min-[400px]:h-40 shrink-0 bg-gray-50 rounded-[2rem] overflow-hidden relative border-2 border-gray-50 group-hover:border-amber-100 transition-colors">
 
-                                    <AvatarThumbnail id={user.id} config={user.avatar} username={user.username} active={active} scrollport={listRef}/>
+                                    <div data-testid={`avatar-thumb-${user.id}`} className="w-full h-full relative">
+                                        <AvatarImage
+                                            sprites={user.avatar_sprites}
+                                            username={user.username}
+                                            kind='portrait'
+                                            sizePx={128}
+                                            className='!h-full !w-full'
+                                            eager={index < 8}
+                                        />
+                                    </div>
 
                                     <div className="absolute inset-0 z-10"/>
                                 </div>

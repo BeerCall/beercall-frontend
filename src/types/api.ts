@@ -1,4 +1,4 @@
-import type { AvatarConfig } from './avatar';
+import type { AvatarConfig, AvatarSprites } from './avatar';
 
 export type AperoStatus = 'scheduled' | 'active' | 'ended' | 'cancelled';
 
@@ -8,10 +8,21 @@ export interface WorldParticipant {
     username: string;
     avatar_config?: AvatarConfig;
     avatar?: AvatarConfig;
+    avatar_sprites?: AvatarSprites;
     proof_photo_url?: string | null;
     joined_at?: string | null;
     excuse?: string | null;
     declined_at?: string | null;
+}
+
+/** B04 — Position « dernière connue » d'un membre localisé (A12). */
+export interface MemberLocation {
+    user_id: number;
+    username: string;
+    latitude: number;
+    longitude: number;
+    located_at: string;
+    avatar_sprites?: AvatarSprites;
 }
 
 export interface WorldDetails {

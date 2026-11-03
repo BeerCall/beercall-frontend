@@ -10,6 +10,9 @@ export const handlers = [
             refresh_token: 'fake-refresh-token'
         });
     }),
+    http.put('*/auth/location/', () => {
+        return new HttpResponse(null, { status: 204 });
+    }),
     http.post('*/auth/token/', async ({ request }) => {
         const text = await request.text();
         const params = new URLSearchParams(text);
@@ -95,6 +98,34 @@ export const handlers = [
         return HttpResponse.json([
             { id: '1', name: 'Test Squad', description: 'Une squad de test', role: 'admin' }
         ]);
+    }),
+
+    http.get('*/models/glb/manifest.json', () => {
+        return HttpResponse.json({
+            version: 1,
+            pipelineVersion: 1,
+            generatedAt: '2026-11-02T00:00:00.000Z',
+            items: [
+                { key: 'decor/bar', url: '/models/glb/v1/decors/_/Bar.hash.glb', sourceId: 'Bar' },
+                { key: 'decor/piscine', url: '/models/glb/v1/decors/_/Swimming_pool.hash.glb', sourceId: 'Swimming_pool' },
+                { key: 'decor/dodo', url: '/models/glb/v1/decors/_/Floaty_Island.hash.glb', sourceId: 'Floaty_Island' },
+                { key: 'men/head/Men_head_Casual_0', url: '/models/glb/v1/pieces/Men/Men_head_Casual_0.glb', sourceId: 'Men_head_Casual_0' },
+                { key: 'men/body/Men_body_Casual_0', url: '/models/glb/v1/pieces/Men/Men_body_Casual_0.glb', sourceId: 'Men_body_Casual_0' },
+                { key: 'men/legs/Men_legs_Casual_0', url: '/models/glb/v1/pieces/Men/Men_legs_Casual_0.glb', sourceId: 'Men_legs_Casual_0' },
+                { key: 'men/feet/Men_feet_Casual_0', url: '/models/glb/v1/pieces/Men/Men_feet_Casual_0.glb', sourceId: 'Men_feet_Casual_0' },
+            ],
+        });
+    }),
+
+    http.get('*/models/glb/v1/*', () => {
+        return new HttpResponse(new ArrayBuffer(8), {
+            status: 200,
+            headers: { 'Content-Type': 'model/gltf-binary' },
+        });
+    }),
+
+    http.get('*/squads/:id/member-locations', () => {
+        return HttpResponse.json([]);
     }),
 
     http.get('*/squads/:id', ({ params }) => {

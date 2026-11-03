@@ -1,10 +1,12 @@
 import {useState, Suspense} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
-import {ChevronLeft, Check, Medal, Users, BarChart2, Trophy} from 'lucide-react';
+import {ChevronLeft, Check, Medal, Users, BarChart2, Trophy, LogOut} from 'lucide-react';
 import {useQueryClient} from '@tanstack/react-query';
 import {useProfile} from '../hooks/useProfile';
+import {useUserStore} from '../store/useUserStore';
 import {api} from '../lib/api';
-import SafeAvatar from '../components/3D/SafeAvatar';
+import { AvatarStage } from '../components/3D/AvatarStage';
+import { AvatarImage } from '../components/Avatar/AvatarImage';
 import VestiairePanel from '../components/Profile/VestiairePanel';
 import {motion, AnimatePresence} from 'framer-motion';
 import {toast} from "../store/useToastStore.ts";
@@ -14,6 +16,7 @@ export default function Profile() {
     const {id} = useParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const logout = useUserStore((state) => state.logout);
 
     const isOwnProfile = !id || id === 'me';
     const profileId = isOwnProfile ? 'me' : id;
@@ -68,7 +71,9 @@ export default function Profile() {
         setIsSaving(true);
         try {
             await api.put('/auth/equip/', previewAvatar);
-            queryClient.invalidateQueries({queryKey: ['profile', profileId]});
+            queryClient.invalidateQueries({queryKey: ['profile']});
+            queryClient.invalidateQueries({queryKey: ['connections']});
+            queryClient.invalidateQueries({queryKey: ['member-locations']});
             toast.success("Succès", "Tenue sauvegardée avec succès ! ✨");
             return true;
         } catch {
@@ -152,6 +157,13 @@ export default function Profile() {
                         <span
                             className="text-xs font-black text-gray-600 pt-[2px] leading-none tracking-wide">{profile.caps}</span>
                     </div>
+
+                    {isOwnProfile && (
+                        <button type="button" onClick={logout} aria-label="Se déconnecter"
+                                className="pointer-events-auto min-h-11 min-w-11 inline-flex items-center justify-center rounded-xl text-gray-500 hover:text-gray-700 hover:bg-white/70 transition-colors">
+                            <LogOut size={16}/>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -181,16 +193,16 @@ export default function Profile() {
                     )}
 
                     <Suspense fallback={<div className="flex h-full items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-beer"></div></div>}>
-                        <SafeAvatar
+                        <AvatarStage
                             key={profile.id}
-                            renderMode="shared"
+                            surface="profile"
                             config={previewAvatar}
-                            framing="profile"
-                            view="profile"
-                            instanceId={`profile-${profile.id}`}
-                            disableZoom
-                            disablePan
                             onAnimationsLoaded={setAvailableAnimations}
+                            fallback={
+                                <div className="flex h-full w-full items-center justify-center">
+                                    <AvatarImage sprites={profile.avatar_sprites} username={profile.username} kind="portrait" sizePx={200} />
+                                </div>
+                            }
                         />
                     </Suspense>
                 </div>

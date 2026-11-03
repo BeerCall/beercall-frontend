@@ -156,6 +156,10 @@ export const useDashboard = () => {
     // Toute preuve photo (création immédiate ou démarrage d'un apero programmé)
     // exige un fix live et utilise ses coordonnées, jamais celles du marqueur.
     const openCamera = useCallback((_location?: { lng: number; lat: number }, apero: BeerCall | null = null) => {
+        if (!id) {
+            toast.error('Aucune squad', 'Rejoins ou crée une squad pour lancer un apéro.');
+            return;
+        }
         const current = useLocationStore.getState();
         if (!current.hasSessionFix || current.locationStatus !== 'available' || !current.userLocation) {
             toast.error('GPS actuel nécessaire', gpsMessage(current) ?? 'Une nouvelle position GPS est nécessaire pour créer.');
@@ -164,7 +168,7 @@ export const useDashboard = () => {
         setPhotoLocation(current.userLocation);
         setStartingScheduledApero(apero);
         if (fileInputRef.current) fileInputRef.current.click();
-    }, []);
+    }, [id]);
 
     const handlePhotoCapture = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {

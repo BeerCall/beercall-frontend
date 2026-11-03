@@ -1,8 +1,7 @@
-import {useState, useLayoutEffect, useRef, useCallback, Suspense} from 'react';
+import {useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, Suspense} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
-import {Canvas} from '@react-three/fiber';
 import {OrbitControls, Html, useProgress} from '@react-three/drei';
 import {api} from '../../lib/api';
 import {useGameEngine} from '../../hooks/useGameEngine';
@@ -10,6 +9,8 @@ import {useGameUIStore} from '../../store/useGameUIStore';
 import type {WorldsResponse} from '../../types/api';
 import {loadWorldModule, worldModuleQueryOptions, type WorldTab, type LoadedWorldModule} from '../../lib/worldResources';
 import SceneReadyProbe from '../3D/SceneReadyProbe';
+import {WorldCanvas} from '../../worlds/WorldCanvas';
+import {prefetchWorldAssets} from '../../worlds/prefetchWorldAssets';
 
 // 📸 IMPORT DE TA MODALE
 import PhotoModal from '../Modals/PhotoModal';
@@ -134,10 +135,35 @@ export default function SelectWorldModal({
         }
     };
 
-    const currentParticipants = worldsData?.[activeTab]?.participants || [];
+    const currentParticipants = useMemo(
+        () => worldsData?.[activeTab]?.participants || [],
+        [worldsData, activeTab],
+    );
     const hasWorldData = worldsData !== undefined && worldsData !== null;
     const participantsReliable = hasWorldData && !isPending && !isError;
     const canLaunchGame = isActiveApero && participantsReliable && currentParticipants.length >= 2;
+
+    const participantsForPrefetch = useMemo(() => {
+        return currentParticipants.map((p) => {
+            const cfg = p.avatar_config;
+            return {
+                head: cfg?.head ?? undefined,
+                body: cfg?.body ?? undefined,
+                legs: cfg?.legs ?? undefined,
+                feet: cfg?.feet ?? undefined,
+                accessory: cfg?.accessory,
+            };
+        });
+    }, [currentParticipants]);
+
+    useEffect(() => {
+        if (isOpen && participantsForPrefetch.length > 0) {
+            void prefetchWorldAssets({
+                world: activeTab,
+                participants: participantsForPrefetch,
+            });
+        }
+    }, [isOpen, activeTab, participantsForPrefetch]);
 
     // Contrôle accessible de lancement : le levier 3D reste le contrôle visuel,
     // mais un bouton masqué permet aux lecteurs d'écran et aux tests E2E de démarrer la partie.
@@ -256,11 +282,16 @@ export default function SelectWorldModal({
                                         <p className="mt-3 text-sm text-gray-900 font-bold">Chargement du monde 3D…</p>
                                     </div>
                                 )}
-                                <Canvas data-world-canvas camera={{position: [0, 80, 450], fov: 45}} dpr={[1, 1.5]}>
-                                    <ambientLight intensity={activeTab === 'bar' ? 1 : 1.5}/>
-                                    <directionalLight position={[10, 10, 10]} intensity={2.5}/>
-                                    <directionalLight position={[-10, 10, -10]} intensity={1}/>
-
+                                <WorldCanvas
+                                    world={activeTab}
+                                    decorReady={Boolean(ActiveWorld)}
+                                    avatarsReady={participantsReliable && isWorldReady}
+                                    onReady={(ready) => {
+                                        if (ready) {
+                                            handleWorldReadinessChange(activeTab, tabGeneration, true);
+                                        }
+                                    }}
+                                >
                                     {/* 🛡️ SUSPENSE: EMPÊCHE LE DEMONTAGE GLOBAL DU DASHBOARD */}
                                     <Suspense fallback={<CanvasLoader />}>
                                         {/* AIGUILLAGE VERS LES BONS COMPOSANTS 3D AVEC LA FONCTION DE PHOTO */}
@@ -306,7 +337,7 @@ export default function SelectWorldModal({
                                         autoRotate={false}
                                         autoRotateSpeed={0.5}
                                     />
-                                </Canvas>
+                                </WorldCanvas>
                                 </>
                             )}
 

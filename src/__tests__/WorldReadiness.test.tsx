@@ -90,6 +90,10 @@ vi.mock('@react-three/fiber', () => ({
     useThree: threeUseThreeMock,
 }));
 
+vi.mock('../worlds/WorldCanvas', () => ({
+    WorldCanvas: ({ children }: React.PropsWithChildren<unknown>) => <div data-testid="world-canvas">{children}</div>,
+}));
+
 vi.mock('@react-three/drei', () => {
     const dummyScene = {
         clone: () => dummyScene,
@@ -135,6 +139,34 @@ vi.mock('../components/3D/AvatarCanvas', () => ({
         }, [config?.head]);
 
         return <div data-testid={`modular-avatar-${config?.head || 'none'}`} />;
+    },
+}));
+
+vi.mock('../avatar/AvatarRenderer', () => ({
+    AvatarRenderer: ({
+        config,
+        onReadinessChange,
+    }: {
+        config: AvatarConfig;
+        onReadinessChange?: (isReady: boolean, details?: { parts: string[]; meshCount: number }) => void;
+    }) => {
+        const onReadinessChangeRef = React.useRef(onReadinessChange);
+        React.useEffect(() => {
+            onReadinessChangeRef.current = onReadinessChange;
+        }, [onReadinessChange]);
+
+        React.useEffect(() => {
+            const avatarId = config?.head || 'default';
+            modularAvatarCaptors.set(avatarId, (isReady, details) => {
+                onReadinessChangeRef.current?.(isReady, details);
+            });
+            return () => {
+                modularAvatarCaptors.delete(avatarId);
+                onReadinessChangeRef.current?.(false);
+            };
+        }, [config?.head]);
+
+        return <div data-testid={`avatar-renderer-${config?.head || 'none'}`} />;
     },
 }));
 

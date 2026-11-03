@@ -2,7 +2,6 @@ import {useRef, useState, useMemo, useEffect, useCallback} from 'react';
 import {useFBX, Float, ContactShadows, Html} from '@react-three/drei';
 import {SkeletonUtils} from 'three-stdlib';
 import {useNavigate} from 'react-router-dom';
-import {ModularAvatar} from "./AvatarCanvas.tsx";
 import type {WorldParticipant} from '../../types/api.ts';
 import type {AvatarConfig, AvatarTransform} from '../../types/avatar.ts';
 import {
@@ -11,6 +10,9 @@ import {
     type WorldShadowPolicy,
 } from '../../lib/renderPolicy';
 import WorldContactShadows from './WorldContactShadows';
+import { isFeatureEnabled } from '../../config/featureFlags';
+import { useWorldDecor } from '../../worlds/useWorldDecor';
+import { AvatarRenderer } from '../../avatar/AvatarRenderer';
 
 function ModelPart({path, customTransform, isEnvironment = false}: {
     path: string,
@@ -33,6 +35,31 @@ function ModelPart({path, customTransform, isEnvironment = false}: {
             rotation={customTransform?.rotation || [0, 0, 0]}
         />
     );
+}
+
+function GlbPiscineDecor({ onDecorReady }: { onDecorReady?: () => void }) {
+    const { decor, error } = useWorldDecor('decor/piscine');
+    const reportedRef = useRef(false);
+
+    useEffect(() => {
+        if (decor && !reportedRef.current) {
+            reportedRef.current = true;
+            onDecorReady?.();
+        }
+    }, [decor, onDecorReady]);
+
+    if (error) throw error;
+    if (!decor) return null;
+
+    return <primitive object={decor} />;
+}
+
+function LegacyPiscineDecor({ onDecorReady }: { onDecorReady?: () => void }) {
+    useEffect(() => {
+        onDecorReady?.();
+    }, [onDecorReady]);
+
+    return <ModelPart path="/models/Swimming_pool.fbx" isEnvironment={true} />;
 }
 
 // 🎛️ CONFIG GLOBALE DES AVATARS
@@ -75,6 +102,7 @@ export default function PiscineWorld({
 }: PiscineWorldProps) {
     const effectiveShadowPolicy = shadowPolicy ?? getWorldShadowPolicy();
     const shadowDetails = getShadowPolicyDetails(effectiveShadowPolicy);
+    const isGlb = isFeatureEnabled('glbWorlds');
 
     const avatarPositions = useMemo(
         () => participants.map((_, index) => getDynamicPlacement(index, participants.length).position),
@@ -143,6 +171,11 @@ export default function PiscineWorld({
         }
     }, [participants, expectedKeys]);
 
+    const handleDecorReady = useCallback(() => {
+        decorMountedRef.current = true;
+        checkReadiness();
+    }, [checkReadiness]);
+
     // Invalidation et nettoyage des clés lors d'un changement de participants ou de configuration
     useEffect(() => {
         const currentKeySet = new Set(expectedKeys);
@@ -191,7 +224,7 @@ export default function PiscineWorld({
     return (
         <group position={[0, 0, 0]}>
             {/* 🌑 OMBRE DE CONTACT PARTAGÉE (CHAL-06 / option 'shared') */}
-            {shadowDetails.useSharedShadows && (
+            {!isGlb && shadowDetails.useSharedShadows && (
                 <WorldContactShadows positions={avatarPositions} groundY={50} />
             )}
 
@@ -201,7 +234,11 @@ export default function PiscineWorld({
                 scale={[PISCINE_SETTINGS.scale, PISCINE_SETTINGS.scale, PISCINE_SETTINGS.scale]}
                 rotation={PISCINE_SETTINGS.rotation}
             >
-                <ModelPart path="/models/Swimming_pool.fbx" isEnvironment={true}/>
+                {isGlb ? (
+                    <GlbPiscineDecor onDecorReady={handleDecorReady} />
+                ) : (
+                    <LegacyPiscineDecor onDecorReady={handleDecorReady} />
+                )}
             </group>
 
             {/* LES AVATARS PLACÉS EN CERCLE */}
@@ -230,17 +267,18 @@ export default function PiscineWorld({
                             document.body.style.cursor = 'auto';
                         }}
                     >
-                        {/* L'AVATAR AVEC UNE FLottaison PLUS FORTE */}
+                        {/* L'AVATAR AVEC UNE FLOTTAISON PLUS FORTE */}
                         <group scale={[GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale]}>
                             <Float speed={2.5} rotationIntensity={0.05} floatIntensity={0.2}>
-                                <ModularAvatar
+                                <AvatarRenderer
+                                    format={isGlb ? 'glb' : 'fbx'}
                                     config={config}
                                     onReadinessChange={(isReady, details) => handleAvatarReadinessChange(avatarKey, isReady, details)}
                                 />
                             </Float>
                         </group>
 
-                        {shadowDetails.useLocalShadows && (effectiveShadowPolicy !== 'static' || shadowReadyGeneration === shadowGeneration) && (
+                        {!isGlb && shadowDetails.useLocalShadows && (effectiveShadowPolicy !== 'static' || shadowReadyGeneration === shadowGeneration) && (
                             <ContactShadows
                                 key={avatarKey}
                                 position={[0, 0, 0]}

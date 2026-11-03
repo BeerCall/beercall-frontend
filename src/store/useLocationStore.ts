@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware';
 interface LocationState {
     userLocation: { lat: number; lng: number } | null;
     acquiredAt: number | null;
+    accuracy: number | null;
     hasSessionFix: boolean;
     locationStatus: 'idle' | 'searching' | 'available' | 'denied' | 'unavailable' | 'timeout' | 'unsupported';
     isTracking: boolean;
@@ -22,6 +23,7 @@ export const useLocationStore = create<LocationState>()(
             return {
                 userLocation: null,
                 acquiredAt: null,
+                accuracy: null,
                 hasSessionFix: false,
                 locationStatus: 'idle',
                 isTracking: false,
@@ -40,7 +42,7 @@ export const useLocationStore = create<LocationState>()(
                     }
                     let watchHasReported = false;
                     let lastAcceptedTimestamp: number | null = null;
-                    set({ hasSessionFix: false, locationStatus: 'searching', error: null });
+                    set({ hasSessionFix: false, locationStatus: 'searching', error: null, accuracy: null });
                     const geolocation = navigator.geolocation;
                     if (!geolocation) {
                         set({ locationStatus: 'unsupported', isTracking: false, error: "Géolocalisation non supportée par votre navigateur." });
@@ -57,13 +59,16 @@ export const useLocationStore = create<LocationState>()(
                         if (!canAccept(source)) return;
                         if (lastAcceptedTimestamp !== null && pos.timestamp < lastAcceptedTimestamp) return;
                         lastAcceptedTimestamp = pos.timestamp;
+                        const accuracy = Number.isFinite(pos.coords.accuracy) && pos.coords.accuracy >= 0
+                            ? pos.coords.accuracy
+                            : null;
                         set({ userLocation: { lat: pos.coords.latitude, lng: pos.coords.longitude },
-                            acquiredAt: pos.timestamp, hasSessionFix: true, locationStatus: 'available', error: null });
+                            acquiredAt: pos.timestamp, accuracy, hasSessionFix: true, locationStatus: 'available', error: null });
                     };
                     const failure = (source: 'watch' | 'point', err: GeolocationPositionError) => {
                         if (!canAccept(source)) return;
                         console.warn('Erreur de géolocalisation', err);
-                        set({ error: err.message, hasSessionFix: false,
+                        set({ error: err.message, hasSessionFix: false, accuracy: null,
                             locationStatus: err.code === 1 ? 'denied' : err.code === 3 ? 'timeout' : 'unavailable' });
                     };
                     geolocation.getCurrentPosition(pos => success('point', pos), err => failure('point', err),
@@ -76,7 +81,7 @@ export const useLocationStore = create<LocationState>()(
 
                 stopTracking: () => {
                     generation++;
-                    set({ isTracking: false, hasSessionFix: false, locationStatus: 'idle' });
+                    set({ isTracking: false, hasSessionFix: false, locationStatus: 'idle', accuracy: null });
                     if (watchId !== null) {
                         trackingGeolocation?.clearWatch(watchId);
                         watchId = null;
@@ -92,7 +97,7 @@ export const useLocationStore = create<LocationState>()(
                 const cached = persisted as Partial<Pick<LocationState, 'userLocation' | 'acquiredAt'>> | undefined;
                 return { ...current, userLocation: cached?.userLocation ?? null,
                     acquiredAt: typeof cached?.acquiredAt === 'number' ? cached.acquiredAt : null,
-                    hasSessionFix: false, locationStatus: 'idle', isTracking: false, error: null };
+                    accuracy: null, hasSessionFix: false, locationStatus: 'idle', isTracking: false, error: null };
             },
         }
     )

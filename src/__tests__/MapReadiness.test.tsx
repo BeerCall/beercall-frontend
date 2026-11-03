@@ -5,7 +5,7 @@ import { MapSection } from '../components/Dashboard/MapSection';
 import { useDashboard } from '../hooks/useDashboard';
 import { mapMockControl } from '../../setupTests';
 import { getLatestSceneSignal, clearSceneMetrics } from '../lib/sceneMetrics';
-import type { Profile } from '../types/dashboard';
+import type { SnapPerson } from '../map/snap/types';
 
 vi.mock('react-router-dom', async () => ({
     ...await vi.importActual<typeof import('react-router-dom')>('react-router-dom'),
@@ -29,9 +29,15 @@ vi.mock('../hooks/usePushNotifications', () => ({
     usePushNotifications: () => ({ subscribeToNotifications: vi.fn().mockResolvedValue(true) }),
 }));
 
-vi.mock('../components/3D/SafeAvatar', () => ({
-    default: ({renderMode}: {renderMode: string}) => <div data-testid="avatar-canvas" data-render-mode={renderMode}>Avatar partagé demandé</div>,
-}));
+const member = (id: string, name: string, lng: number, lat: number): SnapPerson => ({
+    id,
+    bodyKey: `initial:${name.charAt(0).toUpperCase()}`,
+    bodyUrl: null,
+    hash: null,
+    name,
+    since: 'maintenant',
+    coordinates: [lng, lat],
+});
 
 describe('Map Readiness & onLoad lifecycle (CHAL-07)', () => {
     beforeEach(() => {
@@ -86,20 +92,13 @@ describe('Map Readiness & onLoad lifecycle (CHAL-07)', () => {
         });
     });
 
-    describe('MapSection: cycle de vie d’événements réels MapLibre', () => {
-        const dummyProfile: Profile = {
-            id: 'u1',
-            username: 'soldat',
-            avatar: { hair: 'short', clothes: 'tshirt' }
-        } as unknown as Profile;
-
+    describe('MapSection: carte réelle, aucune cellule 3D joueur', () => {
         const defaultProps = {
             mapRef: { current: null },
             userLocation: { lat: 48.8566, lng: 2.3522 },
             canCreateFromLocation: true,
             isNightMode: false,
             squadDetails: null,
-            profile: dummyProfile,
             handleMapPointerDown: vi.fn(),
             cancelLongPress: vi.fn(),
             handleMapPointerMove: vi.fn(),
@@ -107,24 +106,22 @@ describe('Map Readiness & onLoad lifecycle (CHAL-07)', () => {
             handleBeerCallClick: vi.fn(),
             openCamera: vi.fn(),
             setIsWorldsModalOpen: vi.fn(),
+            people: [member('a', 'Alice', 2.35, 48.85), member('b', 'Bob', 2.36, 48.86)],
         };
 
-        it('avant onLoad : pas ready, spinner présent, pas de timer 500 ms, aucun signal mapInteractive', () => {
+        it('avant onLoad : pas ready, aucune cellule 3D, couche Snap avec tous les membres', () => {
             const handleMapLoaded = vi.fn();
             render(<MapSection {...defaultProps} handleMapLoaded={handleMapLoaded} isMapReady={false} />);
 
-            // Vérifie la présence de la carte mockée
             expect(screen.getByTestId('mock-map')).toBeInTheDocument();
-
-            // L'avatar n'est PAS encore rendu : le spinner est présent
             expect(screen.queryByTestId('avatar-canvas')).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+            const source = screen.getByTestId('mock-source');
+            expect(source.querySelectorAll('[data-layer]')).toHaveLength(3);
             expect(handleMapLoaded).not.toHaveBeenCalled();
             expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
 
-            // Même après 500 ms, l'avatar n'est pas autorisé sans onLoad réel
-            act(() => {
-                vi.advanceTimersByTime(500);
-            });
+            act(() => { vi.advanceTimersByTime(500); });
             expect(screen.queryByTestId('avatar-canvas')).not.toBeInTheDocument();
             expect(handleMapLoaded).not.toHaveBeenCalled();
             expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
@@ -134,79 +131,59 @@ describe('Map Readiness & onLoad lifecycle (CHAL-07)', () => {
             const handleMapLoaded = vi.fn();
             render(<MapSection {...defaultProps} handleMapLoaded={handleMapLoaded} isMapReady={false} />);
 
-            expect(screen.queryByTestId('avatar-canvas')).not.toBeInTheDocument();
-
-            // Simulation d'une erreur MapLibre (échec de tuiles/style)
-            act(() => {
-                mapMockControl.triggerError();
-            });
+            act(() => { mapMockControl.triggerError(); });
 
             expect(screen.queryByTestId('avatar-canvas')).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
             expect(handleMapLoaded).not.toHaveBeenCalled();
             expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
         });
 
-        it('après événement onLoad : avatar autorisé immédiatement sans attente 500 ms', async () => {
+        it('après onLoad : source Snap prête sans 3D, mapInteractive seulement après idle', () => {
             const handleMapLoaded = vi.fn();
             render(<MapSection {...defaultProps} handleMapLoaded={handleMapLoaded} isMapReady={false} />);
 
-            expect(screen.queryByTestId('avatar-canvas')).not.toBeInTheDocument();
-
-            // Déclenchement de l'événement onLoad réel de la carte
-            act(() => {
-                mapMockControl.triggerLoad();
-            });
+            act(() => { mapMockControl.triggerLoad(); });
 
             expect(handleMapLoaded).toHaveBeenCalledOnce();
-
-            // L'avatar 3D est désormais autorisé et rendu sans attendre
-            const canvas = await screen.findByTestId('avatar-canvas');
-            expect(canvas).toBeInTheDocument();
-            expect(canvas).toHaveAttribute('data-render-mode', 'shared');
-
-            // SÉPARATION T10C : onLoad seul N'ÉMET PAS mapInteractive
+            expect(screen.queryByTestId('avatar-canvas')).not.toBeInTheDocument();
+            expect(screen.getByTestId('mock-source').querySelectorAll('[data-layer]')).toHaveLength(3);
             expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
 
-            // C'est onIdle qui certifie l'interactivité de la scène
-            act(() => {
-                mapMockControl.triggerIdle();
-            });
+            act(() => { vi.advanceTimersByTime(1); mapMockControl.triggerIdle(); });
 
             const signal = getLatestSceneSignal('mapInteractive');
             expect(signal).toBeDefined();
             expect(signal?.view).toBe('dashboard');
         });
 
-        it('conserve le même avatar après une erreur carte, sans certifier une carte en erreur', async () => {
+        it('conserve la même source après une erreur carte, sans certifier une carte en erreur', () => {
             render(<MapSection {...defaultProps} isMapReady={false} />);
 
-            act(() => {
-                mapMockControl.triggerLoad();
-            });
-
-            const canvas = await screen.findByTestId('avatar-canvas');
-            act(() => { mapMockControl.triggerIdle(); });
+            act(() => { mapMockControl.triggerLoad(); });
+            const source = screen.getByTestId('mock-source');
+            act(() => { vi.advanceTimersByTime(1); mapMockControl.triggerIdle(); });
             expect(getLatestSceneSignal('mapInteractive')).toBeDefined();
 
-            // Erreur subséquente
-            act(() => {
-                mapMockControl.triggerError();
-            });
+            act(() => { mapMockControl.triggerError(); });
 
-            expect(screen.getByTestId('avatar-canvas')).toBe(canvas);
+            expect(screen.getByTestId('mock-source')).toBe(source);
+            expect(screen.queryByTestId('avatar-canvas')).not.toBeInTheDocument();
             expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
-            act(() => { mapMockControl.triggerIdle(); });
+            act(() => { vi.advanceTimersByTime(1); mapMockControl.triggerIdle(); });
             expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
         });
 
-        it('ne remonte pas l’avatar si la carte signale une erreur pendant le passage par le profil', async () => {
+        it('ne remonte pas la source si la carte signale une erreur pendant le passage par le profil', () => {
             const { rerender } = render(<MapSection {...defaultProps} visible active isMapReady={false}/>);
-            act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
-            const canvas = await screen.findByTestId('avatar-canvas');
+            act(() => { mapMockControl.triggerLoad(); vi.advanceTimersByTime(1); mapMockControl.triggerIdle(); });
             rerender(<MapSection {...defaultProps} visible={false} active={false} isMapReady={false}/>);
             act(() => { mapMockControl.triggerError(); });
             rerender(<MapSection {...defaultProps} visible active isMapReady={false}/>);
-            expect(screen.getByTestId('avatar-canvas')).toBe(canvas);
+            const newSource = screen.getByTestId('mock-source');
+            expect(newSource).toBeInTheDocument();
+            expect(newSource.querySelectorAll('[data-layer]')).toHaveLength(3);
+            expect(screen.queryByTestId('avatar-canvas')).not.toBeInTheDocument();
             expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
         });
     });

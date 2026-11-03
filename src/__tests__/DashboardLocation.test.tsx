@@ -9,7 +9,8 @@ import { useToastStore } from '../store/useToastStore';
 import Dashboard from '../pages/Dashboard';
 import type { BeerCall } from '../types/api';
 
-vi.mock('react-router-dom', async () => ({ ...await vi.importActual<typeof import('react-router-dom')>('react-router-dom'), useParams: () => ({ id: '1' }), useNavigate: () => vi.fn() }));
+const routerState = vi.hoisted(() => ({ squadId: '1' as string | undefined }));
+vi.mock('react-router-dom', async () => ({ ...await vi.importActual<typeof import('react-router-dom')>('react-router-dom'), useParams: () => ({ id: routerState.squadId }), useNavigate: () => vi.fn() }));
 vi.mock('../hooks/useProfile', () => ({ useProfile: () => ({ data: null }) }));
 vi.mock('../hooks/useSquadDetails', () => ({ useSquadDetails: () => ({ data: { id: '1', name: 'Squad test', color: '#F59E0B', icon: 'beer', invite_code: 'TEST', active_beer_call: [], scheduled_beer_calls: [], past_beer_calls: [] } }) }));
 vi.mock('../hooks/useSquads', () => ({ useSquads: () => ({ data: [], isLoading: false }) }));
@@ -18,6 +19,9 @@ vi.mock('../hooks/useSquadWebSocket', () => ({ useSquadWebSocket: vi.fn() }));
 vi.mock('react-map-gl/maplibre', () => ({
     default: ({ children }: PropsWithChildren) => <div>{children}</div>,
     Marker: ({ children }: PropsWithChildren) => <div>{children}</div>, NavigationControl: () => null,
+    useMap: () => ({ current: null }),
+    Source: ({ children }: PropsWithChildren) => <div>{children}</div>,
+    Layer: () => null,
 }));
 interface Callbacks { success: PositionCallback; error?: PositionErrorCallback | null }
 const points: Callbacks[] = [], watches: Callbacks[] = [];
@@ -46,6 +50,7 @@ beforeEach(() => {
 });
 afterEach(() => {
     state().stopTracking();
+    routerState.squadId = '1';
     if (originalGeo) Object.defineProperty(navigator, 'geolocation', originalGeo);
     else Reflect.deleteProperty(navigator, 'geolocation');
 });
@@ -59,6 +64,29 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(click).not.toHaveBeenCalled();
         expect(useToastStore.getState().toasts.at(-1)?.message).toContain('Autorise la localisation');
         expect(useToastStore.getState().toasts.at(-1)?.message).not.toContain('Recherche en cours');
+    });
+
+    it('openCamera suit id absent → présent → absent sans clic hors squad', () => {
+        const view = renderHook(() => useDashboard());
+        const input = document.createElement('input');
+        const click = vi.spyOn(input, 'click').mockImplementation(() => {});
+        view.result.current.fileInputRef.current = input;
+
+        routerState.squadId = undefined;
+        view.rerender();
+        act(() => { state().startTracking(); watches[0].success(position(1000)); });
+        act(() => view.result.current.openCamera());
+        expect(click).not.toHaveBeenCalled();
+
+        routerState.squadId = '1';
+        view.rerender();
+        act(() => view.result.current.openCamera());
+        expect(click).toHaveBeenCalledTimes(1);
+
+        routerState.squadId = undefined;
+        view.rerender();
+        act(() => view.result.current.openCamera());
+        expect(click).toHaveBeenCalledTimes(1);
     });
 
     it('sans fix live : aucun joueur, aucun texte GPS mémorisé, cache conservé et création bloquée', () => {
@@ -78,14 +106,14 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(click).not.toHaveBeenCalled();
     });
 
-    it('affiche le joueur et recentre seulement avec un fix live', () => {
+    it('recentre seulement avec un fix live et ne monte jamais le marker Créer', () => {
         cache(1234);
         render(<Dashboard />);
         expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
 
         act(() => watches.at(-1)!.success(position(4000, 48, 2)));
 
-        expect(screen.getByRole('button', { name: 'Créer un Beer Call' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Me recentrer' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Relancer la localisation' })).not.toBeInTheDocument();
 
@@ -234,6 +262,31 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
             act(() => watches[0].success(position(3000, 90)));
             expect(state()).toMatchObject({ acquiredAt: 2000, userLocation: { lat: 49, lng: 2 } });
         }
+    });
+
+    it('sans fix, Lancer existe avec squad mais ne déclenche jamais l’input et aucun marker Créer n’existe', () => {
+        const { container } = render(<Dashboard />);
+        const input = container.querySelector('input[aria-label="Photo du Beer Call"]') as HTMLInputElement;
+        const click = vi.spyOn(input, 'click').mockImplementation(() => {});
+
+        const launch = screen.getByRole('button', { name: /Lancer l'apéro/i });
+        expect(launch).toBeEnabled();
+        fireEvent.click(launch);
+        expect(click).not.toHaveBeenCalled();
+        expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+    });
+
+    it('avec fix live, Lancer déclenche l’input une fois avec la position live', () => {
+        const { container } = render(<Dashboard />);
+        act(() => { state().startTracking(); watches[0].success(position(2000, 49, 4)); });
+        const input = container.querySelector('input[aria-label="Photo du Beer Call"]') as HTMLInputElement;
+        const click = vi.spyOn(input, 'click').mockImplementation(() => {});
+
+        fireEvent.click(screen.getByRole('button', { name: /Lancer l'apéro/i }));
+
+        expect(click).toHaveBeenCalledTimes(1);
+        expect(state().userLocation).toEqual({ lat: 49, lng: 4 });
+        expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
     });
 
     it('un refus ne relance pas de lui-même et une demande explicite réussit', () => {

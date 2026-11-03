@@ -4,7 +4,6 @@ import {useFBX, Float, ContactShadows, Html, Text} from '@react-three/drei';
 import * as THREE from 'three';
 import {SkeletonUtils} from 'three-stdlib';
 import {useNavigate} from 'react-router-dom';
-import {ModularAvatar} from "./AvatarCanvas";
 import {useGameEngine} from "../../hooks/useGameEngine";
 import {useGameUIStore} from '../../store/useGameUIStore';
 import {toast} from '../../store/useToastStore';
@@ -16,6 +15,9 @@ import {
     type WorldShadowPolicy,
 } from '../../lib/renderPolicy';
 import WorldContactShadows from './WorldContactShadows';
+import { isFeatureEnabled } from '../../config/featureFlags';
+import { useWorldDecor } from '../../worlds/useWorldDecor';
+import { AvatarRenderer } from '../../avatar/AvatarRenderer';
 
 type LegacyMaterial = THREE.Material & {
     color?: THREE.Color;
@@ -74,6 +76,31 @@ function ModelPart({path, customTransform, isBar = false}: { path: string, custo
             rotation={customTransform?.rotation || [0, 0, 0]}
         />
     );
+}
+
+function GlbBarDecor({ onDecorReady }: { onDecorReady?: () => void }) {
+    const { decor, error } = useWorldDecor('decor/bar');
+    const reportedRef = useRef(false);
+
+    useEffect(() => {
+        if (decor && !reportedRef.current) {
+            reportedRef.current = true;
+            onDecorReady?.();
+        }
+    }, [decor, onDecorReady]);
+
+    if (error) throw error;
+    if (!decor) return null;
+
+    return <primitive object={decor} />;
+}
+
+function LegacyBarDecor({ onDecorReady }: { onDecorReady?: () => void }) {
+    useEffect(() => {
+        onDecorReady?.();
+    }, [onDecorReady]);
+
+    return <ModelPart path="/models/Bar.fbx" isBar={true} />;
 }
 
 // 🎰 NOUVEAU COMPOSANT : LA MACHINE À SOUS INTERACTIVE PROCÉDURALE
@@ -303,6 +330,7 @@ export default function BarWorld({
 }) {
     const effectiveShadowPolicy = shadowPolicy ?? getWorldShadowPolicy();
     const shadowDetails = getShadowPolicyDetails(effectiveShadowPolicy);
+    const isGlb = isFeatureEnabled('glbWorlds');
 
     const avatarPositions = useMemo(
         () => participants.map((_, index) => getDynamicPlacement(index, participants.length).position),
@@ -389,6 +417,11 @@ export default function BarWorld({
         }
     }, [participants, expectedKeys]);
 
+    const handleDecorReady = useCallback(() => {
+        decorMountedRef.current = true;
+        checkReadiness();
+    }, [checkReadiness]);
+
     // Invalidation et nettoyage des clés lors d'un changement de participants ou de configuration
     useEffect(() => {
         const currentKeySet = new Set(expectedKeys);
@@ -437,14 +470,18 @@ export default function BarWorld({
     return (
         <group position={[0, 0, 0]}>
             {/* 🌑 OMBRE DE CONTACT PARTAGÉE (CHAL-06 / option 'shared') */}
-            {shadowDetails.useSharedShadows && (
+            {!isGlb && shadowDetails.useSharedShadows && (
                 <WorldContactShadows positions={avatarPositions} groundY={5} />
             )}
 
             {/* 🌟 LE BAR */}
             <group position={BAR_SETTINGS.position} scale={[BAR_SETTINGS.scale, BAR_SETTINGS.scale, BAR_SETTINGS.scale]}
                    rotation={BAR_SETTINGS.rotation}>
-                <ModelPart path="/models/Bar.fbx" isBar={true}/>
+                {isGlb ? (
+                    <GlbBarDecor onDecorReady={handleDecorReady} />
+                ) : (
+                    <LegacyBarDecor onDecorReady={handleDecorReady} />
+                )}
             </group>
 
             {/* 🎰 LA MACHINE À SOUS EN LÉVITATION AU-DESSUS DU BAR */}
@@ -487,7 +524,8 @@ export default function BarWorld({
                         >
                             <group scale={[GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale, GLOBAL_CONFIG.scale]}>
                                 <Float speed={1} rotationIntensity={0.02} floatIntensity={0.02}>
-                                    <ModularAvatar
+                                    <AvatarRenderer
+                                        format={isGlb ? 'glb' : 'fbx'}
                                         config={config}
                                         onReadinessChange={(isReady, details) => handleAvatarReadinessChange(avatarKey, isReady, details)}
                                     />
@@ -495,7 +533,7 @@ export default function BarWorld({
                             </group>
                         </group>
 
-                        {shadowDetails.useLocalShadows && (effectiveShadowPolicy !== 'static' || shadowReadyGeneration === shadowGeneration) && (
+                        {!isGlb && shadowDetails.useLocalShadows && (effectiveShadowPolicy !== 'static' || shadowReadyGeneration === shadowGeneration) && (
                             <ContactShadows
                                 key={avatarKey}
                                 position={[0, 0, 0]}

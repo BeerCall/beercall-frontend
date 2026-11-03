@@ -194,4 +194,14 @@ describe('Page SignUp (Coverage)', () => {
         expect(localStorage.getItem('refresh_token')).toBeNull();
         expect(button).toBeEnabled();
     });
+
+    it('monte AvatarStage avec surface="signup" à l’étape 2 sans aucun SafeAvatar', async () => {
+        server.use(
+            http.get('*/auth/profile/', () => HttpResponse.json({ shop_items: [] })),
+        );
+        render(<SignUp />);
+        await enterAvatar();
+        expect(screen.queryByTestId('safe-avatar-container')).toBeNull();
+        expect(screen.getByRole('button', { name: 'Créer mon compte' })).toBeInTheDocument();
+    });
 });

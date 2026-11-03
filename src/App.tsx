@@ -8,9 +8,6 @@ import Layout from './components/Layout';
 import ToastContainer from './components/UI/ToastContainer';
 import PersistentDashboard from './components/PersistentDashboard';
 import PersistentConnections from './components/PersistentConnections';
-import WorldWarmup from './components/WorldWarmup';
-import AvatarViewportProvider from './components/3D/AvatarViewportProvider';
-import AvatarWarmup from './components/AvatarWarmup';
 
 // Lazy loading extrême pour tuer le Bundle Size Obèse (LCP optimisé)
 const Login = React.lazy(() => import('./pages/Login'));
@@ -90,7 +87,6 @@ function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
     return (
         <QueryClientProvider client={queryClient}>
             <BrowserRouter unstable_useTransitions={false}>
-                <AvatarViewportProvider>
                 <ToastContainer/>
                 {diagnostics && <Suspense fallback={null}><PerformancePanel/></Suspense>}
                 <Suspense fallback={<LoadingFallback />}>
@@ -116,9 +112,6 @@ function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
                 </Suspense>
                 <PersistentDashboard/>
                 <PersistentConnections/>
-                <WorldWarmup/>
-                <AvatarWarmup/>
-                </AvatarViewportProvider>
             </BrowserRouter>
         </QueryClientProvider>
     );

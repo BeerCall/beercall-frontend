@@ -1,15 +1,16 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import {createPortal} from 'react-dom';
 import Map, { Marker, NavigationControl, type MapRef, type MapLayerMouseEvent, type MapLayerTouchEvent } from 'react-map-gl/maplibre';
 import { motion } from 'framer-motion';
-import { User as UserIcon, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
-import AvatarLoadingIndicator from './AvatarLoadingIndicator';
 import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
-import { QueryClientContext } from '@tanstack/react-query';
 import { useLocationStore } from '../../store/useLocationStore';
 import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
-import SafeAvatar from '../3D/SafeAvatar';
+import { SnapAvatarLayer } from './SnapAvatarLayer';
+import type { SnapPerson } from '../../map/snap/types';
+import { useLease } from '../../three/lease/useLease';
+import { createLeasedMapLibrary } from '../../three/lease/createLeasedMapLibrary';
 
 interface NativeMap {
     on?: (event: string, fn: (evt?: unknown) => void) => void;
@@ -39,11 +40,11 @@ function MapContents() {
     return React.useContext(MapContentsContext);
 }
 const RetainedNativeMap = React.memo(function RetainedNativeMap({ element }: {
-    element: React.ReactElement;
+    element: React.ReactElement | null;
     frozen: boolean;
 }) {
     return element;
-}, (previous, next) => next.frozen && previous.element.key === next.element.key);
+}, (previous, next) => next.frozen && previous.element?.key === next.element?.key);
 
 interface MapSectionProps {
     mapRef: React.RefObject<MapRef | null>;
@@ -63,6 +64,9 @@ interface MapSectionProps {
     handleBeerCallClick: (beerCall: BeerCall) => void;
     openCamera: (location?: { lng: number; lat: number }, apero?: BeerCall) => void;
     setIsWorldsModalOpen: (id: string) => void;
+    /** B09 — personnes Snap déjà normalisées par le Dashboard. */
+    people?: readonly SnapPerson[];
+    onSelectUser?: (id: string) => void;
 }
 
 export const MapSection: React.FC<MapSectionProps> = React.memo(({
@@ -70,29 +74,25 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     userLocation,
     canCreateFromLocation = false,
     isNightMode,
-    isMapReady,
     handleMapLoaded,
     active = true,
     visible = true,
     squadDetails,
-    profile,
     handleMapPointerDown,
     cancelLongPress,
     handleMapPointerMove,
     handleManualRecenter,
     handleBeerCallClick,
     openCamera,
-    setIsWorldsModalOpen
+    setIsWorldsModalOpen,
+    people,
+    onSelectUser
 }) => {
     const mapStyle = isNightMode
         ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
         : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
     const startTracking = useLocationStore(state => state.startTracking);
     const hasLiveLocation = canCreateFromLocation && userLocation !== null;
-    const [hasHadLiveLocation, setHasHadLiveLocation] = React.useState(hasLiveLocation);
-    // Ne jamais monter le joueur à partir du cache seul. Après un vrai fix,
-    // conserver son Canvas en pause pendant le renouvellement au retour de route.
-    if (hasLiveLocation && !hasHadLiveLocation) setHasHadLiveLocation(true);
 
     // Avec un fix live, le bouton recentre la carte ; sans fix, il relance
     // explicitement l'acquisition GPS sans boucle automatique.
@@ -106,42 +106,14 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         startTracking();
     }, [hasLiveLocation, handleManualRecenter, startTracking]);
 
-    const handlePlayerClick = React.useCallback(() => {
-        openCamera();
-    }, [openCamera]);
-
     const handlePointerMove = React.useCallback((event: MapLayerMouseEvent | MapLayerTouchEvent) => {
         handleMapPointerMove?.(event as MapLayerMouseEvent);
     }, [handleMapPointerMove]);
 
-    // WebGL absent (jsdom, navigateur bridé) : inutile de télécharger le chunk 3D.
-    const canWarm3d = React.useMemo(
-        () => typeof WebGL2RenderingContext !== 'undefined' || typeof WebGLRenderingContext !== 'undefined',
-        []
-    );
-    const queryClient = React.useContext(QueryClientContext);
-
-    // Prépare les FBX pendant l'initialisation de la carte : sans cela, le
-    // Canvas attend `onLoad`, puis télécharge et parse encore les modèles.
-    React.useEffect(() => {
-        if (!visible || !canWarm3d || !profile?.avatar) return;
-        let cancelled = false;
-        // Loading code/Idle can overlap map style/tiles, not start after onLoad.
-        if (queryClient) void import('../../hooks/useAvatarAnimations')
-            .then(module => { if (!cancelled) void module.preloadAvatarAnimations(queryClient); })
-            .catch(() => {});
-        void import('../3D/warmupAvatar')
-            .then(module => {
-                if (!cancelled) module.warmAvatarModels(profile.avatar);
-            })
-            .catch(() => {});
-        return () => { cancelled = true; };
-    }, [visible, canWarm3d, profile?.avatar, queryClient]);
-
     const [mapId] = React.useState(() => allocateSceneInstanceId('map'));
     // Avatar bootstrap is independent from current map readiness. A tile/style
     // error must invalidate map metrics, not tear down an already-loaded avatar.
-    const [hasMapLoaded, setHasMapLoaded] = React.useState(false);
+    const [, setHasMapLoaded] = React.useState(false);
     const [isMapContextLost, setIsMapContextLost] = React.useState(false);
     const [mapEpoch, setMapEpoch] = React.useState(0);
     const [rebuilding, setRebuilding] = React.useState(false);
@@ -204,11 +176,17 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         current?.map.off?.('webglcontextrestored', current.restored);
         listeners.current = null;
         mapInstanceRef.current = null;
+        if (typeof window !== 'undefined') {
+            delete (window as unknown as { __beercallMap?: unknown }).__beercallMap;
+        }
     }, []);
     const attachMapInstance = React.useCallback((map: NativeMap | null) => {
         if (!map || retiredMaps.current.has(map) || map === mapInstanceRef.current) return;
         detachMapInstance();
         mapInstanceRef.current = map;
+        if (typeof window !== 'undefined') {
+            (window as unknown as { __beercallMap?: NativeMap }).__beercallMap = map;
+        }
         const current = () => lifecycle.current.mounted && lifecycle.current.epoch === mapEpoch && mapInstanceRef.current === map;
         const lost = () => { if (current()) handleContextLost(); };
         const restored = () => { if (current()) handleContextRestored(); };
@@ -302,9 +280,30 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         refreshExpiredTiles: false,
     }), []);
 
-    const mapElement = (
-        <Map key={mapEpoch} ref={mapRef}
+    const lease = useLease('map', active);
+
+    const leasedMapLib = React.useMemo(() => {
+        if (!lease.token) return undefined;
+        return createLeasedMapLibrary(lease.token);
+    }, [lease.token]);
+
+    React.useEffect(() => {
+        if (!active) {
+            const currentNative = (mapRef.current?.getMap?.() ?? mapInstanceRef.current) as NativeMap | undefined;
+            if (currentNative) {
+                const view = readMapView(currentNative);
+                if (view) {
+                    savedView.current = view;
+                    setInitialMapView(view);
+                }
+            }
+        }
+    }, [active, mapRef]);
+
+    const mapElement = lease.granted && lease.token ? (
+        <Map key={`${mapEpoch}-${lease.token.generation}`} ref={mapRef}
             {...mapRuntimeOptions}
+            mapLib={leasedMapLib}
             initialViewState={initialMapView}
             mapStyle={mapStyle} interactive={true}
             onLoad={handleMapLoad}
@@ -320,7 +319,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             onMoveStart={cancelLongPress}>
             <MapContents/>
         </Map>
-    );
+    ) : null;
 
     return (
         <>
@@ -333,6 +332,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                     className="min-h-11 rounded-lg bg-amber-700 px-3 text-white disabled:opacity-50">Réessayer la carte</button>
             </div>, document.body)}
         <MapContentsContext.Provider value={<>
+            <div data-active={active} className="hidden" aria-hidden="true"/>
             {/* BOUTON RECENTRER / RELANCER LA LOCALISATION */}
             <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-[20px] z-10">
                 <button onClick={handleLocateClick}
@@ -360,6 +360,12 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                 marginTop: 'calc(135px + env(safe-area-inset-top))',
                 marginRight: '20px'
             }}/>
+
+            <SnapAvatarLayer
+                people={people ?? []}
+                onSelectUser={onSelectUser}
+                onClusterClick={() => cancelLongPress()}
+            />
 
             {/* MARQUEURS ACTIFS */}
             {squadDetails?.active_beer_call?.map((call: BeerCall) => {
@@ -416,46 +422,6 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                     />
                 </Marker>;
             })}
-
-            {/* Joueur utilisable uniquement sur fix live ; Canvas conservé en pause sinon. */}
-            {hasHadLiveLocation && userLocation && (
-                <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
-                        style={{zIndex: 50}}>
-                    <div onClick={hasLiveLocation ? handlePlayerClick : undefined}
-                         role={hasLiveLocation ? 'button' : undefined} tabIndex={hasLiveLocation ? 0 : -1}
-                         aria-label={hasLiveLocation ? 'Créer un Beer Call' : undefined}
-                         aria-hidden={!hasLiveLocation} inert={!hasLiveLocation}
-                         onKeyDown={(event) => {
-                             if (!hasLiveLocation) return;
-                             if (event.key === 'Enter' || event.key === ' ') {
-                                 event.preventDefault();
-                                 handlePlayerClick();
-                             }
-                         }}
-                            className={`relative flex flex-col items-center cursor-pointer group rounded-full p-2 after:content-[''] after:absolute after:inset-1 after:rounded-full after:animate-soft-pulse after:z-[-1] animate-in fade-in zoom-in-50 duration-500 delay-300 fill-mode-both ${hasLiveLocation ? '' : 'invisible pointer-events-none'}`}>
-                        <div
-                            className="absolute -top-7 px-3 py-1 bg-white/70 backdrop-blur-sm rounded-full shadow-sm border border-gray-100 transition-opacity opacity-100 group-hover:opacity-100 group-hover:scale-105 group-hover:bg-white group-hover:border-beer pointer-events-none whitespace-nowrap">
-                            <span
-                                className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-beer transition-colors">📸🍻</span>
-                        </div>
-                        <div className="relative w-24 h-32 flex items-end justify-center pb-2">
-                            <div className="absolute inset-0 pointer-events-none">
-                                {profile?.avatar ? (
-                                    (hasMapLoaded || Boolean(isMapReady)) ? (
-                                        <Suspense fallback={<AvatarLoadingIndicator phase="canvas-suspense"/>}>
-                                            <SafeAvatar config={profile.avatar} renderMode="shared" disableZoom={true} disablePan={true} view="dashboard" active={active && hasLiveLocation}/>
-                                        </Suspense>
-                                    ) : (
-                                        <AvatarLoadingIndicator phase="map-bootstrap"/>
-                                    )
-                                ) : (
-                                    <UserIcon size={32} className="text-beer drop-shadow-xl m-auto mt-10"/>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </Marker>
-            )}
 
             {/* MARQUEURS PASSÉS */}
             {squadDetails?.past_beer_calls?.map((call: BeerCall) => {

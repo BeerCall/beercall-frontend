@@ -6,11 +6,6 @@ import type {ChatMessage} from '../types/chat';
 const sendMessage = vi.fn();
 let mockMessages: ChatMessage[] = [];
 let mockSquadName = 'Squad Test';
-const avatarProps = vi.hoisted(() => ({last: null as Record<string, unknown> | null}));
-vi.mock('../components/3D/SafeAvatar', () => ({default: (props: Record<string, unknown>) => {
-  avatarProps.last = props;
-  return <div data-testid="shared-head-contract"/>;
-}}));
 
 vi.mock('react-router-dom', async () => ({
   ...await vi.importActual<typeof import('react-router-dom')>('react-router-dom'),
@@ -85,7 +80,7 @@ describe('ChatPage - transitions viewport et composition iOS (T27/T38)', () => {
     expect(send.className).toContain('w-11');
     expect(send.className).toContain('h-11');
     expect(screen.getByRole('button', {name: 'Retour'})).toBeInTheDocument();
-    expect(avatarProps.last).toMatchObject({renderMode: 'shared', headOnly: true, instanceId: 'chat-head-m1', view: 'chat-head'});
+    expect(document.querySelector('[data-avatar-fallback]')).toBeInTheDocument();
   });
 
   it('la surface chat utilise la hauteur du viewport réel contrôlé sans h-screen', async () => {

@@ -8,6 +8,9 @@ import { MapSection } from '../components/Dashboard/MapSection';
 import { Timeline } from '../components/Dashboard/Timeline';
 import { isAxiosError } from 'axios';
 import { useDashboardActive } from '../lib/dashboardActivity';
+import { useMemberLocations } from '../hooks/useMemberLocations';
+import { useLocationSync } from '../hooks/useLocationSync';
+import { toSnapPeople } from '../map/snap/toSnapPeople';
 
 const GameScreen = React.lazy(() => import('./GameScreen'));
 const CreateSquadModal = React.lazy(() => import('../components/Modals/CreateSquadModal'));
@@ -20,9 +23,45 @@ const ScheduleAperoModal = React.lazy(() => import('../components/Modals/Schedul
 export default function Dashboard() {
     const routeActive = useDashboardActive();
     const { fileInputRef, mapRef, ...dashboard } = useDashboard();
+    const memberLocations = useMemberLocations(dashboard.id, routeActive);
+    useLocationSync(routeActive);
     const squadErrorStatus = isAxiosError(dashboard.squadError) ? dashboard.squadError.response?.status : undefined;
     const squadErrorMessage = squadErrorStatus === 403 ? 'Accès à cette squad refusé'
         : squadErrorStatus === 404 ? 'Squad introuvable' : 'Squad indisponible';
+
+    const people = React.useMemo(() => toSnapPeople({
+        members: memberLocations.data ?? [],
+        self: dashboard.profile
+            ? {
+                id: dashboard.profile.id,
+                username: dashboard.profile.username,
+                avatar_sprites: dashboard.profile.avatar_sprites,
+            }
+            : null,
+        selfLocation: {
+            userLocation: dashboard.userLocation ?? null,
+            acquiredAt: dashboard.acquiredAt ?? null,
+            hasSessionFix: Boolean(dashboard.hasSessionFix),
+            locationStatus: dashboard.locationStatus ?? 'idle',
+        },
+    }), [
+        memberLocations.data,
+        dashboard.profile,
+        dashboard.userLocation,
+        dashboard.acquiredAt,
+        dashboard.hasSessionFix,
+        dashboard.locationStatus,
+    ]);
+
+    const shareStatus = memberLocations.isError
+        ? 'Positions des membres indisponibles'
+        : dashboard.hasSessionFix && dashboard.userLocation
+            ? 'Position partagée avec la squad'
+            : dashboard.userLocation && dashboard.acquiredAt
+                ? `Dernière position partagée — ${new Date(dashboard.acquiredAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`
+                : memberLocations.isLoading
+                    ? 'Chargement des positions…'
+                    : null;
 
     return (
         <div className="h-full w-full relative flex flex-col bg-[#f8fafc] overflow-hidden font-sans">
@@ -98,6 +137,13 @@ export default function Dashboard() {
                             </button>
                         </div>
                     )}
+
+                    {shareStatus && (
+                        <div data-location-share role="status" aria-label="Partage de position"
+                             className="pointer-events-none bg-white/80 text-gray-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                            {shareStatus}
+                        </div>
+                    )}
                 </div>
 
                 <input type="file" aria-label="Photo du Beer Call" accept="image/*" capture="environment" ref={fileInputRef}
@@ -131,6 +177,8 @@ export default function Dashboard() {
                             handleBeerCallClick={dashboard.handleBeerCallClick}
                             openCamera={dashboard.openCamera}
                             setIsWorldsModalOpen={dashboard.setIsWorldsModalOpen}
+                            people={people}
+                            onSelectUser={(id) => dashboard.navigate(`/profile/${id}`)}
                         />
                     </div>
                 </div>
@@ -147,7 +195,8 @@ export default function Dashboard() {
                             setIsWorldsModalOpen={dashboard.setIsWorldsModalOpen}
                         />
                     )}
-                    <Navbar isNightMode={dashboard.isNightMode} onCreateClick={() => dashboard.setIsSquadModalOpen(true)} onJoinClick={() => dashboard.setIsJoinModalOpen(true)}/>
+                    <Navbar isNightMode={dashboard.isNightMode} onCreateClick={() => dashboard.setIsSquadModalOpen(true)} onJoinClick={() => dashboard.setIsJoinModalOpen(true)}
+                            onLaunchApero={dashboard.openCamera} launchAperoDisabled={!dashboard.id}/>
                 </div>
             </div>
 

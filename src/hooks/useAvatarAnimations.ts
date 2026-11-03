@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import type { AnimationClip } from 'three';
+import { AnimationClip } from 'three';
 import { ANIMATION_BYTE_LIMITS, createAnimationPackManager, validateManifest } from '../lib/animationPack';
 import type { AnimationManifest, AnimationPackManager, AvatarAnimationsResult } from '../types/animationPack';
 

@@ -5,8 +5,18 @@ import { MapSection } from '../components/Dashboard/MapSection';
 import { mapMockControl } from '../../setupTests';
 import { clearSceneMetrics, getLatestSceneSignal } from '../lib/sceneMetrics';
 import type { MapRef } from 'react-map-gl/maplibre';
-vi.mock('../components/3D/SafeAvatar', () => ({default: ({renderMode, active}: {renderMode: string; active: boolean}) =>
-  <div data-testid="safe-avatar-container" data-render-mode={renderMode} data-active={String(active)}/>}));
+
+vi.mock('../three/lease/useLease', () => ({
+    useLease: (_surface: string, enabled = true) => ({
+        requested: enabled,
+        granted: enabled,
+        blocked: false,
+        blockedReason: null,
+        token: enabled ? { surface: 'map', instanceId: 'inst_map', generation: 1 } : null,
+        error: null,
+        release: vi.fn(),
+    }),
+}));
 
 // Fake MapLibre Map instance avec gestionnaire d'événements
 class FakeMapLibreMap {
@@ -282,20 +292,17 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
 
     rerender(<MapSection {...props} isNightMode={true} canCreateFromLocation={true} active={false}/>);
-    expect(mapMockControl.latestProps).toBe(initialNativeProps);
-    expect(screen.getByTestId('mock-map')).toBe(mapNode);
-    // Le nouveau fix et les enfants ne sont pas figés avec l'adaptateur.
-    expect(screen.getByRole('button', { name: 'Me recentrer' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Créer un Beer Call' })).toBeInTheDocument();
+    // Sous lease B12 : la map native est démontée quand inactive pour libérer le contexte GPU
+    expect(screen.queryByTestId('mock-map')).not.toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Statut carte' })).toBeInTheDocument();
 
+    // Au retour actif, la nouvelle map est allouée avec la vue restaurée
+    rerender(<MapSection {...props} isNightMode={true} canCreateFromLocation={true} active={true}/>);
     act(() => { fakeMap.fire('webglcontextrestored'); });
-    expect(mapMockControl.latestProps).toBe(initialNativeProps);
-    expect(screen.getByRole('status', { name: 'Statut carte' })).toBeInTheDocument();
     act(() => { mapMockControl.triggerIdle(); });
-    expect(mapMockControl.latestProps).not.toBe(initialNativeProps);
     expect(mapMockControl.latestProps?.mapStyle).toContain('dark-matter');
-    expect(screen.getByTestId('mock-map')).toBe(mapNode);
+    expect(screen.getByTestId('mock-map')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Me recentrer' })).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Statut carte' })).not.toBeInTheDocument();
     expect(getLatestSceneSignal('mapInteractive')).toBeDefined();
 
@@ -304,7 +311,7 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     expect(fakeMap.getListenerCount('webglcontextrestored')).toBe(0);
   });
 
-  it('conserve le joueur inerte en pause après un vrai fix, sans rendre le cache initial actionnable', () => {
+  it('ne monte jamais le vieux marker joueur et garde la source Snap stable', () => {
     const fakeMap = new FakeMapLibreMap();
     const openCamera = vi.fn();
     const props: React.ComponentProps<typeof MapSection> = {
@@ -317,27 +324,17 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
     expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
     expect(screen.queryByTestId('safe-avatar-container')).not.toBeInTheDocument();
+    const source = screen.getByTestId('mock-source');
+    expect(source.querySelectorAll('[data-layer]')).toHaveLength(3);
 
     rerender(<MapSection {...props} canCreateFromLocation={true}/>);
-    const player = screen.getByTestId('safe-avatar-container');
-    expect(player).toHaveAttribute('data-render-mode', 'shared');
-    expect(screen.getByRole('button', { name: 'Créer un Beer Call' })).toBeInTheDocument();
     rerender(<MapSection {...props} active={false}/>);
-    expect(screen.getByTestId('safe-avatar-container')).toBe(player);
-    expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
-    expect(player.closest('[inert]')).not.toBeNull();
-    fireEvent.click(player);
-    expect(openCamera).not.toHaveBeenCalled();
-
-    // Retour actif, mais GPS encore en recherche : le cache ne réactive rien.
-    rerender(<MapSection {...props}/>);
-    expect(screen.getByTestId('safe-avatar-container')).toBe(player);
-    expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
     rerender(<MapSection {...props} canCreateFromLocation={true}/>);
-    expect(screen.getByTestId('safe-avatar-container')).toBe(player);
-    expect(player.closest('[inert]')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un Beer Call' }));
-    expect(openCamera).toHaveBeenCalledOnce();
+    const newSource = screen.getByTestId('mock-source');
+    expect(newSource).toBeInTheDocument();
+    expect(newSource.querySelectorAll('[data-layer]')).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+    expect(openCamera).not.toHaveBeenCalled();
   });
 
   it('manual retry replaces only the map, preserves its camera and rejects every retired callback', () => {
