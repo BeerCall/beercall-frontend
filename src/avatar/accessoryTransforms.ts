@@ -234,6 +234,26 @@ export const CUSTOM_ITEMS_CONFIG: Record<string, AvatarTransform> = {
         position: [50, 0, 0],
         scale: [.5, .5, .5],
         rotation: [0, 0, 0]
+    },
+    'Men_accessory_McLaren_5000': {
+        position: [68, 15, -30],
+        scale: [.3, .3, .3],
+        rotation: [0, 0, 0]
+    },
+    'Women_accessory_McLaren_5000': {
+        position: [68, 15, -30],
+        scale: [.3, .3, .3],
+        rotation: [0, 0, 0]
+    },
+    'Men_accessory_Backpack_0': {
+        position: [0, 0, 0],
+        scale: [1, 1, 1],
+        rotation: [0, 0, 0]
+    },
+    'Women_accessory_Backpack_0': {
+        position: [0, 0, 0],
+        scale: [1, 1, 1],
+        rotation: [0, 0, 0]
     }
 };
 

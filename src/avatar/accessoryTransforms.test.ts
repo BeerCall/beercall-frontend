@@ -6,8 +6,8 @@ import {
 } from './accessoryTransforms';
 
 describe('CUSTOM_ITEMS_CONFIG', () => {
-    it('conserve exactement les 46 entrées historiques', () => {
-        expect(Object.keys(CUSTOM_ITEMS_CONFIG)).toHaveLength(46);
+    it('conserve les 46 entrées historiques et ajoute les 4 overrides McLaren/Backpack', () => {
+        expect(Object.keys(CUSTOM_ITEMS_CONFIG)).toHaveLength(50);
     });
 
     it('contient la bière pour les deux genres avec les mêmes valeurs', () => {
@@ -41,12 +41,24 @@ describe('getAccessoryTransform', () => {
         expect(getAccessoryTransform('Men_accessory_Beer_500')).toBe(CUSTOM_ITEMS_CONFIG['Men_accessory_Beer_500']);
     });
 
-    it("retombe sur l'identité pour McLaren et Backpack sans override", () => {
-        expect(CUSTOM_ITEMS_CONFIG['Men_accessory_McLaren_5000']).toBeUndefined();
-        expect(CUSTOM_ITEMS_CONFIG['Women_accessory_McLaren_5000']).toBeUndefined();
-        expect(CUSTOM_ITEMS_CONFIG['Men_accessory_Backpack_0']).toBeUndefined();
-        expect(CUSTOM_ITEMS_CONFIG['Women_accessory_Backpack_0']).toBeUndefined();
-        expect(getAccessoryTransform('Men_accessory_McLaren_5000')).toEqual(IDENTITY_ACCESSORY_TRANSFORM);
-        expect(getAccessoryTransform('Women_accessory_Backpack_0')).toEqual(IDENTITY_ACCESSORY_TRANSFORM);
+    it('applique les transforms explicites McLaren et Backpack', () => {
+        expect(CUSTOM_ITEMS_CONFIG['Men_accessory_McLaren_5000']).toEqual({
+            position: [68, 15, -30],
+            scale: [0.3, 0.3, 0.3],
+            rotation: [0, 0, 0],
+        });
+        expect(CUSTOM_ITEMS_CONFIG['Women_accessory_McLaren_5000']).toEqual({...CUSTOM_ITEMS_CONFIG['Men_accessory_McLaren_5000']});
+        expect(CUSTOM_ITEMS_CONFIG['Men_accessory_Backpack_0']).toEqual({
+            position: [0, 0, 0],
+            scale: [1, 1, 1],
+            rotation: [0, 0, 0],
+        });
+        expect(CUSTOM_ITEMS_CONFIG['Women_accessory_Backpack_0']).toEqual({...CUSTOM_ITEMS_CONFIG['Men_accessory_Backpack_0']});
+        expect(getAccessoryTransform('Men_accessory_McLaren_5000')).toBe(CUSTOM_ITEMS_CONFIG['Men_accessory_McLaren_5000']);
+    });
+
+    it("retombe sur l'identité pour un accessoire connu sans override", () => {
+        expect(CUSTOM_ITEMS_CONFIG['Men_accessory_Williams_5000']).toBeUndefined();
+        expect(getAccessoryTransform('Men_accessory_Williams_5000')).toEqual(IDENTITY_ACCESSORY_TRANSFORM);
     });
 });

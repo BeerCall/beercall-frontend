@@ -19,6 +19,7 @@ import {
     Group,
     type Mesh,
     type SkinnedMesh,
+    Vector3,
 } from 'three';
 
 import { CUSTOM_ITEMS_CONFIG } from '../accessoryTransforms';
@@ -177,20 +178,35 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
                     const accInst = cloneGlbInstance(accGltf);
                     cheapMaterials(accInst);
 
-                    const transform = CUSTOM_ITEMS_CONFIG[resolvedParts.accessory.sourceId] ?? {
-                        position: [0, 0, 0],
-                        scale: [1, 1, 1],
-                        rotation: [0, 0, 0],
-                    };
-                    const pos = transform.position ?? [0, 0, 0];
-                    const rot = transform.rotation ?? [0, 0, 0];
-                    const sca = transform.scale ?? [1, 1, 1];
-                    accInst.position.set(pos[0], pos[1], pos[2]);
-                    accInst.rotation.set(rot[0], rot[1], rot[2]);
-                    accInst.scale.set(sca[0], sca[1], sca[2]);
+                    const accessoryId = resolvedParts.accessory.sourceId;
+                    const heldInHand = accessoryId.endsWith('_Beer_500');
+                    const hand = heldInHand
+                        ? bodyInst.getObjectByName('WristR') ?? bodyInst.getObjectByName('HandR')
+                        : null;
 
-                    root.add(accInst);
-                    pieceNames.push(resolvedParts.accessory.sourceId);
+                    if (hand) {
+                        // Objet tenu : posé sur l'os du poignet. L'échelle locale compense
+                        // l'échelle monde de l'os pour conserver une bière de ~24 cm.
+                        const handScale = hand.getWorldScale(new Vector3()).x || 1;
+                        accInst.position.set(0, 0, 0);
+                        accInst.rotation.set(0, 0, 0);
+                        accInst.scale.setScalar(100 / handScale);
+                        hand.add(accInst);
+                    } else {
+                        const transform = CUSTOM_ITEMS_CONFIG[accessoryId] ?? {
+                            position: [0, 0, 0],
+                            scale: [1, 1, 1],
+                            rotation: [0, 0, 0],
+                        };
+                        const pos = transform.position ?? [0, 0, 0];
+                        const rot = transform.rotation ?? [0, 0, 0];
+                        const sca = transform.scale ?? [1, 1, 1];
+                        accInst.position.set(pos[0], pos[1], pos[2]);
+                        accInst.rotation.set(rot[0], rot[1], rot[2]);
+                        accInst.scale.set(sca[0], sca[1], sca[2]);
+                        root.add(accInst);
+                    }
+                    pieceNames.push(accessoryId);
 
                     if (hasSkinnedMesh(accInst)) {
                         currentMixers.push(new AnimationMixer(accInst));
