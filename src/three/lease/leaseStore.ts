@@ -15,12 +15,16 @@ export interface LeaseToken {
 }
 
 export interface LeaseState {
+    /** Tous les contextes actuellement autorisés (1 par défaut, 2 pour carte + three.js). */
+    readonly tokens: readonly LeaseToken[];
+    /** Dernier token accordé, conservé pour les diagnostics et la compatibilité mono-slot. */
     readonly currentToken: LeaseToken | null;
     readonly phase: LeasePhase;
     readonly blockedReason: string | null;
 }
 
 let state: LeaseState = Object.freeze({
+    tokens: Object.freeze([]) as readonly LeaseToken[],
     currentToken: null,
     phase: 'idle',
     blockedReason: null,
@@ -55,6 +59,7 @@ export function updateLeaseState(partial: Partial<LeaseState>): void {
 
 export function resetLeaseStore(): void {
     state = Object.freeze({
+        tokens: Object.freeze([]) as readonly LeaseToken[],
         currentToken: null,
         phase: 'idle',
         blockedReason: null,

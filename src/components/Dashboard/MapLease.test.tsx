@@ -57,16 +57,18 @@ describe('B12 — MapSection sous lease (gestion du slot WebGL et reprise de vue
             expect(globalLeaseController.current()?.surface).toBe('map');
         });
 
-        // Demande concurrente du profil en attente
-        let profileGranted = false;
-        const profileReq = globalLeaseController.request('profile', 'prof1').then((t) => {
-            profileGranted = true;
+        // Profil obtient immédiatement le slot 2 (capacité 2) sans attendre
+        const profileToken = await globalLeaseController.request('profile', 'prof1');
+        expect(profileToken.surface).toBe('profile');
+
+        // Une 3e demande concurrente (world) doit attendre qu'un slot se libère
+        let worldGranted = false;
+        const worldReq = globalLeaseController.request('world', 'world1').then((t) => {
+            worldGranted = true;
             return t;
         });
-
-        // Tant que la carte est active, le profil attend
         await new Promise((r) => setTimeout(r, 50));
-        expect(profileGranted).toBe(false);
+        expect(worldGranted).toBe(false);
 
         // Désactivation de la carte (sortie route ou modal ouvert)
         rerender(<MapSection {...props} active={false} />);
@@ -76,12 +78,13 @@ describe('B12 — MapSection sous lease (gestion du slot WebGL et reprise de vue
             expect(screen.queryByTestId('mock-map')).toBeNull();
         });
 
-        // Le profil obtient maintenant le slot
-        const profileToken = await profileReq;
-        expect(profileGranted).toBe(true);
-        expect(profileToken.surface).toBe('profile');
+        // Le slot carte libéré permet à world d'être accordé
+        const worldToken = await worldReq;
+        expect(worldGranted).toBe(true);
+        expect(worldToken.surface).toBe('world');
 
         await globalLeaseController.release(profileToken);
+        await globalLeaseController.release(worldToken);
     });
 
     it('restaure la vue sauvegardée lors du remontage de la carte au retour', async () => {

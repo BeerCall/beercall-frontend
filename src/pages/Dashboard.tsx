@@ -166,7 +166,7 @@ export default function Dashboard() {
                             isNightMode={dashboard.isNightMode}
                             isMapReady={dashboard.isMapReady}
                             handleMapLoaded={dashboard.handleMapLoaded}
-                            active={routeActive && !dashboard.isGameScreenOpen && !dashboard.isWorldsModalOpen}
+                            active={true}
                             visible={routeActive}
                             squadDetails={dashboard.squadDetails}
                             profile={dashboard.profile}

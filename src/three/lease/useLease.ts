@@ -71,23 +71,31 @@ export function useLease(
 
     const isCurrent = Boolean(
         enabled &&
-        snapshot.currentToken?.surface === surface &&
-        snapshot.currentToken?.instanceId === instanceId &&
-        snapshot.phase !== 'blocked',
+        snapshot.phase !== 'blocked' &&
+        snapshot.tokens.some(
+            (token) => token.surface === surface && token.instanceId === instanceId,
+        ),
     );
 
+    const token = isCurrent
+        ? snapshot.tokens.find(
+              (candidate) =>
+                  candidate.surface === surface && candidate.instanceId === instanceId,
+          ) ?? null
+        : null;
+
     const release = useCallback(async () => {
-        if (isCurrent && snapshot.currentToken) {
-            await controller.release(snapshot.currentToken);
+        if (token) {
+            await controller.release(token);
         }
-    }, [controller, isCurrent, snapshot.currentToken]);
+    }, [controller, token]);
 
     return {
         requested: enabled,
         granted: isCurrent,
         blocked: snapshot.phase === 'blocked',
         blockedReason: snapshot.blockedReason,
-        token: isCurrent ? snapshot.currentToken : null,
+        token,
         error,
         release,
     };

@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Box3, Color, DirectionalLight, Group, HemisphereLight, PerspectiveCamera } from 'three';
 
 import { AvatarRenderer } from '../../avatar/AvatarRenderer';
@@ -40,34 +40,48 @@ function FramingController({
     targetRef: React.RefObject<Group | null>;
 }) {
     const { camera, size } = useThree();
+    const framedRef = useRef(false);
+
+    const applyFraming = React.useCallback(() => {
+        if (!targetRef.current) return false;
+        targetRef.current.updateMatrixWorld(true);
+        const box = new Box3().setFromObject(targetRef.current);
+        if (box.isEmpty()) return false;
+
+        const persCamera = camera as PerspectiveCamera;
+        const framing = computeAvatarFraming({
+            box,
+            width: size.width || 300,
+            height: size.height || 400,
+            fov: persCamera.fov || 38,
+        });
+
+        if (framing.ok) {
+            camera.position.set(...framing.position);
+            camera.lookAt(framing.center[0], framing.center[1], framing.center[2]);
+            camera.near = framing.near;
+            camera.far = framing.far;
+            camera.updateMatrixWorld(true);
+            camera.updateProjectionMatrix();
+            globalPerfProbe.recordFrameSubmission();
+            return true;
+        }
+        return false;
+    }, [camera, size, targetRef]);
 
     useEffect(() => {
-        const updateFraming = () => {
-            if (!targetRef.current) return;
-            targetRef.current.updateMatrixWorld(true);
-            const box = new Box3().setFromObject(targetRef.current);
-            if (box.isEmpty()) return;
-
-            const persCamera = camera as PerspectiveCamera;
-            const framing = computeAvatarFraming({
-                box,
-                width: size.width || 300,
-                height: size.height || 400,
-                fov: persCamera.fov || 38,
-            });
-
-            if (framing.ok) {
-                camera.position.set(...framing.position);
-                camera.lookAt(framing.center[0], framing.center[1], framing.center[2]);
-                camera.updateMatrixWorld(true);
-                camera.updateProjectionMatrix();
-                globalPerfProbe.recordFrameSubmission();
-            }
-        };
-
-        const timer = setTimeout(updateFraming, 50);
+        framedRef.current = false;
+        const timer = setTimeout(() => {
+            if (applyFraming()) framedRef.current = true;
+        }, 50);
         return () => clearTimeout(timer);
-    }, [camera, size, targetRef]);
+    }, [applyFraming]);
+
+    useFrame(() => {
+        if (!framedRef.current && applyFraming()) {
+            framedRef.current = true;
+        }
+    });
 
     return null;
 }
@@ -94,6 +108,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
             <LeasedCanvas
                 surface={surface}
                 fallback={fallback}
+                preserveDrawingBuffer={true}
                 camera={{ fov: 38, position: [0, 80, 260] }}
                 className="w-full h-full"
             >

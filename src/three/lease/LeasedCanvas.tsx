@@ -89,20 +89,21 @@ export const LeasedCanvas: React.FC<LeasedCanvasProps> = ({
                 dpr={resolvedDpr}
                 camera={camera}
                 onCreated={onCreated}
-                gl={(canvas) => {
+                gl={(canvasOrProps) => {
                     // Vérification synchrone fermant la course réservation/allocation
-                    const current = globalLeaseController.current();
-                    if (
-                        !current ||
-                        current.instanceId !== token.instanceId ||
-                        current.generation !== token.generation
-                    ) {
+                    if (!globalLeaseController.isCurrent(token)) {
                         throw new Error("Token de lease WebGL périmé lors de l'allocation du renderer");
                     }
 
+                    const canvas =
+                        (canvasOrProps && typeof canvasOrProps === 'object' && 'canvas' in canvasOrProps
+                            ? (canvasOrProps as { canvas: HTMLCanvasElement }).canvas
+                            : canvasOrProps) as HTMLCanvasElement;
+
                     const renderer = new WebGLRenderer({
-                        canvas: canvas as unknown as HTMLCanvasElement,
+                        canvas,
                         antialias: false,
+                        alpha: true,
                         preserveDrawingBuffer,
                         powerPreference: 'high-performance',
                     });

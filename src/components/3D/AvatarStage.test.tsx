@@ -9,6 +9,7 @@ import { resetLeaseStore } from '../../three/lease/leaseStore';
 
 vi.mock('@react-three/fiber', () => ({
     Canvas: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-fiber-canvas">{children}</div>,
+    useFrame: vi.fn(),
     useThree: () => ({
         camera: {
             fov: 38,

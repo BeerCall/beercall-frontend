@@ -1,8 +1,10 @@
 /**
  * B10 — Contrôleur global de lease WebGL (CHAL-02).
  *
- * Garantit l'existence d'au plus un contexte WebGL actif sur mobile.
- * Pas de préemption aveugle : request attend que le slot soit libéré.
+ * Garantit l'existence d'au plus `capacity` contextes WebGL actifs.
+ * Capacité 1 par défaut (comportement historique) ; l'application utilise 2
+ * pour garder la carte MapLibre montée tout en laissant un slot à three.js.
+ * Pas de préemption aveugle : request attend qu'un slot soit libéré.
  * Chaque token est unique par instance (surface + instanceId + generation).
  * L'annulation synchrone protège contre les courses de montage/démontage React.
  */
@@ -18,22 +20,45 @@ import { webglStats } from './webgl';
 
 export type ReleaseFunction = () => Promise<void> | void;
 
+interface LeaseEntry {
+    token: LeaseToken;
+    release: ReleaseFunction | null;
+}
+
 export class LeaseController {
-    private currentLease: LeaseToken | null = null;
-    private releaseResource: ReleaseFunction | null = null;
+    private leases = new Map<number, LeaseEntry>();
     private generation = 0;
     private queue: Promise<void> = Promise.resolve();
     private activeRequests = new Map<string, { cancelled: boolean }>();
     private idleResolvers = new Set<() => void>();
-    private releasePromise: { token: LeaseToken; promise: Promise<void> } | null = null;
+    private releasePromises = new Map<number, Promise<void>>();
     private readonly timeoutMs: number;
+    private readonly capacity: number;
 
-    constructor(timeoutMs = 2_000) {
+    constructor(timeoutMs = 2_000, capacity = 1) {
         this.timeoutMs = timeoutMs;
+        this.capacity = Math.max(1, Math.floor(capacity));
     }
 
+    /** Dernier token accordé (diagnostic et compatibilité mono-slot). */
     current(): LeaseToken | null {
-        return this.currentLease;
+        const entries = [...this.leases.values()];
+        return entries.length > 0 ? entries[entries.length - 1].token : null;
+    }
+
+    /** Tous les tokens actifs, dans l'ordre d'attribution. */
+    tokens(): LeaseToken[] {
+        return [...this.leases.values()].map((entry) => entry.token);
+    }
+
+    /** Vrai si ce token fait partie des contextes actuellement autorisés. */
+    isCurrent(token: LeaseToken): boolean {
+        const entry = this.leases.get(token.generation);
+        return Boolean(
+            entry &&
+                entry.token.surface === token.surface &&
+                entry.token.instanceId === token.instanceId,
+        );
     }
 
     status(): LeasePhase {
@@ -54,7 +79,7 @@ export class LeaseController {
     }
 
     private waitForIdle(): Promise<void> {
-        if (!this.currentLease && getLeaseSnapshot().phase !== 'blocked') {
+        if (this.leases.size < this.capacity && getLeaseSnapshot().phase !== 'blocked') {
             return Promise.resolve();
         }
         return new Promise<void>((resolve) => {
@@ -70,9 +95,47 @@ export class LeaseController {
         }
     }
 
+    private publish(phase: LeasePhase): void {
+        const tokens = this.tokens();
+        updateLeaseState({
+            tokens,
+            currentToken: tokens.length > 0 ? tokens[tokens.length - 1] : null,
+            phase,
+        });
+    }
+
+    private phaseForRemaining(): LeasePhase {
+        if (this.leases.size === 0) return 'idle';
+        return [...this.leases.values()].some((entry) => entry.release)
+            ? 'bound'
+            : 'reserved';
+    }
+
+    private findLease(surface: string, instanceId: string): LeaseEntry | null {
+        for (const entry of this.leases.values()) {
+            if (entry.token.surface === surface && entry.token.instanceId === instanceId) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    private getEntry(token: LeaseToken): LeaseEntry | null {
+        const entry = this.leases.get(token.generation);
+        if (
+            entry &&
+            entry.token.surface === token.surface &&
+            entry.token.instanceId === token.instanceId
+        ) {
+            return entry;
+        }
+        return null;
+    }
+
     /**
-     * Demande l'accès au slot WebGL unique pour une surface et un ID d'instance donnés.
-     * Attend dans une file FIFO sérialisée que le propriétaire précédent ait libéré et détruit son contexte.
+     * Demande l'accès à un slot WebGL pour une surface et un ID d'instance donnés.
+     * Attend dans une file FIFO sérialisée qu'un propriétaire libère son contexte
+     * quand la capacité est atteinte.
      * Pas de préemption aveugle : attend que le propriétaire actif se démonte et libère.
      */
     request(surface: string, instanceId: string): Promise<LeaseToken> {
@@ -92,18 +155,15 @@ export class LeaseController {
                 throw new Error(`Demande de lease annulée pour ${surface}#${instanceId}`);
             }
 
-            // Si cette instance possède déjà la lease courante
-            if (
-                this.currentLease &&
-                this.currentLease.surface === surface &&
-                this.currentLease.instanceId === instanceId
-            ) {
+            // Si cette instance possède déjà un slot
+            const existing = this.findLease(surface, instanceId);
+            if (existing) {
                 this.activeRequests.delete(requestId);
-                return this.currentLease;
+                return existing.token;
             }
 
-            // Pas de préemption aveugle : attendre que le propriétaire actif libère le slot
-            while (this.currentLease) {
+            // Pas de préemption aveugle : attendre qu'un slot se libère
+            while (this.leases.size >= this.capacity) {
                 await this.waitForIdle();
                 if (tracker.cancelled) {
                     throw new Error(`Demande de lease annulée pour ${surface}#${instanceId}`);
@@ -125,14 +185,9 @@ export class LeaseController {
                 generation: this.generation,
             });
 
-            this.currentLease = token;
-            this.releaseResource = null;
+            this.leases.set(token.generation, { token, release: null });
             this.activeRequests.delete(requestId);
-            updateLeaseState({
-                currentToken: token,
-                phase: 'reserved',
-                blockedReason: null,
-            });
+            this.publish(this.phaseForRemaining());
 
             return token;
         });
@@ -143,15 +198,10 @@ export class LeaseController {
      * Si le token est périmé ou la lease bloquée, détruit immédiatement la ressource orpheline.
      */
     attach(token: LeaseToken, release: ReleaseFunction): void {
-        const isCurrent =
-            this.currentLease &&
-            this.currentLease.surface === token.surface &&
-            this.currentLease.instanceId === token.instanceId &&
-            this.currentLease.generation === token.generation;
-
+        const entry = this.getEntry(token);
         const currentPhase = getLeaseSnapshot().phase;
 
-        if (!isCurrent || currentPhase === 'blocked') {
+        if (!entry || currentPhase === 'blocked') {
             // Ressource créée en retard ou token annulé : nettoyage immédiat
             void Promise.resolve()
                 .then(() => release())
@@ -161,12 +211,13 @@ export class LeaseController {
             return;
         }
 
-        if (this.releaseResource) {
-            throw new Error(`Ressource déjà liée à ${token.surface}#${token.generation}`);
+        if (entry.release) {
+            // Ressource déjà liée pour ce token (idempotent lors des re-renders Fiber)
+            return;
         }
 
-        this.releaseResource = release;
-        updateLeaseState({ phase: 'bound' });
+        entry.release = release;
+        this.publish('bound');
     }
 
     /**
@@ -181,14 +232,10 @@ export class LeaseController {
             this.notifyIdle();
         }
 
-        // Si la lease actuelle correspond à cette instance et n'est pas encore liée à une ressource
-        if (
-            this.currentLease &&
-            this.currentLease.surface === surface &&
-            this.currentLease.instanceId === instanceId &&
-            getLeaseSnapshot().phase !== 'releasing'
-        ) {
-            void this.release(this.currentLease).catch((error) => {
+        // Si un slot actif correspond à cette instance et n'est pas déjà en libération
+        const entry = this.findLease(surface, instanceId);
+        if (entry && !this.releasePromises.has(entry.token.generation)) {
+            void this.release(entry.token).catch((error) => {
                 console.error('[lease] Libération annulée échouée', { surface, instanceId, error });
             });
         }
@@ -198,72 +245,56 @@ export class LeaseController {
      * Libère le token propriétaire et détruit sa ressource associée avec preuve de perte.
      */
     release(token: LeaseToken): Promise<void> {
-        if (!this.matchesCurrent(token)) return Promise.resolve();
+        if (!this.getEntry(token)) return Promise.resolve();
 
         // Une même libération peut être demandée plusieurs fois (cleanup React
         // + corps d'effet, cancel externe...) : on ne doit jamais exécuter
         // deux fois la destruction ni bloquer la lease pour ce motif.
-        if (this.releasePromise?.token === token) return this.releasePromise.promise;
+        const existing = this.releasePromises.get(token.generation);
+        if (existing) return existing;
 
-        const promise = this.releaseCurrent(token);
-        const tracked = promise.finally(() => {
-            if (this.releasePromise?.promise === tracked) this.releasePromise = null;
+        const tracked = this.releaseEntry(token).finally(() => {
+            this.releasePromises.delete(token.generation);
         });
-        this.releasePromise = { token, promise: tracked };
+        this.releasePromises.set(token.generation, tracked);
         return tracked;
     }
 
     reset(): void {
-        this.currentLease = null;
-        this.releaseResource = null;
+        this.leases.clear();
         this.activeRequests.clear();
         this.idleResolvers.clear();
-        this.releasePromise = null;
+        this.releasePromises.clear();
         this.queue = Promise.resolve();
         resetLeaseStore();
     }
 
-    private matchesCurrent(token: LeaseToken): boolean {
-        return (
-            this.currentLease !== null &&
-            this.currentLease.surface === token.surface &&
-            this.currentLease.instanceId === token.instanceId &&
-            this.currentLease.generation === token.generation
-        );
-    }
+    private async releaseEntry(token: LeaseToken): Promise<void> {
+        const entry = this.getEntry(token);
+        if (!entry) return;
 
-    private async releaseCurrent(token: LeaseToken): Promise<void> {
-        if (!this.matchesCurrent(token)) return;
-
-        const currentSnapshot = getLeaseSnapshot();
-        const wasBlocked = currentSnapshot.blockedReason;
-        updateLeaseState({ phase: 'releasing' });
-
-        const release = this.releaseResource;
+        const wasBlocked = getLeaseSnapshot().phase === 'blocked';
+        this.publish('releasing');
 
         try {
-            if (release) {
-                await this.withTimeout(Promise.resolve(release()), token);
+            if (entry.release) {
+                await this.withTimeout(Promise.resolve(entry.release()), token);
             }
 
-            if (!this.matchesCurrent(token)) {
-                throw new Error('Lease remplacée pendant sa libération');
+            if (!this.getEntry(token)) {
+                // Contrôleur réinitialisé pendant la libération : rien à faire.
+                return;
             }
 
-            this.releaseResource = null;
-            this.currentLease = null;
-
-            updateLeaseState({
-                currentToken: null,
-                phase: wasBlocked ? 'blocked' : 'idle',
-            });
+            this.leases.delete(token.generation);
+            this.publish(wasBlocked ? 'blocked' : this.phaseForRemaining());
             if (!wasBlocked) {
                 this.notifyIdle();
             }
         } catch (error) {
             const reason =
                 this.status() === 'blocked'
-                    ? currentSnapshot.blockedReason
+                    ? getLeaseSnapshot().blockedReason
                     : error instanceof Error
                       ? error.message
                       : 'Libération échouée';
@@ -275,19 +306,20 @@ export class LeaseController {
                 activeContexts: webglStats().active,
             });
 
-            if (!this.matchesCurrent(token)) {
+            if (!this.getEntry(token)) {
                 // Slot déjà libéré, libération concurrente déjà traitée ou
-                // contrôleur réinitialisé : rien à bloquer. C'est cette course
-                // qui rendait la carte blanche après Profil (étape 3).
+                // contrôleur réinitialisé : rien à bloquer.
                 return;
             }
 
-            if (!this.releaseResource) {
+            if (!entry.release) {
                 // Aucune ressource attachée : rien à détruire, le slot est
                 // réellement libre malgré l'échec rapporté.
-                this.currentLease = null;
-                updateLeaseState({ currentToken: null, phase: 'idle', blockedReason: null });
-                this.notifyIdle();
+                this.leases.delete(token.generation);
+                this.publish(wasBlocked ? 'blocked' : this.phaseForRemaining());
+                if (!wasBlocked) {
+                    this.notifyIdle();
+                }
                 return;
             }
 
@@ -323,4 +355,6 @@ export class LeaseController {
     }
 }
 
-export const globalLeaseController = new LeaseController();
+// Capacité 2 : la carte MapLibre garde son contexte, three.js (Profil/mondes)
+// dispose du second slot. Les contrôleurs de test restent mono-slot par défaut.
+export const globalLeaseController = new LeaseController(2_000, 2);

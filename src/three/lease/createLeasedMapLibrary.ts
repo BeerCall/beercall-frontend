@@ -18,13 +18,7 @@ export function assertCurrentLeaseToken(
     token: LeaseToken,
     controller: LeaseController = globalLeaseController,
 ): void {
-    const current = controller.current();
-    if (
-        !current ||
-        current.surface !== token.surface ||
-        current.instanceId !== token.instanceId ||
-        current.generation !== token.generation
-    ) {
+    if (!controller.isCurrent(token)) {
         throw new Error(
             `Token de lease MapLibre invalide ou périmé pour ${token.surface}#${token.generation}`,
         );
