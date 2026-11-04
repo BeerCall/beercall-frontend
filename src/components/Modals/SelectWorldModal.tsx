@@ -1,16 +1,13 @@
-import {useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, Suspense} from 'react';
+import {useState, useMemo} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
-import {OrbitControls, Html, useProgress} from '@react-three/drei';
 import {api} from '../../lib/api';
 import {useGameEngine} from '../../hooks/useGameEngine';
 import {useGameUIStore} from '../../store/useGameUIStore';
 import type {WorldsResponse} from '../../types/api';
-import {loadWorldModule, worldModuleQueryOptions, type WorldTab, type LoadedWorldModule} from '../../lib/worldResources';
-import SceneReadyProbe from '../3D/SceneReadyProbe';
-import {WorldCanvas} from '../../worlds/WorldCanvas';
-import {prefetchWorldAssets} from '../../worlds/prefetchWorldAssets';
+import type {WorldTab} from '../../lib/worldResources';
+import {WorldScene} from '../../worlds/WorldScene';
 
 // 📸 IMPORT DE TA MODALE
 import PhotoModal from '../Modals/PhotoModal';
@@ -22,20 +19,15 @@ interface SelectWorldModalProps {
     squadId: string;
     beerCallId: string;
     isActiveApero: boolean;
-    worldModuleLoader?: (tab: WorldTab) => Promise<LoadedWorldModule>;
 }
 
-// ⏳ COMPOSANT DE CHARGEMENT SÉCURISÉ POUR LE CANVAS
-function CanvasLoader() {
-    const {progress} = useProgress();
-    return (
-        <Html center>
-            <div className="flex flex-col items-center bg-white/90 p-4 rounded-2xl shadow-xl backdrop-blur-md">
-                <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-xs font-black text-amber-500 mt-2 tracking-widest">{progress.toFixed(0)}%</p>
-            </div>
-        </Html>
-    );
+// --- LA MODALE PRINCIPALE ---
+interface SelectWorldModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    squadId: string;
+    beerCallId: string;
+    isActiveApero: boolean;
 }
 
 export default function SelectWorldModal({
@@ -44,7 +36,6 @@ export default function SelectWorldModal({
     squadId,
     beerCallId,
     isActiveApero,
-    worldModuleLoader = loadWorldModule,
 }: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
     const [tabGeneration, setTabGeneration] = useState(0);
@@ -55,19 +46,6 @@ export default function SelectWorldModal({
         setSceneContext(contextKey);
         setTabGeneration(generation => generation + 1);
     }
-    const [worldReadiness, setWorldReadiness] = useState<{ tab: WorldTab; generation: number; ready: boolean }>({
-        tab: 'bar',
-        generation: 0,
-        ready: false,
-    });
-    const activeWorldRef = useRef({ tab: activeTab, generation: tabGeneration, open: isOpen });
-    useLayoutEffect(() => {
-        activeWorldRef.current = { tab: activeTab, generation: tabGeneration, open: isOpen };
-    }, [activeTab, tabGeneration, isOpen]);
-
-    // Le passage d'onglet réarme une nouvelle génération ; les callbacks de l'ancien monde sont ignorés (T12B / REV-04)
-    const isWorldReady = worldReadiness.tab === activeTab && worldReadiness.generation === tabGeneration && worldReadiness.ready;
-
     const handleTabClick = (tab: WorldTab) => {
         if (tab === activeTab) return;
         setActiveTab(tab);
@@ -78,17 +56,6 @@ export default function SelectWorldModal({
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
 
-    const handleWorldReadinessChange = useCallback((tab: WorldTab, generation: number, isReady: boolean) => {
-        const active = activeWorldRef.current;
-        if (!active.open || active.tab !== tab || active.generation !== generation) return;
-        setWorldReadiness((prev) => {
-            if (prev.tab === tab && prev.generation === generation && prev.ready === isReady) {
-                return prev;
-            }
-            return { tab, generation, ready: isReady };
-        });
-    }, []);
-
     const {data: worldsData, isPending, isError, refetch} = useQuery({
         queryKey: ['worlds', squadId, beerCallId],
         queryFn: async () => {
@@ -97,19 +64,6 @@ export default function SelectWorldModal({
         },
         enabled: isOpen && !!squadId && !!beerCallId,
     });
-
-    // Foreground remains selected-only; optional warm-up shares these cache keys.
-    const {
-        data: worldModule,
-        isPending: isModulePending,
-        isError: isModuleError,
-        refetch: refetchModule,
-    } = useQuery<LoadedWorldModule>({
-        ...worldModuleQueryOptions(activeTab, worldModuleLoader),
-        enabled: isOpen,
-    });
-
-    const ActiveWorld = worldModule?.default;
 
     const THEMES = {
         bar: {
@@ -143,45 +97,10 @@ export default function SelectWorldModal({
     const participantsReliable = hasWorldData && !isPending && !isError;
     const canLaunchGame = isActiveApero && participantsReliable && currentParticipants.length >= 2;
 
-    const participantsForPrefetch = useMemo(() => {
-        return currentParticipants.map((p) => {
-            const cfg = p.avatar_config;
-            return {
-                head: cfg?.head ?? undefined,
-                body: cfg?.body ?? undefined,
-                legs: cfg?.legs ?? undefined,
-                feet: cfg?.feet ?? undefined,
-                accessory: cfg?.accessory,
-            };
-        });
-    }, [currentParticipants]);
-
-    useEffect(() => {
-        if (isOpen && participantsForPrefetch.length > 0) {
-            void prefetchWorldAssets({
-                world: activeTab,
-                participants: participantsForPrefetch,
-            });
-        }
-    }, [isOpen, activeTab, participantsForPrefetch]);
-
     // Contrôle accessible de lancement : le levier 3D reste le contrôle visuel,
     // mais un bouton masqué permet aux lecteurs d'écran et aux tests E2E de démarrer la partie.
     const {startGame, isLocked} = useGameEngine(beerCallId, {enabled: isActiveApero});
     const openGameScreen = useGameUIStore((state) => state.openGameScreen);
-
-    // Handler pour mettre à jour la liste des photos et l'index actuel
-    const handleSelectPhoto = (url: string) => {
-        // Récupérer toutes les preuves de photos des participants de l'onglet actuel
-        const allPhotos = currentParticipants
-            .map((p) => p.proof_photo_url)
-            .filter((url): url is string => url !== null && url !== undefined);
-        
-        setSelectedPhotos(allPhotos);
-        // Trouver l'index de la photo cliquée
-        const index = allPhotos.indexOf(url);
-        setCurrentPhotoIndex(index >= 0 ? index : 0);
-    };
 
     return (
         <AnimatePresence>
@@ -253,92 +172,12 @@ export default function SelectWorldModal({
                                          <p role="status" className="mt-3 text-sm text-gray-900">Chargement des participants…</p>
                                      </>}
                                 </div>
-                            ) : isModuleError ? (
-                                <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/80 p-6 text-center">
-                                    <p className="text-sm font-bold text-gray-900 mb-1">Impossible de charger le monde 3D</p>
-                                    <p className="text-xs text-gray-600 mb-3">Vérifiez votre connexion réseau</p>
-                                    <div className="flex gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => refetchModule()}
-                                            className="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow hover:bg-amber-600 transition-colors"
-                                        >
-                                            Réessayer
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => window.location.reload()}
-                                            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-gray-300 transition-colors"
-                                        >
-                                            Recharger la page
-                                        </button>
-                                    </div>
-                                </div>
                             ) : (
-                                <>
-                                {isModulePending && !ActiveWorld && (
-                                    <div role="status" className="absolute inset-0 flex flex-col items-center justify-center z-40">
-                                        <div className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin border-gray-900"></div>
-                                        <p className="mt-3 text-sm text-gray-900 font-bold">Chargement du monde 3D…</p>
-                                    </div>
-                                )}
-                                <WorldCanvas
+                                <WorldScene
+                                    key={`${activeTab}-${tabGeneration}`}
                                     world={activeTab}
-                                    decorReady={Boolean(ActiveWorld)}
-                                    avatarsReady={participantsReliable && isWorldReady}
-                                    onReady={(ready) => {
-                                        if (ready) {
-                                            handleWorldReadinessChange(activeTab, tabGeneration, true);
-                                        }
-                                    }}
-                                >
-                                    {/* 🛡️ SUSPENSE: EMPÊCHE LE DEMONTAGE GLOBAL DU DASHBOARD */}
-                                    <Suspense fallback={<CanvasLoader />}>
-                                        {/* AIGUILLAGE VERS LES BONS COMPOSANTS 3D AVEC LA FONCTION DE PHOTO */}
-                                        {ActiveWorld && activeTab === 'bar' && (
-                                            <ActiveWorld
-                                                key={`bar-${tabGeneration}`}
-                                                isActiveApero={isActiveApero}
-                                                aperoId={beerCallId}
-                                                squadId={squadId}
-                                                participants={currentParticipants}
-                                                onSelectPhoto={handleSelectPhoto}
-                                                participantsReliable={participantsReliable}
-                                                onReadinessChange={(ready) => handleWorldReadinessChange('bar', tabGeneration, ready)}
-                                            />
-                                        )}
-                                        {ActiveWorld && activeTab === 'piscine' && (
-                                            <ActiveWorld
-                                                key={`piscine-${tabGeneration}`}
-                                                participants={currentParticipants}
-                                                onReadinessChange={(ready) => handleWorldReadinessChange('piscine', tabGeneration, ready)}
-                                            />
-                                        )}
-                                        {ActiveWorld && activeTab === 'dodo' && (
-                                            <ActiveWorld
-                                                key={`dodo-${tabGeneration}`}
-                                                participants={currentParticipants}
-                                                onReadinessChange={(ready) => handleWorldReadinessChange('dodo', tabGeneration, ready)}
-                                            />
-                                        )}
-                                        <SceneReadyProbe
-                                            key={`world-probe-${activeTab}-${tabGeneration}`}
-                                            kind="world"
-                                            id={activeTab}
-                                            view={`world-${activeTab}`}
-                                            ready={participantsReliable && isWorldReady}
-                                        />
-                                    </Suspense>
-
-                                    <OrbitControls
-                                        enableZoom={true}
-                                        target={[0, 80, 0]}
-                                        minPolarAngle={Math.PI / 3} maxPolarAngle={Math.PI / 1.8}
-                                        autoRotate={false}
-                                        autoRotateSpeed={0.5}
-                                    />
-                                </WorldCanvas>
-                                </>
+                                    participants={currentParticipants}
+                                />
                             )}
 
                             {/* TITRE EN SURIMPRESSION */}

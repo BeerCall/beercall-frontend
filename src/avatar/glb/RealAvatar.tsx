@@ -213,7 +213,12 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
                 readinessReported.current = true;
             } catch (err) {
                 if (cancelled) return;
-                setLoadError(err instanceof Error ? err : new Error(String(err)));
+                const error = err instanceof Error ? err : new Error(String(err));
+                console.error('[avatar] assembly failed', {
+                    avatar: resolvedParts.head.sourceId,
+                    error,
+                });
+                setLoadError(error);
                 callbacksRef.current.onReadinessChange?.(false);
             }
         })();

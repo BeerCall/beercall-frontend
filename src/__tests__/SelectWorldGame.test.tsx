@@ -7,29 +7,18 @@ import SelectWorldModal from '../components/Modals/SelectWorldModal';
 import { useGameUIStore } from '../store/useGameUIStore';
 import { server } from './mocks/server';
 
-const barWorldCaptor = vi.fn();
+const worldSceneCaptor = vi.fn();
 
-vi.mock('@react-three/fiber', () => ({
-    Canvas: ({ children }: React.PropsWithChildren<unknown>) => <div data-testid="world-canvas">{children}</div>,
-    useFrame: vi.fn(),
-}));
-
-vi.mock('../worlds/WorldCanvas', () => ({
-    WorldCanvas: ({ children }: React.PropsWithChildren<unknown>) => <div data-testid="world-canvas">{children}</div>,
-}));
-
-vi.mock('../components/3D/BarWorld', () => ({
-    default: (props: unknown) => {
-        barWorldCaptor(props);
-        return <div data-testid="bar-world-mock" />;
+vi.mock('../worlds/WorldScene', () => ({
+    WorldScene: (props: unknown) => {
+        worldSceneCaptor(props);
+        return <div data-testid="world-scene-mock" />;
     },
 }));
-vi.mock('../components/3D/PiscineWorld', () => ({ default: () => null }));
-vi.mock('../components/3D/FloatyIslandWorld', () => ({ default: () => null }));
 
-describe('SelectWorldModal avec contrôle accessible masqué et délégation au Bar (T06)', () => {
+describe('SelectWorldModal avec contrôle accessible masqué et délégation à la scène PoC (T06)', () => {
     beforeEach(() => {
-        barWorldCaptor.mockClear();
+        worldSceneCaptor.mockClear();
     });
 
     afterEach(() => {
@@ -63,16 +52,13 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation au 
         // Contrôle accessible masqué pour les lecteurs d'écran et les tests E2E
         expect(screen.getByRole('button', { name: 'Démarrer la partie' })).toBeInTheDocument();
 
-        // Les données arrivent, BarWorld est monté avec les props requises
-        await waitFor(() => expect(screen.getByTestId('bar-world-mock')).toBeInTheDocument());
+        // Les données arrivent, la scène PoC est montée avec les participants
+        await waitFor(() => expect(screen.getByTestId('world-scene-mock')).toBeInTheDocument());
         expect(screen.queryByRole('button', { name: /Lancer le jeu/i })).not.toBeInTheDocument();
 
-        expect(barWorldCaptor).toHaveBeenLastCalledWith(
+        expect(worldSceneCaptor).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                isActiveApero: true,
-                aperoId: 'bc_1',
-                squadId: '1',
-                participantsReliable: true,
+                world: 'bar',
                 participants: [{ user_id: 'u_1' }, { user_id: 'u_2' }],
             })
         );
@@ -104,9 +90,9 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation au 
         expect(screen.getByRole('button', { name: 'Démarrer la partie' })).toBeDisabled();
         expect(screen.queryByRole('button', { name: /Lancer le jeu/i })).not.toBeInTheDocument();
 
-        expect(barWorldCaptor).toHaveBeenLastCalledWith(
+        expect(worldSceneCaptor).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                participantsReliable: true,
+                world: 'bar',
                 participants: [{ user_id: 'u_1' }],
             })
         );
@@ -141,7 +127,7 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation au 
         );
 
         // Attente du chargement du module et des participants
-        await waitFor(() => expect(screen.getByTestId('bar-world-mock')).toBeInTheDocument());
+        await waitFor(() => expect(screen.getByTestId('world-scene-mock')).toBeInTheDocument());
 
         const startButton = screen.getByRole('button', { name: 'Démarrer la partie' });
         expect(startButton).toBeEnabled();
