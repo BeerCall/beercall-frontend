@@ -219,7 +219,9 @@ describe('animationPack', () => {
       expect(clip).toBeInstanceOf(THREE.AnimationClip);
       expect(clip.name).toBe('Idle');
       expect(clip.duration).toBeCloseTo(1.66666, 4);
-      expect(clip.tracks.length).toBe(252);
+      expect(clip.tracks.length).toBe(186);
+      expect(clip.tracks.some((track) => ['Camera', 'Camera001', 'CharacterArmature', 'Light', 'Light001'].includes(track.name.split('.')[0]))).toBe(false);
+      expect(clip.tracks.some((track) => track.name.split('.')[0].endsWith('_end'))).toBe(false);
 
       // Verify no FPS scaling was applied
       for (const track of clip.tracks) {
@@ -287,7 +289,9 @@ describe('animationPack', () => {
       const walkClip1 = manager.getClip('Walk');
       expect(walkClip1).toBeInstanceOf(THREE.AnimationClip);
       expect(walkClip1.name).toBe('Walk');
-      expect(walkClip1.tracks.length).toBe(252);
+      expect(walkClip1.tracks.length).toBe(186);
+      expect(walkClip1.tracks.some((track) => ['Camera', 'Camera001', 'CharacterArmature', 'Light', 'Light001'].includes(track.name.split('.')[0]))).toBe(false);
+      expect(walkClip1.tracks.some((track) => track.name.split('.')[0].endsWith('_end'))).toBe(false);
       expect(manager.isClipDecoded('Walk')).toBe(true);
 
       // Other deferred clips are STILL not decoded
@@ -309,7 +313,8 @@ describe('animationPack', () => {
         const clip = manager.getClip(clipName);
         expect(clip).toBeInstanceOf(THREE.AnimationClip);
         expect(clip.name).toBe(clipName);
-        expect(clip.tracks.length).toBe(252);
+        expect(clip.tracks.length).toBe(186);
+        expect(clip.tracks.some((track) => track.name.split('.')[0].endsWith('_end'))).toBe(false);
         expect(manager.isClipDecoded(clipName)).toBe(true);
       }
     });

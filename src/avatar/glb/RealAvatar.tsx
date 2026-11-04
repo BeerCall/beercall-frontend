@@ -61,6 +61,9 @@ function countMeshes(root: Group): number {
     return count;
 }
 
+/** Diagnostic: proves each avatar rig is assembled once, not on every parent render. */
+let assemblyCount = 0;
+
 export const RealAvatar: React.FC<RealAvatarProps> = ({
     config,
     manifest: propManifest,
@@ -93,6 +96,8 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
     const activeActions = useRef<Map<AnimationMixer, AnimationAction>>(new Map());
     const currentClipName = useRef<string>('');
     const readinessReported = useRef(false);
+    const callbacksRef = useRef({ onReady, onReadinessChange });
+    callbacksRef.current = { onReady, onReadinessChange };
 
     // 1. Résolution synchrone pure des pièces
     const { resolvedParts, resolveError } = useMemo(() => {
@@ -197,13 +202,19 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
                 setLoadError(null);
 
                 const totalMeshes = countMeshes(root);
-                onReadinessChange?.(true, { parts: pieceNames, meshCount: totalMeshes });
-                onReady?.();
+                assemblyCount += 1;
+                console.info('[avatar] assembled', {
+                    count: assemblyCount,
+                    avatar: resolvedParts.head.sourceId,
+                    parts: pieceNames.length,
+                });
+                callbacksRef.current.onReadinessChange?.(true, { parts: pieceNames, meshCount: totalMeshes });
+                callbacksRef.current.onReady?.();
                 readinessReported.current = true;
             } catch (err) {
                 if (cancelled) return;
                 setLoadError(err instanceof Error ? err : new Error(String(err)));
-                onReadinessChange?.(false);
+                callbacksRef.current.onReadinessChange?.(false);
             }
         })();
 
@@ -215,7 +226,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
             }
             root.clear();
         };
-    }, [resolvedParts, onReady, onReadinessChange]);
+    }, [resolvedParts]);
 
     // 4. Application du clip actif avec crossfade 0.2s
     useEffect(() => {

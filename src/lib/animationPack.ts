@@ -10,6 +10,8 @@ import type {
 
 const EXPECTED_CLIP_COUNT = 25;
 const HEX_64_REGEX = /^[0-9a-f]{64}$/;
+/** Scene nodes that are not part of the humanoid rig and must not reach a part mixer. */
+const NON_HUMANOID = new Set(['Camera', 'Camera001', 'CharacterArmature', 'Light', 'Light001']);
 export const ANIMATION_SOURCE_HASH = 'b455d642cd874130c3aba3ae03b207cc67c1817af3881cfbc3877e0921748d6e';
 export const ANIMATION_CLIP_NAMES: readonly string[] = Object.freeze([
   'Punch_Right', 'Idle_Gun', 'Sword_Slash', 'Punch_Left', 'Idle_Gun_Pointing',
@@ -420,13 +422,20 @@ export function decodeSingleClip(serialized: SerializedClip): THREE.AnimationCli
     };
   });
 
+  // Keep the humanoid tracks only: camera and light curves would fail to bind on a part rig.
+  // Published GLBs also omit Blender leaf bones (`*_end`) that the PoC FBX sources keep.
+  const humanoidTracks = parsedTracks.filter((track) => {
+    const node = track.name.split('.')[0];
+    return Boolean(node) && !NON_HUMANOID.has(node) && !node.endsWith('_end');
+  });
+
   // Note: fps is intentionally omitted so AnimationClip.parse does not scale times by (1/fps)
   return THREE.AnimationClip.parse({
     name: serialized.name,
     duration: serialized.duration,
     blendMode: serialized.blendMode as THREE.AnimationBlendMode,
     uuid: serialized.uuid,
-    tracks: parsedTracks as unknown as THREE.KeyframeTrackJSON[],
+    tracks: humanoidTracks as unknown as THREE.KeyframeTrackJSON[],
   });
 }
 
