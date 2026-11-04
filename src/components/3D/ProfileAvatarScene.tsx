@@ -57,7 +57,7 @@ export const ProfileAvatarScene: React.FC<ProfileAvatarSceneProps> = ({
                     globalLeaseController.attach(activeToken, () => destroyRenderer(gl));
                 }}
             >
-                <color attach="background" args={[new Color('#101820')]} />
+                <color attach="background" args={[new Color('#f8fafc')]} />
                 <hemisphereLight intensity={1.5} />
                 <directionalLight position={[3, 5, 4]} intensity={1.8} />
                 <Camera />
