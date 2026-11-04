@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type maplibregl from 'maplibre-gl';
+import maplibregl from 'maplibre-gl';
 
 import {
     createLeasedMapLibrary,
@@ -128,6 +128,26 @@ describe('B10c — createLeasedMapLibrary (MapLibre sous contrôle de lease)', (
         const lib2 = createLeasedMapLibrary(token, fakeLib, controller);
 
         expect(lib1).toBe(lib2);
+        await controller.release(token);
+    });
+
+    it('exige explicitement la bibliothèque maplibre-gl (aucun repli factice)', async () => {
+        const token = await controller.request('map', 'm1');
+
+        expect(() => createLeasedMapLibrary(token, undefined as never, controller)).toThrow(/baseLib/i);
+
+        await controller.release(token);
+    });
+
+    it('sous-classe la vraie classe maplibregl.Map fournie', async () => {
+        const token = await controller.request('map', 'm1');
+
+        const leasedLib = createLeasedMapLibrary(token, maplibregl, controller);
+
+        expect(leasedLib.Map).not.toBe(maplibregl.Map);
+        expect(Object.getPrototypeOf(leasedLib.Map)).toBe(maplibregl.Map);
+        expect(leasedLib.Map.prototype).toBeInstanceOf(maplibregl.Map);
+
         await controller.release(token);
     });
 

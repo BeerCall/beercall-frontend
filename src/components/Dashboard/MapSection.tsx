@@ -1,6 +1,7 @@
 import React from 'react';
 import {createPortal} from 'react-dom';
 import Map, { Marker, NavigationControl, type MapRef, type MapLayerMouseEvent, type MapLayerTouchEvent } from 'react-map-gl/maplibre';
+import maplibregl from 'maplibre-gl';
 import { motion } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
@@ -263,9 +264,16 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             state.recovery = 'normal';
         }
     }, [mapId, mapEpoch]);
-    const handleMapError = React.useCallback(() => {
+    const handleMapError = React.useCallback((event?: { error?: unknown; target?: unknown }) => {
         const state = lifecycle.current;
         if (state.epoch !== mapEpoch) return;
+        // Ne jamais avaler une erreur MapLibre : la carte peut rester blanche
+        // sans que rien ne remonte (diagnostic étape 2).
+        console.error('[MapSection] Erreur MapLibre', {
+            mapId,
+            epoch: mapEpoch,
+            error: event?.error ?? event,
+        });
         if (state.generation !== undefined) unregisterSceneInstance('dashboard', mapId, state.generation);
         state.generation = undefined; state.loaded = false; state.submitted = false;
     }, [mapId, mapEpoch]);
@@ -284,7 +292,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
 
     const leasedMapLib = React.useMemo(() => {
         if (!lease.token) return undefined;
-        return createLeasedMapLibrary(lease.token);
+        return createLeasedMapLibrary(lease.token, maplibregl);
     }, [lease.token]);
 
     React.useEffect(() => {

@@ -33,34 +33,23 @@ export function assertCurrentLeaseToken(
 
 const mapLibCache = new WeakMap<LeaseToken, typeof maplibregl>();
 
-class DefaultBaseMap {
-    private canvas: HTMLCanvasElement;
-    public options?: unknown;
-    constructor(options?: unknown) {
-        this.options = options;
-        this.canvas = document.createElement('canvas');
-    }
-    getCanvas(): HTMLCanvasElement {
-        return this.canvas;
-    }
-    remove(): this {
-        return this;
-    }
-}
-
-const defaultLib = {
-    Map: DefaultBaseMap as unknown as typeof maplibregl.Map,
-} as unknown as typeof maplibregl;
-
 export function createLeasedMapLibrary(
     token: LeaseToken,
-    baseLib: typeof maplibregl = defaultLib,
+    baseLib: typeof maplibregl,
     controller: LeaseController = globalLeaseController,
 ): typeof maplibregl {
     const cached = mapLibCache.get(token);
     if (cached) return cached;
 
-    const BaseClass = baseLib?.Map || DefaultBaseMap;
+    // La vraie bibliothèque MapLibre est obligatoire : aucun repli factice ne
+    // doit masquer un import manquant (la carte resterait blanche sans erreur).
+    if (!baseLib || typeof baseLib.Map !== 'function') {
+        throw new Error(
+            'createLeasedMapLibrary: baseLib est obligatoire et doit exposer la classe Map de maplibre-gl',
+        );
+    }
+
+    const BaseClass = baseLib.Map;
 
     class LeasedMap extends BaseClass {
         private _isRemoved = false;

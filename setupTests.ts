@@ -218,6 +218,12 @@ global.Notification = {
     permission: 'granted',
 } as unknown as typeof Notification;
 
+// jsdom n'implémente pas les URL de blobs : maplibre-gl s'en sert au chargement
+// pour enregistrer son worker. Le polyfill de Vitest échoue sur son Blob
+// (`_bytes` undefined), on le remplace donc systématiquement dans les tests.
+URL.createObjectURL = vi.fn(() => 'blob:vitest-maplibre-worker') as unknown as typeof URL.createObjectURL;
+URL.revokeObjectURL = vi.fn() as unknown as typeof URL.revokeObjectURL;
+
 if (!global.navigator.serviceWorker) {
     Object.defineProperty(global.navigator, 'serviceWorker', {
       value: {
