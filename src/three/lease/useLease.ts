@@ -59,6 +59,7 @@ export function useLease(
             .catch((err) => {
                 if (!active) return;
                 const normalized = err instanceof Error ? err : new Error(String(err));
+                console.error('[lease] Demande de lease refusée', { surface, error: normalized });
                 setError(normalized);
             });
 

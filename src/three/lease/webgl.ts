@@ -115,8 +115,8 @@ export async function destroyRenderer(renderer: WebGLRenderer): Promise<void> {
     const context = renderer.getContext() as GlContext | null;
     try {
         renderer.renderLists?.dispose?.();
-    } catch {
-        /* ignore */
+    } catch (error) {
+        console.error('[webgl] Échec de dispose des renderLists', { error });
     }
     if (context && canvas) {
         await destroyContext(context, canvas);
@@ -125,6 +125,10 @@ export async function destroyRenderer(renderer: WebGLRenderer): Promise<void> {
 
 export async function destroyCanvasContext(context: GlContext | null, canvas: HTMLCanvasElement): Promise<void> {
     if (!context) {
+        console.error('[webgl] Libération impossible : aucun contexte WebGL sur le canvas', {
+            canvasWidth: canvas?.width,
+            canvasHeight: canvas?.height,
+        });
         throw new Error('Libération WebGL non confirmable sans contexte');
     }
     await destroyContext(context, canvas);
@@ -142,17 +146,29 @@ export function destroyContext(context: GlContext, canvas: HTMLCanvasElement): P
         try {
             extension = (context.getExtension?.('WEBGL_lose_context') ?? null) as (WEBGL_lose_context & { loseContext?: () => void }) | null;
             extension?.loseContext?.();
-        } catch {
-            /* ignore */
+        } catch (error) {
+            console.error('[webgl] Échec de WEBGL_lose_context', { error });
         }
-        if (extension) stats.forcedLoss += 1;
+        if (extension) {
+            stats.forcedLoss += 1;
+        } else {
+            // MapLibre appelle déjà loseContext() dans son propre remove() : dans ce
+            // cas l'extension n'est plus disponible et le contexte est déjà perdu.
+            console.error(
+                '[webgl] WEBGL_lose_context indisponible : vérification de la perte réelle du contexte',
+                { isContextLost: typeof context.isContextLost === 'function' ? context.isContextLost() : 'inconnu' },
+            );
+        }
 
         // 2. Polling de confirmation (20 x 50ms = 1s)
         for (let attempt = 0; attempt < 20; attempt += 1) {
             let isLost = false;
             try {
                 isLost = typeof context.isContextLost === 'function' ? context.isContextLost() : true;
-            } catch {
+            } catch (error) {
+                // Un contexte déjà détruit peut faire échouer isContextLost() :
+                // on le considère perdu, mais l'erreur reste tracée.
+                console.error('[webgl] isContextLost() a échoué, contexte considéré perdu', { error });
                 isLost = true;
             }
 
@@ -170,6 +186,13 @@ export function destroyContext(context: GlContext, canvas: HTMLCanvasElement): P
 
         const message = `Contexte non libéré après 1 s (${stats.created} créés, ${stats.active} actifs)`;
         stats.failures.push(message);
+        console.error('[webgl] Libération WebGL non confirmée', {
+            canvasWidth: canvas?.width,
+            canvasHeight: canvas?.height,
+            hadExtension: Boolean(extension),
+            created: stats.created,
+            active: stats.active,
+        });
         throw new Error('Libération WebGL non confirmée');
     })();
 

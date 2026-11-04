@@ -33,6 +33,36 @@ function readMapView(map: NativeMap | null): MapView | undefined {
     } catch { return undefined; }
 }
 
+type MapLibreErrorDetails = {
+    error?: unknown;
+    name?: string;
+    message?: string;
+    status?: number;
+    statusMessage?: string;
+    url?: string;
+    raw?: unknown;
+};
+
+// MapLibre encode le détail du refus WebGL dans le message JSON de l'erreur
+// (`requestedAttributes`, `statusMessage`...). On l'expose tel quel pour que le
+// diagnostic ne soit jamais tronqué dans la console.
+function describeMapError(event?: {error?: unknown}): MapLibreErrorDetails {
+    const error = event?.error;
+    if (error instanceof Error) {
+        const enriched = error as Error & {status?: number; statusMessage?: string; url?: string};
+        return {
+            error,
+            name: error.name,
+            message: error.message,
+            status: enriched.status,
+            statusMessage: enriched.statusMessage,
+            url: enriched.url,
+            raw: error,
+        };
+    }
+    return { error, raw: error };
+}
+
 // MapLibre retire son style pendant contextlost. react-map-gl ne protège pas
 // setProps contre ce style null : ne pas rerendre l'adaptateur avant restored
 // puis idle. Le slot de contexte garde les enfants à jour sans rerendre Map.
@@ -272,7 +302,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         console.error('[MapSection] Erreur MapLibre', {
             mapId,
             epoch: mapEpoch,
-            error: event?.error ?? event,
+            ...describeMapError(event),
         });
         if (state.generation !== undefined) unregisterSceneInstance('dashboard', mapId, state.generation);
         state.generation = undefined; state.loaded = false; state.submitted = false;

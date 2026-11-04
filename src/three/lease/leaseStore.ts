@@ -62,8 +62,19 @@ export function resetLeaseStore(): void {
     for (const listener of listeners) {
         try {
             listener();
-        } catch {
-            /* ignore */
+        } catch (error) {
+            console.error('[leaseStore] Erreur dans un abonné lors du reset :', error);
         }
     }
+}
+
+declare global {
+    interface Window {
+        /** Diagnostic : état courant de la lease WebGL globale. */
+        __leaseState?: () => LeaseState;
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.__leaseState = getLeaseSnapshot;
 }

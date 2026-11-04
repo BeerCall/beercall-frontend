@@ -87,12 +87,17 @@ export function createLeasedMapLibrary(
 
             try {
                 super.remove();
-            } catch {
-                /* ignore */
+            } catch (error) {
+                console.error('[lease] Échec de MapLibre Map.remove()', { token, error });
             }
 
             if (canvas && context) {
-                this._destroyPromise = destroyCanvasContext(context, canvas).catch(() => {});
+                this._destroyPromise = destroyCanvasContext(context, canvas).catch((error) => {
+                    console.error('[lease] Destruction du contexte MapLibre échouée', {
+                        token,
+                        error,
+                    });
+                });
             }
 
             return this;

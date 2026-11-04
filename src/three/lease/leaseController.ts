@@ -14,6 +14,7 @@ import {
     resetLeaseStore,
     updateLeaseState,
 } from './leaseStore';
+import { webglStats } from './webgl';
 
 export type ReleaseFunction = () => Promise<void> | void;
 
@@ -24,6 +25,7 @@ export class LeaseController {
     private queue: Promise<void> = Promise.resolve();
     private activeRequests = new Map<string, { cancelled: boolean }>();
     private idleResolvers = new Set<() => void>();
+    private releasePromise: { token: LeaseToken; promise: Promise<void> } | null = null;
     private readonly timeoutMs: number;
 
     constructor(timeoutMs = 2_000) {
@@ -39,10 +41,16 @@ export class LeaseController {
     }
 
     block(reason: string): void {
+        if (getLeaseSnapshot().phase === 'blocked') return;
+        // Un blocage est une panne : il doit être visible dans la console.
+        console.error('[lease] Contexte WebGL bloqué', { reason });
         updateLeaseState({
             phase: 'blocked',
             blockedReason: reason,
         });
+        // Réveiller les demandes en attente pour qu'elles échouent explicitement
+        // au lieu de rester suspendues indéfiniment.
+        this.notifyIdle();
     }
 
     private waitForIdle(): Promise<void> {
@@ -90,6 +98,7 @@ export class LeaseController {
                 this.currentLease.surface === surface &&
                 this.currentLease.instanceId === instanceId
             ) {
+                this.activeRequests.delete(requestId);
                 return this.currentLease;
             }
 
@@ -118,6 +127,7 @@ export class LeaseController {
 
             this.currentLease = token;
             this.releaseResource = null;
+            this.activeRequests.delete(requestId);
             updateLeaseState({
                 currentToken: token,
                 phase: 'reserved',
@@ -145,7 +155,9 @@ export class LeaseController {
             // Ressource créée en retard ou token annulé : nettoyage immédiat
             void Promise.resolve()
                 .then(() => release())
-                .catch(() => {});
+                .catch((error) => {
+                    console.error('[lease] Libération de la ressource orpheline échouée', { token, error });
+                });
             return;
         }
 
@@ -173,9 +185,12 @@ export class LeaseController {
         if (
             this.currentLease &&
             this.currentLease.surface === surface &&
-            this.currentLease.instanceId === instanceId
+            this.currentLease.instanceId === instanceId &&
+            getLeaseSnapshot().phase !== 'releasing'
         ) {
-            void this.release(this.currentLease).catch(() => {});
+            void this.release(this.currentLease).catch((error) => {
+                console.error('[lease] Libération annulée échouée', { surface, instanceId, error });
+            });
         }
     }
 
@@ -184,7 +199,18 @@ export class LeaseController {
      */
     release(token: LeaseToken): Promise<void> {
         if (!this.matchesCurrent(token)) return Promise.resolve();
-        return this.releaseCurrent(token);
+
+        // Une même libération peut être demandée plusieurs fois (cleanup React
+        // + corps d'effet, cancel externe...) : on ne doit jamais exécuter
+        // deux fois la destruction ni bloquer la lease pour ce motif.
+        if (this.releasePromise?.token === token) return this.releasePromise.promise;
+
+        const promise = this.releaseCurrent(token);
+        const tracked = promise.finally(() => {
+            if (this.releasePromise?.promise === tracked) this.releasePromise = null;
+        });
+        this.releasePromise = { token, promise: tracked };
+        return tracked;
     }
 
     reset(): void {
@@ -192,6 +218,7 @@ export class LeaseController {
         this.releaseResource = null;
         this.activeRequests.clear();
         this.idleResolvers.clear();
+        this.releasePromise = null;
         this.queue = Promise.resolve();
         resetLeaseStore();
     }
@@ -240,6 +267,29 @@ export class LeaseController {
                     : error instanceof Error
                       ? error.message
                       : 'Libération échouée';
+
+            console.error('[lease] Libération WebGL échouée', {
+                token,
+                reason,
+                error,
+                activeContexts: webglStats().active,
+            });
+
+            if (!this.matchesCurrent(token)) {
+                // Slot déjà libéré, libération concurrente déjà traitée ou
+                // contrôleur réinitialisé : rien à bloquer. C'est cette course
+                // qui rendait la carte blanche après Profil (étape 3).
+                return;
+            }
+
+            if (!this.releaseResource) {
+                // Aucune ressource attachée : rien à détruire, le slot est
+                // réellement libre malgré l'échec rapporté.
+                this.currentLease = null;
+                updateLeaseState({ currentToken: null, phase: 'idle', blockedReason: null });
+                this.notifyIdle();
+                return;
+            }
 
             this.block(reason || 'Échec de libération du contexte WebGL');
             throw error;
