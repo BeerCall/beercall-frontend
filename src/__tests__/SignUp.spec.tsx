@@ -195,7 +195,7 @@ describe('Page SignUp (Coverage)', () => {
         expect(button).toBeEnabled();
     });
 
-    it('monte AvatarStage avec surface="signup" à l’étape 2 sans aucun SafeAvatar', async () => {
+    it('monte la scène Profil (surface signup) à l’étape 2 sans aucun SafeAvatar', async () => {
         server.use(
             http.get('*/auth/profile/', () => HttpResponse.json({ shop_items: [] })),
         );

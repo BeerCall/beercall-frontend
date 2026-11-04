@@ -155,7 +155,7 @@ export default function SharedAvatarRenderer({session}: {session: AvatarViewport
             className="pointer-events-none fixed -left-[10000px] top-0"
         style={{width: Math.ceil(size.width) + 1, height: Math.ceil(size.height) + 1}}>
         <AvatarRenderBoundary key={epoch} fallback={<SourceFailure session={session} epoch={epoch}/>}>
-        <Canvas dpr={size.dpr} gl={{alpha: true, antialias: true, preserveDrawingBuffer: false}} events={noEvents}>
+        <Canvas dpr={size.dpr} gl={{alpha: true, antialias: true}} events={noEvents}>
             <SourceLifecycle session={session} epoch={epoch} attach={attachRenderer}/>
             <RenderPass session={session} jobs={jobs} visible={visible} shadowRevision={shadowRevision}/>
         </Canvas>

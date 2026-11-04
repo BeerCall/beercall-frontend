@@ -90,10 +90,6 @@ vi.mock('@react-three/fiber', () => ({
     useThree: threeUseThreeMock,
 }));
 
-vi.mock('../worlds/WorldCanvas', () => ({
-    WorldCanvas: ({ children }: React.PropsWithChildren<unknown>) => <div data-testid="world-canvas">{children}</div>,
-}));
-
 vi.mock('@react-three/drei', () => {
     const dummyScene = {
         clone: () => dummyScene,

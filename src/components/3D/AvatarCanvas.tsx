@@ -86,7 +86,7 @@ export default function AvatarCanvas({config, headOnly = false, active = true, f
     return <div className="w-full h-full relative"
         data-avatar-framing={framed ? status?.frameSubmitted && active && visible && info ? 'ready' : 'pending' : undefined}
         data-avatar-framing-info={framed && info ? JSON.stringify(info) : undefined}>
-        <Canvas camera={{position: [0, 80, 300], fov: 45}} dpr={[1, 1.5]}
+        <Canvas camera={{position: [0, 80, 300], fov: 45}} dpr={[1.5, 1.5]}
             events={mode === 'thumbnail' ? noopEventManager : undefined}
             className={`z-10 relative ${framed && !info ? 'opacity-0' : 'opacity-100'}`}>
             <AvatarFrameloopController active={active && visible}/>

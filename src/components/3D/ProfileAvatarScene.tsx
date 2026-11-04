@@ -21,6 +21,7 @@ import type { AvatarConfig } from '../../types/avatar';
 
 export interface ProfileAvatarSceneProps {
     config: AvatarConfig | null;
+    surface?: 'profile' | 'signup';
     fallback?: React.ReactNode;
     onAnimationsLoaded?: (animations: string[]) => void;
 }
@@ -35,10 +36,11 @@ function Camera() {
 
 export const ProfileAvatarScene: React.FC<ProfileAvatarSceneProps> = ({
     config,
+    surface = 'profile',
     fallback = null,
     onAnimationsLoaded,
 }) => {
-    const { granted, token } = useLease('profile');
+    const { granted, token } = useLease(surface);
 
     if (!config || !granted || !token) {
         return <div className="w-full h-full relative">{fallback}</div>;

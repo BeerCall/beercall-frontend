@@ -47,7 +47,6 @@ export function createOffscreenRenderer(width = 512, height = 512): WebGLRendere
     const renderer = new WebGLRenderer({
         antialias: true,
         alpha: true,
-        preserveDrawingBuffer: true,
     });
     renderer.setPixelRatio(1);
     renderer.setSize(width, height, false);

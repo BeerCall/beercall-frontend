@@ -4,7 +4,7 @@ import {ChevronLeft, ArrowRight, User, Lock} from 'lucide-react';
 import {useUserStore} from '../store/useUserStore';
 import {api} from '../lib/api';
 import {saveTokens} from '../lib/authTokens';
-import { AvatarStage } from '../components/3D/AvatarStage';
+import { ProfileAvatarScene } from '../components/3D/ProfileAvatarScene';
 import VestiairePanel, {type Gender} from '../components/Profile/VestiairePanel';
 import {useQuery} from '@tanstack/react-query';
 import {toast} from "../store/useToastStore.ts";
@@ -190,7 +190,7 @@ export default function SignUp() {
                                 className="absolute top-6 left-6 z-20 p-3 bg-white shadow-xl rounded-full border border-gray-100 hover:scale-110 active:scale-90 transition-transform">
                             <ChevronLeft size={20}/></button>
                         <Suspense fallback={<div className="flex h-full items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-beer"></div></div>}>
-                            <AvatarStage
+                            <ProfileAvatarScene
                                 surface="signup"
                                 config={{ ...avatarConfig, gender }}
                                 onAnimationsLoaded={setAvailableAnimations}
