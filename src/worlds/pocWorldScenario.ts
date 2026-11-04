@@ -12,6 +12,8 @@ export type WorldSpec = {
     decorKey: string;
     participants: number;
     modelScale: number;
+    /** Facteur d'unités du GLB publié vers les unités de la PoC. */
+    assetUnitScale: number;
     modelOffsetY: number;
     camera: [number, number, number];
     target: [number, number, number];
@@ -27,6 +29,7 @@ export const WORLD_SPECS: Record<WorldKind, WorldSpec> = {
         decorKey: 'decor/bar',
         participants: 10,
         modelScale: 0.65,
+        assetUnitScale: 0.01,
         modelOffsetY: -0.28,
         camera: [9.5, 6.6, 12.5],
         target: [0, 1.2, 0],
@@ -38,6 +41,7 @@ export const WORLD_SPECS: Record<WorldKind, WorldSpec> = {
         decorKey: 'decor/piscine',
         participants: 10,
         modelScale: 0.26,
+        assetUnitScale: 1,
         modelOffsetY: 0,
         camera: [10.2, 7, 12.8],
         target: [0, 1.3, 0],
@@ -49,6 +53,7 @@ export const WORLD_SPECS: Record<WorldKind, WorldSpec> = {
         decorKey: 'decor/dodo',
         participants: 20,
         modelScale: 1333,
+        assetUnitScale: 0.01,
         modelOffsetY: 5.56,
         camera: [10.5, 12.2, 14.5],
         target: [0, 5.8, 0],

@@ -41,8 +41,7 @@ import {
 type Placement = { index: number; x: number; y: number; z: number; surface: boolean };
 type WorldMeasure = { bounds: WorldBounds; placements: Placement[]; planeY: number | null; available: number };
 
-/** Published GLBs keep the source FBX centimetres; the PoC models are in metres. */
-const PUBLISHED_GLB_UNIT_SCALE = 0.01;
+/** Published GLBs do not all share the same unit: Bar/Dodo are cm-like, Piscine is metres. */
 
 export interface WorldSceneProps {
     world: WorldKind;
@@ -71,11 +70,13 @@ function Controls({ autoRotate, target }: { autoRotate: boolean; target: [number
 function Model({
     url,
     modelScale,
+    assetUnitScale,
     modelOffsetY,
     groupRef,
 }: {
     url: string;
     modelScale: number;
+    assetUnitScale: number;
     modelOffsetY: number;
     groupRef: RefObject<Group | null>;
 }) {
@@ -88,7 +89,7 @@ function Model({
     return (
         <group
             ref={groupRef}
-            scale={modelScale * PUBLISHED_GLB_UNIT_SCALE}
+            scale={modelScale * assetUnitScale}
             position={[0, modelOffsetY, 0]}
         >
             <primitive object={clone} />
@@ -277,6 +278,7 @@ function Scene({
             <Model
                 url={decorUrl}
                 modelScale={spec.modelScale}
+                assetUnitScale={spec.assetUnitScale}
                 modelOffsetY={spec.modelOffsetY}
                 groupRef={groupRef}
             />
