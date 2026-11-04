@@ -269,7 +269,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
     }
 
     return (
-        <group ref={groupRef} scale={scale}>
+        <group ref={groupRef} scale={scale} visible={Boolean(activeClip)}>
             <primitive object={avatarRoot} />
         </group>
     );

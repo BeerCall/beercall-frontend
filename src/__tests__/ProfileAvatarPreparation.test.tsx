@@ -59,10 +59,10 @@ vi.mock('../hooks/useProfile', () => ({
     }),
 }));
 
-vi.mock('../components/3D/AvatarStage', () => ({
-    AvatarStage: ({ config, surface }: { config: AvatarConfig | null; surface: string }) => (
-        <div data-testid="avatar-stage-double" data-surface={surface} data-head={config?.head}>
-            Avatar 3D Stage ({config?.head})
+vi.mock('../components/3D/ProfileAvatarScene', () => ({
+    ProfileAvatarScene: ({ config }: { config: AvatarConfig | null }) => (
+        <div data-testid="profile-avatar-scene-double" data-head={config?.head}>
+            Avatar 3D PoC ({config?.head})
         </div>
     ),
 }));
@@ -117,7 +117,7 @@ function Host() {
     );
 }
 
-describe('B13 — ProfileAvatarPreparation (intégration Profil avec AvatarStage)', () => {
+describe('B13 — ProfileAvatarPreparation (intégration Profil avec la scène PoC)', () => {
     beforeEach(() => {
         fixtures.id = undefined;
         fixtures.put.mockReset().mockResolvedValue({});
@@ -126,13 +126,12 @@ describe('B13 — ProfileAvatarPreparation (intégration Profil avec AvatarStage
         vi.spyOn(api, 'post').mockImplementation(fixtures.post);
     });
 
-    it('monte AvatarStage avec la surface profile et utilise la tenue du profil actif', async () => {
+    it('monte la scène Profil PoC et utilise la tenue du profil actif', async () => {
         render(<Host />);
 
         await waitFor(() => {
-            const stage = screen.getByTestId('avatar-stage-double');
+            const stage = screen.getByTestId('profile-avatar-scene-double');
             expect(stage).not.toBeNull();
-            expect(stage.getAttribute('data-surface')).toBe('profile');
             expect(stage.getAttribute('data-head')).toBe('head-1');
         });
     });
@@ -143,7 +142,7 @@ describe('B13 — ProfileAvatarPreparation (intégration Profil avec AvatarStage
 
         await waitFor(() => {
             expect(screen.getByRole('heading', { name: 'Fixture 1' })).not.toBeNull();
-            expect(screen.getByTestId('avatar-stage-double').getAttribute('data-head')).toBe('head-1');
+            expect(screen.getByTestId('profile-avatar-scene-double').getAttribute('data-head')).toBe('head-1');
         });
 
         // Navigation vers le profil 2
@@ -152,7 +151,7 @@ describe('B13 — ProfileAvatarPreparation (intégration Profil avec AvatarStage
 
         await waitFor(() => {
             expect(screen.getByRole('heading', { name: 'Fixture 2' })).not.toBeNull();
-            expect(screen.getByTestId('avatar-stage-double').getAttribute('data-head')).toBe('head-2');
+            expect(screen.getByTestId('profile-avatar-scene-double').getAttribute('data-head')).toBe('head-2');
         });
     });
 
@@ -160,7 +159,7 @@ describe('B13 — ProfileAvatarPreparation (intégration Profil avec AvatarStage
         render(<Host />);
 
         await waitFor(() => {
-            expect(screen.getByTestId('avatar-stage-double')).not.toBeNull();
+            expect(screen.getByTestId('profile-avatar-scene-double')).not.toBeNull();
         });
 
         // Clics rapides sur les 3 tenues du vestiaire
@@ -168,8 +167,8 @@ describe('B13 — ProfileAvatarPreparation (intégration Profil avec AvatarStage
         fireEvent.click(screen.getByRole('button', { name: 'Tenue 2' }));
         fireEvent.click(screen.getByRole('button', { name: 'Tenue 3' }));
 
-        // La dernière tenue sélectionnée est affichée sur AvatarStage
-        expect(screen.getByTestId('avatar-stage-double').getAttribute('data-head')).toBe('new-3');
+        // La dernière tenue sélectionnée est affichée sur la scène Profil
+        expect(screen.getByTestId('profile-avatar-scene-double').getAttribute('data-head')).toBe('new-3');
 
         // Sauvegarde de la tenue
         fireEvent.click(screen.getByRole('button', { name: 'Sauvegarder fixture' }));

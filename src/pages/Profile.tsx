@@ -5,7 +5,7 @@ import {useQueryClient} from '@tanstack/react-query';
 import {useProfile} from '../hooks/useProfile';
 import {useUserStore} from '../store/useUserStore';
 import {api} from '../lib/api';
-import { AvatarStage } from '../components/3D/AvatarStage';
+import { ProfileAvatarScene } from '../components/3D/ProfileAvatarScene';
 import { AvatarImage } from '../components/Avatar/AvatarImage';
 import VestiairePanel from '../components/Profile/VestiairePanel';
 import {motion, AnimatePresence} from 'framer-motion';
@@ -193,9 +193,8 @@ export default function Profile() {
                     )}
 
                     <Suspense fallback={<div className="flex h-full items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-beer"></div></div>}>
-                        <AvatarStage
+                        <ProfileAvatarScene
                             key={profile.id}
-                            surface="profile"
                             config={previewAvatar}
                             onAnimationsLoaded={setAvailableAnimations}
                             fallback={
