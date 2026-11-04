@@ -355,6 +355,6 @@ export class LeaseController {
     }
 }
 
-// Capacité 2 : la carte MapLibre garde son contexte, three.js (Profil/mondes)
-// dispose du second slot. Les contrôleurs de test restent mono-slot par défaut.
-export const globalLeaseController = new LeaseController(2_000, 2);
+// P0: mono-slot PoC. Seul three.js (Profil ou Mondes) consomme la lease ;
+// la carte MapLibre est créée hors lease et retenue par PersistentDashboard.
+export const globalLeaseController = new LeaseController(2_000, 1);

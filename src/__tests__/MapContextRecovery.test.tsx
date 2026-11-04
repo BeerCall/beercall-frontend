@@ -292,11 +292,11 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
 
     rerender(<MapSection {...props} isNightMode={true} canCreateFromLocation={true} active={false}/>);
-    // Sous lease B12 : la map native est démontée quand inactive pour libérer le contexte GPU
-    expect(screen.queryByTestId('mock-map')).not.toBeInTheDocument();
+    // P0 : la carte reste montée et garde son contexte ; PersistentDashboard la masque.
+    expect(screen.getByTestId('mock-map')).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Statut carte' })).toBeInTheDocument();
 
-    // Au retour actif, la nouvelle map est allouée avec la vue restaurée
+    // Au retour actif, la même map est conservée avec la vue restaurée
     rerender(<MapSection {...props} isNightMode={true} canCreateFromLocation={true} active={true}/>);
     act(() => { fakeMap.fire('webglcontextrestored'); });
     act(() => { mapMockControl.triggerIdle(); });

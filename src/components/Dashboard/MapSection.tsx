@@ -10,8 +10,7 @@ import { useLocationStore } from '../../store/useLocationStore';
 import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
 import { SnapAvatarLayer } from './SnapAvatarLayer';
 import type { SnapPerson } from '../../map/snap/types';
-import { useLease } from '../../three/lease/useLease';
-import { createLeasedMapLibrary } from '../../three/lease/createLeasedMapLibrary';
+import { trackCanvasContext } from '../../three/lease/webgl';
 
 interface NativeMap {
     on?: (event: string, fn: (evt?: unknown) => void) => void;
@@ -23,6 +22,7 @@ interface NativeMap {
     getZoom?: () => number;
     getBearing?: () => number;
     getPitch?: () => number;
+    getCanvas?: () => HTMLCanvasElement;
 }
 type MapView = {longitude: number; latitude: number; zoom: number; bearing: number; pitch: number};
 function readMapView(map: NativeMap | null): MapView | undefined {
@@ -215,6 +215,10 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         if (!map || retiredMaps.current.has(map) || map === mapInstanceRef.current) return;
         detachMapInstance();
         mapInstanceRef.current = map;
+        const canvas = map.getCanvas?.();
+        if (canvas) {
+            trackCanvasContext(canvas);
+        }
         if (typeof window !== 'undefined') {
             (window as unknown as { __beercallMap?: NativeMap }).__beercallMap = map;
         }
@@ -318,13 +322,6 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         refreshExpiredTiles: false,
     }), []);
 
-    const lease = useLease('map', active);
-
-    const leasedMapLib = React.useMemo(() => {
-        if (!lease.token) return undefined;
-        return createLeasedMapLibrary(lease.token, maplibregl);
-    }, [lease.token]);
-
     React.useEffect(() => {
         if (!active) {
             const currentNative = (mapRef.current?.getMap?.() ?? mapInstanceRef.current) as NativeMap | undefined;
@@ -338,10 +335,12 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         }
     }, [active, mapRef]);
 
-    const mapElement = lease.granted && lease.token ? (
-        <Map key={`${mapEpoch}-${lease.token.generation}`} ref={mapRef}
+    // P0: la carte n'est plus sous lease. Elle est créée une seule fois par
+    // react-map-gl (classe native maplibregl.Map) et retenue par PersistentDashboard.
+    const mapElement = (
+        <Map key={mapEpoch} ref={mapRef}
             {...mapRuntimeOptions}
-            mapLib={leasedMapLib}
+            mapLib={maplibregl}
             initialViewState={initialMapView}
             mapStyle={mapStyle} interactive={true}
             onLoad={handleMapLoad}
@@ -357,7 +356,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             onMoveStart={cancelLongPress}>
             <MapContents/>
         </Map>
-    ) : null;
+    );
 
     return (
         <>

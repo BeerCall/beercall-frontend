@@ -5,9 +5,6 @@ import maplibregl from 'maplibre-gl';
 
 import { MapSection } from '../components/Dashboard/MapSection';
 import { mapMockControl } from '../../setupTests';
-import { globalLeaseController } from '../three/lease/leaseController';
-import { resetLeaseStore } from '../three/lease/leaseStore';
-import { resetWebglStats } from '../three/lease/webgl';
 
 const defaultProps: Parameters<typeof MapSection>[0] = {
     mapRef: { current: null },
@@ -28,23 +25,15 @@ const defaultProps: Parameters<typeof MapSection>[0] = {
     people: [],
 };
 
-describe('Étape 2 — la carte utilise la vraie bibliothèque MapLibre', () => {
-    beforeEach(() => {
-        globalLeaseController.reset();
-        resetLeaseStore();
-        resetWebglStats();
-    });
-
-    it('fournit à react-map-gl la vraie classe maplibregl.Map (sous-classe de lease, pas un double)', async () => {
+describe('P0 — la carte utilise la vraie bibliothèque MapLibre, hors lease', () => {
+    it('fournit à react-map-gl la vraie classe maplibregl.Map (aucun double, aucune sous-classe de lease)', async () => {
         render(<MapSection {...defaultProps} />);
 
         await waitFor(() => expect(mapMockControl.latestProps).not.toBeNull());
 
         const mapLib = mapMockControl.latestProps?.mapLib as typeof maplibregl | undefined;
-        expect(mapLib).toBeDefined();
-        expect(mapLib?.Map).not.toBe(maplibregl.Map);
-        expect(Object.getPrototypeOf(mapLib?.Map)).toBe(maplibregl.Map);
-        expect(mapLib?.Map.prototype).toBeInstanceOf(maplibregl.Map);
+        expect(mapLib).toBe(maplibregl);
+        expect(mapLib?.Map).toBe(maplibregl.Map);
     });
 
     it("logge l'erreur MapLibre au lieu de l'avaler silencieusement", async () => {
