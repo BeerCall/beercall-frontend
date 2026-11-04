@@ -5,7 +5,7 @@
  * Cadrages exacts :
  * - Portrait 512² : centré sur tête/buste selon bodyBounds (sans accessoire pour éviter tout dézoom).
  * - Tête 256² : centré sur les meshes de tête avec marge de 12 % (sans accessoire).
- * - Corps 256×512 : cadrage complet fullBounds avec pieds ancrés sur la marge basse (accessoire inclus).
+ * - Corps 256×512 : cadrage complet bodyBounds avec pieds ancrés sur la marge basse (sans accessoire).
  * Sortie PNG transparente pour sharp / encodage serveur.
  */
 
@@ -223,12 +223,8 @@ export async function renderSprites(
         const headFraming = calculateHeadFraming(headBounds, 256);
         const headDataUrl = renderPass(renderer, scene, headFraming);
 
-        // 2. Passe avec accessoire (corps complet)
-        if (composed.parts.accessory) {
-            composed.parts.accessory.visible = true;
-        }
-
-        const bodyFraming = calculateBodyFraming(composed.bodyBounds, composed.fullBounds, 256, 512);
+        // 2. Passe corps sans accessoire (règle produit carte : sprite entier, sans accessoire)
+        const bodyFraming = calculateBodyFraming(composed.bodyBounds, composed.bodyBounds, 256, 512);
         const bodyDataUrl = renderPass(renderer, scene, bodyFraming);
 
         return {
