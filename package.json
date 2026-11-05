@@ -12,6 +12,7 @@
     "glb:inventory": "node scripts/glb/inventory.mjs",
     "glb:convert": "node scripts/glb/convert.mjs",
     "glb:build": "node scripts/glb/build-glb.mjs",
+    "glb:prune": "node scripts/glb/prune.mjs",
     "glb:thumbnails": "node scripts/glb/thumbnails.mjs",
     "glb:check": "node scripts/glb/check-glb.mjs",
     "glb:typecheck": "tsc --noEmit --incremental false -p scripts/glb/convert-page/tsconfig.json",
