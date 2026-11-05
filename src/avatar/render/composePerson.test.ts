@@ -89,6 +89,7 @@ const manifestFixture = {
             key: 'acc/men/Men_accessory_Beer_500',
             url: '/models/glb/v1/accessories/Men/Men_accessory_Beer_500.glb',
             sourceId: 'Men_accessory_Beer_500',
+            transform: { position: [75, 150, 0], rotation: [0, 0, 0], scale: 100, bone: null },
         },
     ],
 } as unknown as Parameters<typeof setGlbManifest>[0];

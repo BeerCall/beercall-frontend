@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
+    AvatarPieceNotFoundError,
     GlbManifest,
     clearGlbManifest,
     resolveAvatarParts,
@@ -201,6 +204,69 @@ describe('A13 — Manifeste GLB et résolution des pièces', () => {
 
         expect(parts.accessory?.sourceId).toBe('Men_accessory_Beer_800');
         expect(parts.accessory?.url).toContain('Men_accessory_Beer_800');
+    });
+
+    it('résout les 70 anciens ids d’accessoires vers les nouveaux sourceId tokenisés', () => {
+        const published = JSON.parse(
+            readFileSync(
+                resolve(process.cwd(), '../beercall-backend/static/models/glb/manifest.json'),
+                'utf8',
+            ),
+        ) as GlbManifest;
+
+        const pieceFor = (gender: string, slot: string) => {
+            const item = published.items.find(
+                (candidate) => candidate.sourceId.startsWith(`${gender}_${slot}_`),
+            );
+            if (!item) throw new Error(`Pièce ${gender}_${slot} absente du manifeste publié`);
+            return item.sourceId;
+        };
+
+        let checked = 0;
+        for (const item of published.items) {
+            if (!item.key.startsWith('acc/')) continue;
+            const parts = item.sourceId.split('_');
+            const oldId = `${parts[0]}_${parts[1]}_${parts[2]}_${parts[parts.length - 1]}`;
+            if (oldId === item.sourceId) continue;
+
+            const resolved = resolveAvatarParts(
+                {
+                    head: pieceFor(parts[0], 'head'),
+                    body: pieceFor(parts[0], 'body'),
+                    legs: pieceFor(parts[0], 'legs'),
+                    feet: pieceFor(parts[0], 'feet'),
+                    accessory: oldId,
+                    gender: parts[0] as 'Men' | 'Women',
+                },
+                published,
+            );
+
+            expect(resolved.accessory?.sourceId).toBe(item.sourceId);
+            if (oldId === 'Men_accessory_Beer_500') {
+                expect(resolved.accessory?.sourceId).toBe('Men_accessory_Beer_bWristR_s100_500');
+            }
+            checked += 1;
+        }
+
+        expect(checked).toBe(70);
+    });
+
+    it('expose l’identifiant de la pièce introuvable dans l’erreur', () => {
+        try {
+            resolveAvatarParts({
+                head: 'Men_head_Casual_0',
+                body: 'Men_body_Casual_0',
+                legs: 'Men_legs_Casual_0',
+                feet: 'Men_feet_Casual_0',
+                accessory: 'Men_accessory_Fantome_500',
+                gender: 'Men',
+            });
+            throw new Error('La résolution aurait dû échouer');
+        } catch (error) {
+            expect(error).toBeInstanceOf(AvatarPieceNotFoundError);
+            expect((error as AvatarPieceNotFoundError).pieceId).toBe('Men_accessory_Fantome_500');
+            expect((error as AvatarPieceNotFoundError).slot).toBe('accessory');
+        }
     });
 
     it('résout fidèlement une configuration Men avec accessoire', () => {

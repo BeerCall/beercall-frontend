@@ -136,10 +136,12 @@ function measure(root: Object3D, kind: WorldKind, count: number): WorldMeasure {
 
 function WorldAvatar({
     config,
+    userId,
     onReady,
     onIdle,
 }: {
     config: AvatarConfig;
+    userId?: string | number;
     onReady: () => void;
     onIdle: () => void;
 }) {
@@ -151,6 +153,7 @@ function WorldAvatar({
     return (
         <RealAvatar
             config={bodyConfig}
+            userId={userId}
             scale={0.01}
             onReadinessChange={(ready) => {
                 if (ready) onReady();
@@ -204,6 +207,7 @@ function Crowd({
                     >
                         <WorldAvatar
                             config={config}
+                            userId={participant.user_id ?? participant.id ?? placement.index}
                             onReady={() => onReady(placement.index)}
                             onIdle={() => onIdle(placement.index)}
                         />

@@ -122,6 +122,30 @@ describe('B11 — RealAvatar et matériaux économiques', () => {
         );
     });
 
+    it('signale explicitement une pièce introuvable avec l’id de l’utilisateur', async () => {
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        wrap(
+            <RealAvatar
+                userId={42}
+                config={{
+                    gender: 'Men',
+                    head: 'Men_head_Casual_0',
+                    body: 'Men_body_Casual_0',
+                    legs: 'Men_legs_Casual_0',
+                    feet: 'Men_feet_Casual_0',
+                    accessory: 'Men_accessory_Fantome_500',
+                }}
+            />,
+        );
+
+        await waitFor(() => {
+            const messages = errorSpy.mock.calls.map((call) => call.join(' '));
+            expect(messages.some((message) => message.includes('Men_accessory_Fantome_500'))).toBe(true);
+            expect(messages.some((message) => message.includes('42'))).toBe(true);
+        });
+    });
+
     it('gère le changement de tenue A -> B et applique les nouvelles pièces', async () => {
         const onReadinessChange = vi.fn();
 

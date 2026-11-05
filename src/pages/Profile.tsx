@@ -196,6 +196,7 @@ export default function Profile() {
                         <ProfileAvatarScene
                             key={profile.id}
                             config={previewAvatar}
+                            userId={profile.id}
                             onAnimationsLoaded={setAvailableAnimations}
                             fallback={
                                 <div className="flex h-full w-full items-center justify-center">

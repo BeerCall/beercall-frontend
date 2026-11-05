@@ -21,6 +21,7 @@ import type { AvatarConfig } from '../../types/avatar';
 
 export interface ProfileAvatarSceneProps {
     config: AvatarConfig | null;
+    userId?: string | number;
     surface?: 'profile' | 'signup';
     fallback?: React.ReactNode;
     onAnimationsLoaded?: (animations: string[]) => void;
@@ -36,6 +37,7 @@ function Camera() {
 
 export const ProfileAvatarScene: React.FC<ProfileAvatarSceneProps> = ({
     config,
+    userId,
     surface = 'profile',
     fallback = null,
     onAnimationsLoaded,
@@ -66,6 +68,7 @@ export const ProfileAvatarScene: React.FC<ProfileAvatarSceneProps> = ({
                 <Suspense fallback={null}>
                     <RealAvatar
                         config={config}
+                        userId={userId}
                         scale={0.01}
                         onAnimationsLoaded={onAnimationsLoaded}
                     />

@@ -5,14 +5,18 @@
  * Expose window.__renderAvatar et window.__rendererReady pour le pilote server.mjs.
  */
 
-import { type AvatarPartsConfig, loadGlbManifest } from '../../src/avatar/glb/manifest';
+import {
+    AvatarPieceNotFoundError,
+    type AvatarPartsConfig,
+    loadGlbManifest,
+} from '../../src/avatar/glb/manifest';
 import { loadIdleClip } from '../../src/avatar/render/idleClip';
 import { createOffscreenRenderer, renderSprites } from '../../src/avatar/render/renderSprites';
 
 declare global {
     interface Window {
         __rendererReady?: boolean;
-        __renderAvatar?: (config: AvatarPartsConfig) => Promise<{
+        __renderAvatar?: (config: AvatarPartsConfig, userId?: string | number) => Promise<{
             head: string;
             portrait: string;
             body: string;
@@ -37,12 +41,32 @@ async function initRenderer(): Promise<void> {
         loadIdleClip('/animations/manifest.json'),
     ]);
 
-    window.__renderAvatar = async (config: AvatarPartsConfig) => {
-        const results = await renderSprites(renderer, {
-            config,
-            manifest,
-            clip,
-        });
+    window.__renderAvatar = async (config: AvatarPartsConfig, userId?: string | number) => {
+        let results;
+        try {
+            results = await renderSprites(renderer, {
+                config,
+                manifest,
+                clip,
+            });
+        } catch (error) {
+            // Aucune image partielle n'est renvoyée : le job doit échouer.
+            const owner = userId ?? 'inconnu';
+            if (error instanceof AvatarPieceNotFoundError) {
+                console.error(
+                    `[renderer] pièce introuvable "${error.pieceId}" (slot "${error.slot}") pour l'utilisateur ${owner}`,
+                );
+            } else {
+                console.error(
+                    `[renderer] rendu impossible pour l'utilisateur ${owner} : ${
+                        error instanceof Error ? error.message : String(error)
+                    }`,
+                );
+            }
+            throw new Error(
+                `Utilisateur ${owner} : ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
 
         // Extraction des données brutes en base64 (retrait du préfixe data:image/png;base64,)
         const stripPrefix = (dataUrl: string) => dataUrl.split(',')[1] ?? '';

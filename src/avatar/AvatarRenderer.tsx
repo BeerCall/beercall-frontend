@@ -17,6 +17,7 @@ import { ModularAvatar } from '../components/3D/ModularAvatar';
 
 export interface AvatarRendererProps {
     config: AvatarConfig;
+    userId?: string | number;
     format?: 'glb' | 'fbx';
     onAnimationsLoaded?: (names: string[]) => void;
     onReadinessChange?: (ready: boolean, details?: { parts: string[]; meshCount: number }) => void;
@@ -28,6 +29,7 @@ export interface AvatarRendererProps {
 
 export const AvatarRenderer: React.FC<AvatarRendererProps> = ({
     config,
+    userId,
     format,
     onAnimationsLoaded,
     onReadinessChange,
@@ -42,6 +44,7 @@ export const AvatarRenderer: React.FC<AvatarRendererProps> = ({
         return (
             <RealAvatar
                 config={config}
+                userId={userId}
                 animate={animate}
                 scale={scale}
                 groupRef={groupRef}

@@ -25,6 +25,7 @@ import { attachAccessory } from '../accessoryAttachment';
 import { cheapMaterials } from './cheapMaterials';
 import { cloneGlbInstance, loadGlb } from './loadGlb';
 import {
+    AvatarPieceNotFoundError,
     type AvatarPartsConfig,
     type GlbManifest,
     resolveAvatarParts,
@@ -35,6 +36,8 @@ import type { AvatarConfig } from '../../types/avatar';
 
 export interface RealAvatarProps {
     config: AvatarConfig | AvatarPartsConfig;
+    /** Propriétaire de la tenue, pour identifier toute pièce introuvable. */
+    userId?: string | number;
     manifest?: GlbManifest;
     animate?: boolean;
     scale?: number;
@@ -66,6 +69,7 @@ let assemblyCount = 0;
 
 export const RealAvatar: React.FC<RealAvatarProps> = ({
     config,
+    userId,
     manifest: propManifest,
     animate = true,
     scale = 1,
@@ -96,6 +100,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
     const activeActions = useRef<Map<AnimationMixer, AnimationAction>>(new Map());
     const currentClipName = useRef<string>('');
     const readinessReported = useRef(false);
+    const loggedResolveError = useRef<Error | null>(null);
     const callbacksRef = useRef({ onReady, onReadinessChange });
     callbacksRef.current = { onReady, onReadinessChange };
 
@@ -121,14 +126,28 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
         }
     }, [config, manifest]);
 
-    // 2. Notification des clips disponibles pour l'interface (Vestiaire)
+    // 2. Toute pièce introuvable est signalée, jamais avalée en silence
+    useEffect(() => {
+        if (!resolveError || loggedResolveError.current === resolveError) return;
+        loggedResolveError.current = resolveError;
+        const owner = userId ?? 'inconnu';
+        if (resolveError instanceof AvatarPieceNotFoundError) {
+            console.error(
+                `[avatar] pièce introuvable "${resolveError.pieceId}" (slot "${resolveError.slot}") pour l'utilisateur ${owner}`,
+            );
+        } else {
+            console.error(`[avatar] résolution impossible pour l'utilisateur ${owner} : ${resolveError.message}`);
+        }
+    }, [resolveError, userId]);
+
+    // 3. Notification des clips disponibles pour l'interface (Vestiaire)
     useEffect(() => {
         if (clipNames && clipNames.length > 0) {
             onAnimationsLoaded?.([...clipNames]);
         }
     }, [clipNames, onAnimationsLoaded]);
 
-    // 3. Assemblage du graphe d'avatar depuis le cache CPU loadGlb
+    // 4. Assemblage du graphe d'avatar depuis le cache CPU loadGlb
     useEffect(() => {
         if (!resolvedParts) return;
 
@@ -228,7 +247,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
         };
     }, [resolvedParts]);
 
-    // 4. Application du clip actif avec crossfade 0.2s
+    // 5. Application du clip actif avec crossfade 0.2s
     useEffect(() => {
         if (!activeClip || mixers.length === 0) return;
 
@@ -254,7 +273,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
         }
     }, [activeClip, mixers, targetAnimation, notifyInitialFrame, onActiveClipChange]);
 
-    // 5. Boucle d'animation avec delta borné
+    // 6. Boucle d'animation avec delta borné
     useFrame((_, delta) => {
         if (!animate || mixers.length === 0) return;
         const boundedDelta = Math.min(delta, 0.05);

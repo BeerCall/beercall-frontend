@@ -203,7 +203,10 @@ async function processQueue(localPort) {
                 }, REQUEST_TIMEOUT_MS);
             });
 
-            const renderPromise = page.evaluate((cfg) => window.__renderAvatar(cfg), payload.config);
+            const renderPromise = page.evaluate(
+                ({ config, userId }) => window.__renderAvatar(config, userId),
+                { config: payload.config, userId: payload.userId },
+            );
             const rawResult = await Promise.race([renderPromise, timeoutPromise]);
             clearTimeout(timeoutTimer);
 

@@ -58,6 +58,19 @@ export interface ResolvedAvatarParts {
     gender: 'Men' | 'Women';
 }
 
+/** Pièce demandée par la configuration mais absente du manifeste publié. */
+export class AvatarPieceNotFoundError extends Error {
+    readonly pieceId: string;
+    readonly slot: string;
+
+    constructor(pieceId: string, slot: string, message: string) {
+        super(message);
+        this.name = 'AvatarPieceNotFoundError';
+        this.pieceId = pieceId;
+        this.slot = slot;
+    }
+}
+
 const ALLOWED_URL_PREFIX = '/models/glb/v1/';
 let manifestPromise: Promise<GlbManifest> | null = null;
 let cachedManifest: GlbManifest | null = null;
@@ -171,7 +184,11 @@ export function resolveAvatarParts(
         }
         const found = resolveItem(id);
         if (!found) {
-            throw new Error(`Pièce inconnue dans le catalogue : "${id}" pour le slot "${slotName}"`);
+            throw new AvatarPieceNotFoundError(
+                id,
+                slotName,
+                `Pièce inconnue dans le catalogue : "${id}" pour le slot "${slotName}"`,
+            );
         }
         return found;
     };
@@ -186,7 +203,11 @@ export function resolveAvatarParts(
     if (accId && typeof accId === 'string' && accId.toLowerCase() !== 'none' && accId.trim() !== '') {
         const foundAcc = resolveItem(accId);
         if (!foundAcc) {
-            throw new Error(`Accessoire inconnu dans le catalogue : "${accId}"`);
+            throw new AvatarPieceNotFoundError(
+                accId,
+                'accessory',
+                `Accessoire inconnu dans le catalogue : "${accId}"`,
+            );
         }
         accessory = foundAcc;
     }
