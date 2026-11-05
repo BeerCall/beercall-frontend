@@ -10,6 +10,7 @@ import {
     Skeleton,
     SkinnedMesh,
     Uint16BufferAttribute,
+    Vector3,
     VectorKeyframeTrack,
 } from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
@@ -25,6 +26,10 @@ function createDummyGltf(name: string, isSkinned: boolean = true): GLTF {
     if (isSkinned) {
         const rootBone = new Bone();
         rootBone.name = `${name}_Bone`;
+        const wristR = new Bone();
+        wristR.name = 'WristR';
+        wristR.position.set(4, 5, 6);
+        rootBone.add(wristR);
         const skeleton = new Skeleton([rootBone]);
 
         const geometry = new BoxGeometry(10, 10, 10);
@@ -186,6 +191,57 @@ describe('A13 — composePerson et loadGlb (composition GLB partagée)', () => {
         composed.stop();
         composed.dispose();
         expect(composed.group.children.length).toBe(0);
+    });
+
+    it('attache un accessoire à os sur le bone du sprite, à sa position d’attache', async () => {
+        vi.stubGlobal('fetch', async () => ({
+            ok: true,
+            status: 200,
+            arrayBuffer: async () => new ArrayBuffer(8),
+        }));
+
+        vi.spyOn(GLTFLoader.prototype, 'parseAsync').mockImplementation(async () => {
+            return createDummyGltf('mock_part', true);
+        });
+
+        const withBone = {
+            ...manifestFixture,
+            items: manifestFixture.items.map((item) => (
+                item.sourceId === 'Men_accessory_Beer_500'
+                    ? {
+                        ...item,
+                        transform: {
+                            position: [0, 0, 0],
+                            rotation: [0, 0, 0],
+                            scale: 100,
+                            bone: 'WristR',
+                        },
+                    }
+                    : item
+            )),
+        } as typeof manifestFixture;
+        setGlbManifest(withBone);
+
+        const composed = await composePerson({
+            config: {
+                head: 'Men_head_Casual_0',
+                body: 'Men_body_Casual_0',
+                legs: 'Men_legs_Casual_0',
+                feet: 'Men_feet_Casual_0',
+                accessory: 'Men_accessory_Beer_500',
+            },
+            clip: new AnimationClip('Idle', 1, []),
+        });
+
+        const wrist = composed.parts.body.getObjectByName('WristR');
+        expect(wrist).toBeTruthy();
+        expect(composed.parts.accessory?.parent).toBe(wrist);
+
+        const wristPosition = wrist!.getWorldPosition(new Vector3());
+        const accessoryPosition = composed.parts.accessory!.getWorldPosition(new Vector3());
+        expect(accessoryPosition.distanceTo(wristPosition)).toBeCloseTo(0, 5);
+
+        composed.dispose();
     });
 
     it('garantit que deux avatars assemblés ont des squelettes et des mixers strictement indépendants', async () => {
