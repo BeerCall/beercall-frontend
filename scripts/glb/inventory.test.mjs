@@ -36,10 +36,26 @@ test('classifyFbx classe pièces, accessoires et décors', () => {
     });
     assert.equal(classifyFbx('Women_feet_Worker_0.fbx').key, 'women/feet/Women_feet_Worker_0');
     assert.equal(classifyFbx('Men_accessory_Beer_500.fbx').key, 'acc/men/Men_accessory_Beer_500');
-    assert.equal(classifyFbx('Men_accessory_Sudowoodo.fbx').key, 'acc/men/Men_accessory_Sudowoodo');
+    assert.equal(classifyFbx('Men_accessory_Sudowoodo_600.fbx').key, 'acc/men/Men_accessory_Sudowoodo_600');
     assert.equal(classifyFbx('Bar.fbx').key, 'decor/bar');
     assert.equal(classifyFbx('Swimming_pool.fbx').key, 'decor/piscine');
     assert.equal(classifyFbx('Floaty_Island.fbx').key, 'decor/dodo');
+});
+
+test('classifyFbx publie le transform des jetons d’accessoire', () => {
+    const item = classifyFbx('Men_accessory_McLaren_px68_py15_pz-30_s0d3_bWristR_5000.fbx');
+    assert.deepEqual(item.transform, {
+        position: [68, 15, -30],
+        rotation: [0, 0, 0],
+        scale: 0.3,
+        bone: 'WristR',
+    });
+    assert.equal(item.key, 'acc/men/Men_accessory_McLaren_px68_py15_pz-30_s0d3_bWristR_5000');
+});
+
+test('classifyFbx rejette un jeton invalide', () => {
+    assert.throws(() => classifyFbx('Men_accessory_X_zz1_500.fbx'), /jeton invalide/);
+    assert.throws(() => classifyFbx('Men_accessory_X_px1_px2_500.fbx'), /jeton en double/);
 });
 
 test('classifyFbx rejette un FBX non classable', () => {
@@ -57,7 +73,7 @@ test('buildInventory exclut Animations.fbx et signale les non classables', () =>
 });
 
 test('buildInventory produit des clés uniques', () => {
-    withTempDir(['Men_head_A.fbx', 'Women_head_A.fbx', 'Men_accessory_A.fbx', 'Women_accessory_A.fbx', 'Bar.fbx'], (dir) => {
+    withTempDir(['Men_head_A_0.fbx', 'Women_head_A_0.fbx', 'Men_accessory_A_0.fbx', 'Women_accessory_A_0.fbx', 'Bar.fbx'], (dir) => {
         const inv = buildInventory({ dir });
         assert.equal(new Set(inv.items.map((i) => i.key)).size, inv.items.length);
         assert.equal(inv.counts.piece, 2);
@@ -82,7 +98,7 @@ test('l\'inventaire réel de ce checkout respecte les comptes attendus', () => {
     assert.equal(new Set(inv.items.map((i) => i.key)).size, EXPECTED_TOTAL);
     const accessories = inv.items.filter((i) => i.kind === 'accessory');
     assert.equal(accessories.length, 74);
-    assert.ok(inv.items.some((i) => i.sourceId === 'Men_accessory_Sudowoodo'));
+    assert.ok(inv.items.some((i) => i.sourceId === 'Men_accessory_Sudowoodo_600'));
     assert.ok(inv.items.some((i) => i.sourceId === 'Men_accessory_McLaren_5000'));
     assert.ok(!inv.items.some((i) => i.sourceId === 'Animations'));
 });

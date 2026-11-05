@@ -17,21 +17,17 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 import { buildInventory } from './inventory.mjs';
+import { catalogKey } from './catalog-name.mjs';
 import { convertSources } from './convert.mjs';
 import { publishGlb } from './lib/publish-glb.mjs';
+
+export { catalogKey };
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const PIPELINE_VERSION = 1;
 export const DEFAULT_OUT_DIR = path.resolve(HERE, '../../../beercall-backend/static/models/glb');
 
 const KIND_DIR = { piece: 'pieces', accessory: 'accessories', decor: 'decors' };
-
-/** Clé catalogue stable : genre + partie + nom, sans le prix. */
-export function catalogKey(value) {
-    const stem = path.basename(value).replace(/\.fbx$/i, '');
-    const match = /^(Men|Women)_(head|body|legs|feet|accessory)_(.+?)(?:_\d+)?$/.exec(stem);
-    return match ? `${match[1]}_${match[2]}_${match[3]}` : null;
-}
 
 /** Chemin relatif publié : `v1/<kind>/<gender-ou-_>/<sourceId>.<sha8>.glb`. */
 export function targetRelPath(item) {
@@ -174,6 +170,7 @@ export async function publishEntries({ items, outDir, manifestPath, existing, pi
             sourceSha256: item.sourceSha256,
             sourceBBox: convertedResult.bbox,
             pipelineVersion,
+            ...(item.transform ? { transform: item.transform } : {}),
         });
     }
 

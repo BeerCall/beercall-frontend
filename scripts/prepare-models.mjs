@@ -5,17 +5,11 @@ import { gzipSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
 import { REVISION } from 'three';
 import { FBXLoader } from 'three-stdlib';
+import { catalogKey } from './glb/catalog-name.mjs';
 
 const constructors = { Float32Array, Float64Array, Uint32Array, Int32Array, Uint16Array, Int16Array, Uint8Array, Int8Array };
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const align = n => Math.ceil(n / 8) * 8;
-
-/** Clé catalogue stable : genre + partie + nom, sans le prix. */
-export function catalogKey(filename) {
-    const stem = basename(filename).replace(/\.fbx$/i, '');
-    const match = /^(Men|Women)_(head|body|legs|feet|accessory)_(.+?)(?:_\d+)?$/.exec(stem);
-    return match ? `${match[1]}_${match[2]}_${match[3]}` : null;
-}
 
 async function writeJsonAtomic(file, data) {
     const staged = `${file}.tmp-${process.pid}`;

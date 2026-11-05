@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { parseSourceName } from './catalog-name.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -46,6 +47,8 @@ export function classifyFbx(filename) {
     }
     const sourceId = path.basename(filename, '.fbx');
 
+    const parsed = parseSourceName(filename);
+
     const piece = PIECE_RE.exec(filename);
     if (piece) {
         const [, gender, slot] = piece;
@@ -56,6 +59,7 @@ export function classifyFbx(filename) {
             gender,
             slot,
             decor: null,
+            ...(parsed?.transform ? { transform: parsed.transform } : {}),
         };
     }
 
@@ -69,6 +73,7 @@ export function classifyFbx(filename) {
             gender,
             slot: 'accessory',
             decor: null,
+            ...(parsed?.transform ? { transform: parsed.transform } : {}),
         };
     }
 
@@ -127,6 +132,7 @@ export function buildInventory({ dir = MODELS_SRC_DIR, hash = false } = {}) {
             slot: meta.slot,
             decor: meta.decor,
         };
+        if (meta.transform) item.transform = meta.transform;
         if (hash) item.sourceSha256 = sha256File(abs);
         items.push(item);
     }

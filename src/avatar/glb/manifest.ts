@@ -5,6 +5,17 @@
  * La résolution par sourceId est stricte : toute pièce inconnue lève une erreur visible.
  */
 
+export interface ManifestAccessoryTransform {
+    /** Position en unités avatar (cm), neutre [0, 0, 0]. */
+    position: [number, number, number];
+    /** Rotation en degrés, neutre [0, 0, 0]. */
+    rotation: [number, number, number];
+    /** Échelle scalaire, neutre 1. */
+    scale: number;
+    /** Os d'attache, ou null pour la racine. */
+    bone: string | null;
+}
+
 export interface GlbManifestItem {
     key: string;
     url: string;
@@ -19,6 +30,7 @@ export interface GlbManifestItem {
     sourceSha256: string;
     sourceBBox: { min: [number, number, number]; max: [number, number, number] } | null;
     pipelineVersion: number;
+    transform?: ManifestAccessoryTransform | null;
 }
 
 export interface GlbManifest {

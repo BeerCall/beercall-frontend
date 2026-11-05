@@ -11,7 +11,7 @@
  */
 
 import { AnimationClip, AnimationMixer, Box3, Group, Object3D, SkinnedMesh } from 'three';
-import { CUSTOM_ITEMS_CONFIG } from '../accessoryTransforms';
+import { attachAccessory } from '../accessoryAttachment';
 import { loadGlb, cloneGlbInstance } from '../glb/loadGlb';
 import {
     type AvatarPartsConfig,
@@ -113,18 +113,13 @@ export async function composePerson(options: ComposePersonOptions): Promise<Comp
         accessoryInstance.userData.partKey = 'accessory';
         accessoryInstance.userData.sourceId = resolved.accessory.sourceId;
 
-        // Positionnement en radians via A01 (racine sœur, non attachée à un os)
-        const transform = CUSTOM_ITEMS_CONFIG[resolved.accessory.sourceId] ?? {
-            position: [0, 0, 0],
-            scale: [1, 1, 1],
-            rotation: [0, 0, 0],
-        };
-        const pos = transform.position ?? [0, 0, 0];
-        const rot = transform.rotation ?? [0, 0, 0];
-        const sca = transform.scale ?? [1, 1, 1];
-        accessoryInstance.position.set(pos[0], pos[1], pos[2]);
-        accessoryInstance.rotation.set(rot[0], rot[1], rot[2]);
-        accessoryInstance.scale.set(sca[0], sca[1], sca[2]);
+        attachAccessory({
+            accessoryId: resolved.accessory.sourceId,
+            instance: accessoryInstance,
+            body: bodyInstance,
+            root: group,
+            manifestTransform: resolved.accessory.transform,
+        });
 
         if (hasSkinnedMesh(accessoryInstance)) {
             const accMixer = new AnimationMixer(accessoryInstance);
@@ -136,8 +131,6 @@ export async function composePerson(options: ComposePersonOptions): Promise<Comp
             }
             mixers.push(accMixer);
         }
-
-        group.add(accessoryInstance);
     }
 
     // 6. Calcul de fullBounds (incluant l'accessoire)
