@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import VestiairePanel from '../components/Profile/VestiairePanel';
 import type { ShopItem } from '../hooks/useProfile';
@@ -10,6 +10,7 @@ const catalogue: ShopItem[] = [
     { id: 'none', name: 'Sans couvre-chef', category: 'head', gender: 'Men', price: 0, is_owned: true },
     { id: 'owned', name: 'Article possédé', category: 'head', gender: 'Men', price: 0, is_owned: true },
     { id: 'unowned', name: 'Article à acheter', category: 'head', gender: 'Men', price: 10, is_owned: false },
+    { id: 'free-unowned', name: 'Article gratuit', category: 'head', gender: 'Men', price: 0, is_owned: false },
     { id: 'hidden', name: 'Hidden article', category: 'head', gender: 'Men', price: 0, is_owned: true, available: false },
 ];
 
@@ -34,6 +35,29 @@ describe('Vestiaire : équipement et droits existants', () => {
         const { equip, user } = mountPanel();
         await user.click(screen.getByText('Article possédé'));
         expect(equip).toHaveBeenCalledWith({ ...avatar, head: 'owned' });
+    });
+
+    it('affiche Gratuit pour un article à prix 0 non possédé', async () => {
+        const equip = vi.fn();
+        const onBuy = vi.fn();
+        function Parent() {
+            const [config, setConfig] = useState<Record<string, string>>({ ...avatar });
+            return <VestiairePanel shopItems={catalogue} avatarConfig={config} gender="Men"
+                onBuy={onBuy}
+                setAvatarConfig={(next: Record<string, string>) => { equip(next); setConfig(next); }} />;
+        }
+        render(<Parent />);
+        const user = userEvent.setup();
+
+        const freeCard = screen.getByText('Article gratuit').closest('[role="button"]') as HTMLElement;
+        const freeButton = within(freeCard).getByRole('button', { name: /Gratuit/i });
+        expect(freeButton.textContent).not.toContain('ACHETER 0');
+
+        const paidCard = screen.getByText('Article à acheter').closest('[role="button"]') as HTMLElement;
+        expect(within(paidCard).getByRole('button', { name: /ACHETER 10/i })).toBeInTheDocument();
+
+        await user.click(freeButton);
+        expect(onBuy).toHaveBeenCalledWith('free-unowned', 0, 'Article gratuit');
     });
 
     it('sauvegarde une tenue modifiée via le callback', async () => {

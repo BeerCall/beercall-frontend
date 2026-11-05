@@ -230,7 +230,7 @@ export default function VestiairePanel({
                                                 if (!readonly && onBuy) onBuy(item.id, item.price, item.name);
                                             }}
                                                     className="w-full bg-gray-900 text-white text-[9px] font-black px-2 py-2 rounded-xl uppercase tracking-widest flex items-center justify-center gap-1 shadow-md hover:bg-black active:scale-95 transition-all">
-                                                <ShoppingBag size={12}/> ACHETER {item.price}
+                                                <ShoppingBag size={12}/> {item.price === 0 ? 'Gratuit' : `ACHETER ${item.price}`}
                                             </button>
                                         ) : isEquipped ? (
                                             <div
