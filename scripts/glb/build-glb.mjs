@@ -26,6 +26,13 @@ export const DEFAULT_OUT_DIR = path.resolve(HERE, '../../../beercall-backend/sta
 
 const KIND_DIR = { piece: 'pieces', accessory: 'accessories', decor: 'decors' };
 
+/** Clé catalogue stable : genre + partie + nom, sans le prix. */
+export function catalogKey(value) {
+    const stem = path.basename(value).replace(/\.fbx$/i, '');
+    const match = /^(Men|Women)_(head|body|legs|feet|accessory)_(.+?)(?:_\d+)?$/.exec(stem);
+    return match ? `${match[1]}_${match[2]}_${match[3]}` : null;
+}
+
 /** Chemin relatif publié : `v1/<kind>/<gender-ou-_>/<sourceId>.<sha8>.glb`. */
 export function targetRelPath(item) {
     const kindDir = KIND_DIR[item.kind] ?? item.kind;
@@ -91,10 +98,25 @@ export function readManifest(manifestPath) {
     }
 }
 
-/** Fusionne les entrées : les items produits remplacent, les autres sont conservés. */
-export function mergeManifestEntries({ existing, produced, pipelineVersion }) {
+/**
+ * Fusionne les entrées : les items produits remplacent, les autres sont
+ * conservés. `replaceKeys` retire les anciennes variantes d'un même article
+ * (par exemple `..._Sudowoodo` quand on publie `..._Sudowoodo_600`).
+ */
+export function mergeManifestEntries({
+    existing,
+    produced,
+    pipelineVersion,
+    replaceKeys = new Set(),
+    keepSourceIds = new Set(),
+}) {
     const byKey = new Map();
-    for (const entry of existing?.items ?? []) byKey.set(entry.key, entry);
+    for (const entry of existing?.items ?? []) {
+        const key = catalogKey(entry.sourceId ?? entry.source ?? '');
+        // Une variante remplacée est retirée, sauf l'item courant déjà à jour.
+        if (key && replaceKeys.has(key) && !keepSourceIds.has(entry.sourceId)) continue;
+        byKey.set(entry.key, entry);
+    }
     for (const entry of produced) {
         if (entry === null) continue;
         byKey.set(entry.key, entry);
@@ -112,7 +134,7 @@ export function mergeManifestEntries({ existing, produced, pipelineVersion }) {
  * Publie une liste d'items (dépendances injectées pour les tests).
  * Le manifeste n'est écrit qu'après succès complet de tous les items demandés.
  */
-export async function publishEntries({ items, outDir, manifestPath, existing, pipelineVersion, convert, publish }) {
+export async function publishEntries({ items, outDir, manifestPath, existing, pipelineVersion, convert, publish, replaceKeys = new Set() }) {
     const toBuild = [];
     const produced = [];
     for (const item of items) {
@@ -155,7 +177,13 @@ export async function publishEntries({ items, outDir, manifestPath, existing, pi
         });
     }
 
-    const manifest = mergeManifestEntries({ existing, produced, pipelineVersion });
+    const manifest = mergeManifestEntries({
+        existing,
+        produced,
+        pipelineVersion,
+        replaceKeys,
+        keepSourceIds: new Set(items.map((item) => item.sourceId)),
+    });
     writeJsonAtomic(manifestPath, manifest);
     return { manifest, built: produced.length, skipped: items.length - toBuild.length };
 }
@@ -191,12 +219,18 @@ async function main() {
     const existing = readManifest(manifestPath);
 
     let items = inventory.items;
+    let replaceKeys = new Set();
     if (options.only.length > 0) {
-        const keys = new Set(options.only);
-        items = inventory.items.filter((item) => keys.has(item.key));
-        const found = new Set(items.map((item) => item.key));
+        const requested = new Set(options.only);
+        items = inventory.items.filter(
+            (item) => requested.has(item.key) || requested.has(item.sourceId),
+        );
+        const found = new Set(items.flatMap((item) => [item.key, item.sourceId]));
         const missing = options.only.filter((key) => !found.has(key));
         if (missing.length > 0) throw new Error(`Clés hors catalogue : ${missing.join(', ')}`);
+        replaceKeys = new Set(
+            items.map((item) => catalogKey(item.sourceId)).filter(Boolean),
+        );
     }
 
     const { manifest, built, skipped } = await publishEntries({
@@ -205,6 +239,7 @@ async function main() {
         manifestPath,
         existing,
         pipelineVersion: PIPELINE_VERSION,
+        replaceKeys,
         convert: async (sourceIds) => {
             const { results } = await convertSources({ sources: sourceIds });
             return new Map(results.map((result) => [result.sourceId, result]));

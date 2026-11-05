@@ -1,5 +1,5 @@
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { readFile, writeFile, mkdir, readdir, rename, rm } from 'node:fs/promises';
+import { resolve, join, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
@@ -9,6 +9,23 @@ import { FBXLoader } from 'three-stdlib';
 const constructors = { Float32Array, Float64Array, Uint32Array, Int32Array, Uint16Array, Int16Array, Uint8Array, Int8Array };
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const align = n => Math.ceil(n / 8) * 8;
+
+/** Clé catalogue stable : genre + partie + nom, sans le prix. */
+export function catalogKey(filename) {
+    const stem = basename(filename).replace(/\.fbx$/i, '');
+    const match = /^(Men|Women)_(head|body|legs|feet|accessory)_(.+?)(?:_\d+)?$/.exec(stem);
+    return match ? `${match[1]}_${match[2]}_${match[3]}` : null;
+}
+
+async function writeJsonAtomic(file, data) {
+    const staged = `${file}.tmp-${process.pid}`;
+    try {
+        await writeFile(staged, JSON.stringify(data, null, 2) + '\n');
+        await rename(staged, file);
+    } finally {
+        await rm(staged, { force: true });
+    }
+}
 
 export function prepareModel(group, sourceSha256) {
     const model = group.toJSON();
@@ -71,6 +88,69 @@ export function prepareModel(group, sourceSha256) {
     return output;
 }
 
+/**
+ * Prépare un seul FBX et met à jour le manifeste préparé de façon atomique.
+ * Les autres entrées du manifeste restent strictement inchangées.
+ */
+export async function prepareOne(directory, inputName) {
+    const name = basename(inputName);
+    if (!name.toLowerCase().endsWith('.fbx') || name === 'Animations.fbx') {
+        throw new Error(`FBX préparable attendu, reçu : ${name}`);
+    }
+    const target = join(directory, 'prepared');
+    await mkdir(target, { recursive: true });
+    const manifestPath = join(target, 'manifest.json');
+
+    let manifest = { version: 1, threeRevision: REVISION, models: {} };
+    try {
+        manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+        if (manifest.version !== 1 || manifest.threeRevision !== REVISION || typeof manifest.models !== 'object') {
+            throw new Error('Manifeste préparé incompatible ; relancer un models:prepare complet.');
+        }
+    } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+    }
+
+    let source;
+    try {
+        source = await readFile(join(directory, name));
+    } catch {
+        throw new Error(`FBX introuvable : ${name}`);
+    }
+
+    const previous = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    Object.defineProperty(globalThis, 'window', { value: { innerWidth: 800, innerHeight: 600 }, configurable: true });
+    try {
+        const group = new FBXLoader().parse(source.buffer.slice(source.byteOffset, source.byteOffset + source.byteLength), '');
+        const bytes = prepareModel(group, sha256(source));
+        const hash = sha256(bytes);
+        const file = `${name.slice(0, -4)}.${hash}.bc3d`;
+        await writeFile(join(target, file), bytes);
+        await writeFile(join(target, `${file}.gz`), gzipSync(bytes, { level: 9 }));
+        await writeFile(join(directory, `${name}.gz`), gzipSync(source, { level: 9 }));
+
+        const key = catalogKey(name);
+        if (key) {
+            for (const existingName of Object.keys(manifest.models)) {
+                if (existingName !== name && catalogKey(existingName) === key) {
+                    delete manifest.models[existingName];
+                }
+            }
+        }
+        manifest.models[name] = {
+            file,
+            sha256: hash,
+            bytes: bytes.length,
+            sourceSha256: sha256(source),
+        };
+        await writeJsonAtomic(manifestPath, manifest);
+        return { prepared: 1, skipped: [], file, manifest };
+    } finally {
+        if (previous) Object.defineProperty(globalThis, 'window', previous);
+        else delete globalThis.window;
+    }
+}
+
 export async function prepareDirectory(directory) {
     const target = join(directory, 'prepared');
     await mkdir(target, { recursive: true });
@@ -111,5 +191,19 @@ export async function prepareDirectory(directory) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-    await prepareDirectory(resolve(process.argv[2] ?? '../beercall-backend/static/models'));
+    const args = process.argv.slice(2);
+    let only = null;
+    const onlyIndex = args.indexOf('--only');
+    if (onlyIndex >= 0) {
+        only = args[onlyIndex + 1];
+        if (!only) throw new Error('--only attend un nom de fichier FBX.');
+        args.splice(onlyIndex, 2);
+    }
+    const directory = resolve(args[0] ?? '../beercall-backend/static/models');
+    if (only) {
+        const summary = await prepareOne(directory, only);
+        console.log(JSON.stringify({ prepared: summary.prepared, file: summary.file }, null, 2));
+    } else {
+        await prepareDirectory(directory);
+    }
 }

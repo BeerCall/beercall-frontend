@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import {
+    catalogKey,
     isUpToDate,
     mergeManifestEntries,
     publishEntries,
@@ -80,6 +81,60 @@ test('writeJsonAtomic écrit puis readManifest relit', () => {
     } finally {
         rmSync(dir, { recursive: true, force: true });
     }
+});
+
+test('catalogKey ignore le prix', () => {
+    assert.equal(catalogKey('Men_accessory_Sudowoodo'), 'Men_accessory_Sudowoodo');
+    assert.equal(catalogKey('Men_accessory_Sudowoodo_600.fbx'), 'Men_accessory_Sudowoodo');
+    assert.equal(catalogKey('Women_body_Casual2_0'), 'Women_body_Casual2');
+    assert.equal(catalogKey('Bar.fbx'), null);
+});
+
+test('mergeManifestEntries replaceKeys retire l’ancienne variante', () => {
+    const existing = {
+        items: [
+            { key: 'acc/men/Men_accessory_Sudowoodo', sourceId: 'Men_accessory_Sudowoodo' },
+            { key: 'other/key', sha256: 'keep' },
+        ],
+    };
+    const produced = [{
+        key: 'acc/men/Men_accessory_Sudowoodo_600',
+        sourceId: 'Men_accessory_Sudowoodo_600',
+    }];
+
+    const merged = mergeManifestEntries({
+        existing,
+        produced,
+        pipelineVersion: 1,
+        replaceKeys: new Set(['Men_accessory_Sudowoodo']),
+    });
+
+    assert.deepEqual(
+        merged.items.map((entry) => entry.key),
+        ['acc/men/Men_accessory_Sudowoodo_600', 'other/key'],
+    );
+});
+
+test('mergeManifestEntries conserve l’article courant déjà à jour', () => {
+    const existing = {
+        items: [
+            { key: 'acc/men/Men_accessory_Sudowoodo', sourceId: 'Men_accessory_Sudowoodo' },
+            { key: 'acc/men/Men_accessory_Sudowoodo_600', sourceId: 'Men_accessory_Sudowoodo_600' },
+        ],
+    };
+
+    const merged = mergeManifestEntries({
+        existing,
+        produced: [],
+        pipelineVersion: 1,
+        replaceKeys: new Set(['Men_accessory_Sudowoodo']),
+        keepSourceIds: new Set(['Men_accessory_Sudowoodo_600']),
+    });
+
+    assert.deepEqual(
+        merged.items.map((entry) => entry.sourceId),
+        ['Men_accessory_Sudowoodo_600'],
+    );
 });
 
 test('mergeManifestEntries conserve les entrées non produites', () => {
