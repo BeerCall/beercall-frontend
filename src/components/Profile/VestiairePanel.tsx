@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useRef} from 'react';
 import {Check, Play, ShoppingBag} from 'lucide-react';
 import type {ShopItem, Badge} from "../../hooks/useProfile.ts";
 import type {AvatarConfig} from "../../types/avatar.ts";
@@ -20,6 +20,7 @@ interface VestiairePanelProps {
     readonly?: boolean;
     hideTabs?: boolean;
     availableAnimations?: string[];
+    thumbnailUrls?: Record<string, string>;
 }
 
 export default function VestiairePanel({
@@ -34,12 +35,14 @@ export default function VestiairePanel({
                                            isSubmitting = false,
                                            readonly = false,
                                            hideTabs = false,
-                                           availableAnimations = []
+                                           availableAnimations = [],
+                                           thumbnailUrls
                                        }: VestiairePanelProps) {
     const [activeTab, setActiveTab] = useState('head');
     const [hasChanges, setHasChanges] = useState(false);
     const [isSavingStyle, setIsSavingStyle] = useState(false);
     const [initialConfig, setInitialConfig] = useState<AvatarConfig | null>(null);
+    const warnedThumbnails = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         if (!initialConfig && avatarConfig) {
@@ -91,6 +94,17 @@ export default function VestiairePanel({
     );
 
     // 🚀 SÉCURITÉ 3 : On force (shopItems || []) avant de find
+    useEffect(() => {
+        if (!thumbnailUrls) return;
+        for (const item of itemsToDisplay) {
+            const key = catalogAssetId(item);
+            if (!thumbnailUrls[key] && !warnedThumbnails.current.has(item.id)) {
+                warnedThumbnails.current.add(item.id);
+                console.warn(`[catalog] vignette absente pour ${item.id}`);
+            }
+        }
+    }, [itemsToDisplay, thumbnailUrls]);
+
     const hasUnownedItemsEquipped = ['head', 'body', 'legs', 'feet', 'accessory'].some(cat => {
         const equippedId = avatarConfig[cat];
         if (equippedId === 'none') return false;
@@ -175,6 +189,7 @@ export default function VestiairePanel({
                         {itemsToDisplay.map(item => {
                             const isEquipped = avatarConfig[activeTab] === item.id;
                             const isOwned = item.is_owned;
+                            const thumbnailUrl = thumbnailUrls?.[catalogAssetId(item)];
 
                             return (
                                 <div key={catalogAssetId(item)} data-source={item.source ?? undefined} onClick={() => {
@@ -183,9 +198,23 @@ export default function VestiairePanel({
                                      role="button"
                                      tabIndex={0}
                                      className={`relative p-4 rounded-3xl border-2 flex flex-col items-center text-center transition-all active:scale-95 cursor-pointer ${isEquipped ? 'border-beer bg-amber-50/50 shadow-[0_0_20px_rgba(217,119,6,0.15)] scale-105' : 'border-gray-100 bg-white hover:border-gray-300 hover:shadow-md'}`}>
-                                    <div
-                                        className="w-16 h-16 bg-gray-100 rounded-2xl mb-3 flex items-center justify-center text-3xl shadow-inner">
-                                        {activeTab === 'head' && '🧢'}{activeTab === 'body' && '👕'}{activeTab === 'legs' && '👖'}{activeTab === 'feet' && '👟'}{activeTab === 'accessory' && '🎒'}
+                                    <div className="w-16 h-16 rounded-2xl mb-3 flex items-center justify-center">
+                                        {thumbnailUrl ? (
+                                            <img
+                                                src={thumbnailUrl}
+                                                alt=""
+                                                width={64}
+                                                height={64}
+                                                loading="lazy"
+                                                decoding="async"
+                                                draggable={false}
+                                                className="w-16 h-16 object-contain"
+                                            />
+                                        ) : (
+                                            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center text-3xl shadow-inner">
+                                                {activeTab === 'head' && '🧢'}{activeTab === 'body' && '👕'}{activeTab === 'legs' && '👖'}{activeTab === 'feet' && '👟'}{activeTab === 'accessory' && '🎒'}
+                                            </div>
+                                        )}
                                     </div>
                                     <span
                                         className={`text-[10px] font-black uppercase tracking-wider mb-2 leading-tight ${isEquipped ? 'text-amber-800' : 'text-gray-700'}`}>{item.name}</span>

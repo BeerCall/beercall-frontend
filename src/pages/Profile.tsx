@@ -1,4 +1,4 @@
-import {useState, Suspense} from 'react';
+import {useMemo, useState, Suspense} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
 import {ChevronLeft, Check, Medal, Users, BarChart2, Trophy, LogOut} from 'lucide-react';
 import {useQueryClient} from '@tanstack/react-query';
@@ -8,6 +8,8 @@ import {api} from '../lib/api';
 import { ProfileAvatarScene } from '../components/3D/ProfileAvatarScene';
 import { AvatarImage } from '../components/Avatar/AvatarImage';
 import VestiairePanel from '../components/Profile/VestiairePanel';
+import { useGlbManifest } from '../avatar/glb/useGlbManifest';
+import { buildCatalogThumbnailMap } from '../lib/catalogThumbnails';
 import {motion, AnimatePresence} from 'framer-motion';
 import {toast} from "../store/useToastStore.ts";
 import type {AvatarConfig} from '../types/avatar';
@@ -22,6 +24,11 @@ export default function Profile() {
     const profileId = isOwnProfile ? 'me' : id;
 
     const {data: profile, isLoading} = useProfile(profileId);
+    const manifestQuery = useGlbManifest();
+    const thumbnailUrls = useMemo(
+        () => buildCatalogThumbnailMap(manifestQuery.data),
+        [manifestQuery.data],
+    );
 
     const [previewOwner, setPreviewOwner] = useState(profile?.id);
     const [previewAvatar, setPreviewAvatar] = useState<AvatarConfig | null>(() => profile?.avatar ?? null);
@@ -220,6 +227,7 @@ export default function Profile() {
                         isSubmitting={isSaving}
                         readonly={false}
                         availableAnimations={availableAnimations}
+                        thumbnailUrls={thumbnailUrls}
                     />
                 ) : (
                     <div

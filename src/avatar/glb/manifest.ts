@@ -31,6 +31,13 @@ export interface GlbManifestItem {
     sourceBBox: { min: [number, number, number]; max: [number, number, number] } | null;
     pipelineVersion: number;
     transform?: ManifestAccessoryTransform | null;
+    thumbnail?: {
+        url: string;
+        sha256: string;
+        bytes: number;
+        width: number;
+        height: number;
+    } | null;
 }
 
 export interface GlbManifest {

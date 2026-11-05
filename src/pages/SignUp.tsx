@@ -6,6 +6,8 @@ import {api} from '../lib/api';
 import {saveTokens} from '../lib/authTokens';
 import { ProfileAvatarScene } from '../components/3D/ProfileAvatarScene';
 import VestiairePanel, {type Gender} from '../components/Profile/VestiairePanel';
+import { useGlbManifest } from '../avatar/glb/useGlbManifest';
+import { buildCatalogThumbnailMap } from '../lib/catalogThumbnails';
 import {useQuery} from '@tanstack/react-query';
 import {toast} from "../store/useToastStore.ts";
 import type {ShopItem} from "../hooks/useProfile.ts";
@@ -42,6 +44,11 @@ export default function SignUp() {
     });
 
     const publicShopItems: ShopItem[] = useMemo(() => publicProfile?.shop_items || [], [publicProfile]);
+    const manifestQuery = useGlbManifest();
+    const thumbnailUrls = useMemo(
+        () => buildCatalogThumbnailMap(manifestQuery.data),
+        [manifestQuery.data],
+    );
 
     // 🪄 MAGIE DYNAMIQUE : On sélectionne le 1er item de chaque catégorie selon le genre
     useEffect(() => {
@@ -217,6 +224,7 @@ export default function SignUp() {
                         setGender={handleGenderChange}
                         isSubmitting={isLoading}
                         availableAnimations={availableAnimations}
+                        thumbnailUrls={thumbnailUrls}
                     />
                     <footer className="shrink-0 bg-white px-6 pt-3 pb-[calc(12px_+_env(safe-area-inset-bottom))]">
                         {isPending && <p role="status" className="text-xs text-gray-700 mb-2">Chargement du catalogue…</p>}

@@ -13,12 +13,16 @@ const catalogue: ShopItem[] = [
     { id: 'hidden', name: 'Hidden article', category: 'head', gender: 'Men', price: 0, is_owned: true, available: false },
 ];
 
-function mountPanel(readonly = false, save = vi.fn<() => Promise<boolean>>().mockResolvedValue(true)) {
+function mountPanel(
+    readonly = false,
+    save = vi.fn<() => Promise<boolean>>().mockResolvedValue(true),
+    thumbnailUrls?: Record<string, string>,
+) {
     const equip = vi.fn();
     function Parent() {
         const [config, setConfig] = useState<Record<string, string>>({ ...avatar });
         return <VestiairePanel shopItems={catalogue} avatarConfig={config} gender="Men"
-            readonly={readonly} onEquipAndSave={save}
+            readonly={readonly} onEquipAndSave={save} thumbnailUrls={thumbnailUrls}
             setAvatarConfig={(next: Record<string, string>) => { equip(next); setConfig(next); }} />;
     }
     render(<Parent />);
@@ -89,6 +93,30 @@ describe('Vestiaire : équipement et droits existants', () => {
         await user.click(screen.getByRole('button', { name: /SAUVEGARDER LE STYLE/ }));
         expect(await screen.findByRole('button', { name: /SAUVEGARDER LE STYLE/ })).toBeEnabled();
         expect(equip).toHaveBeenLastCalledWith({ ...avatar, head: 'owned' });
+    });
+
+    it('affiche une vignette fixe et lazy quand elle existe', () => {
+        mountPanel(false, undefined, { owned: '/thumbs/owned.webp' });
+        const card = screen.getByText('Article possédé').closest('[role="button"]');
+        const image = card?.querySelector('img');
+        expect(image).not.toBeNull();
+        expect(image?.getAttribute('src')).toBe('/thumbs/owned.webp');
+        expect(image?.getAttribute('loading')).toBe('lazy');
+        expect(image?.getAttribute('width')).toBe('64');
+        expect(image?.getAttribute('height')).toBe('64');
+        expect(image?.className).toContain('w-16');
+        expect(image?.className).toContain('h-16');
+    });
+
+    it('signale une vignette absente et garde l’icône de catégorie', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        mountPanel(false, undefined, {});
+        await waitFor(() => {
+            expect(warn.mock.calls.some((call) => String(call[0]).includes('owned'))).toBe(true);
+        });
+        const card = screen.getByText('Article possédé').closest('[role="button"]');
+        expect(card?.querySelector('img')).toBeNull();
+        warn.mockRestore();
     });
 
     it('ne rend pas un article indisponible', () => {
