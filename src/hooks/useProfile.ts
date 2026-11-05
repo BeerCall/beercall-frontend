@@ -16,6 +16,8 @@ export interface ShopItem {
     gender: Gender;
     price: number;
     is_owned: boolean; // Flag critique pour l'UI
+    /** Nom de fichier courant ; l'id reste la clé stable d'équipement. */
+    source?: string | null;
 }
 
 // 🚀 NOUVELLE INTERFACE POUR LES STATS

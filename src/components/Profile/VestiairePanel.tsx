@@ -2,6 +2,7 @@ import {useState, useEffect} from 'react';
 import {Check, Play, ShoppingBag} from 'lucide-react';
 import type {ShopItem, Badge} from "../../hooks/useProfile.ts";
 import type {AvatarConfig} from "../../types/avatar.ts";
+import {catalogAssetId} from "../../lib/catalogItem.ts";
 
 export type Gender = 'Men' | 'Women' | 'Unisex';
 
@@ -175,7 +176,7 @@ export default function VestiairePanel({
                             const isOwned = item.is_owned;
 
                             return (
-                                <div key={item.id} onClick={() => {
+                                <div key={catalogAssetId(item)} data-source={item.source ?? undefined} onClick={() => {
                                     if (!readonly) handleEquip(activeTab, item.id);
                                 }}
                                      role="button"

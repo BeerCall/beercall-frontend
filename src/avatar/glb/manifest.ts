@@ -59,6 +59,16 @@ export function validateManifestItem(item: GlbManifestItem): void {
     }
 }
 
+/**
+ * Clé de catalogue : genre + partie + nom, sans le prix.
+ * ``Men_accessory_Beer_500`` et ``Men_accessory_Beer_800`` partagent la même clé.
+ */
+export function sourceKey(value: string): string | null {
+    const stem = value.split(/[\\/]/).pop()?.replace(/\.(fbx|glb)$/i, '') ?? '';
+    const match = /^(Men|Women)_(head|body|legs|feet|accessory)_(.+?)(?:_\d+)?$/.exec(stem);
+    return match ? `${match[1]}_${match[2]}_${match[3]}` : null;
+}
+
 export function validateManifest(manifest: GlbManifest): GlbManifest {
     if (!manifest || !Array.isArray(manifest.items)) {
         throw new Error('Manifeste GLB invalide : tableau "items" requis');
@@ -115,16 +125,34 @@ export function resolveAvatarParts(
     }
 
     const bySourceId = new Map<string, GlbManifestItem>();
+    const bySource = new Map<string, GlbManifestItem>();
+    const byKey = new Map<string, GlbManifestItem | null>();
     for (const item of activeManifest.items) {
         bySourceId.set(item.sourceId, item);
+        if (item.source) {
+            bySource.set(item.source, item);
+            bySource.set(item.source.replace(/\.(fbx|glb)$/i, ''), item);
+            const key = sourceKey(item.source);
+            if (key) {
+                // Une clé ambiguë ne doit jamais choisir arbitrairement un fichier.
+                byKey.set(key, byKey.has(key) ? null : item);
+            }
+        }
     }
+
+    const resolveItem = (id: string): GlbManifestItem | undefined => {
+        const direct = bySourceId.get(id) ?? bySource.get(id) ?? bySource.get(`${id}.fbx`);
+        if (direct) return direct;
+        const key = sourceKey(id);
+        return key ? byKey.get(key) ?? undefined : undefined;
+    };
 
     const resolveSlot = (slotName: 'head' | 'body' | 'legs' | 'feet'): GlbManifestItem => {
         const id = config[slotName];
         if (!id || typeof id !== 'string' || id.toLowerCase() === 'none') {
             throw new Error(`Pièce obligatoire manquante : "${slotName}"`);
         }
-        const found = bySourceId.get(id);
+        const found = resolveItem(id);
         if (!found) {
             throw new Error(`Pièce inconnue dans le catalogue : "${id}" pour le slot "${slotName}"`);
         }
@@ -139,7 +167,7 @@ export function resolveAvatarParts(
     let accessory: GlbManifestItem | null = null;
     const accId = config.accessory;
     if (accId && typeof accId === 'string' && accId.toLowerCase() !== 'none' && accId.trim() !== '') {
-        const foundAcc = bySourceId.get(accId);
+        const foundAcc = resolveItem(accId);
         if (!foundAcc) {
             throw new Error(`Accessoire inconnu dans le catalogue : "${accId}"`);
         }

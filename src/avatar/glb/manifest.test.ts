@@ -4,6 +4,7 @@ import {
     clearGlbManifest,
     resolveAvatarParts,
     setGlbManifest,
+    sourceKey,
     validateManifest,
 } from './manifest';
 
@@ -170,6 +171,34 @@ describe('A13 — Manifeste GLB et résolution des pièces', () => {
             ],
         };
         expect(() => validateManifest(invalidManifest)).toThrow(/URL GLB non autorisée/);
+    });
+
+    it('calcule une clé sans le prix', () => {
+        expect(sourceKey('Men_accessory_Beer_500')).toBe('Men_accessory_Beer');
+        expect(sourceKey('Men_accessory_Beer_800.fbx')).toBe('Men_accessory_Beer');
+        expect(sourceKey('Men_body_Casual2_0')).toBe('Men_body_Casual2');
+        expect(sourceKey('Bar.fbx')).toBeNull();
+    });
+
+    it('résout par la clé quand le fichier a changé de prix', () => {
+        const beer = structuredClone(dummyManifest.items[4]);
+        beer.key = 'acc/men/Men_accessory_Beer_800';
+        beer.sourceId = 'Men_accessory_Beer_800';
+        beer.source = 'Men_accessory_Beer_800.fbx';
+        beer.url = '/models/glb/v1/accessories/Men/Men_accessory_Beer_800.hash5.glb';
+        setGlbManifest({...dummyManifest, items: [...dummyManifest.items, beer]});
+
+        const parts = resolveAvatarParts({
+            head: 'Men_head_Casual_0',
+            body: 'Men_body_Casual_0',
+            legs: 'Men_legs_Casual_0',
+            feet: 'Men_feet_Casual_0',
+            accessory: 'Men_accessory_Beer_500',
+            gender: 'Men',
+        });
+
+        expect(parts.accessory?.sourceId).toBe('Men_accessory_Beer_800');
+        expect(parts.accessory?.url).toContain('Men_accessory_Beer_800');
     });
 
     it('résout fidèlement une configuration Men avec accessoire', () => {
