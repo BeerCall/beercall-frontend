@@ -223,3 +223,42 @@ test('idempotence : une entrée à jour est ignorée', async () => {
         rmSync(dir, { recursive: true, force: true });
     }
 });
+
+test('mergeManifestEntries conserve la vignette quand le GLB est identique', () => {
+    const thumbnail = {
+        url: '/models/glb/v1/thumbs/Men/Men_head_Casual_0.1234abcd.webp',
+        sha256: 'a'.repeat(64),
+        bytes: 1234,
+        width: 192,
+        height: 192,
+    };
+    const existing = {
+        items: [{ key: 'men/head/Men_head_Casual_0', sourceSha256: 'same', thumbnail }],
+    };
+    const produced = [{ key: 'men/head/Men_head_Casual_0', sourceSha256: 'same', sha256: 'new' }];
+
+    const merged = mergeManifestEntries({ existing, produced, pipelineVersion: 1 });
+
+    assert.deepEqual(merged.items[0].thumbnail, thumbnail);
+});
+
+test('mergeManifestEntries retire la vignette quand le GLB change', () => {
+    const existing = {
+        items: [{
+            key: 'men/head/Men_head_Casual_0',
+            sourceSha256: 'old',
+            thumbnail: {
+                url: '/models/glb/v1/thumbs/Men/Men_head_Casual_0.1234abcd.webp',
+                sha256: 'a'.repeat(64),
+                bytes: 1234,
+                width: 192,
+                height: 192,
+            },
+        }],
+    };
+    const produced = [{ key: 'men/head/Men_head_Casual_0', sourceSha256: 'new', sha256: 'new' }];
+
+    const merged = mergeManifestEntries({ existing, produced, pipelineVersion: 1 });
+
+    assert.equal(merged.items[0].thumbnail, undefined);
+});

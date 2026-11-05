@@ -115,6 +115,11 @@ export function mergeManifestEntries({
     }
     for (const entry of produced) {
         if (entry === null) continue;
+        const previous = existing?.items?.find((candidate) => candidate.key === entry.key);
+        // Une vignette reste valide tant que le GLB n'a pas changé.
+        if (previous?.thumbnail && previous.sourceSha256 === entry.sourceSha256) {
+            entry.thumbnail = previous.thumbnail;
+        }
         byKey.set(entry.key, entry);
     }
     const items = [...byKey.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));

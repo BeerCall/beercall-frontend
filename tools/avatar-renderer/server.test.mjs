@@ -71,4 +71,28 @@ describe('A17 — Serveur HTTP du renderer (contrôles d’erreurs et limites)',
         const res2 = await fetch(`${BASE_URL}/%2e%2e%2f%2e%2e%2fetc%2fpasswd`);
         assert.equal(res2.status, 404);
     });
+
+    it('genere une vignette WebP 192x192 transparente', async () => {
+        const res = await fetch(`${BASE_URL}/thumbnail`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sourceId: 'Men_accessory_Beer_bWristR_s100_500' }),
+        });
+        assert.equal(res.status, 200);
+        const data = await res.json();
+        assert.equal(data.width, 192);
+        assert.equal(data.height, 192);
+        assert.equal(data.bytes, Buffer.from(data.webp, 'base64').length);
+    });
+
+    it('rejette une vignette dont le sourceId est inconnu avec HTTP 422', async () => {
+        const res = await fetch(`${BASE_URL}/thumbnail`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sourceId: 'Men_head_Article_Absent_0' }),
+        });
+        assert.equal(res.status, 422);
+        const data = await res.json();
+        assert.ok(data.detail.includes('sourceId inconnu'));
+    });
 });

@@ -111,6 +111,31 @@ async function convertToWebP(pngBase64, expectedWidth, expectedHeight, name) {
     return webpBuffer.toString('base64');
 }
 
+async function convertThumbnailToWebP(pngBase64) {
+    const buf = Buffer.from(pngBase64, 'base64');
+    const meta = await sharp(buf).metadata();
+    if (meta.width !== 256 || meta.height !== 256) {
+        throw new Error(`Dimensions de rendu invalides : ${meta.width}x${meta.height} (attendu 256x256)`);
+    }
+
+    const webp = await sharp(buf)
+        .resize(192, 192, {
+            fit: 'contain',
+            background: { r: 0, g: 0, b: 0, alpha: 0 },
+        })
+        .webp({ quality: 85, alphaQuality: 100 })
+        .toBuffer();
+
+    const outMeta = await sharp(webp).metadata();
+    if (outMeta.width !== 192 || outMeta.height !== 192) {
+        throw new Error(`Dimensions de vignette invalides : ${outMeta.width}x${outMeta.height} (attendu 192x192)`);
+    }
+    if (!outMeta.hasAlpha) {
+        throw new Error('La vignette doit conserver un canal alpha transparent');
+    }
+    return { base64: webp.toString('base64'), bytes: webp.length };
+}
+
 async function initBrowser(localPort) {
     rendererReady = false;
     const isSoftwareGl = Boolean(process.env.RENDERER_SOFTWARE_GL || process.platform === 'linux');
@@ -159,26 +184,18 @@ async function initBrowser(localPort) {
 }
 
 async function reloadBrowser(localPort) {
-    console.log('[renderer] Rechargement préventif de la page du navigateur...');
+    console.log('[renderer] Rechargement preventif de la page du navigateur...');
     rendererReady = false;
     try {
-        await page?.close();
-        page = await browser.newPage();
-        await page.route('**', (route) => {
-            const reqUrl = route.request().url();
-            if (reqUrl.startsWith(`http://127.0.0.1:${localPort}`) || reqUrl.startsWith(`http://localhost:${localPort}`)) {
-                route.continue();
-            } else {
-                route.abort();
-            }
-        });
-        await page.goto(`http://127.0.0.1:${localPort}/render.html`, { waitUntil: 'load', timeout: 30_000 });
+        // Recharge la page existante : fermer la derniere page ferme aussi le
+        // navigateur dans certains builds Chromium headless.
+        await page.reload({ waitUntil: 'load', timeout: 30_000 });
         await page.waitForFunction(() => Boolean(window.__rendererReady), null, { timeout: 30_000 });
         renderCount = 0;
         rendererReady = true;
-        console.log('[renderer] Rechargement terminé, renderer prêt.');
+        console.log('[renderer] Rechargement termine, renderer pret.');
     } catch (error) {
-        console.error('[renderer] Échec du rechargement du navigateur :', error);
+        console.error('[renderer] Echec du rechargement du navigateur :', error);
     }
 }
 
@@ -188,7 +205,7 @@ async function processQueue(localPort) {
 
     while (requestQueue.length > 0 && !isShuttingDown) {
         const item = requestQueue.shift();
-        const { payload, resolve, reject } = item;
+        const { kind = 'sprite', payload, resolve, reject } = item;
 
         if (!rendererReady) {
             reject({ status: 503, message: 'Renderer indisponible' });
@@ -203,29 +220,50 @@ async function processQueue(localPort) {
                 }, REQUEST_TIMEOUT_MS);
             });
 
-            const renderPromise = page.evaluate(
-                ({ config, userId }) => window.__renderAvatar(config, userId),
-                { config: payload.config, userId: payload.userId },
-            );
-            const rawResult = await Promise.race([renderPromise, timeoutPromise]);
-            clearTimeout(timeoutTimer);
+            if (kind === 'thumbnail') {
+                const png = await Promise.race([
+                    page.evaluate((sourceId) => window.__renderThumbnail(sourceId), payload.sourceId),
+                    timeoutPromise,
+                ]);
+                clearTimeout(timeoutTimer);
 
-            const [headWebp, portraitWebp, bodyWebp] = await Promise.all([
-                convertToWebP(rawResult.head, 256, 256, 'head'),
-                convertToWebP(rawResult.portrait, 512, 512, 'portrait'),
-                convertToWebP(rawResult.body, 256, 512, 'body'),
-            ]);
+                const thumbnail = await convertThumbnailToWebP(png);
+                // Les vignettes sont générées par lot : pas de rechargement au
+                // milieu du lot, le cache GLB borné suffit.
+                resolve({
+                    status: 200,
+                    data: {
+                        webp: thumbnail.base64,
+                        width: 192,
+                        height: 192,
+                        bytes: thumbnail.bytes,
+                    },
+                });
+            } else {
+                const renderPromise = page.evaluate(
+                    ({ config, userId }) => window.__renderAvatar(config, userId),
+                    { config: payload.config, userId: payload.userId },
+                );
+                const rawResult = await Promise.race([renderPromise, timeoutPromise]);
+                clearTimeout(timeoutTimer);
 
-            renderCount += 1;
-            resolve({
-                status: 200,
-                data: {
-                    head: headWebp,
-                    portrait: portraitWebp,
-                    body: bodyWebp,
-                    checks: rawResult.checks,
-                },
-            });
+                const [headWebp, portraitWebp, bodyWebp] = await Promise.all([
+                    convertToWebP(rawResult.head, 256, 256, 'head'),
+                    convertToWebP(rawResult.portrait, 512, 512, 'portrait'),
+                    convertToWebP(rawResult.body, 256, 512, 'body'),
+                ]);
+
+                renderCount += 1;
+                resolve({
+                    status: 200,
+                    data: {
+                        head: headWebp,
+                        portrait: portraitWebp,
+                        body: bodyWebp,
+                        checks: rawResult.checks,
+                    },
+                });
+            }
 
             if (renderCount >= MAX_RENDERS_BEFORE_RELOAD) {
                 await reloadBrowser(localPort);
@@ -264,7 +302,68 @@ export function createRendererServer(options = {}) {
             return;
         }
 
-        // 2. Rendu POST /render ou POST /
+        // 2. Vignette POST /thumbnail
+        if (req.method === 'POST' && url.pathname === '/thumbnail') {
+            if (!rendererReady) {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: 'Renderer en cours d initialisation' }));
+                return;
+            }
+
+            if (requestQueue.length >= MAX_QUEUE_SIZE) {
+                res.writeHead(429, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: 'File de rendu saturée (429)' }));
+                return;
+            }
+
+            const chunks = [];
+            let totalBytes = 0;
+
+            req.on('data', (chunk) => {
+                totalBytes += chunk.length;
+                if (totalBytes > MAX_BODY_BYTES) {
+                    res.writeHead(413, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ detail: 'Payload trop volumineux (> 64 Ko)' }));
+                    req.destroy();
+                } else {
+                    chunks.push(chunk);
+                }
+            });
+
+            req.on('end', () => {
+                if (totalBytes > MAX_BODY_BYTES) return;
+                let payload = null;
+                try {
+                    payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                } catch {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ detail: 'JSON malformé' }));
+                    return;
+                }
+
+                if (!payload?.sourceId || typeof payload.sourceId !== 'string') {
+                    res.writeHead(422, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ detail: 'Champ "sourceId" requis' }));
+                    return;
+                }
+
+                new Promise((resolve, reject) => {
+                    requestQueue.push({ kind: 'thumbnail', payload, resolve, reject });
+                    processQueue(port);
+                })
+                    .then(({ status: respStatus, data }) => {
+                        res.writeHead(respStatus, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify(data));
+                    })
+                    .catch(({ status: errStatus, message }) => {
+                        res.writeHead(errStatus || 500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ detail: message }));
+                    });
+            });
+            return;
+        }
+
+        // 3. Rendu POST /render ou POST /
         if (req.method === 'POST' && (url.pathname === '/render' || url.pathname === '/')) {
             if (!rendererReady) {
                 res.writeHead(503, { 'Content-Type': 'application/json' });
@@ -330,7 +429,7 @@ export function createRendererServer(options = {}) {
             return;
         }
 
-        // 3. Fichiers statiques
+        // 4. Fichiers statiques
         if (req.method === 'GET' || req.method === 'HEAD') {
             serveStatic(req, res);
             return;

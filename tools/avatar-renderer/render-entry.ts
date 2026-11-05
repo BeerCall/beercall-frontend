@@ -12,6 +12,7 @@ import {
 } from '../../src/avatar/glb/manifest';
 import { loadIdleClip } from '../../src/avatar/render/idleClip';
 import { createOffscreenRenderer, renderSprites } from '../../src/avatar/render/renderSprites';
+import { renderThumbnail } from '../../src/avatar/render/thumbnails';
 
 declare global {
     interface Window {
@@ -25,6 +26,7 @@ declare global {
                 fullBounds: number[];
             };
         }>;
+        __renderThumbnail?: (sourceId: string) => Promise<string>;
     }
 }
 
@@ -94,6 +96,15 @@ async function initRenderer(): Promise<void> {
                 ],
             },
         };
+    };
+
+    window.__renderThumbnail = async (sourceId: string) => {
+        const item = manifest.items.find((candidate) => candidate.sourceId === sourceId);
+        if (!item) {
+            throw new Error(`Vignette impossible : sourceId inconnu "${sourceId}"`);
+        }
+        const dataUrl = await renderThumbnail(renderer, { item, clip });
+        return dataUrl.split(',')[1] ?? '';
     };
 
     window.__rendererReady = true;
