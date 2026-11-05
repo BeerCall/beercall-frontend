@@ -3,6 +3,7 @@ import { X, Check, Beer, Martini, Pizza, Rocket, Ghost, Flame } from 'lucide-rea
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { humanizeToken } from '../../lib/humanize';
 
 const ICONS = [
     { id: 'beer', icon: <Beer /> },
@@ -94,7 +95,7 @@ export default function CreateSquadModal({ isOpen, onClose }: { isOpen: boolean,
                                     {ICONS.map(i => (
                                         <button
                                             key={i.id} onClick={() => setSelectedIcon(i.id)}
-                                            aria-label={`Emblème ${i.id}`} aria-pressed={selectedIcon === i.id}
+                                            aria-label={`Emblème ${humanizeToken(i.id)}`} aria-pressed={selectedIcon === i.id}
                                             className={`p-3 rounded-xl border-4 transition-all ${selectedIcon === i.id ? 'border-gray-900 bg-gray-900 text-white' : 'border-transparent bg-gray-50 text-gray-400'}`}
                                         >
                                             {i.icon}

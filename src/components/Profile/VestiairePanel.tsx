@@ -3,6 +3,7 @@ import {Check, Play, ShoppingBag} from 'lucide-react';
 import type {ShopItem, Badge} from "../../hooks/useProfile.ts";
 import type {AvatarConfig} from "../../types/avatar.ts";
 import {catalogAssetId} from "../../lib/catalogItem.ts";
+import {humanizeToken} from "../../lib/humanize.ts";
 
 export type Gender = 'Men' | 'Women' | 'Unisex';
 
@@ -166,7 +167,7 @@ export default function VestiairePanel({
                                 </div>
                                 <span
                                     className={`text-[10px] font-black uppercase tracking-wider text-center leading-tight ${isEquipped ? 'text-amber-800' : 'text-gray-500'}`}>
-                                    {animName.replace(/_/g, ' ')}
+                                    {humanizeToken(animName)}
                                 </span>
                                 {isEquipped && <div
                                     className="absolute top-3 right-3 w-3 h-3 bg-beer rounded-full animate-pulse shadow-sm"/>}
