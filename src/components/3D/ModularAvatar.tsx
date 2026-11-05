@@ -8,9 +8,8 @@ import type {AvatarConfig, AvatarTransform} from '../../types/avatar.ts';
 import {useAvatarAnimations} from '../../hooks/useAvatarAnimations';
 import {useModel} from '../../hooks/useModel';
 import {createAvatarPresentationLease, type AvatarPresentationOptions} from '../../lib/avatarPresentationState';
-import {getAccessoryTransform} from '../../avatar/accessoryTransforms';
-
-// Les transforms d'accessoires sont partagés avec le pipeline GLB (A01).
+// Le chemin FBX legacy n'embarque plus de transform d'accessoire codé en dur ;
+// RealAvatar lit le transform publié dans le manifeste GLB.
 
 // 🚀 NOUVEAU COMPOSANT AVATAR FRAME NOTIFIER : Raccorde notifyInitialFrame à un probe de frame
 function AvatarFrameNotifier({
@@ -239,8 +238,6 @@ export function ModularAvatar({
 
     const partRootsRef = useRef<Map<string, THREE.Group>>(new Map());
 
-    const accessoryTransform = getAccessoryTransform(config.accessory);
-
     const targetAnimation = config.animation && config.animation !== 'none' ? config.animation : "Idle";
     const {
         clipNames,
@@ -442,7 +439,6 @@ export function ModularAvatar({
                     partKey="accessory"
                     onPartReady={handlePartReady}
                     onPartUnmount={handlePartUnmount}
-                    customTransform={accessoryTransform}
                     animations={activeAnimations}
                     currentAnim={currentAnim}
                     active={active}

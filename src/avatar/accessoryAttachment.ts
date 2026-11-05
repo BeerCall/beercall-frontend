@@ -1,8 +1,6 @@
 import { Object3D, Vector3 } from 'three';
 
-import { CUSTOM_ITEMS_CONFIG } from './accessoryTransforms';
 import type { ManifestAccessoryTransform } from './glb/manifest';
-import type { AvatarTransform } from '../types/avatar';
 
 export interface NormalizedAccessoryTransform {
     position: [number, number, number];
@@ -19,16 +17,6 @@ const IDENTITY: NormalizedAccessoryTransform = {
     bone: null,
 };
 
-function fromLegacy(transform: AvatarTransform | undefined): NormalizedAccessoryTransform {
-    if (!transform) return { ...IDENTITY };
-    return {
-        position: [...(transform.position ?? [0, 0, 0])],
-        rotation: [...(transform.rotation ?? [0, 0, 0])],
-        scale: [...(transform.scale ?? [1, 1, 1])],
-        bone: null,
-    };
-}
-
 function fromManifest(transform: ManifestAccessoryTransform): NormalizedAccessoryTransform {
     const scale = transform.scale;
     return {
@@ -41,28 +29,14 @@ function fromManifest(transform: ManifestAccessoryTransform): NormalizedAccessor
 }
 
 /**
- * Transform effectif d'un accessoire.
- *
- * Tant que le manifeste n'a pas de transform (période 5f-1), on retombe sur
- * les valeurs historiques. La Beer conserve exceptionnellement son os pour
- * ne pas modifier l'affichage avant le renommage 5f-3.
+ * Transform effectif d'un accessoire, uniquement lu dans le manifeste.
+ * Sans transform (les rares accessoires inchangés), l'identité s'applique.
  */
 export function normalizeAccessoryTransform(
-    accessoryId: string,
+    _accessoryId: string,
     manifestTransform?: ManifestAccessoryTransform | null,
 ): NormalizedAccessoryTransform {
-    if (manifestTransform) return fromManifest(manifestTransform);
-
-    if (accessoryId.endsWith('_Beer_500')) {
-        return {
-            position: [0, 0, 0],
-            rotation: [0, 0, 0],
-            scale: [100, 100, 100],
-            bone: 'WristR',
-        };
-    }
-
-    return fromLegacy(CUSTOM_ITEMS_CONFIG[accessoryId]);
+    return manifestTransform ? fromManifest(manifestTransform) : { ...IDENTITY };
 }
 
 /**

@@ -98,7 +98,7 @@ test('l\'inventaire réel de ce checkout respecte les comptes attendus', () => {
     assert.equal(new Set(inv.items.map((i) => i.key)).size, EXPECTED_TOTAL);
     const accessories = inv.items.filter((i) => i.kind === 'accessory');
     assert.equal(accessories.length, 74);
-    assert.ok(inv.items.some((i) => i.sourceId === 'Men_accessory_Sudowoodo_600'));
-    assert.ok(inv.items.some((i) => i.sourceId === 'Men_accessory_McLaren_5000'));
+    assert.ok(inv.items.some((i) => i.sourceId.startsWith('Men_accessory_Sudowoodo_')));
+    assert.ok(inv.items.some((i) => i.sourceId.startsWith('Men_accessory_McLaren_')));
     assert.ok(!inv.items.some((i) => i.sourceId === 'Animations'));
 });

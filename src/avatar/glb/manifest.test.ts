@@ -176,6 +176,8 @@ describe('A13 — Manifeste GLB et résolution des pièces', () => {
     it('calcule une clé sans le prix', () => {
         expect(sourceKey('Men_accessory_Beer_500')).toBe('Men_accessory_Beer');
         expect(sourceKey('Men_accessory_Beer_800.fbx')).toBe('Men_accessory_Beer');
+        expect(sourceKey('Men_accessory_Beer_bWristR_s100_500.fbx')).toBe('Men_accessory_Beer');
+        expect(sourceKey('Men_accessory_McLaren_px68_py15_pz-30_s0d3_5000.fbx')).toBe('Men_accessory_McLaren');
         expect(sourceKey('Men_body_Casual2_0')).toBe('Men_body_Casual2');
         expect(sourceKey('Bar.fbx')).toBeNull();
     });

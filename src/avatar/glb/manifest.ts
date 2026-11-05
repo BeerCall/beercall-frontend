@@ -77,8 +77,13 @@ export function validateManifestItem(item: GlbManifestItem): void {
  */
 export function sourceKey(value: string): string | null {
     const stem = value.split(/[\\/]/).pop()?.replace(/\.(fbx|glb)$/i, '') ?? '';
-    const match = /^(Men|Women)_(head|body|legs|feet|accessory)_(.+?)(?:_\d+)?$/.exec(stem);
-    return match ? `${match[1]}_${match[2]}_${match[3]}` : null;
+    const parts = stem.split('_');
+    if (parts.length < 3) return null;
+    if (!['Men', 'Women'].includes(parts[0])) return null;
+    if (!['head', 'body', 'legs', 'feet', 'accessory'].includes(parts[1])) return null;
+    if (!parts[2]) return null;
+    // Le nom est le 3e segment ; les jetons et le prix suivent.
+    return `${parts[0]}_${parts[1]}_${parts[2]}`;
 }
 
 export function validateManifest(manifest: GlbManifest): GlbManifest {

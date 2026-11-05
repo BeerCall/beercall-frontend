@@ -145,13 +145,13 @@ describe('ModularAvatar assembly extraction', () => {
         expect(state.frames.size).toBe(0);
     });
 
-    it('preserves accessory transforms and does not certify an empty outfit', () => {
+    it('ne code plus de transform dans le chemin FBX legacy', () => {
         const root = createRef<THREE.Group>();
         const ready = vi.fn();
         const { rerender } = render(<ModularAvatar config={{ accessory: 'Men_accessory_Kart_3000' }} groupRef={root}/>);
         const accessory = root.current!.children[0];
-        expect(accessory.scale.toArray()).toEqual([2, 2, 2]);
-        expect(accessory.rotation.y).toBe(70);
+        expect(accessory.scale.toArray()).toEqual([1, 1, 1]);
+        expect(accessory.rotation.y).toBe(0);
         rerender(<ModularAvatar config={{ head: 'none' }} groupRef={root} onReadinessChange={ready}/>);
         expect(ready).not.toHaveBeenCalledWith(true, expect.anything());
     });

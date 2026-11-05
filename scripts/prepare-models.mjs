@@ -115,8 +115,19 @@ export async function prepareOne(directory, inputName) {
     const previous = Object.getOwnPropertyDescriptor(globalThis, 'window');
     Object.defineProperty(globalThis, 'window', { value: { innerWidth: 800, innerHeight: 600 }, configurable: true });
     try {
-        const group = new FBXLoader().parse(source.buffer.slice(source.byteOffset, source.byteOffset + source.byteLength), '');
-        const bytes = prepareModel(group, sha256(source));
+        let bytes;
+        try {
+            const group = new FBXLoader().parse(source.buffer.slice(source.byteOffset, source.byteOffset + source.byteLength), '');
+            bytes = prepareModel(group, sha256(source));
+        } catch (error) {
+            // Les modèles texturés restent en FBX, comme dans prepareDirectory.
+            return {
+                prepared: 0,
+                skipped: [{ name, reason: error instanceof Error ? error.message : String(error) }],
+                file: null,
+                manifest,
+            };
+        }
         const hash = sha256(bytes);
         const file = `${name.slice(0, -4)}.${hash}.bc3d`;
         await writeFile(join(target, file), bytes);
@@ -189,14 +200,25 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     let only = null;
     const onlyIndex = args.indexOf('--only');
     if (onlyIndex >= 0) {
-        only = args[onlyIndex + 1];
-        if (!only) throw new Error('--only attend un nom de fichier FBX.');
+        only = args[onlyIndex + 1]
+            ?.split(',')
+            .map((value) => value.trim())
+            .filter(Boolean) ?? [];
+        if (only.length === 0) throw new Error('--only attend un ou plusieurs noms de fichiers FBX.');
         args.splice(onlyIndex, 2);
     }
     const directory = resolve(args[0] ?? '../beercall-backend/static/models');
     if (only) {
-        const summary = await prepareOne(directory, only);
-        console.log(JSON.stringify({ prepared: summary.prepared, file: summary.file }, null, 2));
+        const prepared = [];
+        for (const file of only) {
+            const summary = await prepareOne(directory, file);
+            prepared.push({
+                prepared: summary.prepared,
+                skipped: summary.skipped,
+                file: summary.file,
+            });
+        }
+        console.log(JSON.stringify({ prepared, count: prepared.length }, null, 2));
     } else {
         await prepareDirectory(directory);
     }
