@@ -18,6 +18,8 @@ export interface ShopItem {
     is_owned: boolean; // Flag critique pour l'UI
     /** Nom de fichier courant ; l'id reste la clé stable d'équipement. */
     source?: string | null;
+    /** Défense locale : absent = considéré disponible. */
+    available?: boolean;
 }
 
 // 🚀 NOUVELLE INTERFACE POUR LES STATS

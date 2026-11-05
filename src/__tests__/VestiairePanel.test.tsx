@@ -10,6 +10,7 @@ const catalogue: ShopItem[] = [
     { id: 'none', name: 'Sans couvre-chef', category: 'head', gender: 'Men', price: 0, is_owned: true },
     { id: 'owned', name: 'Article possédé', category: 'head', gender: 'Men', price: 0, is_owned: true },
     { id: 'unowned', name: 'Article à acheter', category: 'head', gender: 'Men', price: 10, is_owned: false },
+    { id: 'hidden', name: 'Hidden article', category: 'head', gender: 'Men', price: 0, is_owned: true, available: false },
 ];
 
 function mountPanel(readonly = false, save = vi.fn<() => Promise<boolean>>().mockResolvedValue(true)) {
@@ -88,6 +89,11 @@ describe('Vestiaire : équipement et droits existants', () => {
         await user.click(screen.getByRole('button', { name: /SAUVEGARDER LE STYLE/ }));
         expect(await screen.findByRole('button', { name: /SAUVEGARDER LE STYLE/ })).toBeEnabled();
         expect(equip).toHaveBeenLastCalledWith({ ...avatar, head: 'owned' });
+    });
+
+    it('ne rend pas un article indisponible', () => {
+        mountPanel();
+        expect(screen.queryByText('Hidden article')).not.toBeInTheDocument();
     });
 
     it('compare au snapshot soumis si la tenue change pendant la sauvegarde', async () => {

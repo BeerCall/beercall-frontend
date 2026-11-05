@@ -48,7 +48,11 @@ export default function SignUp() {
         if (publicShopItems.length > 0) {
             // Fonction utilitaire pour trouver le 1er item dispo
             const getFirstItem = (cat: string) => {
-                const item = publicShopItems.find(i => i.category === cat && (i.gender === gender || i.gender === 'Unisex'));
+                const item = publicShopItems.find(i =>
+                    i.category === cat
+                    && (i.gender === gender || i.gender === 'Unisex')
+                    && i.available !== false
+                );
                 return item ? item.id : 'none';
             };
 

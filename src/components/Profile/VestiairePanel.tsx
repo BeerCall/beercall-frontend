@@ -86,7 +86,8 @@ export default function VestiairePanel({
     // 🚀 SÉCURITÉ 2 : On force (shopItems || []) avant de filter
     const itemsToDisplay = (shopItems || []).filter(item =>
         item.category === activeTab &&
-        (item.gender === gender || item.gender === 'Unisex')
+        (item.gender === gender || item.gender === 'Unisex') &&
+        item.available !== false
     );
 
     // 🚀 SÉCURITÉ 3 : On force (shopItems || []) avant de find
