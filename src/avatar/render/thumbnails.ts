@@ -38,11 +38,15 @@ function isSkinned(root: Group): boolean {
     return found;
 }
 
-/** Étendue carrée : plus grande dimension 3D, avec marge de sécurité. */
+/**
+ * Étendue carrée : boîte englobante projetée à l'écran, largeur et hauteur
+ * uniquement. La profondeur ne doit pas réduire le cadrage d'un objet long
+ * (F1, Sword) vu de face.
+ */
 export function thumbnailExtent(bounds: Box3): number {
     const size = bounds.getSize(new Vector3());
-    const maxDimension = Math.max(size.x, size.y, size.z);
-    return Math.max(maxDimension, 1e-6) * THUMBNAIL_MARGIN;
+    const projectedDimension = Math.max(size.x, size.y);
+    return Math.max(projectedDimension, 1e-6) * THUMBNAIL_MARGIN;
 }
 
 export function thumbnailFraming(bounds: Box3): {

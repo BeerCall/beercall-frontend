@@ -27,6 +27,55 @@ const EXPECTED_THUMBNAILS = 159;
 
 describe('vignettes du catalogue', () => {
     it(
+        'chaque vignette remplit au moins 60 % de sa case',
+        async () => {
+            const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as Manifest;
+            const entries = manifest.items.filter((item) => item.thumbnail);
+            const failures: string[] = [];
+
+            expect(entries).toHaveLength(EXPECTED_THUMBNAILS);
+
+            for (const item of entries) {
+                const thumbnail = item.thumbnail as ManifestThumbnail;
+                const file = resolve(MODELS_ROOT, thumbnail.url.replace('/models/', ''));
+                if (!existsSync(file)) {
+                    failures.push(`${item.sourceId}: fichier absent`);
+                    continue;
+                }
+                const { data, info } = await sharp(file)
+                    .ensureAlpha()
+                    .raw()
+                    .toBuffer({ resolveWithObject: true });
+
+                let minX = info.width;
+                let minY = info.height;
+                let maxX = -1;
+                let maxY = -1;
+                for (let y = 0; y < info.height; y += 1) {
+                    for (let x = 0; x < info.width; x += 1) {
+                        if (data[(y * info.width + x) * info.channels + 3] > 0) {
+                            if (x < minX) minX = x;
+                            if (y < minY) minY = y;
+                            if (x > maxX) maxX = x;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+
+                const width = maxX >= minX ? maxX - minX + 1 : 0;
+                const height = maxY >= minY ? maxY - minY + 1 : 0;
+                const fill = Math.max(width, height) / info.width;
+                if (fill < 0.6) {
+                    failures.push(`${item.sourceId}: ${(fill * 100).toFixed(1)}%`);
+                }
+            }
+
+            expect(failures).toEqual([]);
+        },
+        120_000,
+    );
+
+    it(
         'les 159 vignettes ne touchent jamais la bordure de 4 px',
         async () => {
             const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as Manifest;
