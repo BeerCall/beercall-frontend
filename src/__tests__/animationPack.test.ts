@@ -124,6 +124,44 @@ describe('animationPack', () => {
       expect(realManifest.deferred.clips).not.toContain('Idle');
     });
 
+    it('accepts a thumbnail entry {url, sha256, bytes, width, height}', () => {
+      const thumbnail = {
+        url: '/animations/thumbnails/Anim_Idle_l_Men.webp',
+        sha256: 'c'.repeat(64),
+        bytes: 1234,
+        width: 192,
+        height: 192,
+      };
+      const clips = realManifest.clips.map((clip, index) => (
+        index === 0
+          ? { ...clip, thumbnails: { ...clip.thumbnails, Men: thumbnail } }
+          : clip
+      ));
+      const validated = validateManifest({ ...realManifest, clips });
+      expect(validated.clips[0].thumbnails.Men).toEqual(thumbnail);
+    });
+
+    it('rejects invalid thumbnail dimensions and sha256', () => {
+      const thumbnail = {
+        url: '/animations/thumbnails/Anim_Idle_l_Men.webp',
+        sha256: 'c'.repeat(64),
+        bytes: 1234,
+        width: 192,
+        height: 192,
+      };
+      const withThumbnail = (next: Record<string, unknown>) => ({
+        ...realManifest,
+        clips: realManifest.clips.map((clip, index) => (
+          index === 0
+            ? { ...clip, thumbnails: { ...clip.thumbnails, Men: next } }
+            : clip
+        )),
+      });
+      expect(() => validateManifest(withThumbnail({ ...thumbnail, width: 256 }))).toThrow(/dimensions/);
+      expect(() => validateManifest(withThumbnail({ ...thumbnail, sha256: 'bad' }))).toThrow(/sha256/);
+      expect(() => validateManifest(withThumbnail({ ...thumbnail, url: '/other/x.webp' }))).toThrow(/URL/);
+    });
+
     it('accepts a manifest with an arbitrary catalogue, without any hardcoded list or count', () => {
       const synthetic = {
         formatVersion: 2,

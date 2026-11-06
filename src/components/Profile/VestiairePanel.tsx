@@ -2,6 +2,7 @@ import {useState, useEffect, useRef} from 'react';
 import {Check, Play, ShoppingBag} from 'lucide-react';
 import type {ShopItem, Badge} from "../../hooks/useProfile.ts";
 import type {AvatarConfig} from "../../types/avatar.ts";
+import type {AnimationClipEntry} from "../../types/animationPack.ts";
 import {catalogAssetId} from "../../lib/catalogItem.ts";
 import {humanizeToken} from "../../lib/humanize.ts";
 
@@ -20,7 +21,7 @@ interface VestiairePanelProps {
     isSubmitting?: boolean;
     readonly?: boolean;
     hideTabs?: boolean;
-    availableAnimations?: readonly string[];
+    availableAnimations?: readonly AnimationClipEntry[];
     thumbnailUrls?: Record<string, string>;
     /** Appelé à chaque appui sur une animation, même déjà équipée. */
     onAnimationSelected?: (name: string) => void;
@@ -47,6 +48,7 @@ export default function VestiairePanel({
     const [isSavingStyle, setIsSavingStyle] = useState(false);
     const [initialConfig, setInitialConfig] = useState<AvatarConfig | null>(null);
     const warnedThumbnails = useRef<Set<string>>(new Set());
+    const warnedAnimationThumbnails = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         if (!initialConfig && avatarConfig) {
@@ -109,6 +111,16 @@ export default function VestiairePanel({
         }
     }, [itemsToDisplay, thumbnailUrls]);
 
+    const animationThumbnailGender = gender === 'Women' ? 'Women' : 'Men';
+    useEffect(() => {
+        for (const entry of availableAnimations) {
+            if (!entry.thumbnails[animationThumbnailGender] && !warnedAnimationThumbnails.current.has(entry.id)) {
+                warnedAnimationThumbnails.current.add(entry.id);
+                console.warn(`[animations] vignette absente pour ${entry.id}`);
+            }
+        }
+    }, [availableAnimations, animationThumbnailGender]);
+
     const hasUnownedItemsEquipped = ['head', 'body', 'legs', 'feet', 'accessory'].some(cat => {
         const equippedId = avatarConfig[cat];
         if (equippedId === 'none') return false;
@@ -157,10 +169,12 @@ export default function VestiairePanel({
             <div
                 className="flex-1 overflow-y-auto p-6 grid grid-cols-2 sm:grid-cols-3 gap-4 pb-32 hide-scrollbar content-start">
                 {activeTab === 'animation' ? (
-                    (availableAnimations || []).map((animName) => {
+                    (availableAnimations || []).map((entry) => {
+                        const animName = entry.name;
+                        const thumbnail = entry.thumbnails[animationThumbnailGender];
                         const isEquipped = avatarConfig.animation === animName;
                         return (
-                            <button key={animName}
+                            <button key={entry.id}
                                     onClick={() => {
                                         if (readonly) return;
                                         // Déjà équipée : on ne réécrit pas la config (pas de
@@ -173,9 +187,23 @@ export default function VestiairePanel({
                                     }}
                                     disabled={readonly}
                                     className={`relative p-4 rounded-3xl flex flex-col items-center justify-center gap-3 border-2 transition-all active:scale-95 ${isEquipped ? 'bg-amber-50/50 border-beer shadow-[0_0_20px_rgba(217,119,6,0.15)] scale-105' : 'bg-white border-gray-100 hover:border-gray-300 hover:shadow-md'}`}>
-                                <div
-                                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isEquipped ? 'bg-beer text-white shadow-inner' : 'bg-gray-50 text-gray-400'}`}>
-                                    <Play size={24} className={isEquipped ? 'fill-white' : 'fill-gray-300'}/>
+                                <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden">
+                                    {thumbnail ? (
+                                        <img
+                                            src={thumbnail.url}
+                                            alt=""
+                                            width={64}
+                                            height={64}
+                                            loading="lazy"
+                                            decoding="async"
+                                            draggable={false}
+                                            className="w-16 h-16 object-contain"
+                                        />
+                                    ) : (
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isEquipped ? 'bg-beer text-white shadow-inner' : 'bg-gray-50 text-gray-400'}`}>
+                                            <Play size={24} className={isEquipped ? 'fill-white' : 'fill-gray-300'}/>
+                                        </div>
+                                    )}
                                 </div>
                                 <span
                                     className={`text-[10px] font-black uppercase tracking-wider text-center leading-tight ${isEquipped ? 'text-amber-800' : 'text-gray-500'}`}>

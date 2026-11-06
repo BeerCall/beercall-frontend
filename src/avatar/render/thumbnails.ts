@@ -63,7 +63,7 @@ export function thumbnailFraming(bounds: Box3): {
     return { camera, center, extent };
 }
 
-function createThumbnailScene(object: Group): Scene {
+export function createThumbnailScene(object: Group): Scene {
     const scene = new Scene();
     scene.background = null;
 

@@ -20,8 +20,16 @@ export interface SerializedClip {
   tracks: SerializedTrack[];
 }
 
+export interface AnimationThumbnail {
+  readonly url: string;
+  readonly sha256: string;
+  readonly bytes: number;
+  readonly width: number;
+  readonly height: number;
+}
+
 /** Vignette d'un clip pour un genre ; null tant qu'elle n'est pas générée. */
-export type ClipThumbnails = Readonly<Record<AnimationGender, string | null>>;
+export type ClipThumbnails = Readonly<Record<AnimationGender, AnimationThumbnail | null>>;
 
 /** Une entrée du manifeste : seule source de vérité pour un clip. */
 export interface AnimationClipEntry {

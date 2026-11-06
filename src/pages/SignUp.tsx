@@ -24,7 +24,7 @@ export default function SignUp() {
     const [formData, setFormData] = useState({username: '', password: ''});
     const [gender, setGender] = useState<Gender>('Men');
     // Catalogue issu du manifeste v2, disponible même en repli sprite.
-    const {names: availableAnimations} = useAnimationManifest();
+    const {clips: availableAnimations} = useAnimationManifest();
     const [animationReplay, setAnimationReplay] = useState(0);
 
     // On initialise à 'none' en attendant le chargement du backend

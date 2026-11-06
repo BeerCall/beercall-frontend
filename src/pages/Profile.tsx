@@ -44,7 +44,7 @@ export default function Profile() {
 
     // Le catalogue vient du manifeste v2, jamais du callback de la scène 3D :
     // il reste rempli même quand l'avatar est en repli sprite (lease WebGL).
-    const {names: availableAnimations} = useAnimationManifest();
+    const {clips: availableAnimations} = useAnimationManifest();
     const [animationReplay, setAnimationReplay] = useState(0);
 
     const [purchaseIntent, setPurchaseIntent] = useState<{

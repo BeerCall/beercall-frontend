@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import sharp from 'sharp';
 
 export function sha256Hex(data) {
   return createHash('sha256').update(data).digest('hex');
@@ -9,6 +10,9 @@ export function sha256Hex(data) {
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 const PACKS = new Set(['idle', 'deferred']);
+const THUMBNAIL_WIDTH = 192;
+const THUMBNAIL_HEIGHT = 192;
+const THUMBNAIL_BORDER = 4;
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -28,8 +32,18 @@ function validateClipEntry(entry, index) {
     `Clip ${entry.name}: vignettes manquantes.`);
   for (const gender of ['Men', 'Women']) {
     const value = entry.thumbnails[gender];
-    assert(value === null || (typeof value === 'string' && value.startsWith('/animations/')),
-      `Clip ${entry.name}: vignette ${gender} invalide.`);
+    assert(value && typeof value === 'object', `Clip ${entry.name}: vignette ${gender} manquante.`);
+    assert(typeof value.url === 'string'
+      && value.url.startsWith('/animations/thumbnails/')
+      && value.url.endsWith('.webp')
+      && !value.url.includes('..'),
+      `Clip ${entry.name}: URL de vignette ${gender} invalide (${value.url}).`);
+    assert(typeof value.sha256 === 'string' && HEX_64.test(value.sha256),
+      `Clip ${entry.name}: sha256 de vignette ${gender} invalide.`);
+    assert(Number.isSafeInteger(value.bytes) && value.bytes > 0,
+      `Clip ${entry.name}: taille de vignette ${gender} invalide.`);
+    assert(value.width === THUMBNAIL_WIDTH && value.height === THUMBNAIL_HEIGHT,
+      `Clip ${entry.name}: dimensions de vignette ${gender} invalides (${value.width}x${value.height}).`);
   }
   return entry;
 }
@@ -103,6 +117,63 @@ function validatePackShape(pack, expectedType, expectedNames, durations) {
   }
 }
 
+export async function checkThumbnailFile(dir, thumbnail, clipName, gender) {
+  const relativeUrl = thumbnail.url.replace(/^\/animations\//, '');
+  const filePath = join(dir, relativeUrl);
+  let buffer;
+  try {
+    buffer = await readFile(filePath);
+  } catch (err) {
+    throw new Error(`Vignette ${gender} de ${clipName} introuvable (${filePath}): ${err.message}`);
+  }
+
+  const actualHash = sha256Hex(buffer);
+  assert(actualHash === thumbnail.sha256,
+    `Vignette ${gender} de ${clipName}: sha256 non conforme (attendu ${thumbnail.sha256}, calculé ${actualHash}).`);
+  assert(buffer.byteLength === thumbnail.bytes,
+    `Vignette ${gender} de ${clipName}: ${buffer.byteLength} octets au lieu de ${thumbnail.bytes}.`);
+
+  const meta = await sharp(buffer).metadata();
+  assert(meta.width === THUMBNAIL_WIDTH && meta.height === THUMBNAIL_HEIGHT,
+    `Vignette ${gender} de ${clipName}: dimensions ${meta.width}x${meta.height}.`);
+  assert(meta.hasAlpha, `Vignette ${gender} de ${clipName}: canal alpha manquant.`);
+
+  const { data, info } = await sharp(buffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  assert(info.channels === 4, `Vignette ${gender} de ${clipName}: canaux inattendus (${info.channels}).`);
+  const { width, height, channels } = info;
+  const alphaAt = (x, y) => data[(y * width + x) * channels + 3];
+
+  // Anti-rognage : les 4 px du bord doivent être entièrement transparents.
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const inside = x >= THUMBNAIL_BORDER && x < width - THUMBNAIL_BORDER
+        && y >= THUMBNAIL_BORDER && y < height - THUMBNAIL_BORDER;
+      if (inside) continue;
+      if (alphaAt(x, y) !== 0) {
+        throw new Error(`Vignette ${gender} de ${clipName}: rognage détecté à (${x},${y}) dans la marge de ${THUMBNAIL_BORDER} px.`);
+      }
+    }
+  }
+
+  // Remplissage linéaire : plus grande dimension de la bbox visible / 192.
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (alphaAt(x, y) === 0) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  assert(maxX >= 0, `Vignette ${gender} de ${clipName}: aucun pixel visible.`);
+  const fill = Math.max(maxX - minX + 1, maxY - minY + 1) / Math.max(width, height);
+  return { fill, bytes: buffer.byteLength };
+}
+
 /**
  * Valide le manifeste v2 et les deux packs d'animation publiés dans public/animations.
  * Aucune liste de noms, aucun compte et aucun ordre ne sont codés en dur.
@@ -168,6 +239,20 @@ export async function checkAnimations(animationsDir) {
   const critical = await loadPack(manifest.critical, 'idle', criticalNames);
   const deferred = await loadPack(manifest.deferred, 'deferred', deferredNames);
 
+  let thumbnailCount = 0;
+  let thumbnailBytes = 0;
+  let fillMin = Infinity;
+  let fillMax = 0;
+  for (const entry of entries) {
+    for (const gender of ['Men', 'Women']) {
+      const result = await checkThumbnailFile(dir, entry.thumbnails[gender], entry.name, gender);
+      thumbnailCount += 1;
+      thumbnailBytes += result.bytes;
+      fillMin = Math.min(fillMin, result.fill);
+      fillMax = Math.max(fillMax, result.fill);
+    }
+  }
+
   return {
     valid: true,
     manifestPath,
@@ -178,6 +263,10 @@ export async function checkAnimations(animationsDir) {
     deferredBytes: deferred.buffer.byteLength,
     deferredHash: deferred.hash,
     totalClips: entries.length,
+    thumbnailCount,
+    thumbnailBytes,
+    fillMin,
+    fillMax,
   };
 }
 
@@ -188,6 +277,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     console.log(`[animations:check] Manifest et ${result.totalClips} animations vérifiés avec succès.`);
     console.log(`  - Pack critique: ${result.criticalFile} (${result.criticalBytes} octets, sha256: ${result.criticalHash.slice(0, 16)}...)`);
     console.log(`  - Pack différé:  ${result.deferredFile} (${result.deferredBytes} octets, sha256: ${result.deferredHash.slice(0, 16)}...)`);
+    console.log(`  - Vignettes: ${result.thumbnailCount} (${result.thumbnailBytes} octets, remplissage ${(result.fillMin * 100).toFixed(1)} % - ${(result.fillMax * 100).toFixed(1)} %)`);
     process.exit(0);
   } catch (err) {
     console.error(`[animations:check] ERREUR: ${err.message}`);

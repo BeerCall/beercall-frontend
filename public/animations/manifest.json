@@ -9,8 +9,20 @@
       "duration": 1.0666667222976685,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Death_o_Men.webp",
+          "sha256": "4c067fb9225d1866713e359fe23b15e28edbc136f08880f0c6ee382069b2adeb",
+          "bytes": 2992,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Death_o_Women.webp",
+          "sha256": "2987bc3f33def07bad54e9b3c7646e23b3f3aeead857c2842663f0e1f0508a6d",
+          "bytes": 3202,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "adafa221bf00b40dcb4c4f2fc9098c1b889c260161b949e290d02e7d8c53e769"
     },
@@ -21,8 +33,20 @@
       "duration": 0.6000000238418579,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Gun_Shoot_o_Men.webp",
+          "sha256": "3ef80e9a7b42e9ef10a92df35ae45b2b646181f898d90ad88411f5d10f3b5926",
+          "bytes": 4482,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Gun_Shoot_o_Women.webp",
+          "sha256": "a36a3e9cfc77043844b6af2794cfe2fac21e2844cf353c201e234d7865eff5ee",
+          "bytes": 4496,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "8e10aa96497f665d076c0458608aff22f3c7d7adda988ecc282e85ba03a66f25"
     },
@@ -33,8 +57,20 @@
       "duration": 0.5666666626930237,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_HitRecieve_2_o_Men.webp",
+          "sha256": "789dfbdd135597b201c767963686da5c1996b952e22b8128c8307f758e8f8527",
+          "bytes": 4756,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_HitRecieve_2_o_Women.webp",
+          "sha256": "c4372c942096c2706b2cf3e002c48090902ef23c12ee3de9fae15ccf1a313249",
+          "bytes": 4580,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "2bf2463bec8d173712a987a2af4a013fd3e697a18c567744f52bb4917c2a6cd6"
     },
@@ -45,8 +81,20 @@
       "duration": 0.5666666626930237,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_HitRecieve_o_Men.webp",
+          "sha256": "1be185d5cffb000ce22cef546ad124fcc0eec93dacc7f23028e3c17bec1c089f",
+          "bytes": 4932,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_HitRecieve_o_Women.webp",
+          "sha256": "9dddc96f3e5a0d70c24839f26422b23c13764bd4c33f3055a6cfff58d442ff0b",
+          "bytes": 4970,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "82ce7460abb76ce799510b2f20e86eb4b6d4c4529f7a8ec99bc4e125cf7a809b"
     },
@@ -57,8 +105,20 @@
       "duration": 1.6666666269302368,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Idle_Gun_l_Men.webp",
+          "sha256": "e72fbffb411f788dd710655776ce281b90593f03670debbc73c694b0086c27a9",
+          "bytes": 4962,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Idle_Gun_l_Women.webp",
+          "sha256": "1338bc0a975deac7a10fbeb4f29a07dcb3813263005522b4b231a68c802bffcd",
+          "bytes": 4922,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "0a6d502667ed00a317ce0475e5a52f636d03dd8e4de471301dec8ae5e75cbb19"
     },
@@ -69,8 +129,20 @@
       "duration": 1.6666666269302368,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Idle_Gun_Pointing_l_Men.webp",
+          "sha256": "719309649461ad314b64705a5d588b74f2b32e8fd62686735ec4389cc5cfef29",
+          "bytes": 4460,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Idle_Gun_Pointing_l_Women.webp",
+          "sha256": "6a731e281fafc6d1ba27d7cecd9b75b975fde3e5214c1d7e99930759356eaa3f",
+          "bytes": 4224,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "c4b3600928651e9e470a451ff408a7c6996522d72afcd9bca1e4b74336413f7c"
     },
@@ -81,8 +153,20 @@
       "duration": 0.6666666865348816,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Idle_Gun_Shoot_l_Men.webp",
+          "sha256": "eecb24af1a3214f8dd00e90549f8c8b74f7a6475f35c0820806b63fa3ad88064",
+          "bytes": 4482,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Idle_Gun_Shoot_l_Women.webp",
+          "sha256": "b28d6c52d17396114453c199cfeafaf9e06f0fe21058e1baf280823c85cf1c16",
+          "bytes": 4386,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "9002aa5cb596b95646a27d4a5e5e3ff0efad9eb52fc52a586f22243122cb6f56"
     },
@@ -93,8 +177,20 @@
       "duration": 1.6666666269302368,
       "pack": "idle",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Idle_l_Men.webp",
+          "sha256": "49ecda08f446073144658d34ea839f9c8263c29618954004d8fbe2cb4a761706",
+          "bytes": 4776,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Idle_l_Women.webp",
+          "sha256": "56462ef9f87a14c4b9c38b23493d93eb2380a83f40d9be2a45b6a5d2f4d5e034",
+          "bytes": 4454,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "77b746267ae9e7243e43f41ab4623f7f2324801114f86039f24748fc21c7ac91"
     },
@@ -105,8 +201,20 @@
       "duration": 1.6666666269302368,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Idle_Neutral_l_Men.webp",
+          "sha256": "fe4e9a1be11e807ec9722e6b8af6d4337bf038c0cfa33287d64ca269205f2177",
+          "bytes": 4794,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Idle_Neutral_l_Women.webp",
+          "sha256": "816c0ea095f06b063ce44df155453674715241ad347c6773b77099ed6a67c427",
+          "bytes": 4816,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "f4c5145adf6549502d95d11d82a2308ac0880143614208ed1bb0ec7e3c920100"
     },
@@ -117,8 +225,20 @@
       "duration": 1.6666666269302368,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Idle_Sword_l_Men.webp",
+          "sha256": "eb7da55da2aa7d574e7f6720f941068e6676981dd79552a12d946636b83d77bc",
+          "bytes": 4828,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Idle_Sword_l_Women.webp",
+          "sha256": "0a17826607c32d5be0379d0bdb19dc7a54e2ada12bacbc5af04158225c017642",
+          "bytes": 4536,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "756d2cd45f5a1bb74a9fe7889c2802ead748ba5a8250c3c5515c2056167f43cf"
     },
@@ -129,8 +249,20 @@
       "duration": 1.2666666507720947,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Interact_o_Men.webp",
+          "sha256": "f9f4856c422fc0ce4613596019d2b839a219f66236baa4fde102df8fb7ab8c71",
+          "bytes": 4532,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Interact_o_Women.webp",
+          "sha256": "0cd9866dd1e55128826357a3b29389799c736f3ebe538ff872abe4bc23fb7f30",
+          "bytes": 4250,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "f245d84586004180935730b45a5779ca5bab6bbe02d18017a81853e3fa16f8cf"
     },
@@ -141,8 +273,20 @@
       "duration": 0.9333333373069763,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Kick_Left_o_Men.webp",
+          "sha256": "f266ee222e7ecb7e9569efe41c40cf3f359a5900d31aa5e077425d58997c943c",
+          "bytes": 4548,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Kick_Left_o_Women.webp",
+          "sha256": "b320a8a0cc3ca2cd52342ed61185a761017bc0e5501b6f301c55af6d205e056c",
+          "bytes": 4640,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "41ee77dd37e9273e08f1483e8af4f599f2ef661ba2650d61c6c371b68758c63d"
     },
@@ -153,8 +297,20 @@
       "duration": 0.9333333373069763,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Kick_Right_o_Men.webp",
+          "sha256": "20fa32e991ff4951f953f6457a4a64e8daf0bedd09718d844d953f52ebf36409",
+          "bytes": 4434,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Kick_Right_o_Women.webp",
+          "sha256": "e0222e90c1196c383b44cb722c7893921650c856f07afe735308cbeba1cbc614",
+          "bytes": 4578,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "01c2dea25f9eaae6e00fff3f7ab574e34f863656459eaf21ed92a2feed0bcee1"
     },
@@ -165,8 +321,20 @@
       "duration": 0.8333333134651184,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Punch_Left_o_Men.webp",
+          "sha256": "f9289a9b61ade9904a122476eeb182d520fd12ec4442045bd91b05016b059955",
+          "bytes": 4224,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Punch_Left_o_Women.webp",
+          "sha256": "8c748f2d972c400a655dbb1d561b4af7cf9c2b9504af37179d95c42140d3f881",
+          "bytes": 4074,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "8db5a44b9d47ec60fc271ec61a7715773b201167ee054b736a153aef6fc5472a"
     },
@@ -177,8 +345,20 @@
       "duration": 0.8333333134651184,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Punch_Right_o_Men.webp",
+          "sha256": "50fb92343fd2ba81fcb62a3c63582b13b36907e70ad5db437f304bddcbe74df0",
+          "bytes": 4238,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Punch_Right_o_Women.webp",
+          "sha256": "45e041dc40fca769f5b59621cdeac7524d0e34707a44530d4528cc614f73442f",
+          "bytes": 4010,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "222a21271335eac15e3e32b541b730084964da4f7b629ec3140ba8212a9678a1"
     },
@@ -189,8 +369,20 @@
       "duration": 1.3333333730697632,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Roll_o_Men.webp",
+          "sha256": "2627e11418941d0817c90cbbe2607573eb075efb6d11c8d163f7c6901c220fbe",
+          "bytes": 3264,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Roll_o_Women.webp",
+          "sha256": "702c6db4f252bab36a8789475d85472ba4f5df94c8bf42a63bf2266694e9fd94",
+          "bytes": 3328,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "9b01e08d79cb7082a4cbd84507ccb4872102e2c7659d87ec6d5df9d66a9645ea"
     },
@@ -201,8 +393,20 @@
       "duration": 0.8333333134651184,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Run_Back_l_Men.webp",
+          "sha256": "9cfe3494ef986641eb06254adf7064910a917027e8766b7970c73a8368d8fb96",
+          "bytes": 4368,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Run_Back_l_Women.webp",
+          "sha256": "f45824cee817247a23596e7f5fcb62a9a49278659ca20d855e4f78e48f85c4f1",
+          "bytes": 4386,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "6c71bb59d31c607a7b3d608ac43efee36bb795bc20d4bbca60de42ce66aea4da"
     },
@@ -213,8 +417,20 @@
       "duration": 0.800000011920929,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Run_l_Men.webp",
+          "sha256": "37d0bcb79dd942664c26c7b4cfd2b381d0235fc6e9f801db541335955fd2d01e",
+          "bytes": 4022,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Run_l_Women.webp",
+          "sha256": "1cfd25f7c30af1c1a9d440da81516f3ebc621506080e5fc624166870692c5090",
+          "bytes": 3824,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "69cc902c11a1dda16119706872379ce28c79f1ae4ecc36422f1b425445db671f"
     },
@@ -225,8 +441,20 @@
       "duration": 0.800000011920929,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Run_Left_l_Men.webp",
+          "sha256": "7a60ce775cb2e13b0319d55d00a79db2124aedb992b5fa0277b65d25eee37111",
+          "bytes": 5322,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Run_Left_l_Women.webp",
+          "sha256": "8ec50c8b94d520017ba0cedc294e68a7dd73cd0d088c0325fd3bd9fa1b0c1595",
+          "bytes": 5156,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "ae73db64f6b38b0c4e10e848564a110a96b9ab6e54694c0ffbce6953ce2ec8da"
     },
@@ -237,8 +465,20 @@
       "duration": 0.800000011920929,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Run_Right_l_Men.webp",
+          "sha256": "159e541346ddb607e346b4c4f06500cdd5d76a0bddc3bdb422f7f83c43f03eab",
+          "bytes": 4496,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Run_Right_l_Women.webp",
+          "sha256": "ea54c4486fc8ab8463f7b2c7323fde86a758ccbb4e4525173857a2d593b8267f",
+          "bytes": 4464,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "2ed6130cb87452485187ac93f7bc674d6a633f103bd5e4f6af6fe6cd8232ecaf"
     },
@@ -249,8 +489,20 @@
       "duration": 0.8333333134651184,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Run_Shoot_l_Men.webp",
+          "sha256": "4b78c0014c19135174e4ebdc97e824f8d4204e12e8ebd5dbbcd40bbf23791199",
+          "bytes": 3728,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Run_Shoot_l_Women.webp",
+          "sha256": "b173360ea2f221fdd8e2329626ccdc74827fe21f835c83db500a5ec051886a10",
+          "bytes": 3426,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "0590a1b5816961e57381670ccf2595f14bdec358d309a9e5709b0ecb7cc0617e"
     },
@@ -261,8 +513,20 @@
       "duration": 0.03333333507180214,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Sitting_o_Men.webp",
+          "sha256": "1f38ce8d0128686f76578314aab3729da001d595303975c56176ee281079b57b",
+          "bytes": 2364,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Sitting_o_Women.webp",
+          "sha256": "d869a9d072522c11c06208310f12dcf7b656b164e9d42a8396c57527b97292aa",
+          "bytes": 2422,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "539a96214dce5de22e1f297a73a446190b8c0ae8ddc512011659f71eb48e6f50"
     },
@@ -273,8 +537,20 @@
       "duration": 1.0333333015441895,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Sword_Slash_o_Men.webp",
+          "sha256": "4c812bed2cee49fd24f7dcb3eeb3ae4d7d3a6057cd24cce34a56b30688ab098d",
+          "bytes": 4912,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Sword_Slash_o_Women.webp",
+          "sha256": "10e4d667a7760fa6c1667bc2c1ec5fc789b2e01ac90489c60f478a99e8133e35",
+          "bytes": 4810,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "6506950fdd4076b9efb89d93387c449f5f1b03778d3ce720bd88868d97b28363"
     },
@@ -285,8 +561,20 @@
       "duration": 1.3333333730697632,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Walk_l_Men.webp",
+          "sha256": "cfe7b16f8d2f7b7e8e00e43dfd0c5b1f4ad3f2434a5fc327c9ec11c80359ff41",
+          "bytes": 3896,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Walk_l_Women.webp",
+          "sha256": "ad9d82730efafa4edb5b44ec02fd57c811cc9aaa430984c3fe433bd0cb621511",
+          "bytes": 3976,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "0d059aabbeb923602b112665d65e5b8dfb858ed9266e7739516380b2b259f748"
     },
@@ -297,8 +585,20 @@
       "duration": 1.6666666269302368,
       "pack": "deferred",
       "thumbnails": {
-        "Men": null,
-        "Women": null
+        "Men": {
+          "url": "/animations/thumbnails/Anim_Wave_l_Men.webp",
+          "sha256": "84fe050e59ba8a9eabca9dd7d8c4c6c41b6c1c03a7426e8459dd2769d6b5a9db",
+          "bytes": 4930,
+          "width": 192,
+          "height": 192
+        },
+        "Women": {
+          "url": "/animations/thumbnails/Anim_Wave_l_Women.webp",
+          "sha256": "dfafecd854cda7dfdfc90c144dd2a92d1a6d75ec27f2cf85e9fb6e080ecb6938",
+          "bytes": 4920,
+          "width": 192,
+          "height": 192
+        }
       },
       "sourceSha256": "b682de7f84d21cd872446a893395a6571aed61d3b01199443704ddb3ff08e6ed"
     }

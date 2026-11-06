@@ -4,8 +4,33 @@ import { render, screen, act, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import VestiairePanel from '../components/Profile/VestiairePanel';
 import type { ShopItem } from '../hooks/useProfile';
+import type { AnimationClipEntry } from '../types/animationPack';
 
 const avatar = { head: 'none', body: 'none', legs: 'none', feet: 'none', accessory: 'none', animation: 'Idle' };
+const fakeThumbnail = (name: string, gender: 'Men' | 'Women') => ({
+    url: `/animations/thumbnails/Anim_${name}_l_${gender}.webp`,
+    sha256: 'b'.repeat(64),
+    bytes: 1234,
+    width: 192,
+    height: 192,
+});
+
+const animation = (
+    name: string,
+    thumbnails: AnimationClipEntry['thumbnails'] = {
+        Men: fakeThumbnail(name, 'Men'),
+        Women: fakeThumbnail(name, 'Women'),
+    },
+): AnimationClipEntry => ({
+    id: `Anim_${name}_l`,
+    name,
+    loop: name === 'Idle',
+    duration: 1,
+    pack: name === 'Idle' ? 'idle' : 'deferred',
+    thumbnails,
+    sourceSha256: 'a'.repeat(64),
+});
+
 const catalogue: ShopItem[] = [
     { id: 'none', name: 'Sans couvre-chef', category: 'head', gender: 'Men', price: 0, is_owned: true },
     { id: 'owned', name: 'Article possédé', category: 'head', gender: 'Men', price: 0, is_owned: true },
@@ -157,7 +182,7 @@ describe('Vestiaire : équipement et droits existants', () => {
                 avatarConfig={{ ...avatar, animation: 'Death' }}
                 gender="Men"
                 setAvatarConfig={setAvatarConfig}
-                availableAnimations={['Death', 'Idle']}
+                availableAnimations={[animation('Death'), animation('Idle')]}
                 onAnimationSelected={onAnimationSelected}
             />,
         );
@@ -179,7 +204,7 @@ describe('Vestiaire : équipement et droits existants', () => {
                 avatarConfig={{ ...avatar, animation: 'Idle' }}
                 gender="Men"
                 setAvatarConfig={setAvatarConfig}
-                availableAnimations={['Death', 'Idle']}
+                availableAnimations={[animation('Death'), animation('Idle')]}
                 onAnimationSelected={onAnimationSelected}
             />,
         );
@@ -201,7 +226,7 @@ describe('Vestiaire : équipement et droits existants', () => {
                 gender="Men"
                 readonly
                 setAvatarConfig={setAvatarConfig}
-                availableAnimations={['Death', 'Idle']}
+                availableAnimations={[animation('Death'), animation('Idle')]}
                 onAnimationSelected={onAnimationSelected}
             />,
         );
@@ -211,6 +236,59 @@ describe('Vestiaire : équipement et droits existants', () => {
 
         expect(setAvatarConfig).not.toHaveBeenCalled();
         expect(onAnimationSelected).not.toHaveBeenCalled();
+    });
+
+    it('affiche la vignette du genre de l’avatar à la place de l’icône ▶', async () => {
+        const thumbnail = {
+            url: '/animations/thumbnails/Anim_Death_o_Men.webp',
+            sha256: 'b'.repeat(64),
+            bytes: 1234,
+            width: 192,
+            height: 192,
+        };
+        render(
+            <VestiairePanel
+                shopItems={[]}
+                avatarConfig={{ ...avatar, animation: 'Idle' }}
+                gender="Men"
+                setAvatarConfig={vi.fn()}
+                availableAnimations={[
+                    animation('Death', { Men: thumbnail, Women: null }),
+                    animation('Idle'),
+                ]}
+            />,
+        );
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: /Anim/i }));
+        const button = screen.getByRole('button', { name: 'Death' });
+        const image = button.querySelector('img');
+        expect(image).not.toBeNull();
+        expect(image?.getAttribute('src')).toBe(thumbnail.url);
+        expect(image?.getAttribute('loading')).toBe('lazy');
+        expect(image?.getAttribute('width')).toBe('64');
+        expect(image?.getAttribute('height')).toBe('64');
+    });
+
+    it('garde l’icône ▶ et avertit quand la vignette d’animation manque', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        render(
+            <VestiairePanel
+                shopItems={[]}
+                avatarConfig={{ ...avatar, animation: 'Idle' }}
+                gender="Men"
+                setAvatarConfig={vi.fn()}
+                availableAnimations={[animation('Death', { Men: null, Women: null })]}
+            />,
+        );
+        await waitFor(() => {
+            expect(warn.mock.calls.some((call) => String(call[0]).includes('Anim_Death'))).toBe(true);
+        });
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: /Anim/i }));
+        const button = screen.getByRole('button', { name: 'Death' });
+        expect(button.querySelector('img')).toBeNull();
+        expect(button.querySelector('svg')).not.toBeNull();
+        warn.mockRestore();
     });
 
     it('compare au snapshot soumis si la tenue change pendant la sauvegarde', async () => {

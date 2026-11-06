@@ -239,6 +239,29 @@ async function processQueue(localPort) {
                         bytes: thumbnail.bytes,
                     },
                 });
+            } else if (kind === 'animation-bounds') {
+                const bounds = await Promise.race([
+                    page.evaluate((request) => window.__animationThumbnailBounds(request), payload),
+                    timeoutPromise,
+                ]);
+                clearTimeout(timeoutTimer);
+                resolve({ status: 200, data: bounds });
+            } else if (kind === 'animation-thumbnail') {
+                const png = await Promise.race([
+                    page.evaluate((request) => window.__animationThumbnailRender(request), payload),
+                    timeoutPromise,
+                ]);
+                clearTimeout(timeoutTimer);
+                const thumbnail = await convertThumbnailToWebP(png);
+                resolve({
+                    status: 200,
+                    data: {
+                        webp: thumbnail.base64,
+                        width: 192,
+                        height: 192,
+                        bytes: thumbnail.bytes,
+                    },
+                });
             } else {
                 const renderPromise = page.evaluate(
                     ({ config, userId }) => window.__renderAvatar(config, userId),
@@ -281,6 +304,85 @@ async function processQueue(localPort) {
     }
 
     isProcessingQueue = false;
+}
+
+function handleAnimationPost(req, res, kind, localPort) {
+    if (!rendererReady) {
+        res.writeHead(503, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ detail: 'Renderer en cours d initialisation' }));
+        return;
+    }
+    if (requestQueue.length >= MAX_QUEUE_SIZE) {
+        res.writeHead(429, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ detail: 'File de rendu saturée (429)' }));
+        return;
+    }
+
+    const chunks = [];
+    let totalBytes = 0;
+    req.on('data', (chunk) => {
+        totalBytes += chunk.length;
+        if (totalBytes > MAX_BODY_BYTES) {
+            res.writeHead(413, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ detail: 'Payload trop volumineux (> 64 Ko)' }));
+            req.destroy();
+        } else {
+            chunks.push(chunk);
+        }
+    });
+    req.on('end', () => {
+        if (totalBytes > MAX_BODY_BYTES) return;
+        let payload = null;
+        try {
+            payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        } catch {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ detail: 'JSON malformé' }));
+            return;
+        }
+
+        if (typeof payload?.clipName !== 'string' || payload.clipName.length === 0) {
+            res.writeHead(422, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ detail: 'Champ "clipName" requis' }));
+            return;
+        }
+        if (payload.gender !== 'Men' && payload.gender !== 'Women') {
+            res.writeHead(422, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ detail: 'Champ "gender" requis (Men|Women)' }));
+            return;
+        }
+        if (typeof payload.keyTime !== 'number' || !Number.isFinite(payload.keyTime) || payload.keyTime < 0) {
+            res.writeHead(422, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ detail: 'Champ "keyTime" requis (nombre >= 0)' }));
+            return;
+        }
+        if (kind === 'animation-thumbnail') {
+            if (!Array.isArray(payload.center) || payload.center.length !== 3
+                || payload.center.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
+                res.writeHead(422, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: 'Champ "center" requis ([x,y,z])' }));
+                return;
+            }
+            if (typeof payload.extent !== 'number' || !Number.isFinite(payload.extent) || payload.extent <= 0) {
+                res.writeHead(422, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: 'Champ "extent" requis (nombre > 0)' }));
+                return;
+            }
+        }
+
+        new Promise((resolve, reject) => {
+            requestQueue.push({ kind, payload, resolve, reject });
+            processQueue(localPort);
+        })
+            .then(({ status: respStatus, data }) => {
+                res.writeHead(respStatus, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(data));
+            })
+            .catch(({ status: errStatus, message }) => {
+                res.writeHead(errStatus || 500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: message }));
+            });
+    });
 }
 
 export function createRendererServer(options = {}) {
@@ -363,7 +465,17 @@ export function createRendererServer(options = {}) {
             return;
         }
 
-        // 3. Rendu POST /render ou POST /
+        // 3. Vignettes d'animations
+        if (req.method === 'POST' && url.pathname === '/animation-thumbnail/bounds') {
+            handleAnimationPost(req, res, 'animation-bounds', port);
+            return;
+        }
+        if (req.method === 'POST' && url.pathname === '/animation-thumbnail/render') {
+            handleAnimationPost(req, res, 'animation-thumbnail', port);
+            return;
+        }
+
+        // 4. Rendu POST /render ou POST /
         if (req.method === 'POST' && (url.pathname === '/render' || url.pathname === '/')) {
             if (!rendererReady) {
                 res.writeHead(503, { 'Content-Type': 'application/json' });
@@ -429,7 +541,7 @@ export function createRendererServer(options = {}) {
             return;
         }
 
-        // 4. Fichiers statiques
+        // 5. Fichiers statiques
         if (req.method === 'GET' || req.method === 'HEAD') {
             serveStatic(req, res);
             return;

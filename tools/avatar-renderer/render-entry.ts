@@ -5,11 +5,19 @@
  * Expose window.__renderAvatar et window.__rendererReady pour le pilote server.mjs.
  */
 
+import { Box3 } from 'three';
+
 import {
     AvatarPieceNotFoundError,
     type AvatarPartsConfig,
     loadGlbManifest,
 } from '../../src/avatar/glb/manifest';
+import {
+    analyzeAnimationPose,
+    renderAnimationThumbnail,
+    type ThumbnailGender,
+} from '../../src/avatar/render/animationThumbnails';
+import { loadAnimationClip } from '../../src/avatar/render/animationClip';
 import { loadIdleClip } from '../../src/avatar/render/idleClip';
 import { createOffscreenRenderer, renderSprites } from '../../src/avatar/render/renderSprites';
 import { renderThumbnail } from '../../src/avatar/render/thumbnails';
@@ -27,6 +35,18 @@ declare global {
             };
         }>;
         __renderThumbnail?: (sourceId: string) => Promise<string>;
+        __animationThumbnailBounds?: (request: {
+            clipName: string;
+            gender: ThumbnailGender;
+            keyTime: number;
+        }) => Promise<{ idle: number[]; clip: number[] }>;
+        __animationThumbnailRender?: (request: {
+            clipName: string;
+            gender: ThumbnailGender;
+            keyTime: number;
+            center: [number, number, number];
+            extent: number;
+        }) => Promise<string>;
     }
 }
 
@@ -104,6 +124,36 @@ async function initRenderer(): Promise<void> {
             throw new Error(`Vignette impossible : sourceId inconnu "${sourceId}"`);
         }
         const dataUrl = await renderThumbnail(renderer, { item, clip });
+        return dataUrl.split(',')[1] ?? '';
+    };
+
+    const boxToArray = (box: Box3): number[] => [
+        box.min.x, box.min.y, box.min.z,
+        box.max.x, box.max.y, box.max.z,
+    ];
+
+    window.__animationThumbnailBounds = async ({ clipName, gender, keyTime }) => {
+        const target = clipName === 'Idle' ? clip : await loadAnimationClip(clipName);
+        const { idleBounds, clipBounds } = await analyzeAnimationPose({
+            manifest,
+            idleClip: clip,
+            clip: target,
+            gender,
+            keyTime,
+        });
+        return { idle: boxToArray(idleBounds), clip: boxToArray(clipBounds) };
+    };
+
+    window.__animationThumbnailRender = async ({ clipName, gender, keyTime, center, extent }) => {
+        const target = clipName === 'Idle' ? clip : await loadAnimationClip(clipName);
+        const dataUrl = await renderAnimationThumbnail(renderer, {
+            manifest,
+            clip: target,
+            gender,
+            keyTime,
+            center,
+            extent,
+        });
         return dataUrl.split(',')[1] ?? '';
     };
 

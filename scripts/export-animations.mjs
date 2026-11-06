@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import sharp from 'sharp';
 
 /**
  * Format d'un fichier source : un clip par fichier.
@@ -384,8 +385,22 @@ async function discoverThumbnails(outDir) {
     const match = /^(.+)_(Men|Women)\.(?:png|webp|jpg|jpeg)$/.exec(entry.name);
     if (!match) throw new Error(`Vignette d'animation inattendue : ${entry.name}.`);
     const [, id, gender] = match;
+    const buffer = await readFile(join(directory, entry.name));
+    const meta = await sharp(buffer).metadata();
+    if (meta.width !== 192 || meta.height !== 192) {
+      throw new Error(`Vignette ${entry.name} : dimensions ${meta.width}x${meta.height} (attendu 192x192).`);
+    }
+    if (!meta.hasAlpha) {
+      throw new Error(`Vignette ${entry.name} : canal alpha transparent manquant.`);
+    }
     const current = map.get(id) ?? defaultThumbnails();
-    current[gender] = `/animations/thumbnails/${entry.name}`;
+    current[gender] = {
+      url: `/animations/thumbnails/${entry.name}`,
+      sha256: sha256Hex(buffer),
+      bytes: buffer.byteLength,
+      width: 192,
+      height: 192,
+    };
     map.set(id, current);
   }
   return map;

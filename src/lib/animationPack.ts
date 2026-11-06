@@ -4,6 +4,7 @@ import type {
   AnimationGender,
   AnimationManifest,
   AnimationPackManager,
+  AnimationThumbnail,
   ClipThumbnails,
   PackMetadata,
   SerializedClip,
@@ -83,19 +84,46 @@ export function validateUrl(url: string, expectedFileName: string): void {
   }
 }
 
+export const ANIMATION_THUMBNAIL_WIDTH = 192;
+export const ANIMATION_THUMBNAIL_HEIGHT = 192;
+
+function validateThumbnailEntry(value: unknown, gender: AnimationGender, clipName: string): AnimationThumbnail {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error(`Invalid ${gender} thumbnail for clip "${clipName}": object expected`);
+  }
+  const thumbnail = value as Record<string, unknown>;
+  const url = thumbnail.url;
+  if (typeof url !== 'string' || !url.startsWith(THUMBNAIL_PREFIX) || url.includes('..') || /[\\?#%]/.test(url) || !url.endsWith('.webp')) {
+    throw new Error(`Invalid ${gender} thumbnail URL for clip "${clipName}": "${String(url)}"`);
+  }
+  if (typeof thumbnail.sha256 !== 'string' || !HEX_64_REGEX.test(thumbnail.sha256)) {
+    throw new Error(`Invalid ${gender} thumbnail sha256 for clip "${clipName}"`);
+  }
+  if (typeof thumbnail.bytes !== 'number' || !Number.isSafeInteger(thumbnail.bytes) || thumbnail.bytes <= 0) {
+    throw new Error(`Invalid ${gender} thumbnail bytes for clip "${clipName}"`);
+  }
+  if (thumbnail.width !== ANIMATION_THUMBNAIL_WIDTH || thumbnail.height !== ANIMATION_THUMBNAIL_HEIGHT) {
+    throw new Error(`Invalid ${gender} thumbnail dimensions for clip "${clipName}": ${String(thumbnail.width)}x${String(thumbnail.height)}`);
+  }
+  return Object.freeze({
+    url,
+    sha256: thumbnail.sha256,
+    bytes: thumbnail.bytes,
+    width: ANIMATION_THUMBNAIL_WIDTH,
+    height: ANIMATION_THUMBNAIL_HEIGHT,
+  });
+}
+
 export function validateThumbnails(value: unknown, clipName: string): ClipThumbnails {
   if (typeof value !== 'object' || value === null) {
     throw new Error(`Thumbnails for clip "${clipName}" must be an object`);
   }
   const record = value as Record<string, unknown>;
-  const thumbnails: Record<AnimationGender, string | null> = { Men: null, Women: null };
+  const thumbnails: Record<AnimationGender, AnimationThumbnail | null> = { Men: null, Women: null };
   for (const gender of GENDERS) {
-    const url = record[gender];
-    if (url === undefined || url === null) continue;
-    if (typeof url !== 'string' || !url.startsWith(THUMBNAIL_PREFIX) || url.includes('..') || /[\\?#%]/.test(url)) {
-      throw new Error(`Invalid ${gender} thumbnail for clip "${clipName}": "${String(url)}"`);
-    }
-    thumbnails[gender] = url;
+    const entry = record[gender];
+    if (entry === undefined || entry === null) continue;
+    thumbnails[gender] = validateThumbnailEntry(entry, gender, clipName);
   }
   return Object.freeze(thumbnails);
 }

@@ -44,6 +44,8 @@ export interface ComposePersonOptions {
     parts?: ResolvedAvatarParts;
     manifest?: GlbManifest;
     clip?: AnimationClip | null;
+    /** Instant appliqué au clip (secondes). Par défaut 0, pose initiale. */
+    clipTime?: number;
 }
 
 function hasSkinnedMesh(root: Object3D): boolean {
@@ -94,8 +96,8 @@ export async function composePerson(options: ComposePersonOptions): Promise<Comp
             if (options.clip) {
                 const action = mixer.clipAction(options.clip);
                 action.play();
-                action.time = 0;
-                mixer.update(0); // Pose Idle t=0
+                action.time = options.clipTime ?? 0;
+                mixer.update(0);
             }
             mixers.push(mixer);
         }
@@ -126,7 +128,7 @@ export async function composePerson(options: ComposePersonOptions): Promise<Comp
             if (options.clip) {
                 const action = accMixer.clipAction(options.clip);
                 action.play();
-                action.time = 0;
+                action.time = options.clipTime ?? 0;
                 accMixer.update(0);
             }
             mixers.push(accMixer);
