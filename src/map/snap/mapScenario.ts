@@ -8,6 +8,51 @@ export const BASE_SPRITE = {width: 64, height: 22} as const;
 export const CLUSTER_RADIUS_PX = 34;
 export const CLUSTER_MAX_STACK = 4;
 export const SNAP_ZOOM_RANGE = {min: 10, max: 18} as const;
+
+/**
+ * Taille des corps de carte selon le zoom, façon Snapchat.
+ * Référence 7b-3d conservée à zoom 14 : 87,5 px visibles dans un cadre de 100 px.
+ * Minimum 56 px à zoom 10, maximum 140 px à zoom 18.
+ */
+export const AVATAR_ZOOM = {min: SNAP_ZOOM_RANGE.min, default: 14, max: SNAP_ZOOM_RANGE.max} as const;
+export const AVATAR_VISIBLE_PX = {min: 56, default: 87.5, max: 140} as const;
+export const BODY_VISIBLE_RATIO = 448 / 512;
+
+const AVATAR_CURVE_EXPONENT = Math.log(
+    (AVATAR_VISIBLE_PX.default - AVATAR_VISIBLE_PX.min)
+    / (AVATAR_VISIBLE_PX.max - AVATAR_VISIBLE_PX.min),
+) / Math.log(
+    (AVATAR_ZOOM.default - AVATAR_ZOOM.min)
+    / (AVATAR_ZOOM.max - AVATAR_ZOOM.min),
+);
+
+/** Hauteur visible du corps en px CSS pour un zoom donné. */
+export function avatarVisiblePx(zoom: number): number {
+    const t = Math.min(1, Math.max(0,
+        (zoom - AVATAR_ZOOM.min) / (AVATAR_ZOOM.max - AVATAR_ZOOM.min),
+    ));
+    return AVATAR_VISIBLE_PX.min
+        + (AVATAR_VISIBLE_PX.max - AVATAR_VISIBLE_PX.min) * Math.pow(t, AVATAR_CURVE_EXPONENT);
+}
+
+/** Hauteur du cadre 128×256 en px CSS (le corps occupe 87,5 % du sprite). */
+export function avatarFramePx(zoom: number): number {
+    return avatarVisiblePx(zoom) / BODY_VISIBLE_RATIO;
+}
+
+/** Facteur MapLibre `icon-size` pour un zoom donné. */
+export function avatarIconSizeAtZoom(zoom: number): number {
+    return avatarFramePx(zoom) / BODY_SPRITE.height;
+}
+
+/** Expression MapLibre continue : le rendu suit le zoom sans recalcul de bitmap. */
+export function avatarIconSizeExpression(): unknown {
+    const stops: number[] = [];
+    for (let zoom = AVATAR_ZOOM.min; zoom <= AVATAR_ZOOM.max; zoom += 1) {
+        stops.push(zoom, avatarIconSizeAtZoom(zoom));
+    }
+    return ['interpolate', ['linear'], ['zoom'], ...stops];
+}
 export const SNAP_SOURCE_ID = 'snap-people';
 export const SNAP_LAYER_IDS = {
     bases: 'snap-bases',
@@ -36,7 +81,10 @@ export function slotKey(shown: number, slot: number): string {
     return `${shown}-${slot}`;
 }
 
-/** Expression MapLibre d'offset par slot ; divisée par icon-size pour rester en px CSS. */
+/**
+ * Expression MapLibre d'offset par slot, en unités d'icône. MapLibre la
+ * multiplie par `icon-size` : les slots suivent donc l'échelle du zoom.
+ */
 export function slotOffsetExpression(): unknown {
     const cases: unknown[] = [];
     for (let shown = 1; shown <= CLUSTER_MAX_STACK; shown += 1) {
@@ -72,7 +120,7 @@ export function createSnapLayers(source: string = SNAP_SOURCE_ID): SymbolLayerSp
             filter: ['==', ['get', 'kind'], 'avatar'],
             layout: {
                 'icon-image': ['get', 'avatarKey'],
-                'icon-size': BODY_ICON_SIZE,
+                'icon-size': avatarIconSizeExpression() as never,
                 'icon-anchor': 'bottom',
                 'icon-offset': slotOffsetExpression() as never,
                 'icon-allow-overlap': true,
