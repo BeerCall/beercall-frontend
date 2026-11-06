@@ -137,7 +137,11 @@ export function createSnapLayers(source: string = SNAP_SOURCE_ID): SymbolLayerSp
                 'icon-image': ['get', 'pill'],
                 'icon-anchor': 'top',
                 'icon-offset': [0, 4],
+                // Anti-chevauchement explicite (MapLibre v5) + marge : deux
+                // pastilles proches ne peuvent plus se toucher, même de 2 px.
                 'icon-allow-overlap': false,
+                'icon-overlap': 'never',
+                'icon-padding': 8,
                 'symbol-sort-key': ['get', 'sort'],
             },
         },
