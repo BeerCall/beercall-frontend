@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, readdir, lstat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, lstat, rm } from 'node:fs/promises';
 import { resolve, join, basename, dirname, relative, isAbsolute, sep, extname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -406,6 +406,42 @@ async function discoverThumbnails(outDir) {
   return map;
 }
 
+/**
+ * Un clip supprimé doit disparaître partout : anciens packs hachés et
+ * vignettes H/F qui ne sont plus référencés par le manifeste.
+ */
+async function prunePublished(outDir, manifest, idleFileName, deferredFileName) {
+  const entries = await readdir(outDir);
+  for (const name of entries) {
+    if (name !== 'manifest.json' && name !== '.gitkeep' && name !== 'thumbnails'
+      && /^(idle|deferred)\.[a-f0-9]{64}\.json$/.test(name)
+      && name !== idleFileName && name !== deferredFileName) {
+      await rm(join(outDir, name), { force: true });
+    }
+  }
+
+  const referencedThumbnails = new Set();
+  for (const clip of manifest.clips) {
+    for (const gender of ['Men', 'Women']) {
+      const url = clip.thumbnails?.[gender]?.url;
+      if (url) referencedThumbnails.add(basename(url));
+    }
+  }
+
+  const thumbnailsDir = join(outDir, 'thumbnails');
+  let thumbnailEntries = [];
+  try {
+    thumbnailEntries = await readdir(thumbnailsDir);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  for (const name of thumbnailEntries) {
+    if (name !== '.gitkeep' && !referencedThumbnails.has(name)) {
+      await rm(join(thumbnailsDir, name), { force: true });
+    }
+  }
+}
+
 export async function runCli(argv = process.argv.slice(2)) {
   const getArg = name => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
   const frontend = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -497,6 +533,7 @@ export async function runCli(argv = process.argv.slice(2)) {
     }
   }
   await writeFile(join(resolvedOut, 'manifest.json'), manifestJson, 'utf8');
+  await prunePublished(resolvedOut, JSON.parse(manifestJson), idleFileName, deferredFileName);
 
   console.log(`Generated animation packs in ${resolvedOut}:`);
   console.log(`  sources: ${files.length} clips (${basename(sourcesDir)})`);

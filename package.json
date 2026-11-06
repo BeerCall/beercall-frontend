@@ -9,6 +9,7 @@
     "postbuild": "node scripts/precompress.mjs",
     "animations:export": "node scripts/export-animations.mjs",
     "animations:thumbnails": "node scripts/animation-thumbnails.mjs",
+    "animations:publish": "node scripts/export-animations.mjs && node scripts/check-animations.mjs",
     "animations:check": "node scripts/check-animations.mjs",
     "models:prepare": "node scripts/prepare-models.mjs",
     "glb:inventory": "node scripts/glb/inventory.mjs",

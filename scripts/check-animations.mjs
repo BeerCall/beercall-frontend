@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -238,6 +238,32 @@ export async function checkAnimations(animationsDir) {
 
   const critical = await loadPack(manifest.critical, 'idle', criticalNames);
   const deferred = await loadPack(manifest.deferred, 'deferred', deferredNames);
+
+  // Un clip retiré ne doit laisser ni pack haché ni vignette orpheline.
+  const referencedPacks = new Set([manifest.critical.file, manifest.deferred.file]);
+  for (const name of await readdir(dir)) {
+    if (/^(idle|deferred)\.[a-f0-9]{64}\.json$/.test(name) && !referencedPacks.has(name)) {
+      throw new Error(`Pack orphelin dans ${dir}: ${name}`);
+    }
+  }
+  const referencedThumbnails = new Set();
+  for (const entry of entries) {
+    for (const gender of ['Men', 'Women']) {
+      const url = entry.thumbnails[gender]?.url;
+      if (url) referencedThumbnails.add(url.split('/').pop());
+    }
+  }
+  let thumbnailFiles = [];
+  try {
+    thumbnailFiles = await readdir(join(dir, 'thumbnails'));
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+  }
+  for (const name of thumbnailFiles) {
+    if (name !== '.gitkeep' && !referencedThumbnails.has(name)) {
+      throw new Error(`Vignette orpheline dans ${dir}/thumbnails: ${name}`);
+    }
+  }
 
   let thumbnailCount = 0;
   let thumbnailBytes = 0;

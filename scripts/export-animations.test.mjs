@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile, mkdtemp, rm, writeFile, readdir, stat } from 'node:fs/promises';
+import { readFile, mkdtemp, rm, writeFile, readdir, stat, copyFile, mkdir, access } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import * as THREE from 'three';
@@ -17,6 +17,7 @@ import {
   parseFbxAnimations,
   runCli,
 } from './export-animations.mjs';
+import { checkAnimations } from './check-animations.mjs';
 
 const TEMP_ROOT = resolve(process.env.LOCALAPPDATA || 'C:/Users/Migz3rrr/AppData/Local', 'Temp/opencode');
 const SOURCES_DIR = resolve('../beercall-backend/static/models/animations/sources');
@@ -207,6 +208,59 @@ test('aller-retour de sérialisation sans perte', async () => {
       assert.ok(track.times instanceof Float32Array);
       assert.equal(track.times[0], 0);
     }
+  }
+});
+
+test('supprimer une source retire le clip, le pack et les vignettes orphelines (simulation)', async () => {
+  const sources = await mkdtemp(join(TEMP_ROOT, 'beercall-anim-remove-src-'));
+  const out = await mkdtemp(join(TEMP_ROOT, 'beercall-anim-remove-out-'));
+  try {
+    const entries = await readdir(SOURCES_DIR);
+    for (const name of entries) {
+      if (name === '.gitkeep' || name === 'Anim_Walk_l.fbx') continue;
+      await copyFile(join(SOURCES_DIR, name), join(sources, name));
+    }
+
+    await mkdir(join(out, 'thumbnails'), { recursive: true });
+    const realThumbnails = resolve('public/animations/thumbnails');
+    for (const name of await readdir(realThumbnails)) {
+      await copyFile(join(realThumbnails, name), join(out, 'thumbnails', name));
+    }
+    const orphanThumbnail = join(out, 'thumbnails', 'Anim_Walk_l_Men.webp');
+    const orphanIdlePack = join(out, `idle.${'0'.repeat(64)}.json`);
+    const orphanDeferredPack = join(out, `deferred.${'1'.repeat(64)}.json`);
+    await writeFile(orphanIdlePack, '{"old":true}\n', 'utf8');
+    await writeFile(orphanDeferredPack, '{"old":true}\n', 'utf8');
+
+    await runCli(['--sources', sources, '--out', out]);
+
+    const manifest = JSON.parse(await readFile(join(out, 'manifest.json'), 'utf8'));
+    assert.equal(manifest.clips.length, 24);
+    assert.equal(manifest.clips.some((clip) => clip.name === 'Walk'), false);
+    assert.equal(manifest.deferred.clips.includes('Walk'), false);
+    assert.equal(manifest.critical.clips.includes('Idle'), true);
+    assert.equal(
+      manifest.clips.every((clip) => clip.thumbnails.Men && clip.thumbnails.Women),
+      true,
+    );
+
+    const deferred = JSON.parse(await readFile(join(out, manifest.deferred.file), 'utf8'));
+    assert.equal(deferred.clips.some((clip) => clip.name === 'Walk'), false);
+
+    await assert.rejects(access(orphanThumbnail), /ENOENT/);
+    await assert.rejects(access(join(out, 'thumbnails', 'Anim_Walk_l_Women.webp')), /ENOENT/);
+    await assert.rejects(access(orphanIdlePack), /ENOENT/);
+    await assert.rejects(access(orphanDeferredPack), /ENOENT/);
+    await access(join(out, manifest.critical.file));
+    await access(join(out, manifest.deferred.file));
+    await access(join(out, 'thumbnails', 'Anim_Idle_l_Men.webp'));
+
+    const checked = await checkAnimations(out);
+    assert.equal(checked.totalClips, 24);
+    assert.equal(checked.thumbnailCount, 48);
+  } finally {
+    await rm(sources, { recursive: true, force: true });
+    await rm(out, { recursive: true, force: true });
   }
 });
 
