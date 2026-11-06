@@ -13,7 +13,6 @@ const SQUAD_ICONS: Record<string, ReactNode> = {
 const VISIBLE_SQUADS = 6;
 const ARC_RADIUS = 300;
 const ARC_TOP = 24;
-const ARC_CENTER_X = 195;
 const BAND_HEIGHT = 118;
 /** Centres des 6 slots : 50,4 px d'écart, dans 390 px. */
 const SLOT_OFFSETS = [-126, -75.6, -25.2, 25.2, 75.6, 126] as const;
@@ -23,6 +22,13 @@ const DRAG_STEP = 52;
 
 function arcTop(offset: number): number {
     return ARC_TOP + ARC_RADIUS - Math.sqrt(ARC_RADIUS * ARC_RADIUS - offset * offset);
+}
+
+/** Centre réellement l'arc quel que soit le viewport (iPhone 390, 393, 430…). */
+function centeredLeft(offset: number): string {
+    return offset < 0
+        ? `calc(50% - ${Math.abs(offset)}px)`
+        : `calc(50% + ${offset}px)`;
 }
 
 interface SquadWheelProps {
@@ -99,7 +105,7 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
             {/* Arc de cercle visible : rayon 300, seul le sommet est dans la bande. */}
             <div aria-hidden="true"
                  className="absolute rounded-full border-t-[3px] border-beer/20 pointer-events-none"
-                 style={{left: ARC_CENTER_X - ARC_RADIUS, top: ARC_TOP, width: ARC_RADIUS * 2, height: ARC_RADIUS * 2}}/>
+                 style={{left: `calc(50% - ${ARC_RADIUS}px)`, top: ARC_TOP, width: ARC_RADIUS * 2, height: ARC_RADIUS * 2}}/>
 
             <motion.div data-squad-drag
                         className="absolute inset-0 z-10 pointer-events-auto touch-none cursor-grab active:cursor-grabbing"
@@ -122,7 +128,7 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
                     return (
                         <div key={squad.id} data-squad-slot={slot}
                              className="absolute w-[50px] -translate-x-1/2 -translate-y-6 flex flex-col items-center"
-                             style={{left: ARC_CENTER_X + offset, top: arcTop(offset)}}>
+                             style={{left: centeredLeft(offset), top: arcTop(offset)}}>
                             <button aria-label={squad.name} aria-current={isActive ? 'page' : undefined}
                                     data-squad-id={squad.id}
                                     onClick={event => { if (isTap(event)) onSelect(squad.id); }}
@@ -131,9 +137,9 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
                                 {SQUAD_ICONS[squad.icon] ?? SQUAD_ICONS.beer}
                             </button>
                             <span data-squad-label data-squad-id={squad.id}
-                                  className={`mt-1 w-[50px] text-center text-[9px] leading-[11px] font-bold tracking-tight ${labelTone} rounded whitespace-nowrap`}>
-                                {/* 7 lettres larges (M/W) : 9 px × scaleX(0.78) = 49,4 px < 50 px. */}
-                                <span style={{display: 'inline-block', transform: 'scaleX(0.78)'}}>{labels[start + index]}</span>
+                                  className={`mt-1 w-[50px] text-center text-[11px] leading-[13px] font-bold ${labelTone} rounded whitespace-nowrap`}>
+                                {/* 11 px bold : 7 W = 77,4 px, ramenés à 49,5 px par scaleX(0.64) < 50 px. */}
+                                <span style={{display: 'inline-block', transform: 'scaleX(0.64)'}}>{labels[start + index]}</span>
                             </span>
                         </div>
                     );
@@ -147,7 +153,7 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
                     .map(action => (
                         <div key={action.label}
                              className="absolute w-[76px] -translate-x-1/2 -translate-y-6 flex flex-col items-center"
-                             style={{left: ARC_CENTER_X + action.offset, top: arcTop(action.offset)}}>
+                             style={{left: centeredLeft(action.offset), top: arcTop(action.offset)}}>
                             <button aria-label={action.label} onClick={action.onClick}
                                     className={`w-11 h-11 rounded-full bg-white border-4 flex items-center justify-center shadow-lg pointer-events-auto ${action.className}`}>
                                 {action.icon}

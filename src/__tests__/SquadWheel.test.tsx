@@ -94,6 +94,27 @@ describe('arc des squads (8b-2)', () => {
         expect(actions).toContainElement(screen.getByRole('button', {name: 'Rejoindre'}));
     });
 
+    it('centre l’arc en pourcentage, sans largeur 390 codée en dur', () => {
+        const { container } = mount();
+        const positioned = [
+            ...Array.from(container.querySelectorAll('[data-squad-slot]')),
+            ...Array.from(container.querySelectorAll('[data-squad-actions] > div')),
+        ] as HTMLElement[];
+        expect(positioned.length).toBe(8);
+        positioned.forEach(element => {
+            expect(element.style.left).toMatch(/^calc\(50%/);
+        });
+    });
+
+    it('affiche les libellés en 11 px bold, taille fixe', () => {
+        mount();
+        const labels = Array.from(document.querySelectorAll('[data-squad-label][data-squad-id]'));
+        expect(labels.length).toBeGreaterThan(0);
+        labels.forEach(label => {
+            expect(label).toHaveClass('text-[11px]', 'font-bold', 'leading-[13px]');
+        });
+    });
+
     it('trace un arc : les extrémités sont plus basses que le centre', () => {
         const { container } = mount();
         const slots = Array.from(container.querySelectorAll('[data-squad-slot]')) as HTMLElement[];
@@ -101,7 +122,11 @@ describe('arc des squads (8b-2)', () => {
         const tops = slots.map(slot => Number.parseFloat(slot.style.top));
         expect(tops[0]).toBeGreaterThan(tops[3]);
         expect(tops[5]).toBeGreaterThan(tops[3]);
-        expect(Number.parseFloat(slots[0]!.style.left)).toBeLessThan(Number.parseFloat(slots[5]!.style.left));
+        const offset = (slot: HTMLElement) => {
+            const match = slot.style.left.match(/([+-])\s*([\d.]+)px/);
+            return match ? Number(`${match[1]}${match[2]}`) : NaN;
+        };
+        expect(offset(slots[0]!)).toBeLessThan(offset(slots[5]!));
     });
 
     it('fait défiler d’un cran au glissement, sans changer les actions', () => {
