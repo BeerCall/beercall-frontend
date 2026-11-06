@@ -18,7 +18,7 @@ export default function WorldPhotoProof({ url, onSelect }: WorldPhotoProofProps)
     return (
         <button type="button" data-world-photo aria-label="Preuve photo"
                 onClick={handleClick}
-                className="min-w-14 min-h-14 p-1 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border border-white/60 cursor-pointer active:scale-95 transition-transform">
+                className="pointer-events-auto min-w-14 min-h-14 p-1 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border border-white/60 cursor-pointer active:scale-95 transition-transform">
             <img src={url} alt="Preuve" className="w-11 h-11 object-cover rounded-lg bg-gray-900"/>
         </button>
     );

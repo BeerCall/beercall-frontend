@@ -26,8 +26,8 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 import { RealAvatar } from '../avatar/glb/RealAvatar';
 import { useGlbManifest } from '../avatar/glb/useGlbManifest';
-import WorldPhotoProof from './WorldPhotoProof';
 import WorldExcuseBubble, { excuseForWorld } from './WorldExcuseBubble';
+import { WorldIdentityStack, nameForWorld } from './WorldNameLabel';
 import { excuseAnchorY, photoAnchorY } from './photoAnchor';
 import { globalLeaseController } from '../three/lease/leaseController';
 import { useLease } from '../three/lease/useLease';
@@ -219,6 +219,7 @@ function Crowd({
                 const photoUrl = participant.proof_photo_url;
                 const headHeight = headHeights[placement.index];
                 const excuse = excuseForWorld(kind, participant);
+                const name = nameForWorld(kind, participant);
                 return (
                     <group
                         key={`${participant.user_id ?? participant.id ?? placement.index}`}
@@ -231,11 +232,12 @@ function Crowd({
                             onIdle={() => onIdle(placement.index)}
                             onHeadAnchor={(height) => handleHeadAnchor(placement.index, height)}
                         />
-                        {photoUrl && onSelectPhoto && headHeight !== undefined && (
+                        {kind !== 'piscine' && headHeight !== undefined && (name || (photoUrl && onSelectPhoto)) && (
                             <Html position={[0, photoAnchorY(headHeight), 0]} center
-                                  zIndexRange={[100, 0]} style={{pointerEvents: 'auto'}}>
+                                  zIndexRange={[100, 0]} style={{pointerEvents: 'none'}}>
                                 <div style={{transform: 'translateY(-100%)'}}>
-                                    <WorldPhotoProof url={photoUrl} onSelect={onSelectPhoto}/>
+                                    <WorldIdentityStack name={name} photoUrl={photoUrl}
+                                                        onSelectPhoto={onSelectPhoto}/>
                                 </div>
                             </Html>
                         )}
