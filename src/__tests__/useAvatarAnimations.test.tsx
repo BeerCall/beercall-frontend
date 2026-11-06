@@ -143,6 +143,7 @@ describe('shared progressive avatar animations', () => {
   it('reports an unknown clip explicitly instead of fetching or silently changing the saved choice', async () => {
     const { result } = renderHook(() => useAvatarAnimations('NotAClip'), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.error?.message).toMatch(/Unknown animation/));
+    expect(result.current.unknownClip).toBe(true);
     expect(result.current.activeClip?.name).toBe('Idle'); expect(count(manifest.deferred.url)).toBe(0);
   });
   it('bounds decoded stream bytes and cancels oversized responses', async () => {

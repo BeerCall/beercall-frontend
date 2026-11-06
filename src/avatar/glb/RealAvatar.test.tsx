@@ -27,9 +27,17 @@ const manifestFixture = {
 vi.mock('../../hooks/useAvatarAnimations', () => ({
     useAvatarAnimations: (targetClip: string) => ({
         clipNames: ['Idle', 'Walk', 'Run', 'Sitting', 'Interact', 'Wave'],
-        activeClip: { name: targetClip || 'Idle', tracks: [] },
+        activeClip: { name: targetClip === 'Removed' ? 'Idle' : (targetClip || 'Idle'), tracks: [] },
         activeClipLoop: true,
+        unknownClip: targetClip === 'Removed',
         notifyInitialFrame: vi.fn(),
+        error: targetClip === 'Removed'
+            ? new Error(`Unknown animation clip requested: "${targetClip}"`)
+            : null,
+        isLoading: false,
+        deferredStatus: 'ready',
+        getClip: vi.fn(),
+        retry: vi.fn(),
     }),
 }));
 
@@ -121,6 +129,26 @@ describe('B11 — RealAvatar et matériaux économiques', () => {
                 parts: expect.arrayContaining(['Men_head_Casual_0', 'Men_accessory_Beer_500']),
             }),
         );
+    });
+
+    it('joue Idle et avertit avec userId + clip si l’animation a été retirée', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const config: AvatarConfig = {
+            gender: 'Men',
+            head: 'Men_head_Casual_0',
+            body: 'Men_body_Casual_0',
+            legs: 'Men_legs_Casual_0',
+            feet: 'Men_feet_Casual_0',
+            animation: 'Removed',
+        };
+
+        wrap(<RealAvatar userId={42} config={config} />);
+
+        await waitFor(() => {
+            const messages = warn.mock.calls.map((call) => call.join(' '));
+            expect(messages.some((message) => message.includes('Removed') && message.includes('42'))).toBe(true);
+        });
+        warn.mockRestore();
     });
 
     it('signale explicitement une pièce introuvable avec l’id de l’utilisateur', async () => {

@@ -88,6 +88,8 @@ export interface AvatarAnimationsResult {
   readonly activeClip: THREE.AnimationClip | undefined;
   /** Flag de boucle du clip réellement actif (Idle tant qu'un clip différé charge). */
   readonly activeClipLoop: boolean;
+  /** Le clip demandé n'existe pas dans le manifeste (animation retirée). */
+  readonly unknownClip: boolean;
   readonly isLoading: boolean;
   readonly deferredStatus: 'idle' | 'loading' | 'ready' | 'error';
   readonly error: Error | null;

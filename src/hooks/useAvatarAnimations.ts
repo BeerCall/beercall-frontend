@@ -162,6 +162,7 @@ export function useAvatarAnimations(targetAnimation: string | null = 'Idle'): Av
     clipNames,
     activeClip,
     activeClipLoop: activeClip ? (manager?.isLoop(activeClip.name) ?? true) : true,
+    unknownClip: Boolean(manager && !manager.hasClip(requested)),
     isLoading: !manager && !manifestQuery.isError && !criticalQuery.isError,
     deferredStatus: deferredQuery.isError ? 'error' : deferredQuery.isSuccess ? 'ready' : deferredQuery.isFetching ? 'loading' : 'idle',
     error: manifestQuery.error ?? criticalQuery.error ?? deferredQuery.error ?? selected?.error ?? null,

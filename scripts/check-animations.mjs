@@ -299,7 +299,13 @@ export async function checkAnimations(animationsDir) {
 // Exécution directe CLI
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   try {
-    const result = await checkAnimations();
+    const args = process.argv.slice(2);
+    const dirIndex = args.indexOf('--dir');
+    if (dirIndex >= 0 && !args[dirIndex + 1]) {
+      throw new Error('--dir attend un répertoire.');
+    }
+    const targetDir = dirIndex >= 0 ? args[dirIndex + 1] : undefined;
+    const result = await checkAnimations(targetDir);
     console.log(`[animations:check] Manifest et ${result.totalClips} animations vérifiés avec succès.`);
     console.log(`  - Pack critique: ${result.criticalFile} (${result.criticalBytes} octets, sha256: ${result.criticalHash.slice(0, 16)}...)`);
     console.log(`  - Pack différé:  ${result.deferredFile} (${result.deferredBytes} octets, sha256: ${result.deferredHash.slice(0, 16)}...)`);

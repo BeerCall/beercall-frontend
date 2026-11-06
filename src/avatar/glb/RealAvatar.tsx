@@ -96,6 +96,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
         clipNames,
         activeClip,
         activeClipLoop,
+        unknownClip,
         notifyInitialFrame,
         error: animationError,
     } = useAvatarAnimations(targetAnimation);
@@ -168,14 +169,27 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
         callbacksRef.current.onReadinessChange?.(false);
     }, [isError, error]);
 
-    // 2c. Pack d'animation critique indisponible : sans Idle l'avatar serait
-    // invisible ; on signale l'échec pour laisser le sprite visible.
+    // 2c. Animation absente ou pack indisponible : Idle reste joué, mais
+    // l'utilisateur et le clip sont tracés. Un clip inconnu ne doit jamais
+    // produire un avatar figé sans explication.
     useEffect(() => {
-        if (!animationError || activeClip || loggedAnimationError.current === animationError) return;
+        if (!animationError || loggedAnimationError.current === animationError) return;
         loggedAnimationError.current = animationError;
-        console.error('[avatar] animations indisponibles', { error: animationError });
-        callbacksRef.current.onReadinessChange?.(false);
-    }, [animationError, activeClip]);
+        if (unknownClip) {
+            console.warn(
+                `[avatar] animation "${targetAnimation}" absente du manifeste pour l'utilisateur ${userId ?? 'inconnu'} ; Idle joué.`,
+            );
+        } else {
+            console.warn('[avatar] animation indisponible', {
+                userId: userId ?? 'inconnu',
+                clip: targetAnimation,
+                error: animationError.message,
+            });
+        }
+        if (!activeClip) {
+            callbacksRef.current.onReadinessChange?.(false);
+        }
+    }, [animationError, activeClip, unknownClip, targetAnimation, userId]);
 
     // 3. Notification des clips disponibles pour l'interface (Vestiaire)
     useEffect(() => {
