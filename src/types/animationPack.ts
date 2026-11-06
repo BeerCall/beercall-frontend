@@ -1,6 +1,8 @@
 import type * as THREE from 'three';
 
 export type AnimationTrackType = 'vector' | 'quaternion';
+export type AnimationPackName = 'idle' | 'deferred';
+export type AnimationGender = 'Men' | 'Women';
 
 export interface SerializedTrack {
   name: string;
@@ -18,8 +20,22 @@ export interface SerializedClip {
   tracks: SerializedTrack[];
 }
 
+/** Vignette d'un clip pour un genre ; null tant qu'elle n'est pas générée. */
+export type ClipThumbnails = Readonly<Record<AnimationGender, string | null>>;
+
+/** Une entrée du manifeste : seule source de vérité pour un clip. */
+export interface AnimationClipEntry {
+  readonly id: string;
+  readonly name: string;
+  readonly loop: boolean;
+  readonly duration: number;
+  readonly pack: AnimationPackName;
+  readonly thumbnails: ClipThumbnails;
+  readonly sourceSha256: string;
+}
+
 export interface PackMetadata {
-  readonly name: 'idle' | 'deferred';
+  readonly name: AnimationPackName;
   readonly file: string;
   readonly url: string;
   readonly sha256: string;
@@ -28,18 +44,16 @@ export interface PackMetadata {
 }
 
 export interface AnimationManifest {
-  readonly formatVersion: 1;
-  readonly sourceHash: string;
+  readonly formatVersion: 2;
   readonly threeVersion: string;
-  readonly clips: readonly string[];
+  readonly clips: readonly AnimationClipEntry[];
   readonly critical: PackMetadata;
   readonly deferred: PackMetadata;
 }
 
 export interface SerializedPack {
-  pack: 'idle' | 'deferred';
-  formatVersion: 1;
-  sourceHash: string;
+  pack: AnimationPackName;
+  formatVersion: 2;
   clips: SerializedClip[];
 }
 
@@ -54,6 +68,8 @@ export interface AnimationPackManager {
   readonly clipNames: readonly string[];
   hasClip(name: string): boolean;
   getClip(name: string): THREE.AnimationClip;
+  getClipEntry(name: string): AnimationClipEntry | undefined;
+  isLoop(name: string): boolean;
   isClipDecoded(name: string): boolean;
   loadDeferredPack(rawBytes: Uint8Array | ArrayBuffer, subtle?: SubtleCrypto): Promise<void>;
   isDeferredLoaded(): boolean;
@@ -62,6 +78,8 @@ export interface AnimationPackManager {
 export interface AvatarAnimationsResult {
   readonly clipNames: readonly string[];
   readonly activeClip: THREE.AnimationClip | undefined;
+  /** Flag de boucle du clip réellement actif (Idle tant qu'un clip différé charge). */
+  readonly activeClipLoop: boolean;
   readonly isLoading: boolean;
   readonly deferredStatus: 'idle' | 'loading' | 'ready' | 'error';
   readonly error: Error | null;

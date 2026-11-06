@@ -1,42 +1,65 @@
 import { readFile, writeFile, mkdir, readdir, lstat } from 'node:fs/promises';
-import { resolve, join, basename, dirname, relative, isAbsolute, sep } from 'node:path';
+import { resolve, join, basename, dirname, relative, isAbsolute, sep, extname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 
-export const EXPECTED_SOURCE_HASH = 'b455d642cd874130c3aba3ae03b207cc67c1817af3881cfbc3877e0921748d6e';
+/**
+ * Format d'un fichier source : un clip par fichier.
+ * `l` = boucle, `o` = joué une fois puis dernière pose conservée.
+ */
+const SOURCE_NAME_PATTERN = /^Anim_(.+)_([lo])\.fbx$/;
 
-export const EXPECTED_CLIPS = [
-  'Punch_Right',
-  'Idle_Gun',
-  'Sword_Slash',
-  'Punch_Left',
-  'Idle_Gun_Pointing',
-  'Idle_Gun_Shoot',
-  'Interact',
-  'Idle_Neutral',
-  'Kick_Left',
-  'HitRecieve_2',
-  'Run_Back',
-  'Idle_Sword',
-  'Run_Right',
-  'Wave',
-  'Kick_Right',
-  'HitRecieve',
-  'Run',
-  'Gun_Shoot',
-  'Walk',
-  'Sitting',
-  'Death',
-  'Roll',
-  'Run_Shoot',
-  'Run_Left',
-  'Idle',
-];
+/** Noeuds de scène qui ne font pas partie du rig humanoïde. */
+const NON_HUMANOID = new Set(['Camera', 'Camera001', 'CharacterArmature', 'Light', 'Light001']);
+
+/**
+ * Tolérance de compactage des pistes quasi constantes. Le bake Blender écrit
+ * une clé par image ; une piste immobile est ainsi dupliquée 51 fois. On la
+ * ramène à ses deux extrémités, sans changer la pose au-delà du bruit du bake
+ * (écart maximal observé ~7,85e-6, soit 4 ordres de grandeur sous le pixel).
+ */
+const NEAR_CONSTANT_EPSILON = 1e-6;
+
+export const THUMBNAIL_GENDERS = Object.freeze(['Men', 'Women']);
 
 export function sha256Hex(data) {
   return createHash('sha256').update(data).digest('hex');
+}
+
+/**
+ * Analyse un nom de fichier `Anim_<Nom>_<l|o>.fbx`.
+ * Un flag absent ou inconnu est refusé avec un message explicite.
+ */
+export function parseAnimationFileName(fileName) {
+  if (typeof fileName !== 'string' || fileName.length === 0) {
+    throw new Error('Nom de fichier d\'animation vide.');
+  }
+  if (basename(fileName) !== fileName || /[\\/]/.test(fileName)) {
+    throw new Error(`Nom de fichier d'animation invalide (chemin interdit) : "${fileName}".`);
+  }
+  if (extname(fileName) !== '.fbx') {
+    throw new Error(`Extension d'animation invalide pour "${fileName}": attendu .fbx.`);
+  }
+  const match = SOURCE_NAME_PATTERN.exec(fileName);
+  if (!match) {
+    throw new Error(
+      `Nom de fichier d'animation invalide : "${fileName}". ` +
+      'Format attendu : Anim_<Nom>_<l|o>.fbx (l = boucle, o = une fois).',
+    );
+  }
+  const name = match[1];
+  const flag = match[2];
+  if (name.trim().length === 0) {
+    throw new Error(`Nom de clip vide dans "${fileName}".`);
+  }
+  return {
+    id: fileName.slice(0, -'.fbx'.length),
+    name,
+    loop: flag === 'l',
+    flag,
+  };
 }
 
 export function deterministicUuid(sourceHash, clipName) {
@@ -102,90 +125,210 @@ export function parseFbxAnimations(sourceBuffer) {
   }
 }
 
-export function generatePacks(sourceBuffer, sourceHash = sha256Hex(sourceBuffer)) {
-  if (sourceHash !== EXPECTED_SOURCE_HASH || sha256Hex(sourceBuffer) !== sourceHash) {
-    throw new Error(`Source hash mismatch: expected ${EXPECTED_SOURCE_HASH}, got ${sourceHash}`);
-  }
+/** Une piste de rig humanoïde : ni caméra/lumière, ni os technique `*_end`. */
+export function isHumanoidTrack(trackName) {
+  const node = trackName.split('.')[0];
+  if (!node) return false;
+  if (NON_HUMANOID.has(node)) return false;
+  if (node.endsWith('_end')) return false;
+  return true;
+}
 
-  const rawClips = parseFbxAnimations(sourceBuffer);
-  if (rawClips.length !== EXPECTED_CLIPS.length) {
-    throw new Error(`Expected ${EXPECTED_CLIPS.length} clips, found ${rawClips.length}`);
-  }
+/**
+ * Ramène une piste immobile à deux clés (début et fin). Aucune autre piste
+ * n'est touchée : les clips animés gardent toutes leurs images.
+ */
+export function compactTrack(times, values, stride) {
+  const keyCount = times.length;
+  if (keyCount <= 2) return { times, values };
 
-  const clipNames = rawClips.map(c => c.name);
-  for (let i = 0; i < EXPECTED_CLIPS.length; i++) {
-    if (clipNames[i] !== EXPECTED_CLIPS[i]) {
-      throw new Error(`Unexpected clip catalogue at index ${i}: expected ${EXPECTED_CLIPS[i]}, got ${clipNames[i]}`);
+  let maxDeviation = 0;
+  for (let key = 1; key < keyCount; key += 1) {
+    for (let component = 0; component < stride; component += 1) {
+      const deviation = Math.abs(values[key * stride + component] - values[component]);
+      if (deviation > maxDeviation) maxDeviation = deviation;
+      if (maxDeviation >= NEAR_CONSTANT_EPSILON) return { times, values };
     }
   }
 
-  const serializedClips = rawClips.map(clip => {
-    const tracks = clip.tracks.map(t => {
-      const type = t.ValueTypeName;
-      if (type !== 'vector' && type !== 'quaternion') {
-        throw new Error(`Unsupported track type: ${type} on clip ${clip.name}, track ${t.name}`);
-      }
-      return {
-        name: t.name,
-        type,
-        interpolation: t.getInterpolation(),
-        times: encodeFloat32Array(t.times),
-        values: encodeFloat32Array(t.values),
-      };
-    });
+  const lastOffset = (keyCount - 1) * stride;
+  const compactTimes = new Float32Array([times[0], times[keyCount - 1]]);
+  const compactValues = new Float32Array(stride * 2);
+  for (let component = 0; component < stride; component += 1) {
+    compactValues[component] = values[component];
+    compactValues[stride + component] = values[lastOffset + component];
+  }
+  return { times: compactTimes, values: compactValues };
+}
 
-    return {
-      name: clip.name,
-      duration: clip.duration,
-      blendMode: clip.blendMode ?? 2500,
-      uuid: deterministicUuid(sourceHash, clip.name),
-      tracks,
-    };
-  });
+function serializeTrack(track, clipName) {
+  const type = track.ValueTypeName;
+  if (type !== 'vector' && type !== 'quaternion') {
+    throw new Error(`Type de piste non supporté "${type}" (clip ${clipName}, piste ${track.name}).`);
+  }
+  const stride = type === 'quaternion' ? 4 : 3;
+  const compacted = compactTrack(track.times, track.values, stride);
+  return {
+    name: track.name,
+    type,
+    interpolation: track.getInterpolation(),
+    times: encodeFloat32Array(compacted.times),
+    values: encodeFloat32Array(compacted.values),
+  };
+}
 
-  const idleClip = serializedClips.find(c => c.name === 'Idle');
-  if (!idleClip) throw new Error('Critical Idle clip missing');
-
-  const deferredClips = serializedClips.filter(c => c.name !== 'Idle');
-  if (deferredClips.length !== 24) {
-    throw new Error(`Expected 24 deferred clips, found ${deferredClips.length}`);
+function serializeSourceFile(file) {
+  const parsed = parseAnimationFileName(file.fileName);
+  if (parsed.name === 'Idle' && !parsed.loop) {
+    throw new Error(`Idle doit boucler : "${file.fileName}" porte le flag o.`);
   }
 
-  const idlePack = {
+  const rawClips = parseFbxAnimations(file.buffer);
+  if (rawClips.length !== 1) {
+    throw new Error(
+      `Le fichier "${file.fileName}" doit contenir exactement 1 clip, il en contient ${rawClips.length}.`,
+    );
+  }
+  const clip = rawClips[0];
+  if (!Number.isFinite(clip.duration) || clip.duration <= 0) {
+    throw new Error(`Durée invalide pour "${file.fileName}" : ${clip.duration}.`);
+  }
+
+  const tracks = [];
+  const trackNames = new Set();
+  for (const track of clip.tracks) {
+    if (!isHumanoidTrack(track.name)) continue;
+    const serialized = serializeTrack(track, parsed.name);
+    if (trackNames.has(serialized.name)) {
+      throw new Error(`Piste dupliquée "${serialized.name}" dans "${file.fileName}".`);
+    }
+    trackNames.add(serialized.name);
+    tracks.push(serialized);
+  }
+  if (tracks.length === 0) {
+    throw new Error(`Aucune piste humanoïde dans "${file.fileName}".`);
+  }
+
+  const sourceSha256 = sha256Hex(file.buffer);
+  return {
+    id: parsed.id,
+    name: parsed.name,
+    loop: parsed.loop,
+    sourceSha256,
+    duration: clip.duration,
+    blendMode: clip.blendMode ?? 2500,
+    uuid: deterministicUuid(sourceSha256, parsed.name),
+    tracks,
+  };
+}
+
+/**
+ * Lit un répertoire de sources. Un seul type de fichier autorisé : `.fbx`
+ * (un `.gitkeep` vide est toléré). Tout autre fichier est refusé.
+ */
+export async function loadSourceFiles(sourcesDir) {
+  const entries = await readdir(sourcesDir, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      throw new Error(`Entrée non régulière dans les sources d'animation : ${entry.name}.`);
+    }
+    if (entry.name === '.gitkeep') continue;
+    if (extname(entry.name) !== '.fbx') {
+      throw new Error(`Fichier inattendu dans les sources d'animation : ${entry.name}.`);
+    }
+    files.push({ fileName: entry.name, buffer: await readFile(join(sourcesDir, entry.name)) });
+  }
+  if (files.length === 0) {
+    throw new Error(`Aucun fichier .fbx dans ${sourcesDir}.`);
+  }
+  return files.sort((a, b) => a.fileName.localeCompare(b.fileName));
+}
+
+function defaultThumbnails() {
+  return { Men: null, Women: null };
+}
+
+/**
+ * Construit le manifeste v2 et les deux packs à partir des fichiers sources.
+ * Aucune liste de clips, aucun compte et aucun ordre ne sont codés en dur :
+ * tout dérive des fichiers scannés et du flag de leur nom.
+ */
+export function generatePacks(files, options = {}) {
+  if (!Array.isArray(files) || files.length === 0) {
+    throw new Error('Aucun fichier source fourni.');
+  }
+  const thumbnailsById = options.thumbnailsById ?? new Map();
+
+  const serialized = files.map(serializeSourceFile);
+  serialized.sort((a, b) => a.id.localeCompare(b.id));
+
+  const ids = new Set();
+  const names = new Set();
+  for (const clip of serialized) {
+    if (ids.has(clip.id)) throw new Error(`Identifiant de clip dupliqué : ${clip.id}.`);
+    if (names.has(clip.name)) throw new Error(`Nom de clip dupliqué : ${clip.name}.`);
+    ids.add(clip.id);
+    names.add(clip.name);
+  }
+
+  const idleClips = serialized.filter((clip) => clip.name === 'Idle');
+  if (idleClips.length !== 1) {
+    throw new Error(`Le clip Idle est obligatoire et unique, ${idleClips.length} trouvé(s).`);
+  }
+
+  const criticalClips = serialized.filter((clip) => clip.name === 'Idle');
+  const deferredClips = serialized.filter((clip) => clip.name !== 'Idle');
+  if (deferredClips.length === 0) {
+    throw new Error('Le pack différé ne peut pas être vide.');
+  }
+
+  const toPackClip = (clip) => ({
+    name: clip.name,
+    duration: clip.duration,
+    blendMode: clip.blendMode,
+    uuid: clip.uuid,
+    tracks: clip.tracks,
+  });
+
+  const idleJson = JSON.stringify({
     pack: 'idle',
-    formatVersion: 1,
-    sourceHash,
-    clips: [idleClip],
-  };
+    formatVersion: 2,
+    clips: criticalClips.map(toPackClip),
+  }, null, 2) + '\n';
 
-  const deferredPack = {
+  const deferredJson = JSON.stringify({
     pack: 'deferred',
-    formatVersion: 1,
-    sourceHash,
-    clips: deferredClips,
-  };
-
-  const idleJson = JSON.stringify(idlePack, null, 2) + '\n';
-  const deferredJson = JSON.stringify(deferredPack, null, 2) + '\n';
+    formatVersion: 2,
+    clips: deferredClips.map(toPackClip),
+  }, null, 2) + '\n';
 
   const idleSha256 = sha256Hex(Buffer.from(idleJson, 'utf8'));
   const deferredSha256 = sha256Hex(Buffer.from(deferredJson, 'utf8'));
-
   const idleByteLength = Buffer.byteLength(idleJson, 'utf8');
   const deferredByteLength = Buffer.byteLength(deferredJson, 'utf8');
 
+  const manifestClips = serialized.map((clip) => ({
+    id: clip.id,
+    name: clip.name,
+    loop: clip.loop,
+    duration: clip.duration,
+    pack: clip.name === 'Idle' ? 'idle' : 'deferred',
+    thumbnails: thumbnailsById.get(clip.id) ?? defaultThumbnails(),
+    sourceSha256: clip.sourceSha256,
+  }));
+
   const manifest = {
-    formatVersion: 1,
-    sourceHash,
+    formatVersion: 2,
     threeVersion: THREE.REVISION,
-    clips: EXPECTED_CLIPS,
+    clips: manifestClips,
     critical: {
       name: 'idle',
       file: `idle.${idleSha256}.json`,
       url: `/animations/idle.${idleSha256}.json`,
       sha256: idleSha256,
       byteLength: idleByteLength,
-      clips: ['Idle'],
+      clips: criticalClips.map((clip) => clip.name),
     },
     deferred: {
       name: 'deferred',
@@ -193,20 +336,18 @@ export function generatePacks(sourceBuffer, sourceHash = sha256Hex(sourceBuffer)
       url: `/animations/deferred.${deferredSha256}.json`,
       sha256: deferredSha256,
       byteLength: deferredByteLength,
-      clips: deferredClips.map(c => c.name),
+      clips: deferredClips.map((clip) => clip.name),
     },
   };
 
-  const manifestJson = JSON.stringify(manifest, null, 2) + '\n';
-
   return {
     manifest,
-    manifestJson,
+    manifestJson: JSON.stringify(manifest, null, 2) + '\n',
     idleSha256,
     idleJson,
     deferredSha256,
     deferredJson,
-    rawClips,
+    serialized,
   };
 }
 
@@ -228,19 +369,36 @@ export function reconstructClip(serializedClip, decodeFn = decodeFloat32Array) {
   });
 }
 
+async function discoverThumbnails(outDir) {
+  const map = new Map();
+  const directory = join(outDir, 'thumbnails');
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') return map;
+    throw error;
+  }
+  for (const entry of entries) {
+    if (!entry.isFile()) throw new Error(`Entrée non régulière dans les vignettes : ${entry.name}.`);
+    const match = /^(.+)_(Men|Women)\.(?:png|webp|jpg|jpeg)$/.exec(entry.name);
+    if (!match) throw new Error(`Vignette d'animation inattendue : ${entry.name}.`);
+    const [, id, gender] = match;
+    const current = map.get(id) ?? defaultThumbnails();
+    current[gender] = `/animations/thumbnails/${entry.name}`;
+    map.set(id, current);
+  }
+  return map;
+}
+
 export async function runCli(argv = process.argv.slice(2)) {
   const getArg = name => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
-  const sourcePath = getArg('--source');
-  const outDir = getArg('--out');
+  const frontend = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  const sourcesDir = resolve(getArg('--sources') ?? join(frontend, '../beercall-backend/static/models/animations/sources'));
+  const outDirArg = getArg('--out');
+  const resolvedOut = resolve(outDirArg ?? join(frontend, 'public/animations'));
   const isCheck = argv.includes('--check');
 
-  if (!sourcePath || !outDir) {
-    throw new Error('Usage: node scripts/export-animations.mjs --source <path> --out <path> [--check]');
-  }
-
-  const resolvedSource = resolve(sourcePath);
-  const resolvedOut = resolve(outDir);
-  const frontend = resolve(dirname(fileURLToPath(import.meta.url)), '..');
   const approvedTemporaryRoots = [
     resolve(frontend, '../bench/.runtime/remediation'),
     resolve(process.env.LOCALAPPDATA || 'C:/Users/Migz3rrr/AppData/Local', 'Temp/opencode'),
@@ -259,13 +417,9 @@ export async function runCli(argv = process.argv.slice(2)) {
     if (path === dirname(path)) break;
   }
 
-  const sourceBuffer = await readFile(resolvedSource);
-  const sourceHash = sha256Hex(sourceBuffer);
-
-  const { manifestJson, idleSha256, idleJson, deferredSha256, deferredJson } = generatePacks(
-    sourceBuffer,
-    sourceHash
-  );
+  const files = await loadSourceFiles(sourcesDir);
+  const thumbnailsById = await discoverThumbnails(resolvedOut);
+  const { manifestJson, idleSha256, idleJson, deferredSha256, deferredJson } = generatePacks(files, { thumbnailsById });
 
   const idleFileName = `idle.${idleSha256}.json`;
   const deferredFileName = `deferred.${deferredSha256}.json`;
@@ -285,33 +439,38 @@ export async function runCli(argv = process.argv.slice(2)) {
       throw new Error(`${deferredFileName} in ${resolvedOut} does not match generated deferred pack`);
     }
 
-    console.log(`Check passed: all animation packs in ${resolvedOut} match source ${basename(sourcePath)}.`);
+    console.log(`Check passed: all animation packs in ${resolvedOut} match sources in ${sourcesDir}.`);
     return;
   }
 
   let dirEntries = [];
   try {
     dirEntries = await readdir(resolvedOut);
-  } catch (err) {
-    if (err.code === 'ENOENT') {
+  } catch (error) {
+    if (error.code === 'ENOENT') {
       await mkdir(resolvedOut, { recursive: true });
     } else {
-      throw err;
+      throw error;
     }
   }
 
-  // Refuse directory with foreign / unexpected files (only allowed: manifest.json, idle.*.json, deferred.*.json, .gitkeep)
+  // Anciennes générations hachées autorisées ; les vignettes vivent dans un sous-dossier.
   const isAllowedFile = name =>
     name === 'manifest.json' ||
     name === '.gitkeep' ||
     /^(idle|deferred)\.[a-f0-9]{64}\.json$/.test(name);
 
-  const foreign = dirEntries.filter(name => !isAllowedFile(name));
+  const foreign = dirEntries.filter(name => !isAllowedFile(name) && name !== 'thumbnails');
   if (foreign.length > 0) {
     throw new Error(`Destination directory contains foreign files: ${foreign.join(', ')}`);
   }
   for (const name of dirEntries) {
-    if (!(await lstat(join(resolvedOut, name))).isFile()) throw new Error(`Destination entry is not a regular file: ${name}`);
+    const entryStat = await lstat(join(resolvedOut, name));
+    if (name === 'thumbnails') {
+      if (!entryStat.isDirectory()) throw new Error(`Destination entry is not a directory: ${name}`);
+      continue;
+    }
+    if (!entryStat.isFile()) throw new Error(`Destination entry is not a regular file: ${name}`);
   }
 
   for (const [name, content] of [[idleFileName, idleJson], [deferredFileName, deferredJson]]) {
@@ -325,6 +484,7 @@ export async function runCli(argv = process.argv.slice(2)) {
   await writeFile(join(resolvedOut, 'manifest.json'), manifestJson, 'utf8');
 
   console.log(`Generated animation packs in ${resolvedOut}:`);
+  console.log(`  sources: ${files.length} clips (${basename(sourcesDir)})`);
   console.log(`  manifest.json: ${Buffer.byteLength(manifestJson, 'utf8')} bytes`);
   console.log(`  ${idleFileName}: ${Buffer.byteLength(idleJson, 'utf8')} bytes (SHA-256: ${idleSha256})`);
   console.log(`  ${deferredFileName}: ${Buffer.byteLength(deferredJson, 'utf8')} bytes (SHA-256: ${deferredSha256})`);

@@ -165,6 +165,7 @@ describe('3D Components Rendering & Observability', () => {
         mockAvatarAnimations.mockImplementation((targetAnimation: string | null) => ({
             clipNames: ['Idle', 'Walk', 'Run', 'Dance'],
             activeClip: { name: targetAnimation || 'Idle' },
+            activeClipLoop: true,
             isLoading: false,
             deferredStatus: 'ready' as const,
             error: null,
@@ -201,6 +202,7 @@ describe('3D Components Rendering & Observability', () => {
         mockAvatarAnimations.mockReturnValue({
             clipNames: all25Clips,
             activeClip: { name: 'Idle' },
+            activeClipLoop: true,
             isLoading: false,
             deferredStatus: 'ready',
             error: null,
@@ -222,6 +224,7 @@ describe('3D Components Rendering & Observability', () => {
         mockAvatarAnimations.mockImplementation(() => ({
             clipNames: ['Idle', 'Dance'],
             activeClip: currentClip,
+            activeClipLoop: true,
             isLoading: false,
             deferredStatus: 'ready',
             error: null,
@@ -286,7 +289,7 @@ describe('3D Components Rendering & Observability', () => {
     it('never reports readiness while the critical clip is loading or unavailable', () => {
         const onReadinessChange = vi.fn();
         const result = {
-            clipNames: [], activeClip: undefined, isLoading: true,
+            clipNames: [], activeClip: undefined, activeClipLoop: true, isLoading: true,
             deferredStatus: 'idle', error: null, notifyInitialFrame: vi.fn(),
             getClip: vi.fn(), retry: vi.fn(),
         };
@@ -307,6 +310,7 @@ describe('3D Components Rendering & Observability', () => {
         mockAvatarAnimations.mockReturnValue({
             clipNames: ['Idle'],
             activeClip: { name: 'Idle' },
+            activeClipLoop: true,
             isLoading: false,
             deferredStatus: 'idle',
             error: null,
@@ -348,6 +352,7 @@ describe('3D Components Rendering & Observability', () => {
         mockAvatarAnimations.mockReturnValue({
             clipNames: [],
             activeClip: undefined,
+            activeClipLoop: true,
             isLoading: false,
             deferredStatus: 'idle',
             error: new Error('Network error'),
@@ -366,6 +371,7 @@ describe('3D Components Rendering & Observability', () => {
         mockAvatarAnimations.mockReturnValue({
             clipNames: ['Idle', 'Dance'],
             activeClip: { name: 'Idle' },
+            activeClipLoop: true,
             isLoading: false,
             deferredStatus: 'error',
             error: new Error('Deferred failed'),

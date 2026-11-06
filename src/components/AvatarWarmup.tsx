@@ -34,8 +34,8 @@ function SessionWarmup({session}: {session: AvatarViewportSession}) {
     }, [client]);
 
     const demands = (() => {
-        const manifest = client.getQueryData<AnimationManifest>(['avatar-animations', 'manifest', 1]);
-        const revision = manifest ? `${manifest.formatVersion}:${manifest.sourceHash}:${manifest.critical.sha256}` : 'manifest-pending';
+        const manifest = client.getQueryData<AnimationManifest>(['avatar-animations', 'manifest', 2]);
+        const revision = manifest ? `${manifest.formatVersion}:${manifest.critical.sha256}:${manifest.deferred.sha256}` : 'manifest-pending';
         const result = new Map<string, Demand>();
         const add = (config: AvatarConfig, mode: Demand['mode'], width: number, height: number, player: boolean) => {
             if (!['head', 'body', 'legs', 'feet', 'accessory'].some(part => typeof config[part] === 'string' && config[part] && config[part] !== 'none')) return;

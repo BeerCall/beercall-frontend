@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "npm run animations:check && tsc -b && vite build",
     "postbuild": "node scripts/precompress.mjs",
+    "animations:export": "node scripts/export-animations.mjs",
     "animations:check": "node scripts/check-animations.mjs",
     "models:prepare": "node scripts/prepare-models.mjs",
     "glb:inventory": "node scripts/glb/inventory.mjs",

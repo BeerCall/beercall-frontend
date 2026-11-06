@@ -31,15 +31,15 @@ function SharedAvatarCell({session, config, mode = 'full', active = true, instan
     const client = useQueryClient();
     const cache = client.getQueryCache();
     const subscribeCache = useCallback((listener: () => void) => cache.subscribe(listener), [cache]);
-    const manifest = useSyncExternalStore(subscribeCache, () => client.getQueryData<AnimationManifest>(['avatar-animations', 'manifest', 1]));
-    const animationRevision = revision ?? (manifest ? `${manifest.formatVersion}:${manifest.sourceHash}:${manifest.critical.sha256}` : 'manifest-pending');
+    const manifest = useSyncExternalStore(subscribeCache, () => client.getQueryData<AnimationManifest>(['avatar-animations', 'manifest', 2]));
+    const animationRevision = revision ?? (manifest ? `${manifest.formatVersion}:${manifest.critical.sha256}:${manifest.deferred.sha256}` : 'manifest-pending');
     const requestKey = JSON.stringify([mode, normalizeAvatarConfig(config, mode), animationRevision]);
     const snapshot = useSyncExternalStore(session.registry.subscribe, session.registry.getSnapshot, session.registry.getSnapshot);
     const view = snapshot.views.find(candidate => candidate.id === id);
     const job = snapshot.jobs.find(candidate => candidate.id === view?.jobId);
 
     useLayoutEffect(() => {
-        if (manifest?.clips.length) onAnimationsLoaded?.([...manifest.clips]);
+        if (manifest?.clips.length) onAnimationsLoaded?.(manifest.clips.map(entry => entry.name));
     }, [manifest, onAnimationsLoaded]);
 
     const onFrameCopied = useCallback(() => {

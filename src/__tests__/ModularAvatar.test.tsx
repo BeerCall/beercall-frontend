@@ -30,7 +30,7 @@ vi.mock('@react-three/fiber', () => ({
 vi.mock('../hooks/useModel', () => ({ useModel: () => state.source }));
 vi.mock('../hooks/useAvatarAnimations', () => ({
     useAvatarAnimations: () => ({
-        clipNames: ['Idle'], activeClip: state.clip, deferredStatus: state.deferredStatus, error: state.error,
+        clipNames: ['Idle'], activeClip: state.clip, activeClipLoop: true, deferredStatus: state.deferredStatus, error: state.error,
         notifyInitialFrame: state.notify, retry: state.retry,
     }),
 }));

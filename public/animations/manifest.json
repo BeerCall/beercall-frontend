@@ -1,75 +1,349 @@
 {
-  "formatVersion": 1,
-  "sourceHash": "b455d642cd874130c3aba3ae03b207cc67c1817af3881cfbc3877e0921748d6e",
+  "formatVersion": 2,
   "threeVersion": "183",
   "clips": [
-    "Punch_Right",
-    "Idle_Gun",
-    "Sword_Slash",
-    "Punch_Left",
-    "Idle_Gun_Pointing",
-    "Idle_Gun_Shoot",
-    "Interact",
-    "Idle_Neutral",
-    "Kick_Left",
-    "HitRecieve_2",
-    "Run_Back",
-    "Idle_Sword",
-    "Run_Right",
-    "Wave",
-    "Kick_Right",
-    "HitRecieve",
-    "Run",
-    "Gun_Shoot",
-    "Walk",
-    "Sitting",
-    "Death",
-    "Roll",
-    "Run_Shoot",
-    "Run_Left",
-    "Idle"
+    {
+      "id": "Anim_Death_o",
+      "name": "Death",
+      "loop": false,
+      "duration": 1.0666667222976685,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "adafa221bf00b40dcb4c4f2fc9098c1b889c260161b949e290d02e7d8c53e769"
+    },
+    {
+      "id": "Anim_Gun_Shoot_o",
+      "name": "Gun_Shoot",
+      "loop": false,
+      "duration": 0.6000000238418579,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "8e10aa96497f665d076c0458608aff22f3c7d7adda988ecc282e85ba03a66f25"
+    },
+    {
+      "id": "Anim_HitRecieve_2_o",
+      "name": "HitRecieve_2",
+      "loop": false,
+      "duration": 0.5666666626930237,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "2bf2463bec8d173712a987a2af4a013fd3e697a18c567744f52bb4917c2a6cd6"
+    },
+    {
+      "id": "Anim_HitRecieve_o",
+      "name": "HitRecieve",
+      "loop": false,
+      "duration": 0.5666666626930237,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "82ce7460abb76ce799510b2f20e86eb4b6d4c4529f7a8ec99bc4e125cf7a809b"
+    },
+    {
+      "id": "Anim_Idle_Gun_l",
+      "name": "Idle_Gun",
+      "loop": true,
+      "duration": 1.6666666269302368,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "0a6d502667ed00a317ce0475e5a52f636d03dd8e4de471301dec8ae5e75cbb19"
+    },
+    {
+      "id": "Anim_Idle_Gun_Pointing_l",
+      "name": "Idle_Gun_Pointing",
+      "loop": true,
+      "duration": 1.6666666269302368,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "c4b3600928651e9e470a451ff408a7c6996522d72afcd9bca1e4b74336413f7c"
+    },
+    {
+      "id": "Anim_Idle_Gun_Shoot_l",
+      "name": "Idle_Gun_Shoot",
+      "loop": true,
+      "duration": 0.6666666865348816,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "9002aa5cb596b95646a27d4a5e5e3ff0efad9eb52fc52a586f22243122cb6f56"
+    },
+    {
+      "id": "Anim_Idle_l",
+      "name": "Idle",
+      "loop": true,
+      "duration": 1.6666666269302368,
+      "pack": "idle",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "77b746267ae9e7243e43f41ab4623f7f2324801114f86039f24748fc21c7ac91"
+    },
+    {
+      "id": "Anim_Idle_Neutral_l",
+      "name": "Idle_Neutral",
+      "loop": true,
+      "duration": 1.6666666269302368,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "f4c5145adf6549502d95d11d82a2308ac0880143614208ed1bb0ec7e3c920100"
+    },
+    {
+      "id": "Anim_Idle_Sword_l",
+      "name": "Idle_Sword",
+      "loop": true,
+      "duration": 1.6666666269302368,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "756d2cd45f5a1bb74a9fe7889c2802ead748ba5a8250c3c5515c2056167f43cf"
+    },
+    {
+      "id": "Anim_Interact_o",
+      "name": "Interact",
+      "loop": false,
+      "duration": 1.2666666507720947,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "f245d84586004180935730b45a5779ca5bab6bbe02d18017a81853e3fa16f8cf"
+    },
+    {
+      "id": "Anim_Kick_Left_o",
+      "name": "Kick_Left",
+      "loop": false,
+      "duration": 0.9333333373069763,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "41ee77dd37e9273e08f1483e8af4f599f2ef661ba2650d61c6c371b68758c63d"
+    },
+    {
+      "id": "Anim_Kick_Right_o",
+      "name": "Kick_Right",
+      "loop": false,
+      "duration": 0.9333333373069763,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "01c2dea25f9eaae6e00fff3f7ab574e34f863656459eaf21ed92a2feed0bcee1"
+    },
+    {
+      "id": "Anim_Punch_Left_o",
+      "name": "Punch_Left",
+      "loop": false,
+      "duration": 0.8333333134651184,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "8db5a44b9d47ec60fc271ec61a7715773b201167ee054b736a153aef6fc5472a"
+    },
+    {
+      "id": "Anim_Punch_Right_o",
+      "name": "Punch_Right",
+      "loop": false,
+      "duration": 0.8333333134651184,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "222a21271335eac15e3e32b541b730084964da4f7b629ec3140ba8212a9678a1"
+    },
+    {
+      "id": "Anim_Roll_o",
+      "name": "Roll",
+      "loop": false,
+      "duration": 1.3333333730697632,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "9b01e08d79cb7082a4cbd84507ccb4872102e2c7659d87ec6d5df9d66a9645ea"
+    },
+    {
+      "id": "Anim_Run_Back_l",
+      "name": "Run_Back",
+      "loop": true,
+      "duration": 0.8333333134651184,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "6c71bb59d31c607a7b3d608ac43efee36bb795bc20d4bbca60de42ce66aea4da"
+    },
+    {
+      "id": "Anim_Run_l",
+      "name": "Run",
+      "loop": true,
+      "duration": 0.800000011920929,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "69cc902c11a1dda16119706872379ce28c79f1ae4ecc36422f1b425445db671f"
+    },
+    {
+      "id": "Anim_Run_Left_l",
+      "name": "Run_Left",
+      "loop": true,
+      "duration": 0.800000011920929,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "ae73db64f6b38b0c4e10e848564a110a96b9ab6e54694c0ffbce6953ce2ec8da"
+    },
+    {
+      "id": "Anim_Run_Right_l",
+      "name": "Run_Right",
+      "loop": true,
+      "duration": 0.800000011920929,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "2ed6130cb87452485187ac93f7bc674d6a633f103bd5e4f6af6fe6cd8232ecaf"
+    },
+    {
+      "id": "Anim_Run_Shoot_l",
+      "name": "Run_Shoot",
+      "loop": true,
+      "duration": 0.8333333134651184,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "0590a1b5816961e57381670ccf2595f14bdec358d309a9e5709b0ecb7cc0617e"
+    },
+    {
+      "id": "Anim_Sitting_o",
+      "name": "Sitting",
+      "loop": false,
+      "duration": 0.03333333507180214,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "539a96214dce5de22e1f297a73a446190b8c0ae8ddc512011659f71eb48e6f50"
+    },
+    {
+      "id": "Anim_Sword_Slash_o",
+      "name": "Sword_Slash",
+      "loop": false,
+      "duration": 1.0333333015441895,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "6506950fdd4076b9efb89d93387c449f5f1b03778d3ce720bd88868d97b28363"
+    },
+    {
+      "id": "Anim_Walk_l",
+      "name": "Walk",
+      "loop": true,
+      "duration": 1.3333333730697632,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "0d059aabbeb923602b112665d65e5b8dfb858ed9266e7739516380b2b259f748"
+    },
+    {
+      "id": "Anim_Wave_l",
+      "name": "Wave",
+      "loop": true,
+      "duration": 1.6666666269302368,
+      "pack": "deferred",
+      "thumbnails": {
+        "Men": null,
+        "Women": null
+      },
+      "sourceSha256": "b682de7f84d21cd872446a893395a6571aed61d3b01199443704ddb3ff08e6ed"
+    }
   ],
   "critical": {
     "name": "idle",
-    "file": "idle.094b63c30916cca91dc00a676754613d85a0961adf5f7f958689d153e1ab4a3a.json",
-    "url": "/animations/idle.094b63c30916cca91dc00a676754613d85a0961adf5f7f958689d153e1ab4a3a.json",
-    "sha256": "094b63c30916cca91dc00a676754613d85a0961adf5f7f958689d153e1ab4a3a",
-    "byteLength": 62383,
+    "file": "idle.7b6fc199c884d176c8cddd8a8b68ab2bf50057e8fb3495001d2d4b3adaaa125b.json",
+    "url": "/animations/idle.7b6fc199c884d176c8cddd8a8b68ab2bf50057e8fb3495001d2d4b3adaaa125b.json",
+    "sha256": "7b6fc199c884d176c8cddd8a8b68ab2bf50057e8fb3495001d2d4b3adaaa125b",
+    "byteLength": 67312,
     "clips": [
       "Idle"
     ]
   },
   "deferred": {
     "name": "deferred",
-    "file": "deferred.3edd43ab8180cf94263f53dcd37618c9b90090e46ffc662f0d0f8dfe557d8f79.json",
-    "url": "/animations/deferred.3edd43ab8180cf94263f53dcd37618c9b90090e46ffc662f0d0f8dfe557d8f79.json",
-    "sha256": "3edd43ab8180cf94263f53dcd37618c9b90090e46ffc662f0d0f8dfe557d8f79",
-    "byteLength": 1523590,
+    "file": "deferred.2ca0bcea1c3bd1ca28d7790e366f367737d20d2af8650a8da8b88b866f6f8128.json",
+    "url": "/animations/deferred.2ca0bcea1c3bd1ca28d7790e366f367737d20d2af8650a8da8b88b866f6f8128.json",
+    "sha256": "2ca0bcea1c3bd1ca28d7790e366f367737d20d2af8650a8da8b88b866f6f8128",
+    "byteLength": 1354482,
     "clips": [
-      "Punch_Right",
+      "Death",
+      "Gun_Shoot",
+      "HitRecieve_2",
+      "HitRecieve",
       "Idle_Gun",
-      "Sword_Slash",
-      "Punch_Left",
       "Idle_Gun_Pointing",
       "Idle_Gun_Shoot",
-      "Interact",
       "Idle_Neutral",
-      "Kick_Left",
-      "HitRecieve_2",
-      "Run_Back",
       "Idle_Sword",
-      "Run_Right",
-      "Wave",
+      "Interact",
+      "Kick_Left",
       "Kick_Right",
-      "HitRecieve",
-      "Run",
-      "Gun_Shoot",
-      "Walk",
-      "Sitting",
-      "Death",
+      "Punch_Left",
+      "Punch_Right",
       "Roll",
+      "Run_Back",
+      "Run",
+      "Run_Left",
+      "Run_Right",
       "Run_Shoot",
-      "Run_Left"
+      "Sitting",
+      "Sword_Slash",
+      "Walk",
+      "Wave"
     ]
   }
 }

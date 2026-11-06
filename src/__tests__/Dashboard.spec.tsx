@@ -104,6 +104,7 @@ vi.mock('../hooks/useAvatarAnimations', () => ({
     useAvatarAnimations: vi.fn().mockReturnValue({
         clipNames: ['Idle'],
         activeClip: { name: 'Idle' },
+        activeClipLoop: true,
         isLoading: false,
         deferredStatus: 'ready',
         error: null,

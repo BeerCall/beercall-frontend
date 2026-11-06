@@ -1,47 +1,112 @@
-import { readFile, access } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-
-export const EXPECTED_SOURCE_HASH = 'b455d642cd874130c3aba3ae03b207cc67c1817af3881cfbc3877e0921748d6e';
-
-export const EXPECTED_CLIPS = [
-  'Punch_Right',
-  'Idle_Gun',
-  'Sword_Slash',
-  'Punch_Left',
-  'Idle_Gun_Pointing',
-  'Idle_Gun_Shoot',
-  'Interact',
-  'Idle_Neutral',
-  'Kick_Left',
-  'HitRecieve_2',
-  'Run_Back',
-  'Idle_Sword',
-  'Run_Right',
-  'Wave',
-  'Kick_Right',
-  'HitRecieve',
-  'Run',
-  'Gun_Shoot',
-  'Walk',
-  'Sitting',
-  'Death',
-  'Roll',
-  'Run_Shoot',
-  'Run_Left',
-  'Idle',
-];
 
 export function sha256Hex(data) {
   return createHash('sha256').update(data).digest('hex');
 }
 
+const HEX_64 = /^[0-9a-f]{64}$/;
+const PACKS = new Set(['idle', 'deferred']);
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+function validateClipEntry(entry, index) {
+  assert(entry && typeof entry === 'object', `Clip #${index} du manifeste invalide.`);
+  assert(typeof entry.id === 'string' && entry.id.length > 0, `Clip #${index}: id manquant.`);
+  assert(typeof entry.name === 'string' && entry.name.trim().length > 0, `Clip #${index}: nom manquant.`);
+  assert(typeof entry.loop === 'boolean', `Clip ${entry.name}: boucle non booléenne.`);
+  assert(typeof entry.duration === 'number' && Number.isFinite(entry.duration) && entry.duration > 0,
+    `Clip ${entry.name}: durée invalide (${entry.duration}).`);
+  assert(PACKS.has(entry.pack), `Clip ${entry.name}: pack invalide (${entry.pack}).`);
+  assert(typeof entry.sourceSha256 === 'string' && HEX_64.test(entry.sourceSha256),
+    `Clip ${entry.name}: sourceSha256 invalide.`);
+  assert(entry.thumbnails && typeof entry.thumbnails === 'object',
+    `Clip ${entry.name}: vignettes manquantes.`);
+  for (const gender of ['Men', 'Women']) {
+    const value = entry.thumbnails[gender];
+    assert(value === null || (typeof value === 'string' && value.startsWith('/animations/')),
+      `Clip ${entry.name}: vignette ${gender} invalide.`);
+  }
+  return entry;
+}
+
+function validateManifestStructure(manifest) {
+  assert(manifest && typeof manifest === 'object', 'Manifeste invalide.');
+  assert(manifest.formatVersion === 2, `FormatVersion invalide: attendu 2, reçu ${manifest.formatVersion}`);
+  assert(typeof manifest.threeVersion === 'string' && manifest.threeVersion.length > 0, 'threeVersion manquante.');
+  assert(Array.isArray(manifest.clips) && manifest.clips.length > 0, 'Le manifeste doit contenir des clips.');
+  assert(manifest.critical && typeof manifest.critical === 'object', 'Section critical manquante.');
+  assert(manifest.deferred && typeof manifest.deferred === 'object', 'Section deferred manquante.');
+
+  const ids = new Set();
+  const names = new Set();
+  const entries = manifest.clips.map((entry, index) => {
+    validateClipEntry(entry, index);
+    assert(!ids.has(entry.id), `Identifiant de clip dupliqué: ${entry.id}.`);
+    assert(!names.has(entry.name), `Nom de clip dupliqué: ${entry.name}.`);
+    ids.add(entry.id);
+    names.add(entry.name);
+    return entry;
+  });
+
+  assert(names.has('Idle'), 'Le manifeste doit contenir le clip Idle.');
+  const idleEntries = entries.filter(entry => entry.name === 'Idle');
+  assert(idleEntries.length === 1, `Le clip Idle doit être unique, ${idleEntries.length} trouvé(s).`);
+  assert(idleEntries[0].pack === 'idle', 'Idle doit appartenir au pack critique.');
+
+  const criticalNames = entries.filter(entry => entry.pack === 'idle').map(entry => entry.name);
+  const deferredNames = entries.filter(entry => entry.pack === 'deferred').map(entry => entry.name);
+  assert(criticalNames.length === 1 && criticalNames[0] === 'Idle',
+    `Le pack critique doit contenir uniquement Idle, reçu ${JSON.stringify(criticalNames)}.`);
+  assert(deferredNames.length > 0, 'Le pack différé ne peut pas être vide.');
+
+  const criticalClips = manifest.critical.clips;
+  const deferredClips = manifest.deferred.clips;
+  assert(Array.isArray(criticalClips), 'critical.clips doit être un tableau.');
+  assert(Array.isArray(deferredClips), 'deferred.clips doit être un tableau.');
+  assert(criticalClips.length === criticalNames.length && criticalNames.every(name => criticalClips.includes(name)),
+    'critical.clips ne correspond pas aux clips du pack critique.');
+  assert(deferredClips.length === deferredNames.length && deferredNames.every(name => deferredClips.includes(name)),
+    'deferred.clips ne correspond pas aux clips du pack différé.');
+  assert(!deferredClips.includes('Idle'), 'deferred.clips ne doit pas contenir Idle.');
+
+  return { entries, criticalNames, deferredNames };
+}
+
+function validatePackShape(pack, expectedType, expectedNames, durations) {
+  assert(pack && typeof pack === 'object', `Pack ${expectedType} invalide.`);
+  assert(pack.pack === expectedType, `Type de pack invalide: attendu ${expectedType}, reçu ${pack.pack}.`);
+  assert(pack.formatVersion === 2, `FormatVersion du pack ${expectedType} invalide.`);
+  assert(Array.isArray(pack.clips), `Pack ${expectedType}: clips manquants.`);
+  assert(pack.clips.length === expectedNames.length,
+    `Pack ${expectedType}: ${pack.clips.length} clips au lieu de ${expectedNames.length}.`);
+
+  const seen = new Set();
+  for (const clip of pack.clips) {
+    assert(clip && typeof clip === 'object' && typeof clip.name === 'string',
+      `Pack ${expectedType}: clip invalide.`);
+    assert(expectedNames.includes(clip.name), `Pack ${expectedType}: clip inattendu ${clip.name}.`);
+    assert(!seen.has(clip.name), `Pack ${expectedType}: clip dupliqué ${clip.name}.`);
+    seen.add(clip.name);
+    assert(Array.isArray(clip.tracks) && clip.tracks.length > 0,
+      `Pack ${expectedType}: clip ${clip.name} sans pistes.`);
+    const expectedDuration = durations.get(clip.name);
+    assert(typeof clip.duration === 'number' && Math.abs(clip.duration - expectedDuration) < 1e-6,
+      `Pack ${expectedType}: durée de ${clip.name} différente du manifeste.`);
+  }
+  for (const name of expectedNames) {
+    assert(seen.has(name), `Pack ${expectedType}: clip manquant ${name}.`);
+  }
+}
+
 /**
- * Valide le manifeste et les deux packs d'animation publiés dans public/animations.
+ * Valide le manifeste v2 et les deux packs d'animation publiés dans public/animations.
+ * Aucune liste de noms, aucun compte et aucun ordre ne sont codés en dur.
  * Fonctionne sans backend sibling (autonome dans CI/Docker).
- * Conforme REV-03/07 : exige les deux packs référencés par le manifeste courant,
- * sans interdire la présence d'anciennes générations dans le dossier.
  */
 export async function checkAnimations(animationsDir) {
   const dir = animationsDir || resolve(dirname(fileURLToPath(import.meta.url)), '../public/animations');
@@ -61,83 +126,58 @@ export async function checkAnimations(animationsDir) {
     throw new Error(`Manifest JSON invalide: ${err.message}`);
   }
 
-  if (manifest.formatVersion !== 1) {
-    throw new Error(`FormatVersion invalide: attendu 1, reçu ${manifest.formatVersion}`);
-  }
+  const { entries, criticalNames, deferredNames } = validateManifestStructure(manifest);
+  const durations = new Map(entries.map(entry => [entry.name, entry.duration]));
 
-  if (manifest.sourceHash !== EXPECTED_SOURCE_HASH) {
-    throw new Error(`SourceHash invalide dans le manifest: ${manifest.sourceHash}`);
-  }
+  const loadPack = async (meta, expectedType, expectedNames) => {
+    assert(meta && typeof meta === 'object', `Section ${expectedType} invalide.`);
+    assert(meta.name === expectedType, `Nom du pack ${expectedType} invalide: ${meta.name}.`);
+    assert(typeof meta.file === 'string' && meta.file === `${expectedType}.${meta.sha256}.json`,
+      `Nom de fichier du pack ${expectedType} incohérent.`);
+    assert(typeof meta.url === 'string' && meta.url === `/animations/${meta.file}`,
+      `URL du pack ${expectedType} invalide.`);
+    assert(typeof meta.sha256 === 'string' && HEX_64.test(meta.sha256),
+      `Hash du pack ${expectedType} invalide.`);
+    assert(Number.isSafeInteger(meta.byteLength) && meta.byteLength > 0,
+      `Taille du pack ${expectedType} invalide.`);
 
-  if (!Array.isArray(manifest.clips) || manifest.clips.length !== 25) {
-    throw new Error(`Nombre de clips dans le manifest invalide: attendu 25, reçu ${manifest.clips?.length}`);
-  }
-
-  const clipSet = new Set(manifest.clips);
-  for (const name of EXPECTED_CLIPS) {
-    if (!clipSet.has(name)) {
-      throw new Error(`Clip attendu manquant dans le manifest: ${name}`);
+    let buffer;
+    try {
+      buffer = await readFile(join(dir, meta.file));
+    } catch (err) {
+      throw new Error(`Pack ${expectedType} introuvable (${meta.file}): ${err.message}`);
     }
-  }
 
-  if (!manifest.critical || typeof manifest.critical !== 'object') {
-    throw new Error('Section critical manquante dans le manifest');
-  }
+    const actualHash = sha256Hex(buffer);
+    assert(actualHash === meta.sha256,
+      `Hash du pack ${expectedType} non conforme: attendu ${meta.sha256}, calculé ${actualHash}`);
+    assert(buffer.byteLength === meta.byteLength,
+      `Taille du pack ${expectedType} non conforme: attendu ${meta.byteLength}, mesuré ${buffer.byteLength}`);
 
-  if (!manifest.deferred || typeof manifest.deferred !== 'object') {
-    throw new Error('Section deferred manquante dans le manifest');
-  }
+    let pack;
+    try {
+      pack = JSON.parse(buffer.toString('utf8'));
+    } catch (err) {
+      throw new Error(`Pack ${expectedType} JSON invalide: ${err.message}`);
+    }
+    validatePackShape(pack, expectedType, expectedNames, durations);
 
-  // Contrôle du pack critique (Idle)
-  const criticalPath = join(dir, manifest.critical.file);
-  let criticalBuf;
-  try {
-    criticalBuf = await readFile(criticalPath);
-  } catch (err) {
-    throw new Error(`Pack critique introuvable (${manifest.critical.file}): ${err.message}`);
-  }
+    return { meta, buffer, hash: actualHash };
+  };
 
-  const criticalActualHash = sha256Hex(criticalBuf);
-  if (criticalActualHash !== manifest.critical.sha256) {
-    throw new Error(`Hash du pack critique non conforme: attendu ${manifest.critical.sha256}, calculé ${criticalActualHash}`);
-  }
-  if (criticalBuf.byteLength !== manifest.critical.byteLength) {
-    throw new Error(`Taille du pack critique non conforme: attendu ${manifest.critical.byteLength}, mesuré ${criticalBuf.byteLength}`);
-  }
-  if (!manifest.critical.clips?.includes('Idle')) {
-    throw new Error('Le pack critique doit contenir le clip Idle');
-  }
-
-  // Contrôle du pack différé (24 clips restants)
-  const deferredPath = join(dir, manifest.deferred.file);
-  let deferredBuf;
-  try {
-    deferredBuf = await readFile(deferredPath);
-  } catch (err) {
-    throw new Error(`Pack différé introuvable (${manifest.deferred.file}): ${err.message}`);
-  }
-
-  const deferredActualHash = sha256Hex(deferredBuf);
-  if (deferredActualHash !== manifest.deferred.sha256) {
-    throw new Error(`Hash du pack différé non conforme: attendu ${manifest.deferred.sha256}, calculé ${deferredActualHash}`);
-  }
-  if (deferredBuf.byteLength !== manifest.deferred.byteLength) {
-    throw new Error(`Taille du pack différé non conforme: attendu ${manifest.deferred.byteLength}, mesuré ${deferredBuf.byteLength}`);
-  }
-  if (!Array.isArray(manifest.deferred.clips) || manifest.deferred.clips.length !== 24) {
-    throw new Error(`Nombre de clips dans le pack différé non conforme: attendu 24, reçu ${manifest.deferred.clips?.length}`);
-  }
+  const critical = await loadPack(manifest.critical, 'idle', criticalNames);
+  const deferred = await loadPack(manifest.deferred, 'deferred', deferredNames);
 
   return {
     valid: true,
     manifestPath,
-    criticalFile: manifest.critical.file,
-    criticalBytes: criticalBuf.byteLength,
-    criticalHash: criticalActualHash,
-    deferredFile: manifest.deferred.file,
-    deferredBytes: deferredBuf.byteLength,
-    deferredHash: deferredActualHash,
-    totalClips: manifest.clips.length,
+    criticalFile: critical.meta.file,
+    criticalBytes: critical.buffer.byteLength,
+    criticalHash: critical.hash,
+    deferredFile: deferred.meta.file,
+    deferredBytes: deferred.buffer.byteLength,
+    deferredHash: deferred.hash,
+    totalClips: entries.length,
   };
 }
 

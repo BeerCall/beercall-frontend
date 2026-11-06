@@ -196,6 +196,7 @@ vi.mock('../hooks/useAvatarAnimations', () => ({
     useAvatarAnimations: vi.fn().mockImplementation(() => ({
         clipNames: ['Idle'],
         activeClip: testState.activeClip,
+        activeClipLoop: true,
         deferredStatus: 'ready',
         error: null,
         notifyInitialFrame: vi.fn(),

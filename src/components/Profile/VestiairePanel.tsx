@@ -22,6 +22,8 @@ interface VestiairePanelProps {
     hideTabs?: boolean;
     availableAnimations?: string[];
     thumbnailUrls?: Record<string, string>;
+    /** Appelé à chaque appui sur une animation, même déjà équipée. */
+    onAnimationSelected?: (name: string) => void;
 }
 
 export default function VestiairePanel({
@@ -37,7 +39,8 @@ export default function VestiairePanel({
                                            readonly = false,
                                            hideTabs = false,
                                            availableAnimations = [],
-                                           thumbnailUrls
+                                           thumbnailUrls,
+                                           onAnimationSelected
                                        }: VestiairePanelProps) {
     const [activeTab, setActiveTab] = useState('head');
     const [hasChanges, setHasChanges] = useState(false);
@@ -158,7 +161,11 @@ export default function VestiairePanel({
                         const isEquipped = avatarConfig.animation === animName;
                         return (
                             <button key={animName}
-                                    onClick={() => !readonly && setAvatarConfig({...avatarConfig, animation: animName})}
+                                    onClick={() => {
+                                        if (readonly) return;
+                                        setAvatarConfig({...avatarConfig, animation: animName});
+                                        onAnimationSelected?.(animName);
+                                    }}
                                     disabled={readonly}
                                     className={`relative p-4 rounded-3xl flex flex-col items-center justify-center gap-3 border-2 transition-all active:scale-95 ${isEquipped ? 'bg-amber-50/50 border-beer shadow-[0_0_20px_rgba(217,119,6,0.15)] scale-105' : 'bg-white border-gray-100 hover:border-gray-300 hover:shadow-md'}`}>
                                 <div

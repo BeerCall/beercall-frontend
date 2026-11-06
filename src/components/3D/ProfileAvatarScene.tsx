@@ -25,6 +25,8 @@ export interface ProfileAvatarSceneProps {
     surface?: 'profile' | 'signup';
     fallback?: React.ReactNode;
     onAnimationsLoaded?: (animations: string[]) => void;
+    /** Incrémenté à chaque appui sur une animation ; relance un clip `o`. */
+    replayToken?: number;
 }
 
 function Camera() {
@@ -41,6 +43,7 @@ export const ProfileAvatarScene: React.FC<ProfileAvatarSceneProps> = ({
     surface = 'profile',
     fallback = null,
     onAnimationsLoaded,
+    replayToken,
 }) => {
     const { granted, token } = useLease(surface);
 
@@ -71,6 +74,7 @@ export const ProfileAvatarScene: React.FC<ProfileAvatarSceneProps> = ({
                         userId={userId}
                         scale={0.01}
                         onAnimationsLoaded={onAnimationsLoaded}
+                        replayToken={replayToken}
                     />
                 </Suspense>
             </Canvas>

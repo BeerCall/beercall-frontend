@@ -7,7 +7,8 @@
  * - Matériaux Lambert économiques partagés (`cheapMaterials`).
  * - Un mixer par pièce skinnée, sans mixer fictif pour accessoire statique.
  * - Échelle racine par défaut 1 (coordonnées historiques).
- * - Animation multi-clips (25 clips) avec crossfade 0.2s, delta borné à 0.05.
+ * - Animation multi-clips avec crossfade 0.2s, delta borné à 0.05.
+ * - Flag de boucle issu du manifeste : l = Repeat, o = Once + dernière pose.
  * - Nettoyage des mixers sans libérer les géométries en cache à l'unmount.
  */
 
@@ -21,6 +22,7 @@ import {
     type SkinnedMesh,
 } from 'three';
 
+import { applyLoopMode, resolvePlaybackCommand } from './animationPlayback';
 import { attachAccessory } from '../accessoryAttachment';
 import { cheapMaterials } from './cheapMaterials';
 import { cloneGlbInstance, loadGlb } from './loadGlb';
@@ -45,6 +47,8 @@ export interface RealAvatarProps {
     onAnimationsLoaded?: (names: string[]) => void;
     onReadinessChange?: (ready: boolean, details?: { parts: string[]; meshCount: number }) => void;
     onActiveClipChange?: (clipName: string) => void;
+    /** Incrémenté à chaque appui sur une animation ; relance un clip `o`. */
+    replayToken?: number;
     groupRef?: React.Ref<Group>;
 }
 
@@ -77,6 +81,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
     onAnimationsLoaded,
     onReadinessChange,
     onActiveClipChange,
+    replayToken = 0,
     groupRef,
 }) => {
     const manifestQuery = useGlbManifest();
@@ -90,6 +95,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
     const {
         clipNames,
         activeClip,
+        activeClipLoop,
         notifyInitialFrame,
     } = useAvatarAnimations(targetAnimation);
 
@@ -99,6 +105,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
 
     const activeActions = useRef<Map<AnimationMixer, AnimationAction>>(new Map());
     const currentClipName = useRef<string>('');
+    const replayTokenRef = useRef(replayToken);
     const readinessReported = useRef(false);
     const loggedResolveError = useRef<Error | null>(null);
     const callbacksRef = useRef({ onReady, onReadinessChange });
@@ -253,7 +260,9 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
 
         const clipName = activeClip.name || targetAnimation;
         const isSame = currentClipName.current === clipName;
+        const replayChanged = replayTokenRef.current !== replayToken;
         currentClipName.current = clipName;
+        replayTokenRef.current = replayToken;
         onActiveClipChange?.(clipName);
 
         notifyInitialFrame();
@@ -261,17 +270,25 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
         for (const mixer of mixers) {
             const nextAction = mixer.clipAction(activeClip);
             const prevAction = activeActions.current.get(mixer);
+            applyLoopMode(nextAction, activeClipLoop);
 
-            if (!isSame && prevAction && prevAction !== nextAction) {
+            const command = resolvePlaybackCommand({
+                sameClip: isSame,
+                hasPrevious: Boolean(prevAction) && prevAction !== nextAction,
+                loop: activeClipLoop,
+                replayChanged,
+            });
+
+            if (command === 'crossfade' && prevAction) {
                 nextAction.reset().fadeIn(0.2).play();
                 prevAction.fadeOut(0.2);
-            } else {
+            } else if (command === 'start' || command === 'restart') {
                 nextAction.reset().play();
             }
 
             activeActions.current.set(mixer, nextAction);
         }
-    }, [activeClip, mixers, targetAnimation, notifyInitialFrame, onActiveClipChange]);
+    }, [activeClip, activeClipLoop, mixers, targetAnimation, replayToken, notifyInitialFrame, onActiveClipChange]);
 
     // 6. Boucle d'animation avec delta borné
     useFrame((_, delta) => {

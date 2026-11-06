@@ -42,6 +42,7 @@ export default function Profile() {
     const [activeView, setActiveView] = useState<'vestiaire' | 'infos'>('vestiaire');
 
     const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
+    const [animationReplay, setAnimationReplay] = useState(0);
 
     const [purchaseIntent, setPurchaseIntent] = useState<{
         itemId: string,
@@ -205,6 +206,7 @@ export default function Profile() {
                             config={previewAvatar}
                             userId={profile.id}
                             onAnimationsLoaded={setAvailableAnimations}
+                            replayToken={animationReplay}
                             fallback={
                                 <div className="flex h-full w-full items-center justify-center">
                                     <AvatarImage sprites={profile.avatar_sprites} username={profile.username} kind="portrait" sizePx={200} />
@@ -228,6 +230,7 @@ export default function Profile() {
                         readonly={false}
                         availableAnimations={availableAnimations}
                         thumbnailUrls={thumbnailUrls}
+                        onAnimationSelected={() => setAnimationReplay(token => token + 1)}
                     />
                 ) : (
                     <div

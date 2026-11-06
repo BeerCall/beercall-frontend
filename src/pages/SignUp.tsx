@@ -23,6 +23,7 @@ export default function SignUp() {
     const [formData, setFormData] = useState({username: '', password: ''});
     const [gender, setGender] = useState<Gender>('Men');
     const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
+    const [animationReplay, setAnimationReplay] = useState(0);
 
     // On initialise à 'none' en attendant le chargement du backend
     const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>({
@@ -205,6 +206,7 @@ export default function SignUp() {
                                 surface="signup"
                                 config={{ ...avatarConfig, gender }}
                                 onAnimationsLoaded={setAvailableAnimations}
+                                replayToken={animationReplay}
                                 fallback={
                                     <div className="flex h-full w-full items-center justify-center bg-gray-50">
                                         <div className="w-16 h-16 rounded-full bg-beer/20 flex items-center justify-center font-black text-beer text-xl">
@@ -225,6 +227,7 @@ export default function SignUp() {
                         isSubmitting={isLoading}
                         availableAnimations={availableAnimations}
                         thumbnailUrls={thumbnailUrls}
+                        onAnimationSelected={() => setAnimationReplay(token => token + 1)}
                     />
                     <footer className="shrink-0 bg-white px-6 pt-3 pb-[calc(12px_+_env(safe-area-inset-bottom))]">
                         {isPending && <p role="status" className="text-xs text-gray-700 mb-2">Chargement du catalogue…</p>}

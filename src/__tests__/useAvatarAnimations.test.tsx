@@ -72,7 +72,8 @@ describe('shared progressive avatar animations', () => {
   it('exposes all 25 names immediately and keeps Idle until a frame AND paint opportunity', async () => {
     const { result } = renderHook(() => useAvatarAnimations(), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.activeClip?.name).toBe('Idle'));
-    expect(result.current.clipNames).toEqual(manifest.clips);
+    expect(result.current.clipNames).toEqual(manifest.clips.map(clip => clip.name));
+    expect(result.current.activeClipLoop).toBe(true);
     expect(count(manifest.deferred.url)).toBe(0);
     const idle = result.current.activeClip;
     act(() => result.current.notifyInitialFrame());
@@ -102,6 +103,7 @@ describe('shared progressive avatar animations', () => {
     rerender({ name: 'Death' });
     await act(async () => release?.(new Response(new Uint8Array(bodies.get(manifest.deferred.url)!))));
     await waitFor(() => expect(result.current.activeClip?.name).toBe('Death'));
+    expect(result.current.activeClipLoop).toBe(false);
     expect(count(manifest.deferred.url)).toBe(1);
     const clip = await result.current.getClip('Death');
     expect(clip).toBe(result.current.activeClip);
@@ -128,6 +130,7 @@ describe('shared progressive avatar animations', () => {
     holdDeferred = undefined;
     await act(async () => { await result.current.retry(); });
     await waitFor(() => expect(result.current.activeClip?.name).toBe('Walk'));
+    expect(result.current.activeClipLoop).toBe(true);
     expect(count(manifest.deferred.url)).toBe(3);
   });
   it('cancels both follow-up frames on unmount without starting a deferred request', async () => {

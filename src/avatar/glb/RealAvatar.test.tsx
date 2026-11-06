@@ -28,6 +28,7 @@ vi.mock('../../hooks/useAvatarAnimations', () => ({
     useAvatarAnimations: (targetClip: string) => ({
         clipNames: ['Idle', 'Walk', 'Run', 'Sitting', 'Interact', 'Wave'],
         activeClip: { name: targetClip || 'Idle', tracks: [] },
+        activeClipLoop: true,
         notifyInitialFrame: vi.fn(),
     }),
 }));
