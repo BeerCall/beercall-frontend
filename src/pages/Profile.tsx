@@ -3,6 +3,7 @@ import {useParams, useNavigate} from 'react-router-dom';
 import {ChevronLeft, Check, Medal, Users, BarChart2, Trophy, LogOut} from 'lucide-react';
 import {useQueryClient} from '@tanstack/react-query';
 import {useProfile} from '../hooks/useProfile';
+import {useAnimationManifest} from '../hooks/useAnimationManifest';
 import {useUserStore} from '../store/useUserStore';
 import {api} from '../lib/api';
 import { ProfileAvatarScene } from '../components/3D/ProfileAvatarScene';
@@ -41,7 +42,9 @@ export default function Profile() {
     // 🚀 AJOUT DE L'ÉTAT POUR LE SWITCH VESTIAIRE / TROPHÉES
     const [activeView, setActiveView] = useState<'vestiaire' | 'infos'>('vestiaire');
 
-    const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
+    // Le catalogue vient du manifeste v2, jamais du callback de la scène 3D :
+    // il reste rempli même quand l'avatar est en repli sprite (lease WebGL).
+    const {names: availableAnimations} = useAnimationManifest();
     const [animationReplay, setAnimationReplay] = useState(0);
 
     const [purchaseIntent, setPurchaseIntent] = useState<{
@@ -205,7 +208,6 @@ export default function Profile() {
                             key={profile.id}
                             config={previewAvatar}
                             userId={profile.id}
-                            onAnimationsLoaded={setAvailableAnimations}
                             replayToken={animationReplay}
                             fallback={
                                 <div className="flex h-full w-full items-center justify-center">

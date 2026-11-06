@@ -25,22 +25,40 @@ describe('animationPlayback', () => {
   });
 
   it('démarre un nouveau clip sans fondu quand aucune action précédente', () => {
-    expect(resolvePlaybackCommand({ sameClip: false, hasPrevious: false, loop: true, replayChanged: false })).toBe('start');
+    expect(resolvePlaybackCommand({
+      sameClip: false, hasAction: false, hasPrevious: false, loop: true, replayChanged: false,
+    })).toBe('start');
   });
 
   it('enchaîne en fondu un nouveau clip quand une action existe', () => {
-    expect(resolvePlaybackCommand({ sameClip: false, hasPrevious: true, loop: false, replayChanged: false })).toBe('crossfade');
+    expect(resolvePlaybackCommand({
+      sameClip: false, hasAction: true, hasPrevious: true, loop: false, replayChanged: false,
+    })).toBe('crossfade');
   });
 
   it('relance un clip o déjà actif sur nouvel appui', () => {
-    expect(resolvePlaybackCommand({ sameClip: true, hasPrevious: true, loop: false, replayChanged: true })).toBe('restart');
+    expect(resolvePlaybackCommand({
+      sameClip: true, hasAction: true, hasPrevious: false, loop: false, replayChanged: true,
+    })).toBe('restart');
   });
 
   it('ne relance jamais un clip l sur nouvel appui', () => {
-    expect(resolvePlaybackCommand({ sameClip: true, hasPrevious: true, loop: true, replayChanged: true })).toBe('hold');
+    expect(resolvePlaybackCommand({
+      sameClip: true, hasAction: true, hasPrevious: false, loop: true, replayChanged: true,
+    })).toBe('hold');
   });
 
   it('ne relance pas un clip o sans nouvel appui', () => {
-    expect(resolvePlaybackCommand({ sameClip: true, hasPrevious: true, loop: false, replayChanged: false })).toBe('hold');
+    expect(resolvePlaybackCommand({
+      sameClip: true, hasAction: true, hasPrevious: false, loop: false, replayChanged: false,
+    })).toBe('hold');
+  });
+
+  it('démarre le même clip sur un mixer neuf (avatar reconstruit) au lieu de rester en pose de repos', () => {
+    // Reproduction du bug Death : l'ancien mixer a consommé le replayToken,
+    // le nouveau mixer n'a aucune action et doit démarrer le clip.
+    expect(resolvePlaybackCommand({
+      sameClip: true, hasAction: false, hasPrevious: false, loop: false, replayChanged: false,
+    })).toBe('start');
   });
 });

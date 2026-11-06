@@ -148,6 +148,71 @@ describe('Vestiaire : équipement et droits existants', () => {
         expect(screen.queryByText('Hidden article')).not.toBeInTheDocument();
     });
 
+    it('relance une animation déjà équipée sans réécrire la config ni appeler /auth/equip/', async () => {
+        const setAvatarConfig = vi.fn();
+        const onAnimationSelected = vi.fn();
+        render(
+            <VestiairePanel
+                shopItems={[]}
+                avatarConfig={{ ...avatar, animation: 'Death' }}
+                gender="Men"
+                setAvatarConfig={setAvatarConfig}
+                availableAnimations={['Death', 'Idle']}
+                onAnimationSelected={onAnimationSelected}
+            />,
+        );
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: /Anim/i }));
+        await user.click(screen.getByRole('button', { name: 'Death' }));
+
+        expect(onAnimationSelected).toHaveBeenCalledWith('Death');
+        expect(setAvatarConfig).not.toHaveBeenCalled();
+        expect(screen.queryByRole('button', { name: /SAUVEGARDER/ })).not.toBeInTheDocument();
+    });
+
+    it('équipe une nouvelle animation et demande sa relance', async () => {
+        const setAvatarConfig = vi.fn();
+        const onAnimationSelected = vi.fn();
+        render(
+            <VestiairePanel
+                shopItems={[]}
+                avatarConfig={{ ...avatar, animation: 'Idle' }}
+                gender="Men"
+                setAvatarConfig={setAvatarConfig}
+                availableAnimations={['Death', 'Idle']}
+                onAnimationSelected={onAnimationSelected}
+            />,
+        );
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: /Anim/i }));
+        await user.click(screen.getByRole('button', { name: 'Death' }));
+
+        expect(setAvatarConfig).toHaveBeenCalledWith({ ...avatar, animation: 'Death' });
+        expect(onAnimationSelected).toHaveBeenCalledWith('Death');
+    });
+
+    it('ne relance aucune animation en lecture seule', async () => {
+        const setAvatarConfig = vi.fn();
+        const onAnimationSelected = vi.fn();
+        render(
+            <VestiairePanel
+                shopItems={[]}
+                avatarConfig={{ ...avatar, animation: 'Death' }}
+                gender="Men"
+                readonly
+                setAvatarConfig={setAvatarConfig}
+                availableAnimations={['Death', 'Idle']}
+                onAnimationSelected={onAnimationSelected}
+            />,
+        );
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: /Anim/i }));
+        await user.click(screen.getByRole('button', { name: 'Death' }));
+
+        expect(setAvatarConfig).not.toHaveBeenCalled();
+        expect(onAnimationSelected).not.toHaveBeenCalled();
+    });
+
     it('compare au snapshot soumis si la tenue change pendant la sauvegarde', async () => {
         let finish: (success: boolean) => void = () => {};
         const deferred = new Promise<boolean>(resolve => { finish = resolve; });

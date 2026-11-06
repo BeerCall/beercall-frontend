@@ -20,7 +20,7 @@ interface VestiairePanelProps {
     isSubmitting?: boolean;
     readonly?: boolean;
     hideTabs?: boolean;
-    availableAnimations?: string[];
+    availableAnimations?: readonly string[];
     thumbnailUrls?: Record<string, string>;
     /** Appelé à chaque appui sur une animation, même déjà équipée. */
     onAnimationSelected?: (name: string) => void;
@@ -163,7 +163,12 @@ export default function VestiairePanel({
                             <button key={animName}
                                     onClick={() => {
                                         if (readonly) return;
-                                        setAvatarConfig({...avatarConfig, animation: animName});
+                                        // Déjà équipée : on ne réécrit pas la config (pas de
+                                        // reconstruction de l'avatar ni d'appel /auth/equip/),
+                                        // on demande seulement la relance du clip.
+                                        if (avatarConfig.animation !== animName) {
+                                            setAvatarConfig({...avatarConfig, animation: animName});
+                                        }
                                         onAnimationSelected?.(animName);
                                     }}
                                     disabled={readonly}

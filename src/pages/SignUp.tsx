@@ -2,6 +2,7 @@ import {useState, useEffect, useRef, useMemo, Suspense} from 'react';
 import {useNavigate, Link} from 'react-router-dom';
 import {ChevronLeft, ArrowRight, User, Lock} from 'lucide-react';
 import {useUserStore} from '../store/useUserStore';
+import {useAnimationManifest} from '../hooks/useAnimationManifest';
 import {api} from '../lib/api';
 import {saveTokens} from '../lib/authTokens';
 import { ProfileAvatarScene } from '../components/3D/ProfileAvatarScene';
@@ -22,7 +23,8 @@ export default function SignUp() {
     const [signupError, setSignupError] = useState<string | null>(null);
     const [formData, setFormData] = useState({username: '', password: ''});
     const [gender, setGender] = useState<Gender>('Men');
-    const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
+    // Catalogue issu du manifeste v2, disponible même en repli sprite.
+    const {names: availableAnimations} = useAnimationManifest();
     const [animationReplay, setAnimationReplay] = useState(0);
 
     // On initialise à 'none' en attendant le chargement du backend
@@ -205,7 +207,6 @@ export default function SignUp() {
                             <ProfileAvatarScene
                                 surface="signup"
                                 config={{ ...avatarConfig, gender }}
-                                onAnimationsLoaded={setAvailableAnimations}
                                 replayToken={animationReplay}
                                 fallback={
                                     <div className="flex h-full w-full items-center justify-center bg-gray-50">

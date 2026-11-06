@@ -41,7 +41,7 @@ export async function readAnimationResponse(url: string, limit: number, signal?:
   return bytes;
 }
 
-function manifestQueryOptions() {
+export function animationManifestQueryOptions() {
   return {
     ...queryPolicy,
     queryKey: ['avatar-animations', 'manifest', 2],
@@ -72,7 +72,7 @@ function criticalQueryOptions(manifest: AnimationManifest | undefined) {
  */
 export async function preloadAvatarAnimations(queryClient: QueryClient): Promise<void> {
   try {
-    const manifestOptions = manifestQueryOptions();
+    const manifestOptions = animationManifestQueryOptions();
     await queryClient.prefetchQuery(manifestOptions);
     const manifest = queryClient.getQueryData<AnimationManifest>(manifestOptions.queryKey);
     if (manifest) await queryClient.prefetchQuery(criticalQueryOptions(manifest));
@@ -90,7 +90,7 @@ export function useAvatarAnimations(targetAnimation: string | null = 'Idle'): Av
   const [selection, setSelection] = useState<{
     manager: AnimationPackManager; name: string; clip?: AnimationClip; error?: Error;
   }>();
-  const manifestQuery = useQuery(manifestQueryOptions());
+  const manifestQuery = useQuery(animationManifestQueryOptions());
   const manifest = manifestQuery.data;
   const criticalQuery = useQuery({
     ...criticalQueryOptions(manifest),

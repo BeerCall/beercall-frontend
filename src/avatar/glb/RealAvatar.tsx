@@ -111,17 +111,26 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
     const callbacksRef = useRef({ onReady, onReadinessChange });
     callbacksRef.current = { onReady, onReadinessChange };
 
-    // 1. Résolution synchrone pure des pièces
+    // 1. Résolution synchrone pure des pièces.
+    // Les dépendances sont les champs de tenue, jamais l'objet config : un simple
+    // changement d'animation ne doit pas démonter puis reconstruire l'avatar.
+    const partHead = config.head;
+    const partBody = config.body;
+    const partLegs = config.legs;
+    const partFeet = config.feet;
+    const partAccessory = config.accessory;
+    const partGender = 'gender' in config && typeof config.gender === 'string' ? config.gender : undefined;
+
     const { resolvedParts, resolveError } = useMemo(() => {
         if (!manifest) return { resolvedParts: null, resolveError: null };
         try {
             const partsConfig: AvatarPartsConfig = {
-                head: config.head ?? undefined,
-                body: config.body ?? undefined,
-                legs: config.legs ?? undefined,
-                feet: config.feet ?? undefined,
-                accessory: config.accessory,
-                gender: 'gender' in config && typeof config.gender === 'string' ? config.gender : undefined,
+                head: partHead ?? undefined,
+                body: partBody ?? undefined,
+                legs: partLegs ?? undefined,
+                feet: partFeet ?? undefined,
+                accessory: partAccessory,
+                gender: partGender,
             };
             const parts = resolveAvatarParts(partsConfig, manifest);
             return { resolvedParts: parts, resolveError: null };
@@ -131,7 +140,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
                 resolveError: err instanceof Error ? err : new Error(String(err)),
             };
         }
-    }, [config, manifest]);
+    }, [partHead, partBody, partLegs, partFeet, partAccessory, partGender, manifest]);
 
     // 2. Toute pièce introuvable est signalée, jamais avalée en silence
     useEffect(() => {
@@ -270,11 +279,13 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
         for (const mixer of mixers) {
             const nextAction = mixer.clipAction(activeClip);
             const prevAction = activeActions.current.get(mixer);
+            const hasAction = Boolean(prevAction);
             applyLoopMode(nextAction, activeClipLoop);
 
             const command = resolvePlaybackCommand({
                 sameClip: isSame,
-                hasPrevious: Boolean(prevAction) && prevAction !== nextAction,
+                hasAction,
+                hasPrevious: hasAction && prevAction !== nextAction,
                 loop: activeClipLoop,
                 replayChanged,
             });

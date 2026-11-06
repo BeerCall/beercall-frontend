@@ -21,6 +21,7 @@ import {
 const TEMP_ROOT = resolve(process.env.LOCALAPPDATA || 'C:/Users/Migz3rrr/AppData/Local', 'Temp/opencode');
 const SOURCES_DIR = resolve('../beercall-backend/static/models/animations/sources');
 const ORIGINAL_FBX = resolve('../beercall-backend/static/models/Animations.fbx');
+const GLB_BODY = resolve('../beercall-backend/static/models/glb/v1/pieces/Men/Men_body_Casual_0.446c8496.glb');
 
 test('parseAnimationFileName lit le flag l/o et refuse un flag absent ou inconnu', () => {
   assert.deepEqual(
@@ -159,6 +160,40 @@ test('les 25 clips découpés gardent les mêmes pistes et durées que Animation
   }
 
   assert.equal(checkedTracks, expectedTracks);
+});
+
+test('les 186 pistes couvrent les os deformants du GLB et aucun os du squelette n’est perdu', async () => {
+  const clips = parseFbxAnimations(await readFile(ORIGINAL_FBX));
+  const humanoidBones = new Set();
+  const excludedNodes = new Set();
+  for (const clip of clips) {
+    for (const track of clip.tracks) {
+      const node = track.name.split('.')[0];
+      if (isHumanoidTrack(track.name)) humanoidBones.add(node);
+      else excludedNodes.add(node);
+    }
+  }
+
+  assert.equal(clips[0].tracks.length, 252);
+  assert.equal(clips[0].tracks.filter(track => isHumanoidTrack(track.name)).length, 186);
+  assert.equal(humanoidBones.size, 62);
+
+  const glb = await readFile(GLB_BODY);
+  const jsonLength = glb.readUInt32LE(12);
+  const gltf = JSON.parse(glb.subarray(20, 20 + jsonLength).toString('utf8'));
+  const joints = new Set((gltf.skins?.[0]?.joints ?? []).map(index => gltf.nodes[index]?.name));
+  for (const bone of humanoidBones) {
+    assert.ok(joints.has(bone), `os deformant absent du GLB : ${bone}`);
+  }
+
+  const expectedExcluded = [
+    'Camera', 'Camera001', 'CharacterArmature', 'Light', 'Light001',
+    'Head_end', 'Index4L_end', 'Middle4L_end', 'Ring4L_end', 'Pinky4L_end', 'Thumb3L_end',
+    'Index4R_end', 'Middle4R_end', 'Ring4R_end', 'Pinky4R_end', 'Thumb3R_end',
+    'LowerLegL_end', 'LowerLegR_end', 'FootL_end', 'PTL_end', 'FootR_end', 'PTR_end',
+  ].sort();
+  assert.deepEqual([...excludedNodes].sort(), expectedExcluded);
+  assert.equal([...joints].filter(name => name.endsWith('_end')).length, 0);
 });
 
 test('aller-retour de sérialisation sans perte', async () => {
