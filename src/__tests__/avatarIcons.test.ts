@@ -1,40 +1,32 @@
 import { describe, expect, it } from 'vitest';
 
-import { mapBodyPlacement } from '../map/snap/avatarIcons';
-import { BODY_CSS_PX, BODY_SPRITE } from '../map/snap/mapScenario';
+import { bodyDrawRect, bodyVisibleHeightPx } from '../map/snap/avatarIcons';
+import { BODY_CSS_PX, BODY_ICON_SIZE, BODY_SPRITE } from '../map/snap/mapScenario';
 
-describe('cadre des corps de la carte (PoC 7ad2d84)', () => {
-    it('normalise un corps 256×512 au cadre PoC 198/256 et pieds à 6 px du bas', () => {
-        const placement = mapBodyPlacement({x: 20, y: 24, width: 79, height: 224 });
-        expect(placement.height).toBeCloseTo(BODY_SPRITE.height * (198 / 256), 6);
-        expect(placement.y).toBeCloseTo(BODY_SPRITE.height - 6 - placement.height, 6);
-        expect(placement.width).toBeLessThanOrEqual(BODY_SPRITE.width);
+describe('taille des corps de la carte (cadrage e4ab949, avant 7b-3c)', () => {
+    it('fige 87,5 px visibles dans un cadre de 100 px', () => {
+        // Sprite corps FluiditeDemo : 256×512, corps visible 448 px de haut.
+        const visibleRatio = 448 / 512;
+        expect(BODY_CSS_PX).toBe(100);
+        expect(bodyVisibleHeightPx(visibleRatio)).toBeCloseTo(87.5, 6);
     });
 
-    it('laisse le cadre PoC inchangé pour un corps déjà à 198/256', () => {
-        const placement = mapBodyPlacement({x: 32, y: 53, width: 64, height: 198 });
-        expect(placement.height).toBe(198);
-        expect(placement.width).toBe(64);
-        expect(placement.y).toBe(52);
-        expect(placement.x).toBe(32);
+    it('conserve le cadre 128×256 et le facteur d’échelle carte', () => {
+        expect(BODY_SPRITE).toEqual({ width: 128, height: 256 });
+        expect(BODY_ICON_SIZE).toBeCloseTo(100 / 256, 10);
     });
 
-    it('conserve un corps large sans rognage', () => {
-        const placement = mapBodyPlacement({x: 4, y: 53, width: 120, height: 198 });
-        expect(placement.width).toBe(120);
-        expect(placement.height).toBe(198);
-        expect(placement.x).toBe(4);
+    it('ne recadre plus le corps : le rectangle de dessin couvre tout le sprite', () => {
+        expect(bodyDrawRect(BODY_SPRITE.width, BODY_SPRITE.height)).toEqual({
+            x: 0,
+            y: 0,
+            width: BODY_SPRITE.width,
+            height: BODY_SPRITE.height,
+        });
     });
 
-    it('borne la largeur à 128 px pour un corps plus large', () => {
-        const placement = mapBodyPlacement({x: 0, y: 0, width: 200, height: 100 });
-        expect(placement.width).toBe(128);
-        expect(placement.height).toBeLessThan(198);
-    });
-
-    it('donne la taille visible carte de la PoC : 77,34 px pour un cadre de 100 px', () => {
-        const placement = mapBodyPlacement({x: 32, y: 53, width: 64, height: 198 });
-        const visiblePx = (placement.height / BODY_SPRITE.height) * BODY_CSS_PX;
-        expect(visiblePx).toBeCloseTo(77.34375, 5);
+    it('ne réintroduit pas la normalisation PoC 198/256', () => {
+        expect(bodyVisibleHeightPx(198 / 256)).toBeCloseTo(77.34375, 5);
+        expect(bodyVisibleHeightPx(448 / 512)).toBeGreaterThan(bodyVisibleHeightPx(198 / 256));
     });
 });

@@ -1,5 +1,5 @@
 import type {SnapPerson} from './types';
-import {BASE_SPRITE, BODY_SPRITE} from './mapScenario';
+import {BASE_SPRITE, BODY_CSS_PX, BODY_SPRITE} from './mapScenario';
 import {initialOf} from './toSnapPeople';
 
 /** B09b — registre d'images MapLibre pour les corps, bases et pastilles. */
@@ -27,77 +27,36 @@ function canvas2d(width: number, height: number): CanvasRenderingContext2D {
 }
 
 /**
- * Cadre du corps de carte calé sur la PoC 7ad2d84 : hauteur visible 198/256
- * du sprite, pieds à 6/256 du bas. Le sprite stocké peut avoir un cadrage plus
- * serré (corps 87,5 % au lieu de 77,3 %) ; on le normalise à l'affichage pour
- * que la taille carte reste celle de la PoC, sans toucher aux uploads.
+ * Taille carte d'avant 7b-3c : le corps est dessiné tel quel dans le cadre de
+ * 100 px (cadrage e4ab949), sans normalisation 198/256 ni pieds à 6/256.
+ * FluiditeDemo a un corps visible de 448/512, soit 87,5 px visibles.
  */
-const MAP_BODY_VISIBLE_HEIGHT = 198 / 256;
-const MAP_BODY_BOTTOM_MARGIN = 6 / 256;
-const MAP_BODY_ALPHA_THRESHOLD = 8;
+export function bodyVisibleHeightPx(visibleRatio: number): number {
+    return visibleRatio * BODY_CSS_PX;
+}
 
-export interface BodyBox {
+export interface BodyDrawRect {
     x: number;
     y: number;
     width: number;
     height: number;
 }
 
-export function mapBodyPlacement(source: BodyBox): BodyBox {
-    if (!(source.width > 0) || !(source.height > 0)) {
-        throw new Error('Boîte de corps vide');
-    }
-    const targetHeight = BODY_SPRITE.height * MAP_BODY_VISIBLE_HEIGHT;
-    const scale = Math.min(targetHeight / source.height, BODY_SPRITE.width / source.width);
-    const width = source.width * scale;
-    const height = source.height * scale;
-    return {
-        x: (BODY_SPRITE.width - width) / 2,
-        y: BODY_SPRITE.height - BODY_SPRITE.height * MAP_BODY_BOTTOM_MARGIN - height,
-        width,
-        height,
-    };
+/** Rectangle de dessin du corps dans le sprite carte : aucune transformation. */
+export function bodyDrawRect(width: number, height: number): BodyDrawRect {
+    return {x: 0, y: 0, width, height};
 }
 
-function visibleBodyBox(context: CanvasRenderingContext2D): BodyBox | null {
-    const {width, height} = context.canvas;
-    const pixels = context.getImageData(0, 0, width, height).data;
-    let minX = width;
-    let minY = height;
-    let maxX = -1;
-    let maxY = -1;
-    for (let y = 0; y < height; y += 1) {
-        for (let x = 0; x < width; x += 1) {
-            if (pixels[(y * width + x) * 4 + 3] <= MAP_BODY_ALPHA_THRESHOLD) continue;
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-        }
-    }
-    if (maxX < 0) return null;
-    return {x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1};
-}
-
-/** Réduit un corps 256×512 en 128×256 et le recadre au cadre PoC. */
+/** Réduit un corps 256×512 en 128×256, sans recadrage ni normalisation. */
 async function loadBodyBitmap(url: string): Promise<ImageBitmap> {
     const response = await fetch(url, {cache: 'force-cache'});
     if (!response.ok) throw new Error(`Sprite BeerCall manquant: ${url} (${response.status})`);
     const source = await createImageBitmap(await response.blob());
     try {
-        const scratch = canvas2d(BODY_SPRITE.width, BODY_SPRITE.height);
-        scratch.drawImage(source, 0, 0, BODY_SPRITE.width, BODY_SPRITE.height);
-        const body = visibleBodyBox(scratch);
-        if (!body) throw new Error(`Sprite corps vide: ${url}`);
-        const placement = mapBodyPlacement(body);
-
-        const normalized = canvas2d(BODY_SPRITE.width, BODY_SPRITE.height);
-        normalized.drawImage(
-            scratch.canvas,
-            body.x, body.y, body.width, body.height,
-            placement.x, placement.y, placement.width, placement.height,
-        );
-        return await createImageBitmap(normalized.canvas);
+        const context = canvas2d(BODY_SPRITE.width, BODY_SPRITE.height);
+        const rect = bodyDrawRect(BODY_SPRITE.width, BODY_SPRITE.height);
+        context.drawImage(source, rect.x, rect.y, rect.width, rect.height);
+        return await createImageBitmap(context.canvas);
     } finally {
         source.close();
     }
