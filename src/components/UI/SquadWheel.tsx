@@ -1,8 +1,6 @@
-import { useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Beer, Martini, Pizza, Rocket, Ghost, Flame, Plus, Key } from 'lucide-react';
-import { motion, useMotionValue, useTransform } from 'framer-motion';
 import type { Squad } from '../../types/api';
-import { clampSquadPage, squadPageForId, squadWheelPage, WHEEL_ACTION_ANGLES } from '../../lib/squadWheel';
 import { squadLabel } from '../../lib/squadLabel';
 
 const SQUAD_ICONS: Record<string, ReactNode> = {
@@ -20,115 +18,59 @@ interface SquadWheelProps {
     onJoin: () => void;
 }
 
+/**
+ * 8b — dock fixe des squads, sans pagination. Toutes les squads tiennent sur
+ * l'écran (6 par rangée, retour à la ligne au-delà), avec une rangée d'actions
+ * collée au-dessus de la barre du bas.
+ */
 export default function SquadWheel({ squads, currentSquadId, isLoading = false, isNightMode = false, onSelect, onCreate, onJoin }: SquadWheelProps) {
     const currentId = currentSquadId ?? '';
-    const [pageState, setPageState] = useState(() => ({
-        currentId, count: squads.length, index: squadPageForId(squads, currentId),
-    }));
-    let page = clampSquadPage(pageState.index, squads.length);
-    if (pageState.currentId !== currentId || pageState.count !== squads.length) {
-        if (pageState.currentId !== currentId || pageState.count === 0) page = squadPageForId(squads, currentId);
-        setPageState({ currentId, count: squads.length, index: page });
-    }
-    const wheel = squadWheelPage(squads, page);
     const labelTone = isNightMode
         ? 'text-beer-light drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]'
         : 'text-gray-900 drop-shadow-[0_1px_2px_rgba(255,255,255,0.95)]';
-    const suppressClick = useRef(false);
-    const dragX = useMotionValue(0);
-    const negateX = useTransform(dragX, value => -value);
-    const rotation = useTransform(dragX, [-150, 150], [-16, 16]);
-    const counterRotation = useTransform(rotation, value => -value);
-    const changePage = (index: number) => {
-        setPageState({ currentId, count: squads.length, index: clampSquadPage(index, squads.length) });
-    };
-    const isTap = (event: MouseEvent<HTMLButtonElement>) => event.detail === 0 || !suppressClick.current;
-    const placement = (angle: number) => ({
-        left: 144 + 144 * Math.sin(angle * Math.PI / 180),
-        top: 144 - 144 * Math.cos(angle * Math.PI / 180),
-        rotate: counterRotation,
-    });
-    return <section role="region" aria-label="Navigation des squads"
-                className="flex flex-col w-full select-none pointer-events-none"
-                onKeyDown={event => {
-                    if (event.key === 'ArrowLeft') { event.preventDefault(); changePage(wheel.previous); }
-                    if (event.key === 'ArrowRight') { event.preventDefault(); changePage(wheel.next); }
-                }}>
-        {/* Arc et badges isolés dans une bande de 118 px clippée */}
-        <div className="relative h-[118px] w-full overflow-hidden">
-            <div className="absolute top-[28px] left-1/2 -translate-x-1/2 w-[288px] h-[288px] rounded-full border-t-[3px] border-beer/20 pointer-events-none" />
-            <motion.div drag="x" dragConstraints={{ left: -150, right: 150 }} dragElastic={0} dragMomentum={false}
-                        data-wheel-drag
-                        style={{ x: dragX, top: '28px' }}
-                        className="top-[36px] absolute left-[calc(50%_-_144px)] w-[288px] h-[288px] cursor-grab active:cursor-grabbing pointer-events-auto z-10"
-                        onPointerDownCapture={() => { suppressClick.current = false; }}
-                        onDragEnd={(_, info) => {
-                            suppressClick.current = Math.abs(info.offset.x) >= 50;
-                            if (info.offset.x <= -50) changePage(wheel.next);
-                            else if (info.offset.x >= 50) changePage(wheel.previous);
-                            dragX.set(0);
-                        }}>
-                <motion.div style={{ x: negateX, rotate: rotation, originX: '50%', originY: '50%' }} className="w-full h-full relative">
-                    <motion.div style={placement(WHEEL_ACTION_ANGLES.create)} className="absolute w-[72px] -translate-x-1/2 -translate-y-6 flex flex-col items-center">
-                        <button aria-label="Créer" onClick={event => { if (isTap(event)) onCreate(); }}
-                                className="w-12 h-12 rounded-full bg-white border-4 border-orange-100 flex items-center justify-center text-beer shadow-lg"><Plus size={26} /></button>
-                        <span data-wheel-label className={`mt-1 w-[72px] truncate text-center text-xs leading-[14px] font-bold ${labelTone} rounded px-1`}>Créer</span>
-                    </motion.div>
-                    {!isLoading && wheel.items.map(({ squad, angle }) => {
-                        const label = squadLabel(squad.name);
-                        const isLong = Array.from(label).length > 8;
-                        return (
-                            <motion.div key={squad.id} style={placement(angle)}
-                                className="absolute w-[48px] -translate-x-1/2 -translate-y-6 flex flex-col items-center">
-                                <button aria-label={squad.name} aria-current={String(squad.id) === currentId ? 'page' : undefined}
-                                        data-squad-id={squad.id}
-                                        onClick={event => {
-                                            if (isTap(event)) onSelect(squad.id);
-                                        }}
-                                        className={`w-12 h-12 rounded-full text-white flex items-center justify-center shadow-lg ${String(squad.id) === currentId ? 'ring-4 ring-beer' : 'border-4 border-white'}`}
-                                        style={{ backgroundColor: squad.color || '#F59E0B' }}>
-                                    {SQUAD_ICONS[squad.icon] ?? SQUAD_ICONS.beer}
-                                </button>
-                                {!isLong && (
-                                    <span data-wheel-label data-squad-id={squad.id} className={`mt-1 w-[48px] text-center text-xs leading-[14px] font-bold ${labelTone} rounded px-1 [overflow-wrap:anywhere] whitespace-normal`}>
-                                        {label}
-                                    </span>
-                                )}
-                            </motion.div>
-                        );
-                    })}
-                    <motion.div style={placement(WHEEL_ACTION_ANGLES.join)} className="absolute w-[72px] -translate-x-1/2 -translate-y-6 flex flex-col items-center">
-                        <button aria-label="Rejoindre" onClick={event => { if (isTap(event)) onJoin(); }}
-                                className="w-12 h-12 rounded-full bg-white border-4 border-blue-100 flex items-center justify-center text-blue-700 shadow-lg"><Key size={24} /></button>
-                        <span data-wheel-label className={`mt-1 w-[72px] truncate text-center text-xs leading-[14px] font-bold ${labelTone} rounded px-1`}>Rejoindre</span>
-                    </motion.div>
-                </motion.div>
-            </motion.div>
-        </div>
 
-        {/* Lignes en flux sous la bande de 118 px */}
-        <div className="relative z-20 flex flex-col gap-1 items-center w-full">
-            {!isLoading && wheel.items
-                .filter(({ squad }) => Array.from(squadLabel(squad.name)).length > 8)
-                .map(({ squad }) => (
-                    <div key={squad.id} className="w-full px-4 flex items-center justify-center">
-                        <span data-wheel-label data-squad-id={squad.id}
-                              className={`inline-flex items-center gap-1.5 text-center text-xs leading-[14px] font-bold ${labelTone} rounded px-1 [overflow-wrap:anywhere] whitespace-normal`}>
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: squad.color || '#F59E0B' }} aria-hidden="true" />
-                            <span>{squadLabel(squad.name)}</span>
-                        </span>
-                    </div>
-                ))}
+    return <section role="region" aria-label="Barre des squads" data-squad-dock
+                    className="flex flex-col w-full select-none pointer-events-none">
+        {/* 6 par rangée : 6×56 + 5×4 = 356 px, dans 390 − 24 de marge. */}
+        <div data-squad-row className="flex flex-wrap justify-center items-start gap-x-1 gap-y-1 px-3 pt-1 w-full pointer-events-auto">
             {isLoading ? (
                 <p role="status" className={`w-[120px] text-center text-xs leading-[14px] ${labelTone} rounded px-1`}>Chargement des squads…</p>
-            ) : null}
-            {wheel.pageCount > 1 && (
-                <div data-wheel-controls className={`h-7 flex items-center justify-center gap-3 pointer-events-auto text-xs ${labelTone}`}>
-                    <button aria-label="Page précédente" disabled={page === 0} onClick={() => changePage(wheel.previous)} className="h-7 px-3 rounded-lg border border-current/40 disabled:opacity-50">←</button>
-                    <span aria-live="polite" className="rounded px-1 font-bold">Page {page + 1}/{wheel.pageCount}</span>
-                    <button aria-label="Page suivante" disabled={page === wheel.pageCount - 1} onClick={() => changePage(wheel.next)} className="h-7 px-3 rounded-lg border border-current/40 disabled:opacity-50">→</button>
-                </div>
-            )}
+            ) : squads.map(squad => {
+                const isActive = String(squad.id) === currentId;
+                return (
+                    <div key={squad.id} className="w-14 flex flex-col items-center">
+                        <button aria-label={squad.name} aria-current={isActive ? 'page' : undefined}
+                                data-squad-id={squad.id}
+                                onClick={() => onSelect(squad.id)}
+                                className={`w-12 h-12 rounded-full text-white flex items-center justify-center shadow-lg ${isActive ? 'ring-4 ring-beer' : 'border-4 border-white'}`}
+                                style={{backgroundColor: squad.color || '#F59E0B'}}>
+                            {SQUAD_ICONS[squad.icon] ?? SQUAD_ICONS.beer}
+                        </button>
+                        <span data-squad-label data-squad-id={squad.id}
+                              className={`mt-1 w-14 overflow-hidden text-center text-[11px] leading-[13px] font-bold ${labelTone} rounded px-0.5 whitespace-nowrap`}>
+                            {squadLabel(squad.name)}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+
+        {/* Dernière rangée : actions collées à la barre du bas (2 px). */}
+        <div data-squad-actions className="flex justify-center items-start gap-10 px-4 pb-0.5 w-full pointer-events-auto">
+            <div className="w-[76px] flex flex-col items-center">
+                <button aria-label="Créer" onClick={onCreate}
+                        className="w-12 h-12 rounded-full bg-white border-4 border-orange-100 flex items-center justify-center text-beer shadow-lg">
+                    <Plus size={26}/>
+                </button>
+                <span data-squad-label className={`mt-0.5 w-[76px] text-center text-[11px] leading-[13px] font-bold ${labelTone} rounded px-1`}>Créer</span>
+            </div>
+            <div className="w-[76px] flex flex-col items-center">
+                <button aria-label="Rejoindre" onClick={onJoin}
+                        className="w-12 h-12 rounded-full bg-white border-4 border-blue-100 flex items-center justify-center text-blue-700 shadow-lg">
+                    <Key size={24}/>
+                </button>
+                <span data-squad-label className={`mt-0.5 w-[76px] text-center text-[11px] leading-[13px] font-bold ${labelTone} rounded px-1`}>Rejoindre</span>
+            </div>
         </div>
     </section>;
 }

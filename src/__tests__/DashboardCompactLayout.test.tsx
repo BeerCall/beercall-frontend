@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import type { ComponentProps } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import SquadWheel from '../components/UI/SquadWheel';
 import { Timeline } from '../components/Dashboard/Timeline';
@@ -8,34 +7,20 @@ import Navbar from '../components/UI/Navbar';
 import type { Squad } from '../types/api';
 import type { SquadDetails } from '../types/dashboard';
 
-vi.mock('framer-motion', async () => {
-    const actual = await vi.importActual<typeof import('framer-motion')>('framer-motion');
-    return {
-        ...actual,
-        motion: {
-            div: (props: ComponentProps<'div'> & { drag?: string }) => (
-                <div
-                    data-wheel-drag={props['data-wheel-drag']}
-                    className={props.className}
-                    style={props.style}
-                    onPointerDownCapture={props.onPointerDownCapture}
-                >
-                    {props.children}
-                </div>
-            ),
-        },
-    };
-});
-
 vi.mock('../hooks/useSquads', () => ({
     useSquads: vi.fn().mockReturnValue({ data: [], isLoading: false }),
 }));
 
-vi.mock('../store/useUserStore', () => ({
-    useUserStore: vi.fn((selector) => selector({ logout: vi.fn() })),
-}));
+const six: Squad[] = [
+    { id: 4, name: 'Montagnards', icon: 'ghost', color: '#3B82F6', invite_code: 'M1' },
+    { id: 5, name: 'Les Gros Buveurs', icon: 'rocket', color: '#10B981', invite_code: 'M2' },
+    { id: 6, name: 'Potes', icon: 'ghost', color: '#F59E0B', invite_code: 'M3' },
+    { id: 7, name: 'Squad de la Plage', icon: 'rocket', color: '#EF4444', invite_code: 'M4' },
+    { id: 8, name: "Buveurs d'Élite", icon: 'ghost', color: '#8B5CF6', invite_code: 'M5' },
+    { id: 9, name: 'Team Après-Midi', icon: 'rocket', color: '#14B8A6', invite_code: 'M6' },
+];
 
-describe('Flux commun et layout compact des overlays (UI-02 / UI-04 / T09)', () => {
+describe('Layout compact du dock des squads (8b)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -62,7 +47,7 @@ describe('Flux commun et layout compact des overlays (UI-02 / UI-04 / T09)', () 
                 openCamera={vi.fn()}
                 setSelectedBeerCall={vi.fn()}
                 setIsWorldsModalOpen={vi.fn()}
-            />
+            />,
         );
 
         const timelineRoot = container.firstElementChild as HTMLElement;
@@ -73,11 +58,11 @@ describe('Flux commun et layout compact des overlays (UI-02 / UI-04 / T09)', () 
         expect(scrollContainer).toHaveClass('pb-0', 'pt-2', 'overflow-x-auto');
     });
 
-    it('Navbar possède une position relative et conserve la barre inférieure de 80 px', () => {
+    it('Navbar garde une position relative et la barre inférieure', () => {
         const { container } = render(
             <MemoryRouter>
-                <Navbar onCreateClick={vi.fn()} onJoinClick={vi.fn()} />
-            </MemoryRouter>
+                <Navbar onCreateClick={vi.fn()} onJoinClick={vi.fn()}/>
+            </MemoryRouter>,
         );
 
         const navbarRoot = container.firstElementChild as HTMLElement;
@@ -90,116 +75,47 @@ describe('Flux commun et layout compact des overlays (UI-02 / UI-04 / T09)', () 
         expect(bar).toHaveClass('relative', 'z-50', 'pointer-events-auto');
     });
 
-    it('SquadWheel est un <section> flex-col avec arc clippé à 118 px et disque top-28px compatible', () => {
+    it('affiche les 6 squads + les actions sans pagination, sur un seul écran', () => {
         const { container } = render(
-            <SquadWheel
-                squads={[]}
-                onSelect={vi.fn()}
-                onCreate={vi.fn()}
-                onJoin={vi.fn()}
-            />
+            <SquadWheel squads={six} currentSquadId="4" onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()}/>,
         );
 
-        const region = screen.getByRole('region', { name: 'Navigation des squads' });
+        const region = screen.getByRole('region', { name: 'Barre des squads' });
         expect(region.tagName).toBe('SECTION');
         expect(region).toHaveClass('flex', 'flex-col', 'w-full', 'select-none', 'pointer-events-none');
 
-        // Sous-conteneur clippé à 118 px
-        const clippedBand = container.querySelector('div.relative.h-\\[118px\\].w-full.overflow-hidden');
-        expect(clippedBand).toBeInTheDocument();
-
-        // Disque de drag avec data-wheel-drag, classe top-[36px] et style top: 28px
-        const dragDisc = clippedBand?.querySelector('[data-wheel-drag]');
-        expect(dragDisc).toBeInTheDocument();
-        expect(dragDisc).toHaveClass('top-[36px]', 'w-[288px]', 'h-[288px]');
-        expect(dragDisc).toHaveStyle({ top: '28px' });
+        const row = container.querySelector('[data-squad-row]');
+        expect(row).toHaveClass('flex', 'flex-wrap', 'justify-center', 'gap-x-1', 'gap-y-1', 'px-3');
+        for (const item of six) {
+            expect(screen.getByRole('button', { name: item.name })).toBeInTheDocument();
+        }
+        expect(container.querySelectorAll('[data-squad-row] > div')).toHaveLength(6);
+        expect(container.querySelector('[data-squad-actions]')).toBeInTheDocument();
+        expect(container.querySelector('[data-wheel-controls]')).toBeNull();
+        expect(screen.queryByText(/Page \d/)).not.toBeInTheDocument();
     });
 
-    it('place les libellés <=8 points de code sous les badges et les libellés >8 points de code en flux pleine largeur sans truncate', () => {
-        const testSquads: Squad[] = [
-            { id: 1, name: 'Courte', icon: 'beer', color: '#F59E0B', invite_code: 'C1' }, // 6 chars <= 8
-            { id: 2, name: 'S'.repeat(120), icon: 'rocket', color: '#10B981', invite_code: 'L1' }, // 120 chars > 8
-            { id: 3, name: 'Les Amis du Bar', icon: 'pizza', color: '#3B82F6', invite_code: 'M1' }, // LADB (4 chars) <= 8
-        ];
+    it('coupe les libellés à 8 caractères sans points de suspension', () => {
+        render(<SquadWheel squads={six} onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()}/>);
 
-        const { container } = render(
-            <SquadWheel
-                squads={testSquads}
-                currentSquadId="1"
-                onSelect={vi.fn()}
-                onCreate={vi.fn()}
-                onJoin={vi.fn()}
-            />
-        );
-
-        // Libellé court <= 8 : placé sous le badge dans la bande de 118 px
-        const shortLabel = screen.getByText('Courte', { selector: '[data-wheel-label]' });
-        expect(shortLabel).toHaveClass('w-[48px]', 'text-xs', 'leading-[14px]', 'rounded', 'px-1');
-        expect(shortLabel).not.toHaveClass('bg-white');
-        expect(shortLabel).toHaveClass('text-gray-900');
-        expect(shortLabel.className).not.toContain('truncate');
-
-        const initialsLabel = screen.getByText('LADB', { selector: '[data-wheel-label]' });
-        expect(initialsLabel).toHaveClass('w-[48px]', 'text-xs', 'leading-[14px]', 'rounded', 'px-1');
-        expect(initialsLabel).not.toHaveClass('bg-white');
-
-        // Libellé long > 8 (120 chars) : placé en flux sous la bande de 118 px
-        const longWordText = 'S'.repeat(120);
-        const longLabel = screen.getByText(longWordText);
-        expect(longLabel).toBeInTheDocument();
-
-        const longLabelContainer = container.querySelector(`span[data-squad-id="2"][data-wheel-label]`);
-        expect(longLabelContainer).toBeInTheDocument();
-        expect(longLabelContainer).toHaveClass('rounded', 'px-1', 'text-gray-900');
-        expect(longLabelContainer).not.toHaveClass('bg-white');
-        expect(longLabelContainer?.className).not.toContain('truncate');
-
-        // La pastille de couleur est présente à côté du mot long
-        const colorDot = longLabelContainer?.querySelector('span[aria-hidden="true"]');
-        expect(colorDot).toBeInTheDocument();
-        expect(colorDot).toHaveStyle({ backgroundColor: '#10B981' });
-
-        // Le badge bouton de la squad 2 ne contient pas de doublon masqué
-        const badgeButton = screen.getByRole('button', { name: longWordText });
-        const badgeParent = badgeButton.parentElement;
-        const subLabels = badgeParent?.querySelectorAll('[data-wheel-label]');
-        expect(subLabels?.length ?? 0).toBe(0);
+        expect(screen.getByText('MONTAGNA')).toBeInTheDocument();
+        expect(screen.getByText('MONTAGNA')).not.toHaveTextContent('…');
+        expect(screen.getByText('LGB')).toBeInTheDocument();
+        expect(screen.getByText('POTES')).toBeInTheDocument();
+        expect(screen.getByText('SDLP')).toBeInTheDocument();
+        expect(screen.getByText('BDÉ')).toBeInTheDocument();
+        expect(screen.getByText('TAM')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Montagnards' })).toBeInTheDocument();
     });
 
-    it('organise les rangées en flux avec gap-1, nom actif et contrôles sans marge après la dernière rangée', () => {
-        const testSquads: Squad[] = [
-            { id: 1, name: 'Supercalifragilistic', icon: 'beer', color: '#F59E0B', invite_code: 'LONG1' }, // >8
-            { id: 2, name: 'Squad Deux', icon: 'pizza', color: '#3B82F6', invite_code: 'SQ2' },
-            { id: 3, name: 'Squad Trois', icon: 'rocket', color: '#10B981', invite_code: 'SQ3' },
-            { id: 4, name: 'Squad Quatre', icon: 'fire', color: '#EF4444', invite_code: 'SQ4' },
-        ];
-
+    it('place Créer/Rejoindre en dernière rangée, juste avant la barre du bas', () => {
         const { container } = render(
-            <SquadWheel
-                squads={testSquads}
-                currentSquadId="1"
-                onSelect={vi.fn()}
-                onCreate={vi.fn()}
-                onJoin={vi.fn()}
-            />
+            <SquadWheel squads={six} onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()}/>,
         );
-
-        // Conteneur en flux
-        const fluxContainer = container.querySelector('div.relative.z-20.flex.flex-col.gap-1');
-        expect(fluxContainer).toBeInTheDocument();
-        expect(fluxContainer).toHaveClass('items-center', 'w-full');
-
-        // 1. Ligne longue
-        const longRow = fluxContainer?.querySelector('span[data-squad-id="1"][data-wheel-label]');
-        expect(longRow).toBeInTheDocument();
-
-        // 2. Plus de doublon bas du nom actif (T25b) ; l identité vit désormais en haut.
-        const activeName = fluxContainer?.querySelector('[data-wheel-active]');
-        expect(activeName).toBeNull();
-
-        // 3. Contrôles de pagination
-        const controls = fluxContainer?.querySelector('[data-wheel-controls]');
-        expect(controls).toBeInTheDocument();
-        expect(controls).toHaveClass('h-7');
+        const dock = container.querySelector('[data-squad-dock]');
+        const actions = container.querySelector('[data-squad-actions]');
+        expect(dock?.lastElementChild).toBe(actions);
+        expect(actions).toHaveClass('pb-0.5');
+        expect(actions?.querySelectorAll('button')).toHaveLength(2);
     });
 });

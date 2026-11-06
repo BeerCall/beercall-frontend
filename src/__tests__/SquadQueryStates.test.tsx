@@ -33,7 +33,7 @@ function expectNoFalseEmpty() {
     expect(screen.queryByText(/Aucun événement/)).not.toBeInTheDocument();
     expect(screen.queryByText('Squad #1')).not.toBeInTheDocument();
     expect(screen.getByTestId('query-state-map')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Navigation des squads' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Barre des squads' })).toBeInTheDocument();
 }
 
 describe('Squad : vraie query, quatre états distincts', () => {
