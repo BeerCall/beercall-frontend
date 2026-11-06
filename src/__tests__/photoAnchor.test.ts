@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PHOTO_HEAD_CLEARANCE, photoAnchorY } from '../worlds/photoAnchor';
+import { EXCUSE_HEAD_CLEARANCE, PHOTO_HEAD_CLEARANCE, excuseAnchorY, photoAnchorY } from '../worlds/photoAnchor';
 
 describe('position de la preuve photo au-dessus de la tête (8d-2)', () => {
     it('suit la hauteur réelle de la tête, au lieu de 2.2 fixe', () => {
@@ -19,5 +19,11 @@ describe('position de la preuve photo au-dessus de la tête (8d-2)', () => {
     it('refuse une hauteur invalide au lieu d’un repli silencieux', () => {
         expect(() => photoAnchorY(Number.NaN)).toThrow('Hauteur de tête invalide');
         expect(() => photoAnchorY(-1)).toThrow('Hauteur de tête invalide');
+    });
+
+    it('ancre la bulle d’excuse au-dessus de la tête avec sa marge propre', () => {
+        expect(excuseAnchorY(1.7) - 1.7).toBeCloseTo(EXCUSE_HEAD_CLEARANCE, 6);
+        expect(EXCUSE_HEAD_CLEARANCE).toBeGreaterThan(PHOTO_HEAD_CLEARANCE);
+        expect(() => excuseAnchorY(-1)).toThrow('Hauteur de tête invalide');
     });
 });

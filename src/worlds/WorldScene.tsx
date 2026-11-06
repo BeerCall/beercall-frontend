@@ -27,7 +27,8 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RealAvatar } from '../avatar/glb/RealAvatar';
 import { useGlbManifest } from '../avatar/glb/useGlbManifest';
 import WorldPhotoProof from './WorldPhotoProof';
-import { photoAnchorY } from './photoAnchor';
+import WorldExcuseBubble, { excuseForWorld } from './WorldExcuseBubble';
+import { excuseAnchorY, photoAnchorY } from './photoAnchor';
 import { globalLeaseController } from '../three/lease/leaseController';
 import { useLease } from '../three/lease/useLease';
 import { destroyRenderer, trackRenderer } from '../three/lease/webgl';
@@ -217,6 +218,7 @@ function Crowd({
                 if (!config) return null;
                 const photoUrl = participant.proof_photo_url;
                 const headHeight = headHeights[placement.index];
+                const excuse = excuseForWorld(kind, participant);
                 return (
                     <group
                         key={`${participant.user_id ?? participant.id ?? placement.index}`}
@@ -234,6 +236,14 @@ function Crowd({
                                   zIndexRange={[100, 0]} style={{pointerEvents: 'auto'}}>
                                 <div style={{transform: 'translateY(-100%)'}}>
                                     <WorldPhotoProof url={photoUrl} onSelect={onSelectPhoto}/>
+                                </div>
+                            </Html>
+                        )}
+                        {excuse && headHeight !== undefined && (
+                            <Html position={[0, excuseAnchorY(headHeight), 0]} center
+                                  zIndexRange={[100, 0]} style={{pointerEvents: 'none'}}>
+                                <div style={{transform: 'translateY(-100%)'}}>
+                                    <WorldExcuseBubble excuse={excuse} username={participant.username}/>
                                 </div>
                             </Html>
                         )}
