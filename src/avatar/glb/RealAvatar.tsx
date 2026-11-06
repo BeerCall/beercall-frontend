@@ -97,6 +97,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
         activeClip,
         activeClipLoop,
         notifyInitialFrame,
+        error: animationError,
     } = useAvatarAnimations(targetAnimation);
 
     const [avatarRoot, setAvatarRoot] = useState<Group | null>(null);
@@ -108,6 +109,8 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
     const replayTokenRef = useRef(replayToken);
     const readinessReported = useRef(false);
     const loggedResolveError = useRef<Error | null>(null);
+    const loggedManifestError = useRef<Error | null>(null);
+    const loggedAnimationError = useRef<Error | null>(null);
     const callbacksRef = useRef({ onReady, onReadinessChange });
     callbacksRef.current = { onReady, onReadinessChange };
 
@@ -154,7 +157,25 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
         } else {
             console.error(`[avatar] résolution impossible pour l'utilisateur ${owner} : ${resolveError.message}`);
         }
+        callbacksRef.current.onReadinessChange?.(false);
     }, [resolveError, userId]);
+
+    // 2b. Manifeste GLB indisponible : visible et signalé, jamais un canvas vide.
+    useEffect(() => {
+        if (!isError || !error || loggedManifestError.current === error) return;
+        loggedManifestError.current = error;
+        console.error('[avatar] manifest GLB indisponible', { error });
+        callbacksRef.current.onReadinessChange?.(false);
+    }, [isError, error]);
+
+    // 2c. Pack d'animation critique indisponible : sans Idle l'avatar serait
+    // invisible ; on signale l'échec pour laisser le sprite visible.
+    useEffect(() => {
+        if (!animationError || activeClip || loggedAnimationError.current === animationError) return;
+        loggedAnimationError.current = animationError;
+        console.error('[avatar] animations indisponibles', { error: animationError });
+        callbacksRef.current.onReadinessChange?.(false);
+    }, [animationError, activeClip]);
 
     // 3. Notification des clips disponibles pour l'interface (Vestiaire)
     useEffect(() => {

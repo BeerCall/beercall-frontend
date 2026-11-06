@@ -9,7 +9,7 @@
  * (`useLease`) au lieu de `RendererLifecycle`, et la configuration vient du profil.
  */
 
-import React, { Suspense, useEffect } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Color } from 'three';
 
@@ -46,15 +46,60 @@ export const ProfileAvatarScene: React.FC<ProfileAvatarSceneProps> = ({
     replayToken,
 }) => {
     const { granted, token } = useLease(surface);
+    const [avatarState, setAvatarState] = useState<'loading' | 'ready' | 'error'>('loading');
+    const readyFrames = useRef<number[]>([]);
+    const readyScheduled = useRef(false);
+
+    useEffect(() => () => {
+        for (const frame of readyFrames.current) cancelAnimationFrame(frame);
+        readyFrames.current = [];
+    }, []);
+
+    // Le clip est appliqué avant la première image réellement peinte. On attend
+    // deux frames avant de retirer le sprite, sinon la zone peut rester blanche
+    // une frame (ou plus) malgré un avatar assemblé.
+    const scheduleReady = () => {
+        if (readyScheduled.current) return;
+        readyScheduled.current = true;
+        const first = requestAnimationFrame(() => {
+            const second = requestAnimationFrame(() => {
+                readyFrames.current = [];
+                setAvatarState('ready');
+            });
+            readyFrames.current.push(second);
+        });
+        readyFrames.current.push(first);
+    };
+
+    const handleReadinessChange = (ready: boolean) => {
+        if (ready) return;
+        for (const frame of readyFrames.current) cancelAnimationFrame(frame);
+        readyFrames.current = [];
+        readyScheduled.current = false;
+        setAvatarState('error');
+    };
 
     if (!config || !granted || !token) {
         return <div className="w-full h-full relative">{fallback}</div>;
     }
 
     const activeToken = token;
+    const fallbackContent = fallback ?? (
+        <div role="status" className="px-4 py-2 rounded-full bg-gray-900/85 text-white text-[10px] font-black uppercase tracking-widest">
+            {avatarState === 'error' ? 'Avatar 3D indisponible' : 'Chargement de l’avatar…'}
+        </div>
+    );
 
     return (
         <div className="w-full h-full relative">
+            {avatarState !== 'ready' && (
+                <div
+                    className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
+                    data-testid="avatar-fallback"
+                >
+                    {fallbackContent}
+                </div>
+            )}
             <Canvas
                 dpr={[1.5, 1.5]}
                 gl={{ antialias: false }}
@@ -75,9 +120,19 @@ export const ProfileAvatarScene: React.FC<ProfileAvatarSceneProps> = ({
                         scale={0.01}
                         onAnimationsLoaded={onAnimationsLoaded}
                         replayToken={replayToken}
+                        onReadinessChange={handleReadinessChange}
+                        onActiveClipChange={scheduleReady}
                     />
                 </Suspense>
             </Canvas>
+            {avatarState === 'error' && (
+                <div
+                    role="alert"
+                    className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 rounded-full bg-gray-900/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg"
+                >
+                    Avatar 3D indisponible — repli affiché
+                </div>
+            )}
         </div>
     );
 };

@@ -62,7 +62,7 @@ export function AvatarImage({ sprites, username, kind, sizePx, className, eager 
             draggable={false}
             fetchPriority={eager ? 'high' : 'auto'}
             onError={() => setFailedUrl(url)}
-            className={[classes, 'object-cover'].join(' ')}
+            className={[classes, 'object-cover bg-neutral-200'].join(' ')}
             style={style}
             data-avatar-sprite={kind}
         />
