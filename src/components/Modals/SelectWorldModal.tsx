@@ -93,6 +93,12 @@ export default function SelectWorldModal({
         () => worldsData?.[activeTab]?.participants || [],
         [worldsData, activeTab],
     );
+    const proofPhotos = useMemo(
+        () => currentParticipants
+            .map(participant => participant.proof_photo_url)
+            .filter((url): url is string => Boolean(url)),
+        [currentParticipants],
+    );
     const hasWorldData = worldsData !== undefined && worldsData !== null;
     const participantsReliable = hasWorldData && !isPending && !isError;
     const canLaunchGame = isActiveApero && participantsReliable && currentParticipants.length >= 2;
@@ -177,6 +183,11 @@ export default function SelectWorldModal({
                                     key={`${activeTab}-${tabGeneration}`}
                                     world={activeTab}
                                     participants={currentParticipants}
+                                    onSelectPhoto={(url) => {
+                                        const urls = proofPhotos.length ? proofPhotos : [url];
+                                        setSelectedPhotos(urls);
+                                        setCurrentPhotoIndex(Math.max(0, urls.indexOf(url)));
+                                    }}
                                 />
                             )}
 

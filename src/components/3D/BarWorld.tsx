@@ -550,7 +550,8 @@ export default function BarWorld({
                             <div className="flex flex-col items-center">
                                 {photoUrl && (
                                     <div
-                                        className="mb-2 p-1.5 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/50 transform rotate-3 hover:rotate-0 transition-transform origin-bottom cursor-pointer"
+                                        data-world-photo
+                                        className="mb-2 p-1.5 min-w-11 min-h-11 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/50 transform rotate-3 hover:rotate-0 transition-transform origin-bottom cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             // 📸 L'APPEL VERS LE PARENT

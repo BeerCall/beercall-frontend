@@ -18,6 +18,7 @@ import React, {
     type RefObject,
 } from 'react';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import { Box3, Color, Group, Raycaster, type Object3D } from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -25,6 +26,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 import { RealAvatar } from '../avatar/glb/RealAvatar';
 import { useGlbManifest } from '../avatar/glb/useGlbManifest';
+import WorldPhotoProof from './WorldPhotoProof';
 import { globalLeaseController } from '../three/lease/leaseController';
 import { useLease } from '../three/lease/useLease';
 import { destroyRenderer, trackRenderer } from '../three/lease/webgl';
@@ -47,6 +49,7 @@ export interface WorldSceneProps {
     world: WorldKind;
     participants: WorldParticipant[];
     onReady?: (entryMs: number) => void;
+    onSelectPhoto?: (url: string) => void;
 }
 
 function Controls({ autoRotate, target }: { autoRotate: boolean; target: [number, number, number] }) {
@@ -169,12 +172,14 @@ function Crowd({
     groupRef,
     onReady,
     onIdle,
+    onSelectPhoto,
 }: {
     kind: WorldKind;
     participants: WorldParticipant[];
     groupRef: RefObject<Group | null>;
     onReady: (index: number) => void;
     onIdle: (index: number) => void;
+    onSelectPhoto?: (url: string) => void;
 }) {
     const [placements, setPlacements] = useState<Placement[] | null>(null);
 
@@ -200,6 +205,7 @@ function Crowd({
                 const participant = participants[placement.index];
                 const config = participant?.avatar_config;
                 if (!config) return null;
+                const photoUrl = participant.proof_photo_url;
                 return (
                     <group
                         key={`${participant.user_id ?? participant.id ?? placement.index}`}
@@ -211,6 +217,12 @@ function Crowd({
                             onReady={() => onReady(placement.index)}
                             onIdle={() => onIdle(placement.index)}
                         />
+                        {photoUrl && onSelectPhoto && (
+                            <Html position={[0, 2.2, 0]} center zIndexRange={[100, 0]}
+                                  style={{pointerEvents: 'auto'}}>
+                                <WorldPhotoProof url={photoUrl} onSelect={onSelectPhoto}/>
+                            </Html>
+                        )}
                     </group>
                 );
             })}
@@ -250,11 +262,13 @@ function Scene({
     decorUrl,
     participants,
     onEntry,
+    onSelectPhoto,
 }: {
     kind: WorldKind;
     decorUrl: string;
     participants: WorldParticipant[];
     onEntry: (entryMs: number) => void;
+    onSelectPhoto?: (url: string) => void;
 }) {
     const spec = WORLD_SPECS[kind];
     const groupRef = useRef<Group | null>(null);
@@ -292,6 +306,7 @@ function Scene({
                 groupRef={groupRef}
                 onReady={onAvatarReady}
                 onIdle={onAvatarIdle}
+                onSelectPhoto={onSelectPhoto}
             />
             <Controls autoRotate={false} target={spec.target} />
             <EntryReporter
@@ -305,7 +320,7 @@ function Scene({
     );
 }
 
-export const WorldScene: React.FC<WorldSceneProps> = ({ world, participants, onReady }) => {
+export const WorldScene: React.FC<WorldSceneProps> = ({ world, participants, onReady, onSelectPhoto }) => {
     const { granted, token } = useLease('world');
     const manifestQuery = useGlbManifest();
     const spec = WORLD_SPECS[world];
@@ -334,6 +349,7 @@ export const WorldScene: React.FC<WorldSceneProps> = ({ world, participants, onR
                         decorUrl={decor.url}
                         participants={participants}
                         onEntry={onReady ?? (() => undefined)}
+                        onSelectPhoto={onSelectPhoto}
                     />
                 </Suspense>
             </Canvas>
