@@ -27,6 +27,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RealAvatar } from '../avatar/glb/RealAvatar';
 import { useGlbManifest } from '../avatar/glb/useGlbManifest';
 import WorldPhotoProof from './WorldPhotoProof';
+import { photoAnchorY } from './photoAnchor';
 import { globalLeaseController } from '../three/lease/leaseController';
 import { useLease } from '../three/lease/useLease';
 import { destroyRenderer, trackRenderer } from '../three/lease/webgl';
@@ -142,11 +143,13 @@ function WorldAvatar({
     userId,
     onReady,
     onIdle,
+    onHeadAnchor,
 }: {
     config: AvatarConfig;
     userId?: string | number;
     onReady: () => void;
     onIdle: () => void;
+    onHeadAnchor?: (height: number) => void;
 }) {
     // P2 parity: the PoC world default renders no accessories (step 5).
     const bodyConfig = useMemo(() => {
@@ -161,6 +164,7 @@ function WorldAvatar({
             onReadinessChange={(ready) => {
                 if (ready) onReady();
             }}
+            onHeadAnchor={onHeadAnchor}
             onActiveClipChange={onIdle}
         />
     );
@@ -182,6 +186,12 @@ function Crowd({
     onSelectPhoto?: (url: string) => void;
 }) {
     const [placements, setPlacements] = useState<Placement[] | null>(null);
+    const [headHeights, setHeadHeights] = useState<Record<number, number>>({});
+    const handleHeadAnchor = useCallback((index: number, height: number) => {
+        setHeadHeights(previous => (
+            previous[index] === height ? previous : {...previous, [index]: height}
+        ));
+    }, []);
 
     useEffect(() => {
         const group = groupRef.current;
@@ -206,6 +216,7 @@ function Crowd({
                 const config = participant?.avatar_config;
                 if (!config) return null;
                 const photoUrl = participant.proof_photo_url;
+                const headHeight = headHeights[placement.index];
                 return (
                     <group
                         key={`${participant.user_id ?? participant.id ?? placement.index}`}
@@ -216,11 +227,14 @@ function Crowd({
                             userId={participant.user_id ?? participant.id ?? placement.index}
                             onReady={() => onReady(placement.index)}
                             onIdle={() => onIdle(placement.index)}
+                            onHeadAnchor={(height) => handleHeadAnchor(placement.index, height)}
                         />
-                        {photoUrl && onSelectPhoto && (
-                            <Html position={[0, 2.2, 0]} center zIndexRange={[100, 0]}
-                                  style={{pointerEvents: 'auto'}}>
-                                <WorldPhotoProof url={photoUrl} onSelect={onSelectPhoto}/>
+                        {photoUrl && onSelectPhoto && headHeight !== undefined && (
+                            <Html position={[0, photoAnchorY(headHeight), 0]} center
+                                  zIndexRange={[100, 0]} style={{pointerEvents: 'auto'}}>
+                                <div style={{transform: 'translateY(-100%)'}}>
+                                    <WorldPhotoProof url={photoUrl} onSelect={onSelectPhoto}/>
+                                </div>
                             </Html>
                         )}
                     </group>

@@ -19,7 +19,9 @@ import {
     AnimationMixer,
     Group,
     type Mesh,
+    type Object3D,
     type SkinnedMesh,
+    Vector3,
 } from 'three';
 
 import { applyLoopMode, resolvePlaybackCommand } from './animationPlayback';
@@ -46,6 +48,8 @@ export interface RealAvatarProps {
     onReady?: () => void;
     onAnimationsLoaded?: (names: string[]) => void;
     onReadinessChange?: (ready: boolean, details?: { parts: string[]; meshCount: number }) => void;
+    /** Hauteur réelle du sommet de tête, mesurée une fois après l'assemblage. */
+    onHeadAnchor?: (height: number) => void;
     onActiveClipChange?: (clipName: string) => void;
     /** Incrémenté à chaque appui sur une animation ; relance un clip `o`. */
     replayToken?: number;
@@ -80,6 +84,7 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
     onReady,
     onAnimationsLoaded,
     onReadinessChange,
+    onHeadAnchor,
     onActiveClipChange,
     replayToken = 0,
     groupRef,
@@ -112,8 +117,9 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
     const loggedResolveError = useRef<Error | null>(null);
     const loggedManifestError = useRef<Error | null>(null);
     const loggedAnimationError = useRef<Error | null>(null);
-    const callbacksRef = useRef({ onReady, onReadinessChange });
-    callbacksRef.current = { onReady, onReadinessChange };
+    const callbacksRef = useRef({ onReady, onReadinessChange, onHeadAnchor });
+    callbacksRef.current = { onReady, onReadinessChange, onHeadAnchor };
+    const headBoneRef = useRef<Object3D | null>(null);
 
     // 1. Résolution synchrone pure des pièces.
     // Les dépendances sont les champs de tenue, jamais l'objet config : un simple
@@ -222,6 +228,9 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
                 const bodyInst = cloneGlbInstance(bodyGltf);
                 const legsInst = cloneGlbInstance(legsGltf);
                 const feetInst = cloneGlbInstance(feetGltf);
+                headBoneRef.current = headInst.getObjectByName('Head_end')
+                    ?? headInst.getObjectByName('Head')
+                    ?? null;
 
                 const pieces = [headInst, bodyInst, legsInst, feetInst];
                 const pieceNames = [
@@ -239,6 +248,10 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
                         currentMixers.push(new AnimationMixer(inst));
                     }
                 }
+                headBoneRef.current = headBoneRef.current
+                    ?? root.getObjectByName('Head_end')
+                    ?? root.getObjectByName('Head')
+                    ?? null;
 
                 if (resolvedParts.accessory) {
                     const accGltf = await loadGlb(resolvedParts.accessory.url);
@@ -335,6 +348,35 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
             activeActions.current.set(mixer, nextAction);
         }
     }, [activeClip, activeClipLoop, mixers, targetAnimation, replayToken, notifyInitialFrame, onActiveClipChange]);
+
+    // 5b. Hauteur du sommet de tête : une seule mesure, après la première pose.
+    // Aucun Box3 ni calcul par frame ; l'os Head_end est fourni par le modèle.
+    useEffect(() => {
+        if (!avatarRoot) return;
+        let cancelled = false;
+        let secondFrame = 0;
+        const measure = () => {
+            const bone = headBoneRef.current;
+            if (!bone) {
+                console.warn('[avatar] os de tête introuvable ; preuve photo non placée', { userId });
+                return;
+            }
+            avatarRoot.updateWorldMatrix(true, true);
+            const headWorld = bone.getWorldPosition(new Vector3());
+            const rootWorld = avatarRoot.getWorldPosition(new Vector3());
+            callbacksRef.current.onHeadAnchor?.(headWorld.y - rootWorld.y);
+        };
+        const firstFrame = requestAnimationFrame(() => {
+            secondFrame = requestAnimationFrame(() => {
+                if (!cancelled) measure();
+            });
+        });
+        return () => {
+            cancelled = true;
+            cancelAnimationFrame(firstFrame);
+            cancelAnimationFrame(secondFrame);
+        };
+    }, [avatarRoot, userId]);
 
     // 6. Boucle d'animation avec delta borné
     useFrame((_, delta) => {
