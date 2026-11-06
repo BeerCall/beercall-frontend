@@ -1,5 +1,6 @@
 import type {SnapPerson} from './types';
 import {BASE_SPRITE, BODY_CSS_PX, BODY_SPRITE} from './mapScenario';
+import {alphaComponents, alphaFromRgba, planBodyFrame} from './bodyFraming';
 import {initialOf} from './toSnapPeople';
 
 /** B09b — registre d'images MapLibre pour les corps, bases et pastilles. */
@@ -27,35 +28,45 @@ function canvas2d(width: number, height: number): CanvasRenderingContext2D {
 }
 
 /**
- * Taille carte d'avant 7b-3c : le corps est dessiné tel quel dans le cadre de
- * 100 px (cadrage e4ab949), sans normalisation 198/256 ni pieds à 6/256.
- * FluiditeDemo a un corps visible de 448/512, soit 87,5 px visibles.
+ * Hauteur visible d'un corps pour un ratio alpha donné, dans le cadre de
+ * 100 px. La référence 8a-2 reste 448/512, soit 87,5 px visibles ; le
+ * recadrage au chargement garantit ce ratio pour tous les avatars.
  */
 export function bodyVisibleHeightPx(visibleRatio: number): number {
     return visibleRatio * BODY_CSS_PX;
 }
 
-export interface BodyDrawRect {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-}
-
-/** Rectangle de dessin du corps dans le sprite carte : aucune transformation. */
-export function bodyDrawRect(width: number, height: number): BodyDrawRect {
-    return {x: 0, y: 0, width, height};
-}
-
-/** Réduit un corps 256×512 en 128×256, sans recadrage ni normalisation. */
+/**
+ * Normalise le corps une seule fois au chargement : l'avatar est remis à la
+ * hauteur de la référence (224 px dans l'image), centré, pieds alignés.
+ * L'accessoire reste dans l'image, mais ne définit plus la taille du corps.
+ * Aucun travail pendant le zoom : MapLibre ne fait ensuite que mettre cette
+ * image à l'échelle.
+ */
 async function loadBodyBitmap(url: string): Promise<ImageBitmap> {
     const response = await fetch(url, {cache: 'force-cache'});
     if (!response.ok) throw new Error(`Sprite BeerCall manquant: ${url} (${response.status})`);
     const source = await createImageBitmap(await response.blob());
     try {
-        const context = canvas2d(BODY_SPRITE.width, BODY_SPRITE.height);
-        const rect = bodyDrawRect(BODY_SPRITE.width, BODY_SPRITE.height);
-        context.drawImage(source, rect.x, rect.y, rect.width, rect.height);
+        const measure = canvas2d(source.width, source.height);
+        measure.drawImage(source, 0, 0);
+        const pixels = measure.getImageData(0, 0, source.width, source.height).data;
+        const components = alphaComponents(
+            alphaFromRgba(pixels, source.width, source.height),
+            source.width,
+            source.height,
+        );
+        const plan = planBodyFrame(source.width, source.height, components.avatar, components.scene);
+        const context = canvas2d(plan.width, plan.height);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(
+            source,
+            plan.offsetX,
+            plan.offsetY,
+            source.width * plan.scale,
+            source.height * plan.scale,
+        );
         return await createImageBitmap(context.canvas);
     } finally {
         source.close();

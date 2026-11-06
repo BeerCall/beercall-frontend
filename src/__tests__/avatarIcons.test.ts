@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { bodyDrawRect, bodyVisibleHeightPx } from '../map/snap/avatarIcons';
+import { bodyVisibleHeightPx } from '../map/snap/avatarIcons';
 import { BODY_CSS_PX, BODY_ICON_SIZE, BODY_SPRITE } from '../map/snap/mapScenario';
 
 describe('taille des corps de la carte (cadrage e4ab949, avant 7b-3c)', () => {
@@ -16,16 +16,7 @@ describe('taille des corps de la carte (cadrage e4ab949, avant 7b-3c)', () => {
         expect(BODY_ICON_SIZE).toBeCloseTo(100 / 256, 10);
     });
 
-    it('ne recadre plus le corps : le rectangle de dessin couvre tout le sprite', () => {
-        expect(bodyDrawRect(BODY_SPRITE.width, BODY_SPRITE.height)).toEqual({
-            x: 0,
-            y: 0,
-            width: BODY_SPRITE.width,
-            height: BODY_SPRITE.height,
-        });
-    });
-
-    it('ne réintroduit pas la normalisation PoC 198/256', () => {
+    it('garde la référence 448/512 et pas la normalisation PoC 198/256', () => {
         expect(bodyVisibleHeightPx(198 / 256)).toBeCloseTo(77.34375, 5);
         expect(bodyVisibleHeightPx(448 / 512)).toBeGreaterThan(bodyVisibleHeightPx(198 / 256));
     });
