@@ -7,7 +7,7 @@ import {useAnimationManifest} from '../hooks/useAnimationManifest';
 import {useUserStore} from '../store/useUserStore';
 import {api} from '../lib/api';
 import { ProfileAvatarScene } from '../components/3D/ProfileAvatarScene';
-import { AvatarImage } from '../components/Avatar/AvatarImage';
+import { ProfileAvatarFallback } from '../components/Profile/ProfileAvatarFallback';
 import VestiairePanel from '../components/Profile/VestiairePanel';
 import { useGlbManifest } from '../avatar/glb/useGlbManifest';
 import { buildCatalogThumbnailMap } from '../lib/catalogThumbnails';
@@ -210,9 +210,10 @@ export default function Profile() {
                             userId={profile.id}
                             replayToken={animationReplay}
                             fallback={
-                                <div className="flex h-full w-full items-center justify-center">
-                                    <AvatarImage sprites={profile.avatar_sprites} username={profile.username} kind="portrait" sizePx={200} />
-                                </div>
+                                <ProfileAvatarFallback
+                                    sprites={profile.avatar_sprites}
+                                    username={profile.username}
+                                />
                             }
                         />
                     </Suspense>
