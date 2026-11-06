@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SquadWheel from '../components/UI/SquadWheel';
@@ -7,11 +8,25 @@ import Navbar from '../components/UI/Navbar';
 import type { Squad } from '../types/api';
 import type { SquadDetails } from '../types/dashboard';
 
+vi.mock('framer-motion', async () => {
+    const actual = await vi.importActual<typeof import('framer-motion')>('framer-motion');
+    return {
+        ...actual,
+        motion: {
+            div: (props: { drag?: string; children?: ReactNode; className?: string; style?: unknown }) => (
+                <div data-squad-drag={props.drag ? '' : undefined} className={props.className}>{props.children}</div>
+            ),
+        },
+    };
+});
+
 vi.mock('../hooks/useSquads', () => ({
     useSquads: vi.fn().mockReturnValue({ data: [], isLoading: false }),
 }));
 
-const six: Squad[] = [
+const eight: Squad[] = [
+    { id: 1, name: 'Fluidite50', icon: 'beer', color: '#F59E0B', invite_code: 'F50' },
+    { id: 2, name: 'Fluidite40', icon: 'beer', color: '#F59E0B', invite_code: 'F40' },
     { id: 4, name: 'Montagnards', icon: 'ghost', color: '#3B82F6', invite_code: 'M1' },
     { id: 5, name: 'Les Gros Buveurs', icon: 'rocket', color: '#10B981', invite_code: 'M2' },
     { id: 6, name: 'Potes', icon: 'ghost', color: '#F59E0B', invite_code: 'M3' },
@@ -20,7 +35,7 @@ const six: Squad[] = [
     { id: 9, name: 'Team Après-Midi', icon: 'rocket', color: '#14B8A6', invite_code: 'M6' },
 ];
 
-describe('Layout compact du dock des squads (8b)', () => {
+describe('Layout compact de l’arc des squads (8b-2)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -75,31 +90,33 @@ describe('Layout compact du dock des squads (8b)', () => {
         expect(bar).toHaveClass('relative', 'z-50', 'pointer-events-auto');
     });
 
-    it('affiche les 6 squads + les actions sans pagination, sur un seul écran', () => {
+    it('affiche 6 squads maximum dans une bande de 118 px, sans pagination', () => {
         const { container } = render(
-            <SquadWheel squads={six} currentSquadId="4" onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()}/>,
+            <SquadWheel squads={eight} currentSquadId="4" onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()}/>,
         );
 
         const region = screen.getByRole('region', { name: 'Barre des squads' });
         expect(region.tagName).toBe('SECTION');
         expect(region).toHaveClass('flex', 'flex-col', 'w-full', 'select-none', 'pointer-events-none');
 
-        const row = container.querySelector('[data-squad-row]');
-        expect(row).toHaveClass('flex', 'flex-wrap', 'justify-center', 'gap-x-1', 'gap-y-1', 'px-3');
-        for (const item of six) {
-            expect(screen.getByRole('button', { name: item.name })).toBeInTheDocument();
-        }
-        expect(container.querySelectorAll('[data-squad-row] > div')).toHaveLength(6);
+        const arc = container.querySelector('[data-squad-arc]') as HTMLElement | null;
+        expect(arc).toBeInTheDocument();
+        expect(arc?.style.height).toBe('118px');
+
+        const slots = container.querySelectorAll('[data-squad-slot]');
+        expect(slots).toHaveLength(6);
+        expect(container.querySelectorAll('button[data-squad-id]')).toHaveLength(6);
+        expect(container.querySelector('[data-squad-drag]')).toBeInTheDocument();
         expect(container.querySelector('[data-squad-actions]')).toBeInTheDocument();
         expect(container.querySelector('[data-wheel-controls]')).toBeNull();
         expect(screen.queryByText(/Page \d/)).not.toBeInTheDocument();
     });
 
-    it('coupe les libellés à 8 caractères sans points de suspension', () => {
-        render(<SquadWheel squads={six} onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()}/>);
+    it('affiche 7 caractères, coupe Montagnards sans points de suspension et désambiguïse Fluidite', () => {
+        render(<SquadWheel squads={eight} onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()}/>);
 
-        expect(screen.getByText('MONTAGNA')).toBeInTheDocument();
-        expect(screen.getByText('MONTAGNA')).not.toHaveTextContent('…');
+        expect(screen.getByText('MONTAGN')).toBeInTheDocument();
+        expect(screen.getByText('MONTAGN')).not.toHaveTextContent('…');
         expect(screen.getByText('LGB')).toBeInTheDocument();
         expect(screen.getByText('POTES')).toBeInTheDocument();
         expect(screen.getByText('SDLP')).toBeInTheDocument();
@@ -108,14 +125,15 @@ describe('Layout compact du dock des squads (8b)', () => {
         expect(screen.getByRole('button', { name: 'Montagnards' })).toBeInTheDocument();
     });
 
-    it('place Créer/Rejoindre en dernière rangée, juste avant la barre du bas', () => {
+    it('place les actions fixes aux extrémités, séparées de la zone de drag', () => {
         const { container } = render(
-            <SquadWheel squads={six} onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()}/>,
+            <SquadWheel squads={eight} onSelect={vi.fn()} onCreate={vi.fn()} onJoin={vi.fn()}/>,
         );
-        const dock = container.querySelector('[data-squad-dock]');
+        const drag = container.querySelector('[data-squad-drag]');
         const actions = container.querySelector('[data-squad-actions]');
-        expect(dock?.lastElementChild).toBe(actions);
-        expect(actions).toHaveClass('pb-0.5');
+        expect(drag).toBeInTheDocument();
+        expect(actions).toBeInTheDocument();
+        expect(drag).not.toContainElement(actions);
         expect(actions?.querySelectorAll('button')).toHaveLength(2);
     });
 });

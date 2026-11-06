@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { SQUAD_LABEL_MAX, squadLabel, formatSquadLabel } from '../lib/squadLabel';
+import { SQUAD_LABEL_MAX, squadLabel, squadLabels, formatSquadLabel } from '../lib/squadLabel';
 
-describe('libellé des squads (8b)', () => {
+describe('libellé des squads (8b / 8b-2)', () => {
     it('renvoie une chaîne vide pour une entrée vide', () => {
         expect(squadLabel('')).toBe('');
         expect(squadLabel('   ')).toBe('');
@@ -13,7 +13,7 @@ describe('libellé des squads (8b)', () => {
 
     it('met un mot unique en majuscules', () => {
         expect(squadLabel('Potes')).toBe('POTES');
-        expect(squadLabel('beercall')).toBe('BEERCALL');
+        expect(squadLabel('beer')).toBe('BEER');
         expect(squadLabel('  Potes  ')).toBe('POTES');
         expect(squadLabel('Élite')).toBe('ÉLITE');
     });
@@ -37,9 +37,9 @@ describe('libellé des squads (8b)', () => {
         expect(squadLabel('Alpha\t\tBeta\nGamma')).toBe('ABG');
     });
 
-    it('coupe à 8 caractères sans points de suspension', () => {
-        expect(SQUAD_LABEL_MAX).toBe(8);
-        expect(squadLabel('Montagnards')).toBe('MONTAGNA');
+    it('coupe à 7 caractères sans points de suspension', () => {
+        expect(SQUAD_LABEL_MAX).toBe(7);
+        expect(squadLabel('Montagnards')).toBe('MONTAGN');
         expect(squadLabel('Montagnards')).not.toContain('…');
         expect(squadLabel('Montagnards')).not.toContain('...');
         expect(squadLabel('Montagnards', 11)).toBe('MONTAGNARDS');
@@ -48,9 +48,27 @@ describe('libellé des squads (8b)', () => {
         expect(squadLabel('Potes', 0)).toBe('');
     });
 
+    it('laisse passer 7 lettres larges sans les tronquer', () => {
+        expect(squadLabel('MMMMMMM')).toBe('MMMMMMM');
+        expect(squadLabel('WWWWWWW')).toBe('WWWWWWW');
+        expect(Array.from(squadLabel('MMMMMMM')).length).toBe(7);
+    });
+
     it('conserve les accents et les points de code Unicode', () => {
         expect(squadLabel('Élite')).toBe('ÉLITE');
         expect(squadLabel('🎉 Golden Team')).toBe('🎉GT');
         expect(squadLabel('Équipe 🍻 du bar')).toBe('É🍻DB');
+    });
+
+    it('désambiguïse deux libellés identiques avec la fin du nom', () => {
+        expect(squadLabels(['Fluidite50', 'Fluidite40'])).toEqual(['FLUID50', 'FLUID40']);
+        expect(squadLabels(['Les Gros Buveurs 1', 'Les Gros Buveurs 2'])).toEqual(['LGB1', 'LGB2']);
+        expect(squadLabels(['Montagnards', 'Potes'])).toEqual(['MONTAGN', 'POTES']);
+        expect(squadLabels([])).toEqual([]);
+    });
+
+    it('laisse identiques deux noms strictement identiques', () => {
+        expect(squadLabels(['Potes', 'Potes'])).toEqual(['POTES', 'POTES']);
+        expect(squadLabels(['Fluidite50', 'Fluidite50'])).toEqual(['FLUIDIT', 'FLUIDIT']);
     });
 });
