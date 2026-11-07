@@ -10,16 +10,19 @@ import PersistentDashboard from './components/PersistentDashboard';
 import PersistentConnections from './components/PersistentConnections';
 // Préchargement GLB au repos : aucun Canvas, aucun contexte WebGL.
 import WorldWarmup from './components/WorldWarmup';
+import { recoverableImport } from './lib/chunkRecovery';
 
-// Lazy loading extrême pour tuer le Bundle Size Obèse (LCP optimisé)
-const Login = React.lazy(() => import('./pages/Login'));
-const PerformancePanel = React.lazy(() => import('./components/UI/PerformancePanel'));
-const SignUp = React.lazy(() => import('./pages/SignUp.tsx'));
+// Lazy loading extrême pour tuer le Bundle Size Obèse (LCP optimisé).
+// Chaque import est enveloppé : un chunk disparu après rebuild déclenche la
+// récupération (rechargement unique puis message visible), jamais un écran blanc.
+const Login = React.lazy(recoverableImport(() => import('./pages/Login'), 'Login'));
+const PerformancePanel = React.lazy(recoverableImport(() => import('./components/UI/PerformancePanel'), 'PerformancePanel'));
+const SignUp = React.lazy(recoverableImport(() => import('./pages/SignUp.tsx'), 'SignUp'));
 let preparedProfile: typeof import('./pages/Profile.tsx')['default'] | undefined;
-const loadProfile = () => import('./pages/Profile.tsx').then(module => {
+const loadProfile = recoverableImport(() => import('./pages/Profile.tsx').then(module => {
     preparedProfile = module.default;
     return module;
-});
+}), 'Profile');
 const Profile = React.lazy(loadProfile);
 function ProfileRoute() {
     // Resolving the ES module alone does not resolve React.lazy's first render.
@@ -27,7 +30,7 @@ function ProfileRoute() {
     const [Page] = useState(() => preparedProfile ?? Profile);
     return <Page/>;
 }
-const ChatPage = React.lazy(() => import('./pages/ChatPage'));
+const ChatPage = React.lazy(recoverableImport(() => import('./pages/ChatPage'), 'ChatPage'));
 
 const createQueryClient = () => new QueryClient({
     defaultOptions: {

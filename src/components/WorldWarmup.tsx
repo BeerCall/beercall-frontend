@@ -2,9 +2,10 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import type { SceneMetricsRecord } from '../lib/sceneMetrics';
+import { recoverableImport } from '../lib/chunkRecovery';
 
 // Import Three/Drei only AFTER the map is interactive, not in the startup bundle.
-const PrepareResources = lazy(() => import('./WorldResourcePreparation'));
+const PrepareResources = lazy(recoverableImport(() => import('./WorldResourcePreparation'), 'WorldResourcePreparation'));
 
 export default function WorldWarmup() {
     const authenticated = useUserStore(state => state.isAuthenticated);

@@ -2,8 +2,9 @@ import { lazy, Suspense, useState } from 'react';
 import { matchPath, Route, Routes, useLocation, type Location } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import { DashboardActivityContext } from '../lib/dashboardActivity';
+import { recoverableImport } from '../lib/chunkRecovery';
 
-const Dashboard = lazy(() => import('../pages/Dashboard'));
+const Dashboard = lazy(recoverableImport(() => import('../pages/Dashboard'), 'Dashboard'));
 
 function isDashboard(location: Location): boolean {
     return location.pathname === '/dashboard' || !!matchPath('/squad/:id', location.pathname);

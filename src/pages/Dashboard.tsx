@@ -11,14 +11,15 @@ import { useDashboardActive } from '../lib/dashboardActivity';
 import { useMemberLocations } from '../hooks/useMemberLocations';
 import { useLocationSync } from '../hooks/useLocationSync';
 import { toSnapPeople } from '../map/snap/toSnapPeople';
+import { recoverableImport } from '../lib/chunkRecovery';
 
-const GameScreen = React.lazy(() => import('./GameScreen'));
-const CreateSquadModal = React.lazy(() => import('../components/Modals/CreateSquadModal'));
-const CreateBeerCallModal = React.lazy(() => import('../components/Modals/CreateBeerCallModal'));
-const JoinSquadModal = React.lazy(() => import('../components/Modals/JoinSquadModal'));
-const RespondBeerCallModal = React.lazy(() => import('../components/Modals/RespondBeerCallModal'));
-const SelectWorldModal = React.lazy(() => import('../components/Modals/SelectWorldModal'));
-const ScheduleAperoModal = React.lazy(() => import('../components/Modals/ScheduleAperoModal'));
+const GameScreen = React.lazy(recoverableImport(() => import('./GameScreen'), 'GameScreen'));
+const CreateSquadModal = React.lazy(recoverableImport(() => import('../components/Modals/CreateSquadModal'), 'CreateSquadModal'));
+const CreateBeerCallModal = React.lazy(recoverableImport(() => import('../components/Modals/CreateBeerCallModal'), 'CreateBeerCallModal'));
+const JoinSquadModal = React.lazy(recoverableImport(() => import('../components/Modals/JoinSquadModal'), 'JoinSquadModal'));
+const RespondBeerCallModal = React.lazy(recoverableImport(() => import('../components/Modals/RespondBeerCallModal'), 'RespondBeerCallModal'));
+const SelectWorldModal = React.lazy(recoverableImport(() => import('../components/Modals/SelectWorldModal'), 'SelectWorldModal'));
+const ScheduleAperoModal = React.lazy(recoverableImport(() => import('../components/Modals/ScheduleAperoModal'), 'ScheduleAperoModal'));
 
 export default function Dashboard() {
     const routeActive = useDashboardActive();
