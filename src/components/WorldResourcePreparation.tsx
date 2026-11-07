@@ -7,6 +7,7 @@ import {
     toMegabytes,
     type WorldPreloadPlan,
 } from '../lib/worldPreload';
+import { reportWorldPreloadDone, reportWorldPreloadStart } from '../lib/worldPreloadState';
 
 /**
  * 8h-3 — Préchargement au repos des GLB réellement montés par WorldScene.
@@ -29,11 +30,13 @@ function WorldPreloadQueue({plan}: {plan: WorldPreloadPlan}) {
     useEffect(() => {
         if (index < plan.items.length || finishedLogged.current) return;
         finishedLogged.current = true;
+        const elapsedMs = Math.round(performance.now() - (startedAt.current ?? performance.now()));
+        reportWorldPreloadDone(plan.items.length, failures.current.length, elapsedMs);
         console.info('[world] préchargement terminé', {
             files: plan.items.length,
             megabytes: toMegabytes(plan.bytes),
             failures: failures.current.length,
-            elapsedMs: Math.round(performance.now() - (startedAt.current ?? performance.now())),
+            elapsedMs,
         });
     }, [index, plan]);
 
@@ -80,6 +83,7 @@ export default function WorldResourcePreparation() {
 
     useEffect(() => {
         if (!plan) return;
+        reportWorldPreloadStart(plan.items.length);
         console.info('[world] préchargement démarré', {
             files: plan.items.length,
             decors: plan.decorCount,

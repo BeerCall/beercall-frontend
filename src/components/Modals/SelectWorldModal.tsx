@@ -1,4 +1,4 @@
-import {useEffect, useState, useMemo} from 'react';
+import {Suspense, useCallback, useEffect, useState, useMemo} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
@@ -9,6 +9,8 @@ import type {WorldsResponse} from '../../types/api';
 import type {WorldTab} from '../../lib/worldResources';
 import {beginWorldOpen, endWorldOpen} from '../../lib/worldOpenState';
 import {WorldScene} from '../../worlds/WorldScene';
+import {WORLD_PROBE_ENABLED} from '../../perf/worldProbeGate';
+import {WorldProbePanel} from 'virtual:world-probe';
 
 // 📸 IMPORT DE TA MODALE
 import PhotoModal from '../Modals/PhotoModal';
@@ -40,6 +42,14 @@ export default function SelectWorldModal({
 }: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
     const [tabGeneration, setTabGeneration] = useState(0);
+    // Signal de disponibilité de la scène, consommé uniquement par le probe.
+    const [sceneReady, setSceneReady] = useState<{world: WorldTab | null; tick: number}>({
+        world: null,
+        tick: 0,
+    });
+    const markSceneReady = useCallback((world: WorldTab) => {
+        setSceneReady((previous) => ({world, tick: previous.tick + 1}));
+    }, []);
     // Le préchargement GLB au repos laisse la place au monde ouvert.
     useEffect(() => {
         if (!isOpen) return;
@@ -145,6 +155,7 @@ export default function SelectWorldModal({
                             {(Object.keys(THEMES) as WorldTab[]).map((tab) => (
                                 <button
                                     key={tab} onClick={() => handleTabClick(tab)}
+                                    data-world-tab={tab}
                                     className={`flex-1 flex flex-col items-center p-3 rounded-2xl transition-all ${activeTab === tab ? THEMES[tab].color + ' text-white shadow-lg' : 'bg-gray-50 text-gray-400'}`}
                                 >
                                     {THEMES[tab].icon}
@@ -190,6 +201,7 @@ export default function SelectWorldModal({
                                     key={`${activeTab}-${tabGeneration}`}
                                     world={activeTab}
                                     participants={currentParticipants}
+                                    onReady={WORLD_PROBE_ENABLED ? () => markSceneReady(activeTab) : undefined}
                                     onSelectPhoto={(url) => {
                                         const urls = proofPhotos.length ? proofPhotos : [url];
                                         setSelectedPhotos(urls);
@@ -210,6 +222,16 @@ export default function SelectWorldModal({
                                 {!isError && currentParticipants.length === 0 && <p className="mt-3 text-xs text-gray-900 bg-white p-2 rounded-xl">Aucun participant dans ce monde</p>}
                             </div>}
                         </div>
+
+                        {WORLD_PROBE_ENABLED && WorldProbePanel && (
+                            <Suspense fallback={null}>
+                                <WorldProbePanel
+                                    worlds={worldsData}
+                                    activeTab={activeTab}
+                                    sceneReady={sceneReady}
+                                />
+                            </Suspense>
+                        )}
                     </motion.div>
 
                     {/* 📸 LA MODALE PHOTO RENDUE ICI, TOTALEMENT SÉCURISÉE HORS DU CANVAS */}

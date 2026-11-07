@@ -1,12 +1,36 @@
-import {defineConfig} from 'vite'
+import {defineConfig, type Plugin} from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import {VitePWA} from 'vite-plugin-pwa'
+
+/**
+ * 8h-4b-1 — Le panneau de parcours n'entre dans le graphe que si
+ * `VITE_WORLD_PROBE=1`. Sans cette variable, le module virtuel ne contient
+ * qu'un `null` : aucun chunk, aucune chaîne du panneau dans le build standard.
+ */
+function worldProbePlugin(enabled: boolean): Plugin {
+    const virtualId = 'virtual:world-probe';
+    const resolvedId = `\0${virtualId}`;
+    return {
+        name: 'beercall-world-probe',
+        resolveId(id) {
+            if (id === virtualId) return resolvedId;
+            return null;
+        },
+        load(id) {
+            if (id !== resolvedId) return null;
+            return enabled
+                ? "import {lazy} from 'react';\nexport const WorldProbePanel = lazy(() => import('/src/perf/WorldProbePanel.tsx'));\n"
+                : "export const WorldProbePanel = null;\n";
+        },
+    };
+}
 
 export default defineConfig({
     plugins: [
         react(),
         tailwindcss(),
+        worldProbePlugin(process.env.VITE_WORLD_PROBE === '1'),
         VitePWA({
             strategies: 'injectManifest',
             srcDir: 'src',
