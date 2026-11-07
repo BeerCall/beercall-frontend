@@ -10,7 +10,9 @@ import { useLocationStore } from '../../store/useLocationStore';
 import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
 import { SnapAvatarLayer } from './SnapAvatarLayer';
 import type { SnapPerson } from '../../map/snap/types';
-import { trackCanvasContext } from '../../three/lease/webgl';
+import { trackCanvasContext, webglStats } from '../../three/lease/webgl';
+
+export const MAP_CONTEXT_RESTORE_GRACE_MS = 5_000;
 
 interface NativeMap {
     on?: (event: string, fn: (evt?: unknown) => void) => void;
@@ -146,6 +148,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     // error must invalidate map metrics, not tear down an already-loaded avatar.
     const [, setHasMapLoaded] = React.useState(false);
     const [isMapContextLost, setIsMapContextLost] = React.useState(false);
+    const [mapRetryAvailable, setMapRetryAvailable] = React.useState(false);
     const [mapEpoch, setMapEpoch] = React.useState(0);
     const [rebuilding, setRebuilding] = React.useState(false);
     const [initialMapView, setInitialMapView] = React.useState<MapView>(() => ({
@@ -155,7 +158,21 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     const mapInstanceRef = React.useRef<NativeMap | null>(null);
     const retiredMaps = React.useRef(new WeakSet<object>());
     const savedView = React.useRef<MapView | undefined>(undefined);
-    const listeners = React.useRef<{map: NativeMap; epoch: number; lost: () => void; restored: () => void} | null>(null);
+    const listeners = React.useRef<{
+        map: NativeMap;
+        epoch: number;
+        lost: () => void;
+        restored: () => void;
+        canvas?: HTMLCanvasElement;
+        preventLost?: (event: Event) => void;
+    } | null>(null);
+    const mapRetryTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const clearMapRetryTimer = React.useCallback(() => {
+        if (mapRetryTimer.current !== null) {
+            clearTimeout(mapRetryTimer.current);
+            mapRetryTimer.current = null;
+        }
+    }, []);
 
     const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; everLoaded: boolean; submitted: boolean;
         suspended: boolean; epoch: number; recovery: 'normal' | 'lost' | 'restoring' | 'rebuilding' }>({
@@ -178,33 +195,57 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         savedView.current = readMapView(mapInstanceRef.current) ?? savedView.current;
         state.recovery = 'lost';
         setIsMapContextLost(true);
+        setMapRetryAvailable(false);
+        clearMapRetryTimer();
+        const stats = webglStats();
+        console.error('[MapSection] Contexte WebGL perdu', {
+            mapId,
+            created: stats.created,
+            active: stats.active,
+            unexpectedLoss: stats.unexpectedLoss,
+        });
+        mapRetryTimer.current = setTimeout(() => {
+            mapRetryTimer.current = null;
+            if (!state.mounted || state.recovery !== 'lost') return;
+            console.error('[MapSection] Restauration WebGL non confirmée après 5 s', {
+                mapId,
+                created: webglStats().created,
+                active: webglStats().active,
+            });
+            setMapRetryAvailable(true);
+        }, MAP_CONTEXT_RESTORE_GRACE_MS);
         if (state.generation !== undefined) {
             invalidateSceneInstance('dashboard', mapId, state.generation);
         }
         state.submitted = false;
         state.loaded = false;
-    }, [mapId]);
+    }, [clearMapRetryTimer, mapId]);
 
     const handleContextRestored = React.useCallback(() => {
         const state = lifecycle.current;
         if (!state.mounted || state.recovery !== 'lost') return;
+        clearMapRetryTimer();
+        setMapRetryAvailable(false);
         state.recovery = 'restoring';
         try {
             mapInstanceRef.current?.resize?.();
             mapInstanceRef.current?.triggerRepaint?.();
-        } catch {
-            // Tolérance environnements de simulation
+        } catch (error) {
+            console.error('[MapSection] resize/repaint après restauration WebGL a échoué', error);
         }
         // Réarmer la vérification pour certification au prochain idle valide
         state.loaded = state.everLoaded;
         if (state.loaded && state.generation === undefined) state.generation = registerSceneInstance('dashboard', mapId);
         state.submitted = false;
-    }, [mapId]);
+    }, [clearMapRetryTimer, mapId]);
 
     const detachMapInstance = React.useCallback(() => {
         const current = listeners.current;
         current?.map.off?.('webglcontextlost', current.lost);
         current?.map.off?.('webglcontextrestored', current.restored);
+        if (current?.canvas && current.preventLost) {
+            current.canvas.removeEventListener('webglcontextlost', current.preventLost);
+        }
         listeners.current = null;
         mapInstanceRef.current = null;
         if (typeof window !== 'undefined') {
@@ -216,7 +257,13 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         detachMapInstance();
         mapInstanceRef.current = map;
         const canvas = map.getCanvas?.();
+        let preventLost: ((event: Event) => void) | undefined;
         if (canvas) {
+            // Le navigateur doit pouvoir restaurer le contexte : sans
+            // preventDefault, la perte est définitive. MapLibre le fait aussi ;
+            // ce garde-fou le rend explicite côté BeerCall.
+            preventLost = (event: Event) => event.preventDefault();
+            canvas.addEventListener('webglcontextlost', preventLost);
             trackCanvasContext(canvas);
         }
         if (typeof window !== 'undefined') {
@@ -225,7 +272,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         const current = () => lifecycle.current.mounted && lifecycle.current.epoch === mapEpoch && mapInstanceRef.current === map;
         const lost = () => { if (current()) handleContextLost(); };
         const restored = () => { if (current()) handleContextRestored(); };
-        listeners.current = {map, epoch: mapEpoch, lost, restored};
+        listeners.current = {map, epoch: mapEpoch, lost, restored, canvas: canvas ?? undefined, preventLost};
         map.on?.('webglcontextlost', lost);
         map.on?.('webglcontextrestored', restored);
     }, [detachMapInstance, mapEpoch, handleContextLost, handleContextRestored]);
@@ -233,6 +280,8 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     const retryMap = React.useCallback(() => {
         const state = lifecycle.current;
         if (!state.mounted || state.recovery !== 'lost') return;
+        clearMapRetryTimer();
+        setMapRetryAvailable(false);
         const map = mapInstanceRef.current;
         const camera = readMapView(map) ?? savedView.current;
         if (camera) setInitialMapView(camera);
@@ -242,7 +291,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         state.loaded = false; state.everLoaded = false; state.submitted = false; state.recovery = 'rebuilding';
         setRebuilding(true);
         setMapEpoch(state.epoch);
-    }, [detachMapInstance]);
+    }, [clearMapRetryTimer, detachMapInstance]);
 
     React.useEffect(() => {
         const map = mapRef.current?.getMap?.() as NativeMap | undefined;
@@ -251,6 +300,8 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
             if (listeners.current?.epoch === mapEpoch) detachMapInstance();
         };
     }, [mapRef, attachMapInstance, mapEpoch, detachMapInstance]);
+
+    React.useEffect(() => () => clearMapRetryTimer(), [clearMapRetryTimer]);
 
     React.useLayoutEffect(() => {
         const update = () => {
@@ -294,6 +345,7 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                 state.submitted = !!recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: mapId, generation: state.generation });
             }
             setIsMapContextLost(false);
+            setMapRetryAvailable(false);
             setRebuilding(false);
             state.recovery = 'normal';
         }
@@ -363,10 +415,12 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         {visible && isMapContextLost && typeof document !== 'undefined' && createPortal(
             <div role="status" aria-label="Statut carte"
                 className="fixed inset-x-4 bottom-[calc(80px+env(safe-area-inset-bottom))] z-[110] flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-950 shadow-lg">
-                <p>Carte momentanément indisponible</p>
-                <button type="button" disabled={rebuilding}
-                    onClick={event => { event.stopPropagation(); retryMap(); }} onKeyDown={event => event.stopPropagation()}
-                    className="min-h-11 rounded-lg bg-amber-700 px-3 text-white disabled:opacity-50">Réessayer la carte</button>
+                <p>{mapRetryAvailable ? 'Carte momentanément indisponible' : 'Restauration de la carte…'}</p>
+                {mapRetryAvailable && (
+                    <button type="button" disabled={rebuilding}
+                        onClick={event => { event.stopPropagation(); retryMap(); }} onKeyDown={event => event.stopPropagation()}
+                        className="min-h-11 rounded-lg bg-amber-700 px-3 text-white disabled:opacity-50">Réessayer la carte</button>
+                )}
             </div>, document.body)}
         <MapContentsContext.Provider value={<>
             <div data-active={active} className="hidden" aria-hidden="true"/>

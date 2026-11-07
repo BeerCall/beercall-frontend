@@ -1,6 +1,6 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SelectWorldModal from '../components/Modals/SelectWorldModal';
@@ -9,10 +9,14 @@ import { useGameUIStore } from '../store/useGameUIStore';
 import { server } from './mocks/server';
 
 const worldSceneCaptor = vi.fn();
+const viewportMounts = vi.hoisted(() => ({ count: 0 }));
 
-vi.mock('../worlds/WorldScene', () => ({
-    WorldScene: (props: unknown) => {
+vi.mock('../worlds/WorldViewport', () => ({
+    WorldViewport: (props: unknown) => {
         worldSceneCaptor(props);
+        React.useEffect(() => {
+            viewportMounts.count += 1;
+        }, []);
         return <div data-testid="world-scene-mock" />;
     },
 }));
@@ -20,6 +24,7 @@ vi.mock('../worlds/WorldScene', () => ({
 describe('SelectWorldModal avec contrôle accessible masqué et délégation à la scène PoC (T06)', () => {
     beforeEach(() => {
         worldSceneCaptor.mockClear();
+        viewportMounts.count = 0;
     });
 
     afterEach(() => {
@@ -72,8 +77,12 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation à 
 
         expect(worldSceneCaptor).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                world: 'bar',
-                participants: [{ user_id: 'u_1' }, { user_id: 'u_2' }],
+                activeTab: 'bar',
+                worlds: expect.objectContaining({
+                    bar: expect.objectContaining({
+                        participants: [{ user_id: 'u_1' }, { user_id: 'u_2' }],
+                    }),
+                }),
             })
         );
     });
@@ -106,8 +115,12 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation à 
 
         expect(worldSceneCaptor).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                world: 'bar',
-                participants: [{ user_id: 'u_1' }],
+                activeTab: 'bar',
+                worlds: expect.objectContaining({
+                    bar: expect.objectContaining({
+                        participants: [{ user_id: 'u_1' }],
+                    }),
+                }),
             })
         );
     });
@@ -152,5 +165,39 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation à 
             expect(useGameUIStore.getState().isGameScreenOpen).toBe(true);
             expect(onClose).toHaveBeenCalled();
         });
+    });
+
+    it('garde un seul WorldViewport monté lors du changement d’onglet', async () => {
+        server.use(
+            http.get('*/squads/1/beer-calls/bc_1/worlds', () =>
+                HttpResponse.json({
+                    worlds: {
+                        bar: { participants: [{ user_id: 'u_1' }] },
+                        piscine: { participants: [{ user_id: 'u_2' }] },
+                    },
+                })
+            )
+        );
+
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        render(
+            <QueryClientProvider client={queryClient}>
+                <SelectWorldModal isOpen onClose={vi.fn()} squadId="1" beerCallId="bc_1" isActiveApero />
+            </QueryClientProvider>
+        );
+
+        await waitFor(() => expect(screen.getByTestId('world-scene-mock')).toBeInTheDocument());
+        expect(viewportMounts.count).toBe(1);
+        expect(worldSceneCaptor).toHaveBeenLastCalledWith(
+            expect.objectContaining({ activeTab: 'bar' })
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /piscine/i }));
+
+        await waitFor(() => expect(worldSceneCaptor).toHaveBeenLastCalledWith(
+            expect.objectContaining({ activeTab: 'piscine' })
+        ));
+        expect(viewportMounts.count).toBe(1);
+        expect(screen.getByTestId('world-scene-mock')).toBeInTheDocument();
     });
 });

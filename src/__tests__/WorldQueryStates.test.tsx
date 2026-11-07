@@ -9,8 +9,8 @@ import { useGameUIStore } from '../store/useGameUIStore';
 
 const worldSceneCaptor = vi.fn();
 
-vi.mock('../worlds/WorldScene', () => ({
-    WorldScene: (props: unknown) => {
+vi.mock('../worlds/WorldViewport', () => ({
+    WorldViewport: (props: unknown) => {
         worldSceneCaptor(props);
         return <div data-testid="world-scene-mock" />;
     },
@@ -74,8 +74,12 @@ describe('Mondes : attente, panne, vide, fiabilité et refetch (T06 / CHAL-04)',
         expect(screen.queryByRole('button', { name: /Lancer le jeu/i })).not.toBeInTheDocument();
         expect(worldSceneCaptor).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                world: 'bar',
-                participants: [{ user_id: 'u_0' }, { user_id: 'u_1' }],
+                activeTab: 'bar',
+                worlds: expect.objectContaining({
+                    bar: expect.objectContaining({
+                        participants: [{ user_id: 'u_0' }, { user_id: 'u_1' }],
+                    }),
+                }),
             })
         );
     });
@@ -100,8 +104,12 @@ describe('Mondes : attente, panne, vide, fiabilité et refetch (T06 / CHAL-04)',
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(worldSceneCaptor).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                world: 'bar',
-                participants: [{ user_id: 'u_0' }, { user_id: 'u_1' }],
+                activeTab: 'bar',
+                worlds: expect.objectContaining({
+                    bar: expect.objectContaining({
+                        participants: [{ user_id: 'u_0' }, { user_id: 'u_1' }],
+                    }),
+                }),
             })
         );
     });
@@ -116,8 +124,10 @@ describe('Mondes : attente, panne, vide, fiabilité et refetch (T06 / CHAL-04)',
         expect(screen.queryByRole('button', { name: /Lancer le jeu/i })).not.toBeInTheDocument();
         expect(worldSceneCaptor).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                world: 'bar',
-                participants: [],
+                activeTab: 'bar',
+                worlds: expect.objectContaining({
+                    bar: expect.objectContaining({ participants: [] }),
+                }),
             })
         );
     });
@@ -142,7 +152,7 @@ describe('Mondes : attente, panne, vide, fiabilité et refetch (T06 / CHAL-04)',
         const client = mount();
         await screen.findByText('2 Soldat(s)');
         expect(worldSceneCaptor).toHaveBeenLastCalledWith(
-            expect.objectContaining({ world: 'bar' })
+            expect.objectContaining({ activeTab: 'bar' })
         );
 
         holdRefetch = true;
@@ -150,7 +160,7 @@ describe('Mondes : attente, panne, vide, fiabilité et refetch (T06 / CHAL-04)',
         const refetchPromise = client.invalidateQueries({ queryKey: ['worlds', '1', 'bc_1'] });
 
         expect(worldSceneCaptor).toHaveBeenLastCalledWith(
-            expect.objectContaining({ world: 'bar' })
+            expect.objectContaining({ activeTab: 'bar' })
         );
 
         resolveRefetchPromise();
@@ -165,8 +175,12 @@ describe('Mondes : attente, panne, vide, fiabilité et refetch (T06 / CHAL-04)',
         expect(screen.getByText('2 Soldat(s)')).toBeInTheDocument();
         expect(worldSceneCaptor).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                world: 'bar',
-                participants: [{ user_id: 'u_0' }, { user_id: 'u_1' }],
+                activeTab: 'bar',
+                worlds: expect.objectContaining({
+                    bar: expect.objectContaining({
+                        participants: [{ user_id: 'u_0' }, { user_id: 'u_1' }],
+                    }),
+                }),
             })
         );
 
@@ -192,14 +206,28 @@ describe('Mondes : attente, panne, vide, fiabilité et refetch (T06 / CHAL-04)',
 
         expect(await screen.findByTestId('world-scene-mock')).toBeInTheDocument();
         expect(worldSceneCaptor).toHaveBeenLastCalledWith(
-            expect.objectContaining({ world: 'bar', participants: [{ user_id: 'u_0' }] })
+            expect.objectContaining({
+                activeTab: 'bar',
+                worlds: expect.objectContaining({
+                    bar: expect.objectContaining({
+                        participants: [{ user_id: 'u_0' }],
+                    }),
+                }),
+            })
         );
 
         await userEvent.setup().click(screen.getByRole('button', { name: /piscine/i }));
 
         expect(await screen.findByTestId('world-scene-mock')).toBeInTheDocument();
         expect(worldSceneCaptor).toHaveBeenLastCalledWith(
-            expect.objectContaining({ world: 'piscine', participants: [{ user_id: 'u_1' }] })
+            expect.objectContaining({
+                activeTab: 'piscine',
+                worlds: expect.objectContaining({
+                    piscine: expect.objectContaining({
+                        participants: [{ user_id: 'u_1' }],
+                    }),
+                }),
+            })
         );
     });
 });

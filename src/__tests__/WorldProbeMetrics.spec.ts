@@ -75,6 +75,7 @@ describe('statistiques du parcours', () => {
             from: 'bar',
             to,
             ms,
+            frames: 1,
             labels: { names: 1, photos: 0, excuses: 0 },
             expected: { names: 1, photos: 0, excuses: 0 },
         });

@@ -26,6 +26,7 @@ export type ProbeSample = {
     from: WorldKind;
     to: WorldKind;
     ms: number;
+    frames: number;
     labels: LabelCounts;
     expected: LabelCounts;
 };

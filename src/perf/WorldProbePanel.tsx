@@ -9,7 +9,7 @@
  * `VITE_WORLD_PROBE=1` et n'ajoute qu'une surcouche DOM.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Copy, Play, Square, X } from 'lucide-react';
 import type { WorldDetails } from '../types/api';
 import type { WorldKind } from '../worlds/pocWorldScenario';
@@ -34,6 +34,14 @@ const SEQUENCE: WorldKind[] = ['piscine', 'dodo', 'bar'];
 const TRANSITION_TIMEOUT_MS = 30_000;
 const INITIAL_TIMEOUT_MS = 60_000;
 
+function nextSettledFrame(): Promise<void> {
+    return new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => resolve());
+        });
+    });
+}
+
 type RunStatus = 'idle' | 'running' | 'done' | 'error' | 'stopped';
 
 interface PendingTransition {
@@ -47,14 +55,16 @@ class ProbeCancelled extends Error {}
 
 export interface WorldProbePanelProps {
     worlds?: Record<string, WorldDetails>;
-    activeTab: WorldKind;
     sceneReady: { world: WorldKind | null; tick: number };
+    readyWorlds: Partial<Record<WorldKind, boolean>>;
 }
 
-export default function WorldProbePanel({ worlds, activeTab, sceneReady }: WorldProbePanelProps) {
+function WorldProbePanelComponent({ worlds, sceneReady, readyWorlds }: WorldProbePanelProps) {
     const [open, setOpen] = useState(false);
     const [status, setStatus] = useState<RunStatus>('idle');
+    const [runCount, setRunCount] = useState(0);
     const [samples, setSamples] = useState<ProbeSample[]>([]);
+    const [warmup, setWarmup] = useState<ProbeSample[]>([]);
     const [progress, setProgress] = useState<{ cycle: number; transition: number; world: WorldKind | null }>({
         cycle: 0,
         transition: 0,
@@ -68,13 +78,13 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
     const cancelledRef = useRef(false);
     const runningRef = useRef(false);
     const mountedRef = useRef(true);
-    const activeTabRef = useRef(activeTab);
     const worldsRef = useRef(worlds);
+    const readyWorldsRef = useRef(readyWorlds);
 
     useEffect(() => {
-        activeTabRef.current = activeTab;
         worldsRef.current = worlds;
-    }, [activeTab, worlds]);
+        readyWorldsRef.current = readyWorlds;
+    }, [worlds, readyWorlds]);
 
     useEffect(() => {
         const pending = pendingRef.current;
@@ -153,7 +163,7 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
         };
         pendingRef.current = pending;
         try {
-            if (activeTabRef.current !== 'bar') pending.startedAt = clickTab('bar');
+            pending.startedAt = clickTab('bar');
             // Premier Bar non mesuré : les libellés suffisent à prouver que la
             // scène et les avatars sont déjà rendus.
             await waitForTransition(pending, INITIAL_TIMEOUT_MS, false);
@@ -161,6 +171,36 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
             pendingRef.current = null;
         }
     }, [clickTab, waitForTransition]);
+
+    /**
+     * Prépare les trois couches avant la première mesure. La construction des
+     * avatars n'est pas une transition d'onglet : la mesurer fausserait le
+     * parcours. Les trois scènes doivent être prêtes, puis on démarre.
+     */
+    const waitForAllLayersReady = useCallback((): Promise<void> => new Promise<void>((resolve, reject) => {
+        const deadline = performance.now() + INITIAL_TIMEOUT_MS;
+        const tick = () => {
+            if (cancelledRef.current || !mountedRef.current) {
+                reject(new ProbeCancelled('Parcours arrêté'));
+                return;
+            }
+            const ready = readyWorldsRef.current;
+            if (ready.bar && ready.piscine && ready.dodo) {
+                resolve();
+                return;
+            }
+            if (performance.now() > deadline) {
+                reject(new Error(
+                    `Les 3 scènes ne sont pas prêtes après ${Math.round(INITIAL_TIMEOUT_MS / 1000)} s ` +
+                    `(bar=${ready.bar ? 'oui' : 'non'}, piscine=${ready.piscine ? 'oui' : 'non'}, ` +
+                    `dodo=${ready.dodo ? 'oui' : 'non'}).`,
+                ));
+                return;
+            }
+            window.requestAnimationFrame(tick);
+        };
+        tick();
+    }), []);
 
     const runTransition = useCallback(async (
         from: WorldKind,
@@ -171,19 +211,45 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
         const pending: PendingTransition = {
             to,
             expected: expectedLabels(to, participants),
-            sceneReady: false,
+            sceneReady: Boolean(readyWorldsRef.current[to]),
             startedAt: 0,
         };
         pendingRef.current = pending;
         try {
+            const startFrame = window.__beercallWorldFrame ?? 0;
             pending.startedAt = clickTab(to);
             const labels = await waitForTransition(pending, TRANSITION_TIMEOUT_MS, true);
+            // La fin n'est valide que si le Canvas a rendu au moins une image
+            // depuis le toucher : les libellés DOM seuls ne prouvent pas l'affichage.
+            const frameDeadline = performance.now() + 1_000;
+            while ((window.__beercallWorldFrame ?? 0) <= startFrame && performance.now() < frameDeadline) {
+                await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+            }
             const ms = Math.round((performance.now() - pending.startedAt) * 10) / 10;
-            return { cycle, from, to, ms, labels, expected: pending.expected };
+            const frames = Math.max(0, (window.__beercallWorldFrame ?? 0) - startFrame);
+            return { cycle, from, to, ms, frames, labels, expected: pending.expected };
         } finally {
             pendingRef.current = null;
         }
     }, [clickTab, waitForTransition]);
+
+    /**
+     * Premier affichage de chaque couche, non mesuré dans les 30 transitions.
+     * Il paie la compilation GPU et le premier montage des libellés ; 4b-4
+     * déplacera ce coût au repos. Les durées sont affichées à part.
+     */
+    const warmUpAllLayers = useCallback(async (): Promise<ProbeSample[]> => {
+        let from: WorldKind = 'bar';
+        const collected: ProbeSample[] = [];
+        for (const to of SEQUENCE) {
+            if (cancelledRef.current) throw new ProbeCancelled('Parcours arrêté');
+            setProgress({ cycle: 0, transition: 0, world: to });
+            const sample = await runTransition(from, to, 0);
+            collected.push(sample);
+            from = to;
+        }
+        return collected;
+    }, [runTransition]);
 
     const start = useCallback(async () => {
         if (runningRef.current) return;
@@ -193,24 +259,33 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
         }
         runningRef.current = true;
         cancelledRef.current = false;
+        setRunCount((count) => count + 1);
         setStatus('running');
         setSamples([]);
+        setWarmup([]);
         setMessage(null);
         setCopyState('idle');
         setProgress({ cycle: 0, transition: 0, world: null });
 
         try {
+            await waitForAllLayersReady();
+            const warm = await warmUpAllLayers();
+            if (mountedRef.current) setWarmup(warm);
             await settleOnBar();
+            setProgress({ cycle: 1, transition: 0, world: null });
+            await nextSettledFrame();
             let from: WorldKind = 'bar';
             const collected: ProbeSample[] = [];
             for (let cycle = 1; cycle <= CYCLES; cycle += 1) {
                 for (const to of SEQUENCE) {
                     if (cancelledRef.current) throw new ProbeCancelled('Parcours arrêté');
-                    setProgress({ cycle, transition: collected.length + 1, world: to });
                     const sample = await runTransition(from, to, cycle);
                     collected.push(sample);
                     setSamples([...collected]);
+                    setProgress({ cycle, transition: collected.length, world: to });
                     from = to;
+                    // Laisse le panneau se rendre et se peindre hors de la mesure suivante.
+                    await nextSettledFrame();
                 }
             }
             if (mountedRef.current) {
@@ -231,7 +306,7 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
             runningRef.current = false;
             pendingRef.current = null;
         }
-    }, [runTransition, settleOnBar]);
+    }, [runTransition, settleOnBar, waitForAllLayersReady, warmUpAllLayers]);
 
     const stop = useCallback(() => {
         cancelledRef.current = true;
@@ -239,6 +314,7 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
 
     const stats = summarize(samples.map((sample) => sample.ms));
     const byWorld = summarizeByWorld(samples);
+    const lastSample = samples[samples.length - 1];
     const lastByWorld = (['bar', 'piscine', 'dodo'] as WorldKind[]).reduce((result, world) => {
         result[world] = [...samples].reverse().find((sample) => sample.to === world);
         return result;
@@ -255,8 +331,10 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
             buildTime: WORLD_PROBE_BUILD_TIME,
             probeEnabled: true,
         },
+        run: runCount,
         preload: getWorldPreloadStatus(),
         webgl: gl,
+        warmup,
         status,
         stats,
         byWorld,
@@ -276,8 +354,10 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
     };
 
     const statusText = status === 'running'
-        ? `En cours — cycle ${Math.max(1, progress.cycle)}/${CYCLES}, transition ${progress.transition}/${CYCLES * SEQUENCE.length}` +
-          (progress.world ? ` (${progress.world})` : '')
+        ? progress.cycle === 0
+            ? 'Préparation des 3 mondes…'
+            : `En cours — cycle ${Math.max(1, progress.cycle)}/${CYCLES}, transition ${progress.transition}/${CYCLES * SEQUENCE.length}` +
+              (progress.world ? ` (${progress.world})` : '')
         : status === 'done'
             ? `Terminé — ${samples.length} mesures`
             : status === 'error'
@@ -309,7 +389,10 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
             <div className="flex items-center justify-between border-b border-white/15 px-4 py-3">
                 <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">Parcours des mondes</p>
-                    <p className="text-[11px] text-white/70">10 cycles Bar → Piscine → Dodo</p>
+                    <p className="text-[11px] text-white/70">
+                        10 cycles Bar → Piscine → Dodo
+                        {runCount > 0 && <span data-testid="world-probe-run-count"> · passage #{runCount}</span>}
+                    </p>
                 </div>
                 <button
                     type="button"
@@ -398,6 +481,12 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
                 )}
 
                 <p data-testid="world-probe-status" className="mt-3 font-bold text-amber-300">{statusText}</p>
+                {warmup.length > 0 && (
+                    <p data-testid="world-probe-warmup" className="mt-1 text-[10px] leading-relaxed text-white/50">
+                        Préchauffage non mesuré : {warmup.map((sample) =>
+                            `${sample.to} ${formatMs(sample.ms)}`).join(' · ')}
+                    </p>
+                )}
                 {message && (
                     <p data-testid="world-probe-error" className="mt-2 rounded-lg bg-red-500/20 p-2 text-[11px] leading-relaxed text-red-200">
                         {message}
@@ -433,6 +522,11 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
                             </p>
                         );
                     })}
+                    {lastSample && (
+                        <p data-testid="world-probe-frames" className="mt-2 text-[10px] text-white/50">
+                            Images rendues (dernière transition) : {lastSample.frames}
+                        </p>
+                    )}
                 </div>
 
                 <div className="mt-3 overflow-hidden rounded-xl bg-white/5">
@@ -503,3 +597,7 @@ export default function WorldProbePanel({ worlds, activeTab, sceneReady }: World
         </div>
     );
 }
+
+const WorldProbePanel = memo(WorldProbePanelComponent);
+
+export default WorldProbePanel;

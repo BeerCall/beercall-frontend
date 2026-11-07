@@ -136,9 +136,9 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     // 1. La readiness est invalidée
     expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
 
-    // 2. Le statut HTML local est affiché
+    // 2. Le statut HTML local est affiché (restauration automatique en cours)
     expect(screen.getByRole('status', { name: 'Statut carte' })).toBeInTheDocument();
-    expect(screen.getByText('Carte momentanément indisponible')).toBeInTheDocument();
+    expect(screen.getByText('Restauration de la carte…')).toBeInTheDocument();
 
     // 3. La carte et le conteneur restent montés dans le DOM (aucun démontage brutal)
     expect(screen.getByTestId('mock-map')).toBeInTheDocument();
@@ -175,7 +175,7 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     act(() => {
       fakeMap.fire('webglcontextlost');
     });
-    expect(screen.getByText('Carte momentanément indisponible')).toBeInTheDocument();
+    expect(screen.getByText('Restauration de la carte…')).toBeInTheDocument();
 
     // Restauration
     act(() => {
@@ -187,7 +187,7 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     expect(fakeMap.repaintCalled).toBeGreaterThanOrEqual(1);
 
     // Le statut DOIT rester visible tant que le nouvel idle n'a pas été confirmé
-    expect(screen.getByText('Carte momentanément indisponible')).toBeInTheDocument();
+    expect(screen.getByText('Restauration de la carte…')).toBeInTheDocument();
     expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
 
     // Arrivée du nouvel idle valide
@@ -282,7 +282,6 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     };
     const { rerender, unmount } = render(<MapSection {...props}/>);
     act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
-    const mapNode = screen.getByTestId('mock-map');
     const initialNativeProps = mapMockControl.latestProps;
     expect(initialNativeProps?.mapStyle).toContain('positron');
 
@@ -350,6 +349,8 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     const oldLoad = mapMockControl.latestProps!.onLoad!;
     const oldIdle = mapMockControl.latestProps!.onIdle!;
     act(() => oldMap.fire('webglcontextlost'));
+    // Le bouton n'apparaît qu'après l'échec de la restauration automatique.
+    act(() => { vi.advanceTimersByTime(5_000); });
     fireEvent.click(screen.getByRole('button', {name: 'Réessayer la carte'}));
     expect(screen.getByTestId('mock-map')).not.toBe(oldNode);
     expect(screen.getAllByTestId('mock-map')).toHaveLength(1);
@@ -387,6 +388,7 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); fakeMap.fire('webglcontextlost'); });
     const status = screen.getByRole('status', {name: 'Statut carte'});
     expect(status.closest('[data-testid="map-stacking-context"]')).toBeNull();
+    act(() => { vi.advanceTimersByTime(5_000); });
     expect(screen.getByRole('button', {name: 'Réessayer la carte'})).toBeEnabled();
     view.rerender(content(false));
     expect(screen.queryByRole('status', {name: 'Statut carte'})).toBeNull();

@@ -43,7 +43,7 @@ export interface RealAvatarProps {
     /** Propriétaire de la tenue, pour identifier toute pièce introuvable. */
     userId?: string | number;
     manifest?: GlbManifest;
-    animate?: boolean;
+    animate?: boolean | (() => boolean);
     scale?: number;
     onReady?: () => void;
     onAnimationsLoaded?: (names: string[]) => void;
@@ -118,7 +118,9 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
     const loggedManifestError = useRef<Error | null>(null);
     const loggedAnimationError = useRef<Error | null>(null);
     const callbacksRef = useRef({ onReady, onReadinessChange, onHeadAnchor });
-    callbacksRef.current = { onReady, onReadinessChange, onHeadAnchor };
+    useEffect(() => {
+        callbacksRef.current = { onReady, onReadinessChange, onHeadAnchor };
+    }, [onReady, onReadinessChange, onHeadAnchor]);
     const headBoneRef = useRef<Object3D | null>(null);
 
     // 1. Résolution synchrone pure des pièces.
@@ -380,7 +382,8 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
 
     // 6. Boucle d'animation avec delta borné
     useFrame((_, delta) => {
-        if (!animate || mixers.length === 0) return;
+        const enabled = typeof animate === 'function' ? animate() : animate;
+        if (!enabled || mixers.length === 0) return;
         const boundedDelta = Math.min(delta, 0.05);
         for (const mixer of mixers) {
             mixer.update(boundedDelta);
