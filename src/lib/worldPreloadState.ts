@@ -12,6 +12,8 @@ export interface WorldPreloadStatus {
     files: number;
     failures: number;
     elapsedMs: number | null;
+    /** Signature du plan terminé : un refetch identique ne repasse pas à « non ». */
+    signature: string | null;
 }
 
 const initialStatus: WorldPreloadStatus = {
@@ -20,6 +22,7 @@ const initialStatus: WorldPreloadStatus = {
     files: 0,
     failures: 0,
     elapsedMs: null,
+    signature: null,
 };
 
 let status: WorldPreloadStatus = { ...initialStatus };
@@ -40,13 +43,16 @@ export function getWorldPreloadStatus(): WorldPreloadStatus {
     return { ...status };
 }
 
-export function reportWorldPreloadStart(files: number): void {
-    status = { started: true, done: false, files, failures: 0, elapsedMs: null };
+export function reportWorldPreloadStart(files: number, signature: string): void {
+    if (status.signature === signature && status.done) {
+        return;
+    }
+    status = { started: true, done: false, files, failures: 0, elapsedMs: null, signature };
     publish();
 }
 
-export function reportWorldPreloadDone(files: number, failures: number, elapsedMs: number): void {
-    status = { started: true, done: true, files, failures, elapsedMs };
+export function reportWorldPreloadDone(files: number, failures: number, elapsedMs: number, signature: string): void {
+    status = { started: true, done: true, files, failures, elapsedMs, signature };
     publish();
 }
 

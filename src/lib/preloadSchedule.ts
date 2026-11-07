@@ -106,6 +106,18 @@ export function whenPreloadIdle(callback: () => void): () => void {
     };
 }
 
+/** Vrai si une tranche de travail peut s'exécuter sans gêner la carte. */
+export function isPreloadQuiet(): boolean {
+    installInteractionTracking();
+    return !isWorldOpen()
+        && !document.hidden
+        && Date.now() - lastInteractionAt >= QUIET_MS;
+}
+
+if (typeof window !== 'undefined') {
+    (window as unknown as {__beercallIsPreloadQuiet?: () => boolean}).__beercallIsPreloadQuiet = isPreloadQuiet;
+}
+
 /** Réinitialisation réservée aux tests. */
 export function resetPreloadScheduleForTests(): void {
     lastInteractionAt = 0;

@@ -4,6 +4,9 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GlbManifest, GlbManifestItem } from '../avatar/glb/manifest';
 import WorldWarmup from '../components/WorldWarmup';
+import { resetWorldPreloadStatusForTests } from '../lib/worldPreloadState';
+import { resetPreloadScheduleForTests } from '../lib/preloadSchedule';
+import { resetWorldOpenState } from '../lib/worldOpenState';
 
 function item(key: string, bytes: number): GlbManifestItem {
     return {
@@ -68,6 +71,9 @@ function interactiveMap() {
 describe('préchargement des mondes au repos (8h-3)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        resetWorldPreloadStatusForTests();
+        resetPreloadScheduleForTests();
+        resetWorldOpenState();
         state.authenticated = true;
         state.loadGlb.mockImplementation((url: string) => Promise.resolve({url}));
         performance.clearMarks();

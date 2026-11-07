@@ -20,8 +20,8 @@ function worldProbePlugin(enabled: boolean): Plugin {
         load(id) {
             if (id !== resolvedId) return null;
             return enabled
-                ? "import {lazy} from 'react';\nexport const WorldProbePanel = lazy(() => import('/src/perf/WorldProbePanel.tsx'));\n"
-                : "export const WorldProbePanel = null;\n";
+                ? "import {lazy} from 'react';\nexport const WorldProbePanel = lazy(() => import('/src/perf/WorldProbePanel.tsx'));\nexport const WorldPreparationBadge = lazy(() => import('/src/perf/WorldPreparationBadge.tsx'));\n"
+                : "export const WorldProbePanel = null;\nexport const WorldPreparationBadge = null;\n";
         },
     };
 }

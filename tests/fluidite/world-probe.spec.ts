@@ -89,12 +89,18 @@ test('le parcours mesure 10 cycles complets et affiche la version', async ({ pag
     await page.goto(`/squad/${squad40!.id}`);
     await expect(page.locator('canvas').first()).toBeVisible({ timeout: 20_000 });
 
-    // Le parcours de référence part d'un préchargement terminé.
+    // Le parcours de référence part d'un préchargement et d'une préparation terminés.
     await page.waitForFunction(
         () => (window as unknown as { __beercallWorldPreload?: { done?: boolean } })
             .__beercallWorldPreload?.done === true,
         null,
         { timeout: 120_000 },
+    );
+    await page.waitForFunction(
+        () => (window as unknown as { __beercallPreparation?: { phase?: string } })
+            .__beercallPreparation?.phase === 'done',
+        null,
+        { timeout: 180_000 },
     );
 
     const worldsButton = page.locator('button').filter({ hasText: /Mondes|Rejoindre/i }).first();
@@ -116,6 +122,28 @@ test('le parcours mesure 10 cycles complets et affiche la version', async ({ pag
     await expect(page.getByTestId('world-probe-reference')).toContainText('piscine : 0 pseudo(s) · 0 photo(s) · 10 bulle(s)');
     await expect(page.getByTestId('world-probe-reference-warning')).toContainText('dodo');
     await expect(page.getByTestId('world-probe-start')).toBeEnabled();
+    await expect(page.getByTestId('world-preparation')).toContainText('Préparation terminée : oui');
+
+    await page.waitForFunction(
+        () => ((window as unknown as { __beercallFirstOpens?: Array<{ status?: string }> })
+            .__beercallFirstOpens?.at(-1)?.status) === 'complete',
+        null,
+        { timeout: 60_000 },
+    );
+    const firstOpen = await page.evaluate(
+        () => (window as unknown as {
+            __beercallFirstOpens?: Array<{
+                status: string;
+                world: string;
+                preparationAtTouch: { done: boolean };
+                phases: { data: number; canvas: number; avatars: number; frame: number; labels: number; total: number } | null;
+            }>;
+        }).__beercallFirstOpens?.at(-1),
+    );
+    expect(firstOpen?.world).toBe('bar');
+    expect(firstOpen?.preparationAtTouch.done).toBe(true);
+    expect(firstOpen?.phases?.total).toBeGreaterThan(0);
+    expect(firstOpen?.phases?.total).toBeLessThan(1_000);
 
     await waitForWorldCanvas(page);
     const before = await readWebglStats(page);
@@ -180,6 +208,71 @@ test('le parcours mesure 10 cycles complets et affiche la version', async ({ pag
     writeFileSync(path.join(screenshotDir, '8h4b1-world-probe.json'), json);
     await page.screenshot({
         path: path.join(screenshotDir, '8h4b1-world-probe.png'),
+        fullPage: true,
+    });
+});
+
+test('une première ouverture immédiate est mesurée sans préparation', async ({ page, request }) => {
+    test.setTimeout(300_000);
+
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    await page.route('**/beer-calls/*/worlds', async (route) => {
+        await gate;
+        await route.continue();
+    });
+
+    const session = await loginAs(page, request, 'FluiditeDemo');
+    const squadsResponse = await request.get('/api/squads/', {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+    });
+    expect(squadsResponse.ok()).toBeTruthy();
+    const squads = await squadsResponse.json() as Array<{ id: number; name: string; invite_code: string }>;
+    const squad40 = squads.find((squad) => squad.invite_code === 'FLUID40');
+    expect(squad40).toBeDefined();
+
+    await page.goto(`/squad/${squad40!.id}`);
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 20_000 });
+
+    const worldsButton = page.locator('button').filter({ hasText: /Mondes/i }).first();
+    await expect(worldsButton).toBeVisible({ timeout: 15_000 });
+    await worldsButton.click();
+    await expect(page.getByTestId('world-probe-toggle')).toBeVisible({ timeout: 20_000 });
+
+    // L'utilisateur a touché avant les données : on laisse la requête en attente
+    // deux secondes, puis on la libère pour mesurer la phase « données API ».
+    await page.waitForTimeout(2_000);
+    release();
+
+    await page.waitForFunction(
+        () => ((window as unknown as { __beercallFirstOpens?: Array<{ status?: string }> })
+            .__beercallFirstOpens?.at(-1)?.status) === 'complete',
+        null,
+        { timeout: 60_000 },
+    );
+    const entry = await page.evaluate(
+        () => (window as unknown as {
+            __beercallFirstOpens?: Array<{
+                status: string;
+                preparationAtTouch: { done: boolean; phase: string };
+                phases: { data: number; total: number } | null;
+            }>;
+        }).__beercallFirstOpens?.at(-1),
+    );
+    expect(entry?.preparationAtTouch.done).toBe(false);
+    expect(entry?.preparationAtTouch.phase).not.toBe('done');
+    expect(entry?.phases?.data).toBeGreaterThan(1_500);
+    expect(entry?.phases?.total).toBeGreaterThan(1_500);
+
+    writeFileSync(
+        path.join(screenshotDir, '8h4b3-first-open-immediate.json'),
+        JSON.stringify(entry, null, 2),
+    );
+
+    await page.screenshot({
+        path: path.join(screenshotDir, '8h4b3-first-open-immediate.png'),
         fullPage: true,
     });
 });

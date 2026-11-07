@@ -17,6 +17,11 @@ import { webglStats } from '../three/lease/webgl';
 import { getWorldPreloadStatus, type WorldPreloadStatus } from '../lib/worldPreloadState';
 import { WORLD_PROBE_BUILD_TIME, WORLD_PROBE_COMMIT } from './worldProbeGate';
 import {
+    getPreparationSnapshot,
+    grantAllPreparationAvatars,
+} from '../worlds/worldPreparation';
+import { getAppStartedAt, getFirstOpenHistory } from '../worlds/firstOpenMeasurement';
+import {
     countWorldLabels,
     describeLabels,
     expectedLabels,
@@ -268,6 +273,9 @@ function WorldProbePanelComponent({ worlds, sceneReady, readyWorlds }: WorldProb
         setProgress({ cycle: 0, transition: 0, world: null });
 
         try {
+            grantAllPreparationAvatars('bar');
+            grantAllPreparationAvatars('piscine');
+            grantAllPreparationAvatars('dodo');
             await waitForAllLayersReady();
             const warm = await warmUpAllLayers();
             if (mountedRef.current) setWarmup(warm);
@@ -315,6 +323,9 @@ function WorldProbePanelComponent({ worlds, sceneReady, readyWorlds }: WorldProb
     const stats = summarize(samples.map((sample) => sample.ms));
     const byWorld = summarizeByWorld(samples);
     const lastSample = samples[samples.length - 1];
+    const preparation = getPreparationSnapshot();
+    const firstOpens = getFirstOpenHistory();
+    const appStartedAt = getAppStartedAt();
     const lastByWorld = (['bar', 'piscine', 'dodo'] as WorldKind[]).reduce((result, world) => {
         result[world] = [...samples].reverse().find((sample) => sample.to === world);
         return result;
@@ -333,6 +344,9 @@ function WorldProbePanelComponent({ worlds, sceneReady, readyWorlds }: WorldProb
         },
         run: runCount,
         preload: getWorldPreloadStatus(),
+        preparation,
+        firstOpens,
+        appStartedAt,
         webgl: gl,
         warmup,
         status,
@@ -449,6 +463,57 @@ function WorldProbePanelComponent({ worlds, sceneReady, readyWorlds }: WorldProb
                             sur cet apéro.
                         </p>
                     )}
+                </div>
+
+                <div data-testid="world-preparation" className="mt-3 rounded-xl bg-white/5 p-3">
+                    <p className="font-bold">
+                        Préparation terminée : <span className={preparation.phase === 'done' ? 'text-emerald-400' : 'text-amber-300'}>
+                            {preparation.phase === 'done' ? 'oui' : 'non'}
+                        </span>
+                    </p>
+                    <p className="mt-1 text-[11px] text-white/60">
+                        Phase : {preparation.phase} · avatars{' '}
+                        {(['bar', 'piscine', 'dodo'] as WorldKind[]).reduce((total, world) => total + preparation.worlds[world].granted, 0)}
+                        /{(['bar', 'piscine', 'dodo'] as WorldKind[]).reduce((total, world) => total + preparation.worlds[world].total, 0)}
+                        {' '}· rendus {(['bar', 'piscine', 'dodo'] as WorldKind[]).filter((world) => preparation.worlds[world].frame).length}/3
+                        {' '}· libellés {preparation.labelsReady ? 'oui' : 'non'}
+                    </p>
+                    {preparation.doneAt !== null && (
+                        <p data-testid="world-preparation-elapsed" className="mt-1 text-[11px] text-white/60">
+                            Terminée à {formatMs(preparation.doneAt)} depuis l’ouverture · travail{' '}
+                            {formatMs(preparation.doneAt - (preparation.startedAt ?? preparation.doneAt))}
+                        </p>
+                    )}
+                    {preparation.errors.length > 0 && (
+                        <p className="mt-1 text-[11px] text-red-300">{preparation.errors.join(' · ')}</p>
+                    )}
+                </div>
+
+                <div data-testid="world-first-opens" className="mt-3 rounded-xl bg-white/5 p-3">
+                    <p className="font-bold">Premières ouvertures ({firstOpens.length})</p>
+                    {firstOpens.length === 0 && <p className="mt-1 text-[11px] text-white/50">Aucune mesure.</p>}
+                    {[...firstOpens].slice(-6).reverse().map((entry) => (
+                        <div key={entry.id} className="mt-2 border-t border-white/10 pt-2 text-[11px] text-white/70">
+                            <p>
+                                <span className="font-bold text-white">#{entry.id} {entry.world}</span>
+                                {' · '}{entry.beerCallId}
+                                {' · '}{entry.status === 'complete' && entry.phases
+                                    ? formatMs(entry.phases.total)
+                                    : entry.status}
+                            </p>
+                            {entry.phases && (
+                                <p className="mt-1 text-white/50">
+                                    API {formatMs(entry.phases.data)} · Canvas {formatMs(entry.phases.canvas)}
+                                    {' '}· avatars {formatMs(entry.phases.avatars)} · GPU {formatMs(entry.phases.frame)}
+                                    {' '}· libellés {formatMs(entry.phases.labels)}
+                                </p>
+                            )}
+                            <p className="mt-1 text-white/50">
+                                Au toucher : préparation {entry.preparationAtTouch.done ? 'oui' : entry.preparationAtTouch.phase}
+                                {' '}· préchargement {entry.preloadAtTouch.done ? 'oui' : 'non'}
+                            </p>
+                        </div>
+                    ))}
                 </div>
 
                 <div className="mt-3 flex gap-2">

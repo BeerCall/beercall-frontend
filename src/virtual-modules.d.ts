@@ -4,4 +4,7 @@ declare module 'virtual:world-probe' {
 
     /** `null` dans le build standard ; composant lazy dans le build de recette. */
     export const WorldProbePanel: ComponentType<WorldProbePanelProps> | null;
+
+    /** `null` dans le build standard ; badge de préparation dans le build de recette. */
+    export const WorldPreparationBadge: ComponentType | null;
 }

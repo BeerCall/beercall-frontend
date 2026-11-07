@@ -7,66 +7,124 @@ import {
     toMegabytes,
     type WorldPreloadPlan,
 } from '../lib/worldPreload';
-import { reportWorldPreloadDone, reportWorldPreloadStart } from '../lib/worldPreloadState';
+import {
+    getWorldPreloadStatus,
+    reportWorldPreloadDone,
+    reportWorldPreloadStart,
+} from '../lib/worldPreloadState';
 
 /**
- * 8h-3 — Préchargement au repos des GLB réellement montés par WorldScene.
+ * 8h-4b-3 — Préchargement GLB parallèle au repos.
  *
- * - 3 décors GLB + les pièces d'avatar head/body/legs/feet (accessoires exclus).
- * - Un fichier à la fois, uniquement dans une fenêtre de repos du tableau de
- *   bord : `whenPreloadIdle` écarte les interactions récentes, y compris sur
- *   Safari iOS qui n'a pas `requestIdleCallback`.
- * - Le cache `loadGlb` est partagé avec WorldScene/RealAvatar : un monde ouvert
- *   avant la fin réutilise les promesses en cours, sans second téléchargement.
- * - Tout échec est journalisé via `console.error` puis le fichier suivant est
- *   préparé ; aucun échec n'est avalé.
+ * - 3 fichiers en vol au maximum ; aucun nouveau départ pendant une interaction
+ *   (l'ordonnanceur `whenPreloadIdle` attend une fenêtre calme).
+ * - Une signature de plan évite de repasser « non terminé » lorsqu'une requête
+ *   de manifeste est simplement rafraîchie.
+ * - Chaque échec est journalisé ; le plan se termine quand même et le compte
+ *   d'échecs reste visible.
  */
+export const WORLD_PRELOAD_CONCURRENCY = 3;
+
 function WorldPreloadQueue({plan}: {plan: WorldPreloadPlan}) {
-    const [index, setIndex] = useState(0);
+    const existingStatus = getWorldPreloadStatus();
+    const alreadyDone = existingStatus.done && existingStatus.signature === plan.signature;
+    const [completed, setCompleted] = useState(alreadyDone ? plan.items.length : 0);
+    const [failures, setFailures] = useState(alreadyDone ? existingStatus.failures : 0);
     const startedAt = useRef<number | null>(null);
-    const failures = useRef<string[]>([]);
-    const finishedLogged = useRef(false);
+    const nextIndex = useRef(0);
+    const inFlight = useRef(0);
+    const failuresList = useRef<string[]>([]);
+    const cancelled = useRef(false);
+    const finished = useRef(false);
+    const cancelIdle = useRef<(() => void) | null>(null);
 
     useEffect(() => {
-        if (index < plan.items.length || finishedLogged.current) return;
-        finishedLogged.current = true;
-        const elapsedMs = Math.round(performance.now() - (startedAt.current ?? performance.now()));
-        reportWorldPreloadDone(plan.items.length, failures.current.length, elapsedMs);
-        console.info('[world] préchargement terminé', {
-            files: plan.items.length,
-            megabytes: toMegabytes(plan.bytes),
-            failures: failures.current.length,
-            elapsedMs,
-        });
-    }, [index, plan]);
+        const existing = getWorldPreloadStatus();
+        if (existing.done && existing.signature === plan.signature) {
+            finished.current = true;
+            return;
+        }
 
-    useEffect(() => {
-        if (index >= plan.items.length) return;
-        const item = plan.items[index];
-        let cancelled = false;
-        const cancelIdle = whenPreloadIdle(() => {
+        cancelled.current = false;
+        finished.current = false;
+        nextIndex.current = 0;
+        inFlight.current = 0;
+        failuresList.current = [];
+        startedAt.current = null;
+
+        const finish = () => {
+            if (finished.current) return;
+            finished.current = true;
+            const elapsedMs = Math.round(performance.now() - (startedAt.current ?? performance.now()));
+            reportWorldPreloadDone(
+                plan.items.length,
+                failuresList.current.length,
+                elapsedMs,
+                plan.signature,
+            );
+            console.info('[world] préchargement terminé', {
+                files: plan.items.length,
+                megabytes: toMegabytes(plan.bytes),
+                failures: failuresList.current.length,
+                elapsedMs,
+                concurrency: WORLD_PRELOAD_CONCURRENCY,
+            });
+        };
+
+        const schedule = () => {
+            if (cancelled.current || finished.current) return;
+            cancelIdle.current?.();
+            cancelIdle.current = whenPreloadIdle(pump);
+        };
+
+        const pump = () => {
+            if (cancelled.current || finished.current) return;
             if (startedAt.current === null) startedAt.current = performance.now();
-            preloadWorldAsset(item)
-                .then(() => {
-                    if (cancelled) return;
-                    performance.mark(`beercall:world-preload:${item.key}`);
-                    setIndex(current => current + 1);
-                })
-                .catch((error: unknown) => {
-                    if (cancelled) return;
-                    failures.current.push(item.url);
-                    console.error(`[world] préchargement échoué : ${item.url}`, error);
-                    setIndex(current => current + 1);
-                });
-        });
+            while (inFlight.current < WORLD_PRELOAD_CONCURRENCY && nextIndex.current < plan.items.length) {
+                const item = plan.items[nextIndex.current];
+                nextIndex.current += 1;
+                inFlight.current += 1;
+                preloadWorldAsset(item)
+                    .then(() => {
+                        if (cancelled.current) return;
+                        performance.mark(`beercall:world-preload:${item.key}`);
+                    })
+                    .catch((error: unknown) => {
+                        if (cancelled.current) return;
+                        failuresList.current.push(item.url);
+                        console.error(`[world] préchargement échoué : ${item.url}`, error);
+                    })
+                    .finally(() => {
+                        if (cancelled.current) return;
+                        inFlight.current -= 1;
+                        setCompleted((current) => current + 1);
+                        setFailures(failuresList.current.length);
+                        if (nextIndex.current >= plan.items.length && inFlight.current === 0) {
+                            finish();
+                        } else {
+                            schedule();
+                        }
+                    });
+            }
+            if (nextIndex.current >= plan.items.length && inFlight.current === 0) {
+                finish();
+            }
+        };
+
+        schedule();
 
         return () => {
-            cancelled = true;
-            cancelIdle();
+            cancelled.current = true;
+            cancelIdle.current?.();
+            cancelIdle.current = null;
         };
-    }, [plan, index]);
+    }, [plan]);
 
-    return null;
+    return (
+        <p className="sr-only" data-testid="world-preload-progress">
+            Préchargement : {completed}/{plan.items.length} fichiers, {failures} échec(s).
+        </p>
+    );
 }
 
 export default function WorldResourcePreparation() {
@@ -83,12 +141,13 @@ export default function WorldResourcePreparation() {
 
     useEffect(() => {
         if (!plan) return;
-        reportWorldPreloadStart(plan.items.length);
+        reportWorldPreloadStart(plan.items.length, plan.signature);
         console.info('[world] préchargement démarré', {
             files: plan.items.length,
             decors: plan.decorCount,
             avatarParts: plan.avatarCount,
             megabytes: toMegabytes(plan.bytes),
+            concurrency: WORLD_PRELOAD_CONCURRENCY,
         });
     }, [plan]);
 
@@ -98,5 +157,5 @@ export default function WorldResourcePreparation() {
     }, [manifest.isError, manifest.error]);
 
     if (!plan) return null;
-    return <WorldPreloadQueue key={`${plan.items.length}:${plan.items[0]?.url ?? ''}`} plan={plan}/>;
+    return <WorldPreloadQueue key={plan.signature} plan={plan}/>;
 }

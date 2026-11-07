@@ -23,6 +23,8 @@ export interface WorldPreloadPlan {
     bytes: number;
     decorCount: number;
     avatarCount: number;
+    /** Signature stable du jeu de fichiers, pour ne pas relancer un préchargement terminé. */
+    signature: string;
 }
 
 function isAvatarSlotKey(key: string): boolean {
@@ -49,6 +51,7 @@ export function buildWorldPreloadPlan(manifest: GlbManifest): WorldPreloadPlan {
         bytes: items.reduce((total, item) => total + item.bytes, 0),
         decorCount,
         avatarCount: items.length - decorCount,
+        signature: items.map((item) => item.url).join('|'),
     };
 }
 

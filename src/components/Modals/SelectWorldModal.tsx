@@ -1,4 +1,4 @@
-import {Suspense, useCallback, useEffect, useState, useMemo} from 'react';
+import {Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
@@ -10,6 +10,25 @@ import type {WorldsResponse} from '../../types/api';
 import type {WorldTab} from '../../lib/worldResources';
 import {beginWorldOpen, endWorldOpen} from '../../lib/worldOpenState';
 import {WorldViewport} from '../../worlds/WorldViewport';
+import {
+    grantAllPreparationAvatars,
+    markPreparationCanvasReady,
+    markPreparationDataReady,
+    markPreparationLabelsReady,
+    resetPreparationForTarget,
+    setPreparationOpenWorld,
+    setPreparationPriority,
+} from '../../worlds/worldPreparation';
+import {
+    beginFirstOpen,
+    failFirstOpen,
+    markFirstOpenAvatars,
+    markFirstOpenCanvas,
+    markFirstOpenData,
+    markFirstOpenFrame,
+    markFirstOpenLabels,
+} from '../../worlds/firstOpenMeasurement';
+import {countWorldLabels, expectedLabels, labelsSatisfied} from '../../perf/worldProbeMetrics';
 import {WORLD_PROBE_ENABLED} from '../../perf/worldProbeGate';
 import {WorldProbePanel} from 'virtual:world-probe';
 
@@ -23,6 +42,8 @@ interface SelectWorldModalProps {
     squadId: string;
     beerCallId: string;
     isActiveApero: boolean;
+    /** Beer Call affiché sur la carte : préparation au repos même modale fermée. */
+    preparationBeerCallId?: string | null;
 }
 
 export default function SelectWorldModal({
@@ -31,12 +52,12 @@ export default function SelectWorldModal({
     squadId,
     beerCallId,
     isActiveApero,
+    preparationBeerCallId = null,
 }: SelectWorldModalProps) {
     const dashboardActive = useDashboardActive();
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
-    const [hasOpened, setHasOpened] = useState(false);
     const [hasViewportData, setHasViewportData] = useState(false);
-    if (isOpen && !hasOpened) setHasOpened(true);
+    const firstOpenBegan = useRef(false);
     const [readyWorlds, setReadyWorlds] = useState<Partial<Record<WorldTab, boolean>>>({});
     // Signal de disponibilité de la scène, consommé uniquement par le probe.
     const [sceneReady, setSceneReady] = useState<{world: WorldTab | null; tick: number}>({
@@ -47,7 +68,10 @@ export default function SelectWorldModal({
     const markSceneReady = useCallback((world: WorldTab) => {
         setReadyWorlds((previous) => previous[world] ? previous : {...previous, [world]: true});
         setSceneReady((previous) => ({world, tick: previous.tick + 1}));
-    }, []);
+        if (WORLD_PROBE_ENABLED && isOpen && world === activeTab) {
+            markFirstOpenAvatars();
+        }
+    }, [activeTab, isOpen]);
 
     // Le préchargement GLB au repos laisse la place au monde ouvert.
     useEffect(() => {
@@ -61,8 +85,8 @@ export default function SelectWorldModal({
     if (isOpen && (lastContext.squadId !== squadId || lastContext.beerCallId !== beerCallId)) {
         setLastContext({squadId, beerCallId});
     }
-    const activeSquadId = isOpen ? squadId : lastContext.squadId;
-    const activeBeerCallId = isOpen ? beerCallId : lastContext.beerCallId;
+    const activeSquadId = isOpen ? squadId : (preparationBeerCallId ? squadId : lastContext.squadId);
+    const activeBeerCallId = isOpen ? beerCallId : (preparationBeerCallId || lastContext.beerCallId);
 
     const {data: worldsData, isPending, isError, refetch} = useQuery({
         queryKey: ['worlds', activeSquadId, activeBeerCallId],
@@ -72,12 +96,32 @@ export default function SelectWorldModal({
             );
             return response.data.worlds;
         },
-        enabled: isOpen && !!activeSquadId && !!activeBeerCallId,
+        enabled: !!activeSquadId && !!activeBeerCallId,
     });
 
     // Ajustement pendant le rendu : le Canvas doit rester monté dès la première
     // donnée, même quand une nouvelle requête repasse par `undefined`.
     if (worldsData && !hasViewportData) setHasViewportData(true);
+
+    // La préparation suit le Beer Call réellement affiché/ouvert. Layout effect :
+    // le magasin doit connaître la cible avant les effets de montage des couches.
+    useLayoutEffect(() => {
+        const target = isOpen ? beerCallId : preparationBeerCallId;
+        if (target) resetPreparationForTarget(target);
+    }, [isOpen, beerCallId, preparationBeerCallId]);
+
+    useEffect(() => {
+        if (!worldsData || !activeBeerCallId) return;
+        markPreparationDataReady();
+    }, [worldsData, activeBeerCallId]);
+
+    // Le Canvas persiste d'une cible à l'autre : onCreated ne rejoue pas, donc
+    // on réarme explicitement l'état Canvas quand une nouvelle cible est prête.
+    useEffect(() => {
+        if (!hasViewportData || !activeBeerCallId) return;
+        const timer = window.setTimeout(() => markPreparationCanvasReady(), 0);
+        return () => window.clearTimeout(timer);
+    }, [hasViewportData, activeBeerCallId]);
 
     // Une nouvelle version de données reconstruit les couches (jamais le Canvas).
     const dataVersion = worldsData
@@ -138,6 +182,83 @@ export default function SelectWorldModal({
     const hasWorldData = worldsData !== undefined && worldsData !== null;
     const participantsReliable = hasWorldData && !isPending && !isError;
     const canLaunchGame = isActiveApero && participantsReliable && currentParticipants.length >= 2;
+
+    // Priorité au monde affiché. Si on ouvre avant la fin (et même avant les
+    // données), on accorde tout de suite les avatars de ce monde dès qu'elles arrivent.
+    useEffect(() => {
+        setPreparationPriority(activeTab);
+        setPreparationOpenWorld(isOpen ? activeTab : null);
+        if (isOpen && hasWorldData) grantAllPreparationAvatars(activeTab);
+    }, [isOpen, activeTab, activeBeerCallId, hasWorldData]);
+
+    // Libellés du monde affiché déjà montés pour la préparation.
+    useEffect(() => {
+        if (!hasWorldData) return;
+        const expected = expectedLabels(activeTab, currentParticipants);
+        let cancelled = false;
+        let raf = 0;
+        const tick = () => {
+            if (cancelled) return;
+            if (labelsSatisfied(countWorldLabels(), expected)) {
+                markPreparationLabelsReady();
+                return;
+            }
+            raf = window.requestAnimationFrame(tick);
+        };
+        tick();
+        return () => {
+            cancelled = true;
+            window.cancelAnimationFrame(raf);
+        };
+    }, [hasWorldData, activeTab, currentParticipants]);
+
+    // Mesure de la vraie première ouverture, sans passer par le probe.
+    useEffect(() => {
+        if (!isOpen) {
+            firstOpenBegan.current = false;
+            return;
+        }
+        if (!WORLD_PROBE_ENABLED || firstOpenBegan.current || !worldsData) return;
+        firstOpenBegan.current = true;
+        const expected = expectedLabels(activeTab, currentParticipants);
+        const entry = beginFirstOpen(beerCallId, activeTab, expected, Boolean(readyWorlds[activeTab]));
+        if (entry.dataAt === null) markFirstOpenData();
+    }, [isOpen, worldsData, beerCallId, activeTab, currentParticipants, readyWorlds]);
+
+    useEffect(() => {
+        if (!isOpen || !WORLD_PROBE_ENABLED || !hasWorldData) return;
+        const expected = expectedLabels(activeTab, currentParticipants);
+        let cancelled = false;
+        let raf = 0;
+        const deadline = performance.now() + 30_000;
+        const tick = () => {
+            if (cancelled) return;
+            const labels = countWorldLabels();
+            if (labelsSatisfied(labels, expected)) {
+                markFirstOpenLabels(labels);
+                return;
+            }
+            if (performance.now() > deadline) {
+                failFirstOpen(new Error('Libellés absents après 30 s'));
+                return;
+            }
+            raf = window.requestAnimationFrame(tick);
+        };
+        tick();
+        return () => {
+            cancelled = true;
+            window.cancelAnimationFrame(raf);
+        };
+    }, [isOpen, hasWorldData, activeTab, currentParticipants]);
+
+    const handleCanvasCreated = useCallback(() => {
+        markPreparationCanvasReady();
+        if (WORLD_PROBE_ENABLED) markFirstOpenCanvas();
+    }, []);
+
+    const handleFirstFrame = useCallback(() => {
+        if (WORLD_PROBE_ENABLED) markFirstOpenFrame();
+    }, []);
 
     // Contrôle accessible de lancement : le levier 3D reste le contrôle visuel,
     // mais un bouton masqué permet aux lecteurs d'écran et aux tests E2E de démarrer la partie.
@@ -213,7 +334,7 @@ export default function SelectWorldModal({
                 </div>}
                 <div className="flex-1 relative transition-colors duration-500"
                      style={{backgroundColor: THEMES[activeTab].bg}}>
-                    {dashboardActive && hasOpened && hasViewportData && (
+                    {dashboardActive && hasViewportData && (
                         <WorldViewport
                             open={isOpen}
                             activeTab={activeTab}
@@ -221,6 +342,8 @@ export default function SelectWorldModal({
                             dataVersion={dataVersion}
                             onLayerReady={markSceneReady}
                             onSelectPhoto={handleSelectPhoto}
+                            onCanvasCreated={handleCanvasCreated}
+                            onFirstFrame={handleFirstFrame}
                         />
                     )}
 

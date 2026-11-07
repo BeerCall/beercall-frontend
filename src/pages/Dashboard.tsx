@@ -12,6 +12,9 @@ import { useMemberLocations } from '../hooks/useMemberLocations';
 import { useLocationSync } from '../hooks/useLocationSync';
 import { toSnapPeople } from '../map/snap/toSnapPeople';
 import { recoverableImport } from '../lib/chunkRecovery';
+// Installe tôt l'écoute du toucher « Mondes » pour mesurer depuis le doigt.
+import '../worlds/firstOpenMeasurement';
+import { WorldPreparationBadge } from 'virtual:world-probe';
 
 const GameScreen = React.lazy(recoverableImport(() => import('./GameScreen'), 'GameScreen'));
 const CreateSquadModal = React.lazy(recoverableImport(() => import('../components/Modals/CreateSquadModal'), 'CreateSquadModal'));
@@ -29,6 +32,10 @@ export default function Dashboard() {
     const squadErrorStatus = isAxiosError(dashboard.squadError) ? dashboard.squadError.response?.status : undefined;
     const squadErrorMessage = squadErrorStatus === 403 ? 'Accès à cette squad refusé'
         : squadErrorStatus === 404 ? 'Squad introuvable' : 'Squad indisponible';
+    // Préparation au repos : l'apéro affiché sur la carte (actif, sinon le premier passé).
+    const preparationBeerCallId = dashboard.squadDetails?.active_beer_call?.[0]?.id
+        ?? dashboard.squadDetails?.past_beer_calls?.[0]?.id
+        ?? null;
 
     const people = React.useMemo(() => toSnapPeople({
         members: memberLocations.data ?? [],
@@ -218,8 +225,10 @@ export default function Dashboard() {
                                 squadId={dashboard.id || ''} coordinates={dashboard.scheduleCoordinates}/>}
             {routeActive && !dashboard.isGameScreenOpen && (
                 <SelectWorldModal isOpen={!!dashboard.isWorldsModalOpen} onClose={() => dashboard.setIsWorldsModalOpen(null)}
-                                  squadId={dashboard.id || ''} beerCallId={dashboard.isWorldsModalOpen || ''} isActiveApero={!!dashboard.isActiveApero}/>
+                                  squadId={dashboard.id || ''} beerCallId={dashboard.isWorldsModalOpen || ''} isActiveApero={!!dashboard.isActiveApero}
+                                  preparationBeerCallId={preparationBeerCallId}/>
             )}
+            {routeActive && WorldPreparationBadge && <WorldPreparationBadge/>}
             </Suspense>
         </div>
     );
