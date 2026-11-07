@@ -8,6 +8,8 @@ import Layout from './components/Layout';
 import ToastContainer from './components/UI/ToastContainer';
 import PersistentDashboard from './components/PersistentDashboard';
 import PersistentConnections from './components/PersistentConnections';
+// Préchargement GLB au repos : aucun Canvas, aucun contexte WebGL.
+import WorldWarmup from './components/WorldWarmup';
 
 // Lazy loading extrême pour tuer le Bundle Size Obèse (LCP optimisé)
 const Login = React.lazy(() => import('./pages/Login'));
@@ -112,6 +114,7 @@ function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
                 </Suspense>
                 <PersistentDashboard/>
                 <PersistentConnections/>
+                <WorldWarmup/>
             </BrowserRouter>
         </QueryClientProvider>
     );

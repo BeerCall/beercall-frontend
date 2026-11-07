@@ -10,6 +10,7 @@
 
 import React, {
     Suspense,
+    use,
     useCallback,
     useEffect,
     useMemo,
@@ -17,18 +18,18 @@ import React, {
     useState,
     type RefObject,
 } from 'react';
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { Box3, Color, Group, Raycaster, type Object3D } from 'three';
-import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
+import { loadGlb } from '../avatar/glb/loadGlb';
 import { RealAvatar } from '../avatar/glb/RealAvatar';
 import { useGlbManifest } from '../avatar/glb/useGlbManifest';
 import WorldExcuseBubble, { excuseForWorld } from './WorldExcuseBubble';
 import { WorldIdentityStack, nameForWorld } from './WorldNameLabel';
 import { excuseAnchorY, photoAnchorY } from './photoAnchor';
+import { createHeadHeightBatcher } from './headHeightBatcher';
 import { globalLeaseController } from '../three/lease/leaseController';
 import { useLease } from '../three/lease/useLease';
 import { destroyRenderer, trackRenderer } from '../three/lease/webgl';
@@ -85,11 +86,9 @@ function Model({
     modelOffsetY: number;
     groupRef: RefObject<Group | null>;
 }) {
-    const gltf = useLoader(
-        GLTFLoader,
-        url,
-        (loader: GLTFLoader) => loader.setMeshoptDecoder(MeshoptDecoder),
-    ) as GLTF;
+    // Même cache CPU que le préchargement et RealAvatar : ouvrir un monde avant
+    // la fin du préchargement réutilise la promesse en cours, sans retélécharger.
+    const gltf = use(loadGlb(url));
     const clone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
     return (
         <group
@@ -154,8 +153,9 @@ function WorldAvatar({
 }) {
     // P2 parity: the PoC world default renders no accessories (step 5).
     const bodyConfig = useMemo(() => {
-        const { accessory: _accessory, ...rest } = config;
-        return rest;
+        const next = {...config};
+        delete next.accessory;
+        return next;
     }, [config]);
     return (
         <RealAvatar
@@ -188,17 +188,27 @@ function Crowd({
 }) {
     const [placements, setPlacements] = useState<Placement[] | null>(null);
     const [headHeights, setHeadHeights] = useState<Record<number, number>>({});
+    // Une seule mise à jour d'état pour toutes les hauteurs de tête du monde.
+    const headHeightBatcher = useMemo(
+        () => createHeadHeightBatcher({
+            onFlush: (heights) => {
+                console.info(`[world] labels ${kind}`, {count: Object.keys(heights).length});
+                setHeadHeights(heights);
+            },
+        }),
+        [kind],
+    );
     const handleHeadAnchor = useCallback((index: number, height: number) => {
-        setHeadHeights(previous => (
-            previous[index] === height ? previous : {...previous, [index]: height}
-        ));
-    }, []);
+        headHeightBatcher.add(index, height);
+    }, [headHeightBatcher]);
+
+    useEffect(() => () => headHeightBatcher.cancel(), [headHeightBatcher]);
 
     useEffect(() => {
         const group = groupRef.current;
         if (!group) return;
         const measured = measure(group, kind, participants.length);
-        console.info('[world] measure', {
+        console.info(`[world] measure ${kind}`, {
             participants: participants.length,
             available: measured.available,
             placements: measured.placements.length,
@@ -207,6 +217,15 @@ function Crowd({
         });
         setPlacements(measured.placements);
     }, [groupRef, kind, participants.length]);
+
+    const expectedHeadAnchors = placements
+        ? placements.filter((placement) => placement.surface && Boolean(participants[placement.index]?.avatar_config)).length
+        : 0;
+
+    useEffect(() => {
+        if (!placements) return;
+        headHeightBatcher.setExpected(expectedHeadAnchors);
+    }, [placements, expectedHeadAnchors, headHeightBatcher]);
 
     if (!placements) return null;
 
@@ -257,14 +276,16 @@ function Crowd({
 }
 
 function EntryReporter({
-    readyCount,
-    idleCount,
+    kind,
+    ready,
+    idle,
     expected,
     startedAt,
     onEntry,
 }: {
-    readyCount: number;
-    idleCount: number;
+    kind: WorldKind;
+    ready: RefObject<Set<number>>;
+    idle: RefObject<Set<number>>;
     expected: number;
     startedAt: number;
     onEntry: (entryMs: number) => void;
@@ -273,11 +294,12 @@ function EntryReporter({
     const reported = useRef(false);
     useFrame(() => {
         if (reported.current) return;
-        if (readyCount < expected || idleCount < expected) return;
+        // Les compteurs vivent dans des refs : aucune readiness ne re-rend la scène.
+        if ((ready.current?.size ?? 0) < expected || (idle.current?.size ?? 0) < expected) return;
         if ((gl.info?.render.frame ?? 0) <= 0) return;
         reported.current = true;
         const entryMs = performance.now() - startedAt;
-        console.info('[world] ready', { entryMs: Math.round(entryMs), avatars: expected });
+        console.info(`[world] ready ${kind}`, { entryMs: Math.round(entryMs), avatars: expected });
         onEntry(entryMs);
     });
     return null;
@@ -298,20 +320,16 @@ function Scene({
 }) {
     const spec = WORLD_SPECS[kind];
     const groupRef = useRef<Group | null>(null);
-    const startedAt = useRef(performance.now());
+    const [startedAt] = useState(() => performance.now());
     const expected = participants.filter((participant) => Boolean(participant.avatar_config)).length;
-    const [readyCount, setReadyCount] = useState(0);
-    const [idleCount, setIdleCount] = useState(0);
     const ready = useRef(new Set<number>());
     const idle = useRef(new Set<number>());
 
     const onAvatarReady = useCallback((index: number) => {
         ready.current.add(index);
-        setReadyCount(ready.current.size);
     }, []);
     const onAvatarIdle = useCallback((index: number) => {
         idle.current.add(index);
-        setIdleCount(idle.current.size);
     }, []);
 
     return (
@@ -336,10 +354,11 @@ function Scene({
             />
             <Controls autoRotate={false} target={spec.target} />
             <EntryReporter
-                readyCount={readyCount}
-                idleCount={idleCount}
+                kind={kind}
+                ready={ready}
+                idle={idle}
                 expected={expected}
-                startedAt={startedAt.current}
+                startedAt={startedAt}
                 onEntry={onEntry}
             />
         </>

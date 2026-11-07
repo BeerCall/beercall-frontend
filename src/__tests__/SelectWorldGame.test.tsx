@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SelectWorldModal from '../components/Modals/SelectWorldModal';
+import { isWorldOpen, resetWorldOpenState } from '../lib/worldOpenState';
 import { useGameUIStore } from '../store/useGameUIStore';
 import { server } from './mocks/server';
 
@@ -23,6 +24,19 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation à 
 
     afterEach(() => {
         useGameUIStore.getState().closeGameScreen();
+        resetWorldOpenState();
+    });
+
+    it('suspend le préchargement GLB tant que la modale des mondes est ouverte', () => {
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const { unmount } = render(
+            <QueryClientProvider client={queryClient}>
+                <SelectWorldModal isOpen onClose={vi.fn()} squadId="1" beerCallId="bc_1" isActiveApero />
+            </QueryClientProvider>
+        );
+        expect(isWorldOpen()).toBe(true);
+        unmount();
+        expect(isWorldOpen()).toBe(false);
     });
 
     it('supprime le bouton HTML et transmet participantsReliable=true à BarWorld', async () => {

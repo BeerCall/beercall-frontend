@@ -1,4 +1,4 @@
-import {useState, useMemo} from 'react';
+import {useEffect, useState, useMemo} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
@@ -7,6 +7,7 @@ import {useGameEngine} from '../../hooks/useGameEngine';
 import {useGameUIStore} from '../../store/useGameUIStore';
 import type {WorldsResponse} from '../../types/api';
 import type {WorldTab} from '../../lib/worldResources';
+import {beginWorldOpen, endWorldOpen} from '../../lib/worldOpenState';
 import {WorldScene} from '../../worlds/WorldScene';
 
 // 📸 IMPORT DE TA MODALE
@@ -39,6 +40,12 @@ export default function SelectWorldModal({
 }: SelectWorldModalProps) {
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
     const [tabGeneration, setTabGeneration] = useState(0);
+    // Le préchargement GLB au repos laisse la place au monde ouvert.
+    useEffect(() => {
+        if (!isOpen) return;
+        beginWorldOpen();
+        return () => endWorldOpen();
+    }, [isOpen]);
     const contextKey = isOpen ? JSON.stringify([squadId, beerCallId]) : null;
     const [sceneContext, setSceneContext] = useState(contextKey);
     if (sceneContext !== contextKey) {
