@@ -34,6 +34,11 @@ import WorldExcuseBubble, { excuseForWorld } from './WorldExcuseBubble';
 import { WorldIdentityStack, nameForWorld } from './WorldNameLabel';
 import { excuseAnchorY, photoAnchorY } from './photoAnchor';
 import { createHeadHeightBatcher } from './headHeightBatcher';
+import {
+    WORLD_CAMERA_MIN_POLAR_ANGLE,
+    worldCameraMaxPolarAngle,
+} from './worldCameraLimits';
+import { getWorldFloor, setWorldFloor, useWorldFloor } from './worldFloors';
 import { globalLeaseController } from '../three/lease/leaseController';
 import { useLease } from '../three/lease/useLease';
 import { destroyRenderer, trackRenderer } from '../three/lease/webgl';
@@ -104,6 +109,8 @@ declare global {
 function Controls({ kind, enabled }: { kind: WorldKind; enabled: boolean }) {
     const { camera, gl } = useThree();
     const controls = useRef<OrbitControls | null>(null);
+    const floorY = useWorldFloor(kind);
+    const maxPolarAngle = worldCameraMaxPolarAngle(kind, floorY);
 
     useEffect(() => {
         const spec = WORLD_SPECS[kind];
@@ -111,6 +118,8 @@ function Controls({ kind, enabled }: { kind: WorldKind; enabled: boolean }) {
         instance.enableDamping = false;
         instance.enablePan = false;
         instance.autoRotate = false;
+        instance.minPolarAngle = WORLD_CAMERA_MIN_POLAR_ANGLE;
+        instance.maxPolarAngle = worldCameraMaxPolarAngle(kind, getWorldFloor(kind));
         instance.target.set(...spec.target);
         camera.position.set(...spec.camera);
         camera.lookAt(...spec.target);
@@ -121,6 +130,15 @@ function Controls({ kind, enabled }: { kind: WorldKind; enabled: boolean }) {
             controls.current = null;
         };
     }, [camera, gl, kind]);
+
+    // Le sol arrive après la première mesure du décor : on resserre ou desserre
+    // la borne sans recréer les contrôles ni replacer la caméra.
+    useEffect(() => {
+        const instance = controls.current;
+        if (!instance) return;
+        instance.maxPolarAngle = maxPolarAngle;
+        instance.update();
+    }, [maxPolarAngle]);
 
     useFrame(() => {
         if (enabled) controls.current?.update();
@@ -378,6 +396,7 @@ function Crowd({
             bounds: measured.bounds,
         });
         setPlacements(measured.placements);
+        setWorldFloor(kind, measured.planeY);
     }, [groupRef, kind, participants.length]);
 
     const expectedHeadAnchors = placements
