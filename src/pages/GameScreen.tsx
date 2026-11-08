@@ -59,6 +59,7 @@ export default function GameScreen({aperoIdProp}: { aperoIdProp: string | null }
             {/* 🚀 2. LE BOUTON FERMER (Permanent, en haut à gauche) */}
             <button
                 onClick={closeGameScreen}
+                aria-label="Fermer le jeu"
                 className="absolute top-[calc(15px+env(safe-area-inset-top))] left-6 z-[110] p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/10 transition-all active:scale-90"
             >
                 <X size={24} className="text-white"/>

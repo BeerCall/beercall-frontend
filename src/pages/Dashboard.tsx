@@ -231,13 +231,13 @@ export default function Dashboard() {
                                   hasLiveLocation={dashboard.canCreateFromLocation}/>}
             {routeActive && dashboard.isScheduleModalOpen && <ScheduleAperoModal isOpen onClose={() => dashboard.setIsScheduleModalOpen(false)}
                                 squadId={dashboard.id || ''} coordinates={dashboard.scheduleCoordinates}/>}
-            {routeActive && !dashboard.isGameScreenOpen && (
-                <SelectWorldModal isOpen={!!dashboard.isWorldsModalOpen} onClose={() => dashboard.setIsWorldsModalOpen(null)}
+            {routeActive && (
+                <SelectWorldModal isOpen={!!dashboard.isWorldsModalOpen && !dashboard.isGameScreenOpen} onClose={() => dashboard.setIsWorldsModalOpen(null)}
                                   squadId={dashboard.id || ''} beerCallId={dashboard.isWorldsModalOpen || ''} isActiveApero={!!dashboard.isActiveApero}
                                   preparationBeerCallId={preparationBeerCallId}
                                   onSelectUser={handleSelectWorldUser}/>
             )}
-            {routeActive && WorldPreparationBadge && <WorldPreparationBadge/>}
+            {routeActive && WorldPreparationBadge && !dashboard.isGameScreenOpen && <WorldPreparationBadge/>}
             </Suspense>
         </div>
     );

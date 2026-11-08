@@ -39,6 +39,7 @@ import {
     worldCameraMaxPolarAngle,
 } from './worldCameraLimits';
 import { getWorldFloor, setWorldFloor, useWorldFloor } from './worldFloors';
+import SlotMachine from './SlotMachine';
 import { globalLeaseController } from '../three/lease/leaseController';
 import { useLease } from '../three/lease/useLease';
 import { destroyRenderer, trackRenderer } from '../three/lease/webgl';
@@ -89,6 +90,14 @@ export interface WorldViewportProps {
     onSelectPhoto?: (url: string) => void;
     /** Ouvre le profil de l'avatar touché (Bar, Piscine ou Dodo). */
     onSelectUser?: (userId: string) => void;
+    /** Tire le levier de la machine à sous du Bar (lance ou reprend la partie). */
+    onPullLever?: () => void;
+    /** Une partie est en cours : l'écran affiche « Rejoindre la squad ». */
+    gameInProgress?: boolean;
+    /** Démarrage de partie en cours : le levier est verrouillé. */
+    gameLocked?: boolean;
+    /** Apéro actif et au moins deux participants fiables au Bar. */
+    canLaunchGame?: boolean;
     onCanvasCreated?: () => void;
     onFirstFrame?: () => void;
 }
@@ -518,6 +527,10 @@ const WorldLayer = memo(function WorldLayer({
     onLayerReady,
     onSelectPhoto,
     onSelectUser,
+    onPullLever,
+    gameInProgress,
+    gameLocked,
+    canLaunchGame,
 }: {
     kind: WorldKind;
     decorUrl: string;
@@ -532,6 +545,10 @@ const WorldLayer = memo(function WorldLayer({
     onLayerReady: (world: WorldKind) => void;
     onSelectPhoto?: (url: string) => void;
     onSelectUser?: (userId: string) => void;
+    onPullLever?: () => void;
+    gameInProgress?: boolean;
+    gameLocked?: boolean;
+    canLaunchGame?: boolean;
 }) {
     const spec = WORLD_SPECS[kind];
     const groupRef = useRef<Group | null>(null);
@@ -595,6 +612,15 @@ const WorldLayer = memo(function WorldLayer({
                 startedAt={startedAt}
                 onEntry={() => onLayerReady(kind)}
             />
+            {kind === 'bar' && onPullLever && (
+                <SlotMachine
+                    active={active}
+                    canLaunch={Boolean(canLaunchGame)}
+                    gameInProgress={Boolean(gameInProgress)}
+                    locked={Boolean(gameLocked)}
+                    onPull={onPullLever}
+                />
+            )}
             <PrepFrame world={kind} active={prepActive}/>
         </group>
     );
@@ -682,6 +708,10 @@ function ViewportCanvas({
     onLayerReady,
     onSelectPhoto,
     onSelectUser,
+    onPullLever,
+    gameInProgress,
+    gameLocked,
+    canLaunchGame,
     onCanvasCreated,
     onFirstFrame,
     onContextFailed,
@@ -800,6 +830,10 @@ function ViewportCanvas({
                             onLayerReady={onLayerReady ?? NOOP}
                             onSelectPhoto={world === activeTab ? onSelectPhoto : undefined}
                             onSelectUser={onSelectUser}
+                            onPullLever={onPullLever}
+                            gameInProgress={gameInProgress}
+                            gameLocked={gameLocked}
+                            canLaunchGame={canLaunchGame}
                         />
                     );
                 })}

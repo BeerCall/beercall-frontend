@@ -27,6 +27,16 @@ vi.mock('react-router-dom', async () => {
     };
 });
 
+// La modale réelle charge un Canvas 3D : un faux composant suffit pour vérifier
+// qu'elle reste montée (Canvas persistant) tout en étant fermée pendant le jeu.
+vi.mock('../components/Modals/SelectWorldModal', () => ({
+    default: ({isOpen}: {isOpen: boolean}) => (
+        <div data-testid="select-world-modal" data-open={isOpen ? '1' : '0'} aria-hidden={!isOpen}>
+            Les 3 Mondes
+        </div>
+    ),
+}));
+
 const { dashboardUseFrameMock, dashboardUseThreeMock } = vi.hoisted(() => {
     const frameCallbacks = new Set<(state: unknown, delta: number) => void>();
     const gl = {
@@ -165,7 +175,7 @@ describe('Dashboard & Squads', () => {
         expect(screen.getByTestId('mock-map')).toBeInTheDocument();
     });
 
-    it('ferme la modale des mondes quand l’écran de jeu est ouvert', () => {
+    it('garde la modale des mondes montée mais fermée quand l’écran de jeu est ouvert', async () => {
         vi.mocked(useDashboard).mockReturnValue({
             id: '1',
             profile: { username: 'validUser' },
@@ -201,7 +211,9 @@ describe('Dashboard & Squads', () => {
 
         render(<Dashboard />);
 
-        expect(screen.queryByText('Les 3 Mondes')).not.toBeInTheDocument();
+        const modal = await screen.findByTestId('select-world-modal');
+        expect(modal).toHaveAttribute('data-open', '0');
+        expect(modal).toHaveAttribute('aria-hidden', 'true');
     });
 
     it('Comportement temporel: Vérification des compteurs avec de faux timers', async () => {

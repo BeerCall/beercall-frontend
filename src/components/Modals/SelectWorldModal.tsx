@@ -282,8 +282,22 @@ export default function SelectWorldModal({
 
     // Contrôle accessible de lancement : le levier 3D reste le contrôle visuel,
     // mais un bouton masqué permet aux lecteurs d'écran et aux tests E2E de démarrer la partie.
-    const {startGame, isLocked} = useGameEngine(beerCallId, {enabled: isActiveApero});
+    const {gameState, startGame, isLocked} = useGameEngine(beerCallId, {enabled: isActiveApero});
     const openGameScreen = useGameUIStore((state) => state.openGameScreen);
+
+    // 8l — le levier du Bar et le bouton accessible partagent ce lancement :
+    // la modale se referme (le Canvas reste monté) et le jeu prend l'écran.
+    const handleStartGame = useCallback(() => {
+        startGame({
+            onSuccess: () => {
+                openGameScreen(beerCallId);
+                onClose();
+            },
+            onError: (error) => {
+                console.error('[world] démarrage du jeu impossible', error);
+            },
+        });
+    }, [startGame, openGameScreen, beerCallId, onClose]);
 
     const handleSelectPhoto = (url: string) => {
         const urls = proofPhotos.length ? proofPhotos : [url];
@@ -338,12 +352,7 @@ export default function SelectWorldModal({
                     aria-label="Démarrer la partie"
                     className="sr-only"
                     disabled={!canLaunchGame || isLocked}
-                    onClick={() => startGame({
-                        onSuccess: () => {
-                            openGameScreen(beerCallId);
-                            onClose();
-                        },
-                    })}
+                    onClick={handleStartGame}
                 >
                     Démarrer la partie
                 </button>
@@ -364,6 +373,10 @@ export default function SelectWorldModal({
                             onLayerReady={markSceneReady}
                             onSelectPhoto={handleSelectPhoto}
                             onSelectUser={onSelectUser}
+                            onPullLever={handleStartGame}
+                            gameInProgress={Boolean(gameState)}
+                            gameLocked={isLocked}
+                            canLaunchGame={canLaunchGame}
                             onCanvasCreated={handleCanvasCreated}
                             onFirstFrame={handleFirstFrame}
                         />
