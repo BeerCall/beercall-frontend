@@ -63,6 +63,13 @@ export interface WorldViewportProps {
     open: boolean;
     activeTab: WorldKind;
     worlds?: Record<string, WorldDetails>;
+    /**
+     * Apéro auquel appartiennent `worlds` (squad + Beer Call). Les données de
+     * l'apéro précédent ne sont retenues que tant que cette clé ne change pas :
+     * au changement de squad, le Canvas reste monté mais les participants
+     * périmés ne sont ni affichés ni enregistrés dans la préparation.
+     */
+    dataKey: string;
     /** Version des données (Beer Call + participants) : reconstruit les couches, pas le Canvas. */
     dataVersion: string;
     onLayerReady?: (world: WorldKind) => void;
@@ -500,6 +507,7 @@ function ViewportCanvas({
     open,
     activeTab,
     worlds,
+    dataKey,
     dataVersion,
     onLayerReady,
     onSelectPhoto,
@@ -562,9 +570,16 @@ function ViewportCanvas({
     }, [preparation.phase, open]);
     // Conserve les dernières données pendant qu'un nouveau Beer Call charge :
     // le Canvas ne doit jamais être démonté pour un simple changement de query.
-    const [lastWorlds, setLastWorlds] = useState<Record<string, WorldDetails> | undefined>(worlds);
-    if (worlds && lastWorlds !== worlds) setLastWorlds(worlds);
-    const data = worlds ?? lastWorlds;
+    // La rétention est liée à `dataKey` : dès que l'apéro change, les données
+    // de l'ancien apéro sont abandonnées au lieu d'être réutilisées.
+    const [retained, setRetained] = useState<{key: string; worlds?: Record<string, WorldDetails>}>(() => ({
+        key: dataKey,
+        worlds,
+    }));
+    if (retained.key !== dataKey || (worlds !== undefined && retained.worlds !== worlds)) {
+        setRetained({key: dataKey, worlds});
+    }
+    const data = worlds ?? (retained.key === dataKey ? retained.worlds : undefined);
 
     if (!granted || !token || !manifestQuery.data) {
         return <div className="w-full h-full" />;

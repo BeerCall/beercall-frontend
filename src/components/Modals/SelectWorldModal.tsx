@@ -105,6 +105,15 @@ export default function SelectWorldModal({
 
     // La préparation suit le Beer Call réellement affiché/ouvert. Layout effect :
     // le magasin doit connaître la cible avant les effets de montage des couches.
+    // Au changement de squad, l'ancienne cible est invalidée immédiatement : le
+    // badge ne montre jamais le total de la squad quittée pendant le chargement.
+    const preparationSquadId = useRef(squadId);
+    useLayoutEffect(() => {
+        if (preparationSquadId.current === squadId) return;
+        preparationSquadId.current = squadId;
+        resetPreparationForTarget(null);
+    }, [squadId]);
+
     useLayoutEffect(() => {
         const target = isOpen ? beerCallId : preparationBeerCallId;
         if (target) resetPreparationForTarget(target);
@@ -230,16 +239,24 @@ export default function SelectWorldModal({
         const expected = expectedLabels(activeTab, currentParticipants);
         let cancelled = false;
         let raf = 0;
-        const deadline = performance.now() + 30_000;
+        // Un monde qui progresse lentement (réseau froid) reste mesuré ; on
+        // n'échoue que si plus aucun libellé n'apparaît pendant 30 s.
+        let lastCount = -1;
+        let lastProgressAt = performance.now();
         const tick = () => {
             if (cancelled) return;
             const labels = countWorldLabels();
+            const count = labels.names + labels.photos + labels.excuses;
+            if (count > lastCount) {
+                lastCount = count;
+                lastProgressAt = performance.now();
+            }
             if (labelsSatisfied(labels, expected)) {
                 markFirstOpenLabels(labels);
                 return;
             }
-            if (performance.now() > deadline) {
-                failFirstOpen(new Error('Libellés absents après 30 s'));
+            if (performance.now() - lastProgressAt > 30_000) {
+                failFirstOpen(new Error('Libellés bloqués : aucun nouveau libellé depuis 30 s'));
                 return;
             }
             raf = window.requestAnimationFrame(tick);
@@ -339,6 +356,7 @@ export default function SelectWorldModal({
                             open={isOpen}
                             activeTab={activeTab}
                             worlds={worldsData}
+                            dataKey={`${activeSquadId}:${activeBeerCallId}`}
                             dataVersion={dataVersion}
                             onLayerReady={markSceneReady}
                             onSelectPhoto={handleSelectPhoto}

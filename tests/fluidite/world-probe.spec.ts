@@ -55,6 +55,29 @@ async function waitForWorldCanvas(page: Page): Promise<void> {
     );
 }
 
+/**
+ * Précharge les GLB dans le cache HTTP du navigateur. Ce banc a un réseau
+ * local très irrégulier à froid (certaines pièces mettent >10 s) ; on isole la
+ * mesure de première ouverture du téléchargement sans toucher à la préparation
+ * applicative (l'API des mondes reste bloquée par le test).
+ */
+async function warmGlbCache(page: Page): Promise<void> {
+    await page.evaluate(async () => {
+        const response = await fetch('/models/glb/manifest.json');
+        if (!response.ok) throw new Error(`Manifeste GLB indisponible (${response.status})`);
+        const manifest = await response.json() as { items?: Array<{ url?: string }> };
+        const urls = (manifest.items ?? [])
+            .map((item) => item.url)
+            .filter((url): url is string => Boolean(url));
+        if (urls.length === 0) throw new Error('Manifeste GLB sans fichier');
+        await Promise.all(urls.map(async (url) => {
+            const file = await fetch(url);
+            if (!file.ok) throw new Error(`GLB indisponible (${file.status}) : ${url}`);
+            await file.arrayBuffer();
+        }));
+    });
+}
+
 function expectNoContextChurn(before: WebglStats, after: WebglStats): void {
     expect(after.created).toBe(before.created);
     expect(after.released).toBe(before.released);
@@ -213,7 +236,7 @@ test('le parcours mesure 10 cycles complets et affiche la version', async ({ pag
 });
 
 test('une première ouverture immédiate est mesurée sans préparation', async ({ page, request }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(420_000);
 
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -238,6 +261,7 @@ test('une première ouverture immédiate est mesurée sans préparation', async 
 
     const worldsButton = page.locator('button').filter({ hasText: /Mondes/i }).first();
     await expect(worldsButton).toBeVisible({ timeout: 15_000 });
+    await warmGlbCache(page);
     await worldsButton.click();
     await expect(page.getByTestId('world-probe-toggle')).toBeVisible({ timeout: 20_000 });
 
@@ -250,7 +274,7 @@ test('une première ouverture immédiate est mesurée sans préparation', async 
         () => ((window as unknown as { __beercallFirstOpens?: Array<{ status?: string }> })
             .__beercallFirstOpens?.at(-1)?.status) === 'complete',
         null,
-        { timeout: 60_000 },
+        { timeout: 180_000 },
     );
     const entry = await page.evaluate(
         () => (window as unknown as {
@@ -273,6 +297,97 @@ test('une première ouverture immédiate est mesurée sans préparation', async 
 
     await page.screenshot({
         path: path.join(screenshotDir, '8h4b3-first-open-immediate.png'),
+        fullPage: true,
+    });
+});
+
+test('le badge garde le total de la squad courante au changement de squad', async ({ page, request }) => {
+    test.setTimeout(600_000);
+
+    const session = await loginAs(page, request, 'FluiditeDemo');
+    const squadsResponse = await request.get('/api/squads/', {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+    });
+    expect(squadsResponse.ok()).toBeTruthy();
+    const squads = await squadsResponse.json() as Array<{ id: number; name: string; invite_code: string }>;
+    const squad50 = squads.find((squad) => squad.invite_code === 'FLUID50');
+    const squad40 = squads.find((squad) => squad.invite_code === 'FLUID40');
+    expect(squad50).toBeDefined();
+    expect(squad40).toBeDefined();
+
+    const detailsResponse = await request.get(`/api/squads/${squad40!.id}`, {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+    });
+    expect(detailsResponse.ok()).toBeTruthy();
+    const details = await detailsResponse.json() as {
+        active_beer_call?: Array<{ id: string }>;
+        past_beer_calls?: Array<{ id: string }>;
+    };
+    const target40 = details.active_beer_call?.[0]?.id ?? details.past_beer_calls?.[0]?.id;
+    expect(target40).toBeTruthy();
+
+    await page.goto(`/squad/${squad50!.id}`);
+    const badge = page.getByTestId('world-preparation-badge');
+    await expect(badge).toBeVisible({ timeout: 30_000 });
+
+    // Squad A (FLUID50) préparée : Dodo 50, Bar/Piscine 0 → total 50.
+    await page.waitForFunction(
+        () => (window as unknown as { __beercallPreparation?: { phase?: string } })
+            .__beercallPreparation?.phase === 'done',
+        null,
+        { timeout: 240_000 },
+    );
+    await expect(badge).toHaveAttribute('data-total-avatars', '50');
+    await expect(badge).toContainText('Préparation terminée : oui');
+
+    // Le prochain apéro (FLUID40) est retenu pour observer le badge pendant
+    // que la nouvelle squad charge encore.
+    let release40!: () => void;
+    const gate40 = new Promise<void>((resolve) => {
+        release40 = resolve;
+    });
+    await page.route(`**/beer-calls/${target40}/worlds`, async (route) => {
+        await gate40;
+        await route.continue();
+    });
+
+    await page.locator(`button[data-squad-id="${squad40!.id}"]`).click();
+    await expect(badge).toHaveAttribute('data-beer-call-id', target40!, { timeout: 30_000 });
+
+    // Pendant le chargement de B, le total ne doit jamais être celui de A.
+    expect(await badge.getAttribute('data-data-ready')).toBe('false');
+    expect(await badge.getAttribute('data-total-avatars')).toBe('0');
+
+    release40();
+
+    // Squad B (FLUID40) : Bar 10 + Piscine 10 + Dodo 0 → total 20.
+    await expect(badge).toHaveAttribute('data-data-ready', 'true', { timeout: 60_000 });
+    await expect(badge).toHaveAttribute('data-total-avatars', '20', { timeout: 60_000 });
+    await page.waitForFunction(
+        (target) => {
+            const preparation = (window as unknown as {
+                __beercallPreparation?: { targetBeerCallId?: string; phase?: string };
+            }).__beercallPreparation;
+            return preparation?.targetBeerCallId === target && preparation?.phase === 'done';
+        },
+        target40,
+        { timeout: 240_000 },
+    );
+    await expect(badge).toHaveAttribute('data-total-avatars', '20');
+    await expect(badge).toContainText('Préparation terminée : oui');
+
+    writeFileSync(
+        path.join(screenshotDir, '8h4b3b-badge-squads.json'),
+        JSON.stringify({
+            squad50: {id: squad50!.id, invite_code: squad50!.invite_code},
+            squad40: {id: squad40!.id, invite_code: squad40!.invite_code},
+            target40,
+            finalTotal: await badge.getAttribute('data-total-avatars'),
+            finalPhase: await badge.getAttribute('data-preparation-phase'),
+        }, null, 2),
+    );
+    await page.screenshot({
+        path: path.join(screenshotDir, '8h4b3b-badge-squad40.png'),
         fullPage: true,
     });
 });
