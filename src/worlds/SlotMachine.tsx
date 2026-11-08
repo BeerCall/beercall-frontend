@@ -15,6 +15,7 @@ import {
     SLOT_LEVER_PULL_MS,
     SLOT_MACHINE_POSITION,
     SLOT_MACHINE_ROTATION_Y,
+    SLOT_MACHINE_SCALE,
     shouldPullLever,
     slotMachineScreen,
 } from './slotMachineRules';
@@ -83,13 +84,14 @@ const SlotMachine = memo(function SlotMachine({
     }, []);
 
     // Diagnostic uniquement : publie la position écran de la boîte de toucher.
+    // `canLaunch` compte : la cible n'existe qu'une fois la machine rendue.
     useEffect(() => {
-        if (!WORLD_PROBE_ENABLED || !active) return;
+        if (!WORLD_PROBE_ENABLED || !active || !canLaunch) return;
         const object = hitRef.current;
         if (!object) return;
         registerSlotMachineTarget(object, camera);
         return () => unregisterSlotMachineTarget(object);
-    }, [active, camera]);
+    }, [active, canLaunch, camera]);
 
     useFrame((_, delta) => {
         const lever = leverRef.current;
@@ -112,7 +114,11 @@ const SlotMachine = memo(function SlotMachine({
     };
 
     return (
-        <group position={SLOT_MACHINE_POSITION} rotation={[0, SLOT_MACHINE_ROTATION_Y, 0]}>
+        <group
+            position={SLOT_MACHINE_POSITION}
+            rotation={[0, SLOT_MACHINE_ROTATION_Y, 0]}
+            scale={SLOT_MACHINE_SCALE}
+        >
             <mesh position={[0, 0.18, 0]}>
                 <boxGeometry args={[1.7, 0.36, 0.95]}/>
                 <meshStandardMaterial color="#111827" roughness={0.9}/>
@@ -151,11 +157,11 @@ const SlotMachine = memo(function SlotMachine({
             </group>
             <mesh
                 ref={hitRef}
-                position={[0, 1.1, 0]}
+                position={[0.1, 0.98, 0]}
                 visible={false}
                 onClick={active ? handlePull : undefined}
             >
-                <boxGeometry args={[2.5, 2.4, 1.3]}/>
+                <boxGeometry args={[2.1, 1.95, 1.0]}/>
                 <meshBasicMaterial/>
             </mesh>
         </group>

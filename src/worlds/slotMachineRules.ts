@@ -7,11 +7,14 @@
  */
 import { shouldOpenAvatarProfile } from './avatarHitTarget';
 
-/** Machine en lévitation au-dessus du comptoir, hors de portée des avatars. */
-export const SLOT_MACHINE_POSITION: [number, number, number] = [-1.5, 2.45, 1.2];
+/** Posée sur le plateau (y = 1,235) de la table centrale du Bar, côté caméra. */
+export const SLOT_MACHINE_POSITION: [number, number, number] = [3.35, 1.235, 2.6];
 
 /** Orientation : l'écran regarde la caméra initiale du Bar. */
-export const SLOT_MACHINE_ROTATION_Y = 0.9;
+export const SLOT_MACHINE_ROTATION_Y = 0.6;
+
+/** Échelle : proportions crédibles posées sur une table de 1,90 unité. */
+export const SLOT_MACHINE_SCALE = 0.5;
 
 /** Durée de l'abaissement du levier avant l'appel réseau. */
 export const SLOT_LEVER_PULL_MS = 600;
