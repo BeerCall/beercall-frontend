@@ -130,6 +130,9 @@ test('8l — le levier du Bar lance puis reprend la partie au même endroit', as
     // 1. Le levier s'abaisse puis ouvre le jeu (transition de tour).
     await pullLever(page);
     await expect(page.getByText('NOUVEAU DÉFI', { exact: false })).toBeVisible({ timeout: 30_000 });
+    // 8l-3 : la bande sous l'indicateur d'accueil est peinte dans la couleur du jeu.
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor))
+        .toBe('rgb(3, 7, 18)');
     await page.screenshot({ path: path.join(screenshotDir, '8l-jeu-ouverture.png') });
     const afterOpen = await readContextTracker(page);
 
@@ -143,6 +146,8 @@ test('8l — le levier du Bar lance puis reprend la partie au même endroit', as
     // 3. Fermer le jeu, rouvrir le Bar, ré-actionner le levier : même partie.
     await page.getByRole('button', { name: 'Fermer le jeu' }).click();
     await expect(page.locator('header h3')).toHaveCount(0, { timeout: 20_000 });
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor))
+        .toBe('rgb(15, 8, 28)');
     const afterClose = await readContextTracker(page);
     await openWorlds(page);
     await pullLever(page);
