@@ -24,7 +24,7 @@ import React, {
 } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { Box3, Color, Group, Raycaster, type Object3D } from 'three';
+import { Box3, Color, Group, Raycaster, type Mesh, type Object3D } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { loadGlb } from '../avatar/glb/loadGlb';
@@ -46,6 +46,14 @@ import {
     getPreparationSnapshot,
 } from './worldPreparation';
 import { isPreloadQuiet } from '../lib/preloadSchedule';
+import { WORLD_PROBE_ENABLED } from '../perf/worldProbeGate';
+import {
+    AVATAR_HIT_HEIGHT,
+    AVATAR_HIT_RADIUS,
+    AVATAR_HIT_SEGMENTS,
+    shouldOpenAvatarProfile,
+} from './avatarHitTarget';
+import { registerWorldHitTarget, unregisterWorldHitTarget } from './worldHitTargets';
 import type { WorldDetails, WorldParticipant } from '../types/api';
 import {
     WORLD_SPECS,
@@ -74,6 +82,8 @@ export interface WorldViewportProps {
     dataVersion: string;
     onLayerReady?: (world: WorldKind) => void;
     onSelectPhoto?: (url: string) => void;
+    /** Ouvre le profil de l'avatar touché (Bar, Piscine ou Dodo). */
+    onSelectUser?: (userId: string) => void;
     onCanvasCreated?: () => void;
     onFirstFrame?: () => void;
 }
@@ -86,6 +96,8 @@ declare global {
     interface Window {
         /** Nombre de frames rendues par le Canvas monde (diagnostic probe). */
         __beercallWorldFrame?: number;
+        /** Nombre d'objets testés par le raycaster R3F (diagnostic probe 8i). */
+        __beercallWorldRaycasts?: number;
     }
 }
 
@@ -179,6 +191,99 @@ function measure(root: Object3D, kind: WorldKind, count: number): WorldMeasure {
     return { bounds, placements, planeY, available: surface.length };
 }
 
+/**
+ * 8i — cylindre invisible, sans survol ni suivi. `visible={false}` supprime
+ * tout coût de rendu ; le raycaster Three ignore ce drapeau et teste donc la
+ * géométrie au clic et à l'appui seulement.
+ *
+ * Le cylindre reste monté pendant toute la vie du monde. Seul le gestionnaire
+ * de clic est branché sur la couche active : R3F ne met alors dans sa liste de
+ * raycast que les cylindres actifs, donc les couches cachées n'interceptent
+ * rien et ne coûtent rien. Changer d'onglet ne crée ni ne détruit de géométrie.
+ */
+const AvatarHitTarget = memo(function AvatarHitTarget({
+    world,
+    userId,
+    username,
+    active,
+    onSelectUser,
+}: {
+    world: WorldKind;
+    userId: string;
+    username?: string | null;
+    active: boolean;
+    onSelectUser: (userId: string) => void;
+}) {
+    const meshRef = useRef<Mesh>(null);
+    const camera = useThree((state) => state.camera);
+
+    // Diagnostic uniquement : publie la position NDC après deux RAF, quand la
+    // caméra et les placements sont stables. Aucune projection par image.
+    useEffect(() => {
+        if (!WORLD_PROBE_ENABLED || !active) return;
+        let first = 0;
+        let second = 0;
+        first = requestAnimationFrame(() => {
+            second = requestAnimationFrame(() => {
+                if (!meshRef.current) return;
+                registerWorldHitTarget({
+                    world, userId, username, object: meshRef.current, camera,
+                });
+            });
+        });
+        return () => {
+            cancelAnimationFrame(first);
+            cancelAnimationFrame(second);
+            unregisterWorldHitTarget(world, userId);
+        };
+    }, [active, camera, userId, username, world]);
+
+    return (
+        <mesh
+            ref={meshRef}
+            position={[0, AVATAR_HIT_HEIGHT / 2, 0]}
+            visible={false}
+            onClick={active ? (event) => {
+                event.stopPropagation();
+                if (!shouldOpenAvatarProfile(event.delta)) return;
+                onSelectUser(userId);
+            } : undefined}
+        >
+            <cylinderGeometry
+                args={[AVATAR_HIT_RADIUS, AVATAR_HIT_RADIUS, AVATAR_HIT_HEIGHT, AVATAR_HIT_SEGMENTS]}
+            />
+            <meshBasicMaterial/>
+        </mesh>
+    );
+});
+
+/**
+ * 8i — la zone n'apparaît qu'une fois l'avatar accordé par la préparation, donc
+ * en même temps que le GLB, et jamais à l'ouverture de la modale.
+ */
+const AvatarHitSlot = memo(function AvatarHitSlot({
+    world,
+    index,
+    userId,
+    username,
+    active,
+    onSelectUser,
+}: {
+    world: WorldKind;
+    index: number;
+    userId?: string | number;
+    username?: string | null;
+    active: boolean;
+    onSelectUser: (userId: string) => void;
+}) {
+    const granted = usePreparationAvatarGranted(world, index);
+    if (!granted || userId === undefined) return null;
+    return (
+        <AvatarHitTarget world={world} userId={String(userId)} username={username}
+                         active={active} onSelectUser={onSelectUser}/>
+    );
+});
+
 const WorldAvatar = memo(function WorldAvatar({
     kind,
     config,
@@ -225,20 +330,24 @@ function Crowd({
     kind,
     participants,
     labelsVisible,
+    active,
     isActive,
     groupRef,
     onReady,
     onIdle,
     onSelectPhoto,
+    onSelectUser,
 }: {
     kind: WorldKind;
     participants: WorldParticipant[];
     labelsVisible: boolean;
+    active: boolean;
     isActive: () => boolean;
     groupRef: RefObject<Group | null>;
     onReady: (index: number) => void;
     onIdle: (index: number) => void;
     onSelectPhoto?: (url: string) => void;
+    onSelectUser?: (userId: string) => void;
 }) {
     const [placements, setPlacements] = useState<Placement[] | null>(null);
     const [headHeights, setHeadHeights] = useState<Record<number, number>>({});
@@ -307,6 +416,16 @@ function Crowd({
                             onIdle={onIdle}
                             onHeadAnchor={handleHeadAnchor}
                         />
+                        {onSelectUser && (
+                            <AvatarHitSlot
+                                world={kind}
+                                index={placement.index}
+                                userId={participant.user_id ?? participant.id}
+                                username={participant.username}
+                                active={active}
+                                onSelectUser={onSelectUser}
+                            />
+                        )}
                         {labelsVisible && kind !== 'piscine' && headHeight !== undefined && (name || (photoUrl && onSelectPhoto)) && (
                             <Html position={[0, photoAnchorY(headHeight), 0]} center
                                   zIndexRange={[100, 0]} style={{pointerEvents: 'none'}}>
@@ -373,22 +492,27 @@ const WorldLayer = memo(function WorldLayer({
     participants,
     groupVisible,
     labelsVisible,
+    active,
     prepActive,
     dataVersion,
     activityRef,
     onLayerReady,
     onSelectPhoto,
+    onSelectUser,
 }: {
     kind: WorldKind;
     decorUrl: string;
     participants: WorldParticipant[];
     groupVisible: boolean;
     labelsVisible: boolean;
+    /** Couche affichée et modale ouverte : seule cette couche répond au toucher. */
+    active: boolean;
     prepActive: boolean;
     dataVersion: string;
     activityRef: RefObject<{world: WorldKind; open: boolean}>;
     onLayerReady: (world: WorldKind) => void;
     onSelectPhoto?: (url: string) => void;
+    onSelectUser?: (userId: string) => void;
 }) {
     const spec = WORLD_SPECS[kind];
     const groupRef = useRef<Group | null>(null);
@@ -436,11 +560,13 @@ const WorldLayer = memo(function WorldLayer({
                 kind={kind}
                 participants={participants}
                 labelsVisible={labelsVisible}
+                active={active}
                 isActive={isActive}
                 groupRef={groupRef}
                 onReady={onAvatarReady}
                 onIdle={onAvatarIdle}
                 onSelectPhoto={onSelectPhoto}
+                onSelectUser={onSelectUser}
             />
             <EntryReporter
                 kind={kind}
@@ -462,6 +588,31 @@ function FrameReporter() {
             window.__beercallWorldFrame = gl.info.render.frame;
         }
     });
+    return null;
+}
+
+/**
+ * Diagnostic 8i : compte les objets réellement testés par le raycaster Three.
+ * Installé uniquement dans le build probe. Un déplacement sans gestionnaire de
+ * survol ne doit ajouter aucun test.
+ */
+function installProbeRaycastCounter(): () => void {
+    const prototype = Raycaster.prototype;
+    const original = prototype.intersectObject;
+    const patched = function (this: Raycaster, ...args: Parameters<typeof original>) {
+        if (typeof window !== 'undefined') {
+            window.__beercallWorldRaycasts = (window.__beercallWorldRaycasts ?? 0) + 1;
+        }
+        return original.apply(this, args);
+    };
+    prototype.intersectObject = patched as typeof original;
+    return () => {
+        prototype.intersectObject = original;
+    };
+}
+
+function ProbeRaycastCounter() {
+    useEffect(() => installProbeRaycastCounter(), []);
     return null;
 }
 
@@ -511,6 +662,7 @@ function ViewportCanvas({
     dataVersion,
     onLayerReady,
     onSelectPhoto,
+    onSelectUser,
     onCanvasCreated,
     onFirstFrame,
     onContextFailed,
@@ -604,6 +756,7 @@ function ViewportCanvas({
         >
             <WorldContextRecovery onFailed={onContextFailed} onRestored={onContextRestored}/>
             <FrameReporter/>
+            {WORLD_PROBE_ENABLED && <ProbeRaycastCounter/>}
             <FirstOpenFrame open={open} onFirstFrame={onFirstFrame}/>
             <Controls kind={activeTab} enabled={open || Boolean(prepWorld)}/>
             <color attach="background" args={[new Color('#17222d')]} />
@@ -621,11 +774,13 @@ function ViewportCanvas({
                             participants={data?.[world]?.participants ?? EMPTY_PARTICIPANTS}
                             groupVisible={world === activeTab || prepWorld === world}
                             labelsVisible={world === activeTab}
+                            active={open && world === activeTab}
                             prepActive={prepWorld === world}
                             dataVersion={dataVersion}
                             activityRef={activityRef}
                             onLayerReady={onLayerReady ?? NOOP}
                             onSelectPhoto={world === activeTab ? onSelectPhoto : undefined}
+                            onSelectUser={onSelectUser}
                         />
                     );
                 })}

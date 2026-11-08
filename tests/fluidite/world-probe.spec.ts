@@ -78,6 +78,75 @@ async function warmGlbCache(page: Page): Promise<void> {
     });
 }
 
+async function openWorlds(page: Page): Promise<void> {
+    const worldsButton = page.locator('button').filter({ hasText: /Mondes/i }).first();
+    await expect(worldsButton).toBeVisible({ timeout: 15_000 });
+    await worldsButton.click();
+    await expect(page.locator('button[data-world-tab="bar"]')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('world-probe-toggle')).toBeVisible({ timeout: 20_000 });
+}
+
+/** Rouvre les mondes depuis le dashboard restauré après un retour de profil. */
+async function reopenWorlds(page: Page): Promise<void> {
+    const worldsButton = page.locator('button').filter({ hasText: /Mondes/i }).first();
+    await expect(worldsButton).toBeVisible({ timeout: 20_000 });
+    await worldsButton.click();
+    await expect(page.locator('button[data-world-tab="bar"]')).toBeVisible({ timeout: 20_000 });
+}
+
+interface ScreenPoint {
+    x: number;
+    y: number;
+}
+
+/** Cible publiée par le build probe : position NDC du centre d'un avatar. */
+interface WorldHitTarget {
+    world: string;
+    userId: string;
+    username: string | null;
+    ndcX: number;
+    ndcY: number;
+}
+
+async function readHitTargets(page: Page): Promise<WorldHitTarget[]> {
+    return page.evaluate(
+        () => (window as unknown as {
+            __beercallWorldHitTargets?: () => WorldHitTarget[];
+        }).__beercallWorldHitTargets?.() ?? [],
+    );
+}
+
+/** Attend la publication des cibles de la couche active (deux RAF après montage). */
+async function waitForHitTargets(page: Page, world: string): Promise<WorldHitTarget[]> {
+    const inside = (targets: WorldHitTarget[]) => targets.filter(
+        (target) => target.world === world
+            && Math.abs(target.ndcX) < 0.92
+            && Math.abs(target.ndcY) < 0.92,
+    );
+    await expect.poll(
+        async () => inside(await readHitTargets(page)).length,
+        { timeout: 180_000 },
+    ).toBeGreaterThan(0);
+    return inside(await readHitTargets(page));
+}
+
+/** Traduit les coordonnées NDC d'une cible en point écran sur le canvas. */
+async function pointForTarget(page: Page, target: WorldHitTarget): Promise<ScreenPoint> {
+    const box = await worldCanvasBox(page);
+    return {
+        x: box.x + ((target.ndcX + 1) / 2) * box.width,
+        y: box.y + (1 - (target.ndcY + 1) / 2) * box.height,
+    };
+}
+
+async function worldCanvasBox(page: Page) {
+    const canvas = page.getByTestId('world-viewport').locator('canvas');
+    await expect(canvas).toBeVisible({ timeout: 20_000 });
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Canvas monde introuvable');
+    return box;
+}
+
 function expectNoContextChurn(before: WebglStats, after: WebglStats): void {
     expect(after.created).toBe(before.created);
     expect(after.released).toBe(before.released);
@@ -301,6 +370,80 @@ test('une première ouverture immédiate est mesurée sans préparation', async 
     });
 });
 
+test('une première ouverture à froid enregistre le temps sans borne stricte', async ({ page, request }) => {
+    test.setTimeout(600_000);
+
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    await page.route('**/beer-calls/*/worlds', async (route) => {
+        await gate;
+        await route.continue();
+    });
+
+    const session = await loginAs(page, request, 'FluiditeDemo');
+    const squadsResponse = await request.get('/api/squads/', {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+    });
+    expect(squadsResponse.ok()).toBeTruthy();
+    const squads = await squadsResponse.json() as Array<{ id: number; name: string; invite_code: string }>;
+    const squad40 = squads.find((squad) => squad.invite_code === 'FLUID40');
+    expect(squad40).toBeDefined();
+
+    await page.goto(`/squad/${squad40!.id}`);
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 20_000 });
+
+    // Aucun préchauffage du cache HTTP : c'est le froid réel qui est mesuré.
+    const worldsButton = page.locator('button').filter({ hasText: /Mondes/i }).first();
+    await expect(worldsButton).toBeVisible({ timeout: 15_000 });
+    await worldsButton.click();
+    await expect(page.getByTestId('world-probe-toggle')).toBeVisible({ timeout: 20_000 });
+
+    await page.waitForTimeout(2_000);
+    release();
+
+    // Seule une absence totale de résultat fait échouer : pas de borne sur le
+    // temps mesuré, et l'application échoue elle-même après 30 s sans progrès.
+    await page.waitForFunction(
+        () => {
+            const last = (window as unknown as {
+                __beercallFirstOpens?: Array<{ status?: string }>;
+            }).__beercallFirstOpens?.at(-1);
+            return last?.status === 'complete' || last?.status === 'error';
+        },
+        null,
+        { timeout: 240_000 },
+    );
+    const entry = await page.evaluate(
+        () => (window as unknown as {
+            __beercallFirstOpens?: Array<{
+                status: string;
+                error: string | null;
+                world: string;
+                preparationAtTouch: { done: boolean; phase: string };
+                phases: { data: number; total: number } | null;
+            }>;
+        }).__beercallFirstOpens?.at(-1),
+    );
+    expect(entry).toBeDefined();
+    if (entry?.status === 'error') {
+        throw new Error(`Première ouverture à froid échouée : ${entry.error}`);
+    }
+    expect(entry?.status).toBe('complete');
+    expect(entry?.phases?.total).toBeGreaterThan(0);
+
+    writeFileSync(
+        path.join(screenshotDir, '8h8i-first-open-cold.json'),
+        JSON.stringify(entry, null, 2),
+    );
+
+    await page.screenshot({
+        path: path.join(screenshotDir, '8h8i-first-open-cold.png'),
+        fullPage: true,
+    });
+});
+
 test('le badge garde le total de la squad courante au changement de squad', async ({ page, request }) => {
     test.setTimeout(600_000);
 
@@ -505,6 +648,228 @@ test('deux parcours FLUID50 gardent un seul contexte et la carte', async ({ page
 
     await page.screenshot({
         path: path.join(screenshotDir, '8h4b2-map-apres-fermeture.png'),
+        fullPage: true,
+    });
+});
+
+/** Vérifie que la fiche ouverte correspond à un avatar de la couche active. */
+async function expectProfileOfActiveAvatar(
+    page: Page,
+    targets: WorldHitTarget[],
+): Promise<WorldHitTarget> {
+    await expect.poll(() => page.url(), { timeout: 20_000 }).toMatch(/\/profile\//);
+    const openedId = decodeURIComponent(new URL(page.url()).pathname.replace(/^\/profile\//, ''));
+    const match = targets.find((target) => target.userId === openedId);
+    expect(match, `profil ${openedId} absent des cibles de la couche active`).toBeDefined();
+    if (match?.username) {
+        await expect(page.locator('h1').first())
+            .toContainText(match.username, { ignoreCase: true, timeout: 20_000 });
+    }
+    return match!;
+}
+
+test('un avatar ouvre son profil au Bar et à la Piscine, une preuve ouvre la photo', async ({ page, request }) => {
+    test.setTimeout(900_000);
+
+    const session = await loginAs(page, request, 'FluiditeDemo');
+    const squadsResponse = await request.get('/api/squads/', {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+    });
+    expect(squadsResponse.ok()).toBeTruthy();
+    const squads = await squadsResponse.json() as Array<{ id: number; name: string; invite_code: string }>;
+    const squad40 = squads.find((squad) => squad.invite_code === 'FLUID40');
+    expect(squad40).toBeDefined();
+
+    await page.goto(`/squad/${squad40!.id}`);
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 20_000 });
+    await openWorlds(page);
+
+    // Pseudos et bulles ne doivent jamais intercepter un toucher.
+    await expect(page.locator('[data-world-name]').first()).toBeVisible({ timeout: 180_000 });
+    const labelPointerEvents = await page.locator('[data-world-name]').first()
+        .evaluate((element) => getComputedStyle(element).pointerEvents);
+    expect(labelPointerEvents).toBe('none');
+
+    // Un simple déplacement ne doit tester aucun objet : la zone n'écoute que
+    // l'appui et le clic, jamais le survol.
+    const canvasBox = await worldCanvasBox(page);
+    const raycastsBefore = await page.evaluate(
+        () => (window as unknown as { __beercallWorldRaycasts?: number }).__beercallWorldRaycasts ?? -1,
+    );
+    expect(raycastsBefore).toBeGreaterThanOrEqual(0);
+    for (let step = 0; step < 8; step += 1) {
+        await page.mouse.move(canvasBox.x + 12 + step * 3, canvasBox.y + 40 + step * 7);
+    }
+    const raycastsAfter = await page.evaluate(
+        () => (window as unknown as { __beercallWorldRaycasts?: number }).__beercallWorldRaycasts ?? -1,
+    );
+    expect(raycastsAfter).toBe(raycastsBefore);
+
+    // Bar : toucher le centre d'une cible connue ouvre une fiche du Bar.
+    const barTargets = await waitForHitTargets(page, 'bar');
+    const barPoint = await pointForTarget(page, barTargets[0]);
+    await page.mouse.click(barPoint.x, barPoint.y);
+    const barTarget = await expectProfileOfActiveAvatar(page, barTargets);
+    const barProfileUrl = page.url();
+
+    await page.goBack();
+    await expect(page.getByTestId('world-viewport')).toHaveAttribute('data-open', '0', { timeout: 20_000 });
+
+    // Piscine : la bulle d'excuse ne bloque pas le toucher non plus.
+    await reopenWorlds(page);
+    await page.locator('button[data-world-tab="piscine"]').click();
+    await expect(page.locator('[data-world-excuse]').first()).toBeVisible({ timeout: 180_000 });
+    const bubblePointerEvents = await page.locator('[data-world-excuse]').first()
+        .evaluate((element) => getComputedStyle(element).pointerEvents);
+    expect(bubblePointerEvents).toBe('none');
+    const piscineTargets = await waitForHitTargets(page, 'piscine');
+    const piscinePoint = await pointForTarget(page, piscineTargets[0]);
+    await page.mouse.click(piscinePoint.x, piscinePoint.y);
+    const piscineTarget = await expectProfileOfActiveAvatar(page, piscineTargets);
+    const piscineProfileUrl = page.url();
+
+    await page.goBack();
+    await expect(page.getByTestId('world-viewport')).toHaveAttribute('data-open', '0', { timeout: 20_000 });
+
+    // Bar : la preuve photo reste prioritaire et ouvre la photo, pas un profil.
+    await reopenWorlds(page);
+    await page.locator('button[data-world-tab="bar"]').click();
+    const photo = page.locator('[data-world-photo]').first();
+    await expect(photo).toBeVisible({ timeout: 180_000 });
+    const photoPointerEvents = await photo.evaluate((element) => getComputedStyle(element).pointerEvents);
+    expect(photoPointerEvents).toBe('auto');
+    // Deux preuves peuvent se chevaucher : on touche un point où une preuve est
+    // réellement au premier plan, comme le ferait un doigt.
+    const photoPoint = await page.evaluate(() => {
+        const nodes = Array.from(document.querySelectorAll('[data-world-photo]'));
+        for (const node of nodes) {
+            const rect = node.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            const hit = document.elementFromPoint(x, y);
+            if (hit?.closest('[data-world-photo]')) return { x, y };
+        }
+        return null;
+    });
+    expect(photoPoint).not.toBeNull();
+    await page.mouse.click(photoPoint!.x, photoPoint!.y);
+    const fullPhoto = page.locator('img[alt="Aperçu de la photo"]');
+    await expect(fullPhoto).toBeVisible({ timeout: 10_000 });
+    await expect(page).toHaveURL(new RegExp(`/squad/${squad40!.id}`));
+    await page.mouse.click(8, 300);
+    await expect(fullPhoto).toHaveCount(0, { timeout: 10_000 });
+
+    // Glissement de caméra : au-delà du seuil, aucun profil ne s'ouvre.
+    const dragTargets = await waitForHitTargets(page, 'bar');
+    const dragPoint = await pointForTarget(page, dragTargets[0]);
+    await page.mouse.move(dragPoint.x, dragPoint.y);
+    await page.mouse.down();
+    await page.mouse.move(dragPoint.x + 48, dragPoint.y + 12, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(1_000);
+    await expect(page).toHaveURL(new RegExp(`/squad/${squad40!.id}`));
+    await expect(page.getByTestId('world-viewport')).toHaveAttribute('data-open', '1');
+
+    writeFileSync(
+        path.join(screenshotDir, '8h8i-avatar-touch.json'),
+        JSON.stringify({
+            bar: {
+                username: barTarget.username,
+                userId: barTarget.userId,
+                profileUrl: barProfileUrl,
+            },
+            piscine: {
+                username: piscineTarget.username,
+                userId: piscineTarget.userId,
+                profileUrl: piscineProfileUrl,
+            },
+            photoOpened: true,
+            pointerEvents: {
+                label: labelPointerEvents,
+                bubble: bubblePointerEvents,
+                photo: photoPointerEvents,
+            },
+            dragThresholdPx: 8,
+            dragDistancePx: 48,
+            dragOpenedProfile: false,
+            raycastsBeforeMove: raycastsBefore,
+            raycastsAfterMove: raycastsAfter,
+        }, null, 2),
+    );
+    await page.screenshot({
+        path: path.join(screenshotDir, '8h8i-avatar-touch.png'),
+        fullPage: true,
+    });
+});
+
+test('un avatar d’une couche cachée ne réagit pas et le Dodo ouvre son profil', async ({ page, request }) => {
+    test.setTimeout(900_000);
+
+    const session = await loginAs(page, request, 'FluiditeDemo');
+    const squadsResponse = await request.get('/api/squads/', {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+    });
+    expect(squadsResponse.ok()).toBeTruthy();
+    const squads = await squadsResponse.json() as Array<{ id: number; name: string; invite_code: string }>;
+    const squad50 = squads.find((squad) => squad.invite_code === 'FLUID50');
+    expect(squad50).toBeDefined();
+
+    await page.goto(`/squad/${squad50!.id}`);
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 20_000 });
+    await openWorlds(page);
+
+    // Dodo : 50 avatars. On retient une cible et son point écran.
+    await page.locator('button[data-world-tab="dodo"]').click();
+    const dodoTargets = await waitForHitTargets(page, 'dodo');
+    const dodoTarget = dodoTargets[0];
+    const hiddenPoint = await pointForTarget(page, dodoTarget);
+
+    // Bar : couche active vide dans FLUID50. La couche Dodo cachée ne monte
+    // plus aucune zone de toucher : le registre ne contient aucune cible.
+    await page.locator('button[data-world-tab="bar"]').click();
+    await expect.poll(
+        async () => (await readHitTargets(page)).filter((target) => target.world === 'dodo').length,
+        { timeout: 20_000 },
+    ).toBe(0);
+    await expect.poll(
+        async () => (await readHitTargets(page)).filter((target) => target.world !== 'bar').length,
+        { timeout: 20_000 },
+    ).toBe(0);
+    await expect(page.locator('[data-world-name]')).toHaveCount(0, { timeout: 20_000 });
+    const targetsAfterSwitch = await readHitTargets(page);
+
+    const urlBeforeHiddenClick = page.url();
+    await page.mouse.click(hiddenPoint.x, hiddenPoint.y);
+    await page.waitForTimeout(1_000);
+    const urlAfterHiddenClick = page.url();
+    await expect(page).toHaveURL(new RegExp(`/squad/${squad50!.id}`));
+    await expect(page.getByTestId('world-viewport')).toHaveAttribute('data-open', '1');
+
+    // Retour au Dodo : une cible réelle ouvre sa fiche.
+    await page.locator('button[data-world-tab="dodo"]').click();
+    const dodoTargetsAgain = await waitForHitTargets(page, 'dodo');
+    const dodoPointAgain = await pointForTarget(page, dodoTargetsAgain[0]);
+    await page.mouse.click(dodoPointAgain.x, dodoPointAgain.y);
+    const openedDodo = await expectProfileOfActiveAvatar(page, dodoTargetsAgain);
+
+    writeFileSync(
+        path.join(screenshotDir, '8h8i-hidden-layer.json'),
+        JSON.stringify({
+            hiddenWorld: 'dodo',
+            hiddenAvatars: 50,
+            activeWorld: 'bar',
+            hiddenTargetsRegistered: targetsAfterSwitch.length,
+            hiddenAvatarPoint: hiddenPoint,
+            hiddenClickOpenedProfile: urlBeforeHiddenClick !== urlAfterHiddenClick,
+            dodo: {
+                username: openedDodo.username,
+                userId: openedDodo.userId,
+                profileUrl: page.url(),
+            },
+        }, null, 2),
+    );
+    await page.screenshot({
+        path: path.join(screenshotDir, '8h8i-hidden-layer.png'),
         fullPage: true,
     });
 });

@@ -200,4 +200,36 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation à 
         expect(viewportMounts.count).toBe(1);
         expect(screen.getByTestId('world-scene-mock')).toBeInTheDocument();
     });
+
+    it('transmet le toucher d’un avatar au parent, sans changer de Canvas', async () => {
+        server.use(
+            http.get('*/squads/1/beer-calls/bc_1/worlds', () =>
+                HttpResponse.json({
+                    worlds: {
+                        bar: { participants: [{ user_id: 'u_7', username: 'Ada' }] },
+                    },
+                })
+            )
+        );
+
+        const onSelectUser = vi.fn();
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        render(
+            <QueryClientProvider client={queryClient}>
+                <SelectWorldModal isOpen onClose={vi.fn()} squadId="1" beerCallId="bc_1"
+                                  isActiveApero onSelectUser={onSelectUser}/>
+            </QueryClientProvider>
+        );
+
+        await waitFor(() => expect(screen.getByTestId('world-scene-mock')).toBeInTheDocument());
+        expect(viewportMounts.count).toBe(1);
+        const props = worldSceneCaptor.mock.calls.at(-1)?.[0] as {
+            onSelectUser?: (userId: string) => void;
+        };
+        expect(typeof props.onSelectUser).toBe('function');
+
+        props.onSelectUser?.('u_7');
+        expect(onSelectUser).toHaveBeenCalledWith('u_7');
+        expect(viewportMounts.count).toBe(1);
+    });
 });

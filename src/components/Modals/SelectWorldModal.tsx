@@ -44,6 +44,8 @@ interface SelectWorldModalProps {
     isActiveApero: boolean;
     /** Beer Call affiché sur la carte : préparation au repos même modale fermée. */
     preparationBeerCallId?: string | null;
+    /** Ouvre le profil de l'avatar touché (Bar, Piscine ou Dodo). */
+    onSelectUser?: (userId: string) => void;
 }
 
 export default function SelectWorldModal({
@@ -53,6 +55,7 @@ export default function SelectWorldModal({
     beerCallId,
     isActiveApero,
     preparationBeerCallId = null,
+    onSelectUser,
 }: SelectWorldModalProps) {
     const dashboardActive = useDashboardActive();
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
@@ -360,6 +363,7 @@ export default function SelectWorldModal({
                             dataVersion={dataVersion}
                             onLayerReady={markSceneReady}
                             onSelectPhoto={handleSelectPhoto}
+                            onSelectUser={onSelectUser}
                             onCanvasCreated={handleCanvasCreated}
                             onFirstFrame={handleFirstFrame}
                         />

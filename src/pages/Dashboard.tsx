@@ -36,6 +36,14 @@ export default function Dashboard() {
     const preparationBeerCallId = dashboard.squadDetails?.active_beer_call?.[0]?.id
         ?? dashboard.squadDetails?.past_beer_calls?.[0]?.id
         ?? null;
+    const { navigate, setIsWorldsModalOpen } = dashboard;
+
+    // 8i — toucher un avatar ferme les mondes puis ouvre sa fiche, comme le
+    // faisait l'ancien BarWorld. Le Canvas persistant n'est pas démonté.
+    const handleSelectWorldUser = React.useCallback((userId: string) => {
+        setIsWorldsModalOpen(null);
+        navigate(`/profile/${userId}`);
+    }, [navigate, setIsWorldsModalOpen]);
 
     const people = React.useMemo(() => toSnapPeople({
         members: memberLocations.data ?? [],
@@ -226,7 +234,8 @@ export default function Dashboard() {
             {routeActive && !dashboard.isGameScreenOpen && (
                 <SelectWorldModal isOpen={!!dashboard.isWorldsModalOpen} onClose={() => dashboard.setIsWorldsModalOpen(null)}
                                   squadId={dashboard.id || ''} beerCallId={dashboard.isWorldsModalOpen || ''} isActiveApero={!!dashboard.isActiveApero}
-                                  preparationBeerCallId={preparationBeerCallId}/>
+                                  preparationBeerCallId={preparationBeerCallId}
+                                  onSelectUser={handleSelectWorldUser}/>
             )}
             {routeActive && WorldPreparationBadge && <WorldPreparationBadge/>}
             </Suspense>
