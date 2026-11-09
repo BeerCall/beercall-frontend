@@ -1,9 +1,10 @@
 /**
  * Rapport de couverture E2E backend (coverage.py JSON).
  *
- * Le périmètre « web » exclut les processus et scripts hors requête HTTP :
- * - `workers/*` (exécutés dans des conteneurs séparés) ;
- * - `services/animation_pruning.py` (script one-shot et ses tests).
+ * Les données peuvent provenir de plusieurs processus combinés (API HTTP,
+ * worker Beer Call, worker sprites). Le périmètre « web » exclut les fichiers
+ * de workers eux-mêmes et `services/animation_pruning.py` (script one-shot),
+ * mais inclut les services métier exécutés par ces workers.
  *
  * Usage : node scripts/fluidite/backend-coverage-report.mjs <coverage.json> [out.json]
  */
@@ -46,7 +47,7 @@ const totals = Object.values(modules).reduce((acc, entry) => ({
 const percent = totals.total ? 100 * totals.covered / totals.total : 0;
 
 const report = {
-    scope: 'E2E HTTP backend (workers et animation_pruning exclus)',
+    scope: 'E2E backend mesuré via API HTTP + workers de traitement (fichiers workers/* et animation_pruning exclus)',
     percent: Number(percent.toFixed(2)),
     covered: totals.covered,
     total: totals.total,
