@@ -18,7 +18,7 @@
  * donc vérifiés séparément, sans modifier les données.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './base';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { loginAs } from './contextTracker';

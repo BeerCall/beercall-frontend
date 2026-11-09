@@ -2,6 +2,7 @@ import {defineConfig, type Plugin} from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import {VitePWA} from 'vite-plugin-pwa'
+import istanbul from 'vite-plugin-istanbul'
 
 /**
  * 8h-4b-1 — Le panneau de parcours n'entre dans le graphe que si
@@ -54,6 +55,13 @@ export default defineConfig({
         tailwindcss(),
         worldProbePlugin(process.env.VITE_WORLD_PROBE === '1'),
         perfPanelPlugin(process.env.VITE_FF_PERF_PANEL === '1'),
+        process.env.VITE_E2E_COVERAGE === '1' && istanbul({
+            include: ['src/**/*.{ts,tsx}'],
+            exclude: ['src/__tests__/**', 'src/**/*.test.*', 'src/**/*.d.ts'],
+            extension: ['.ts', '.tsx'],
+            requireEnv: false,
+            forceBuildInstrument: true,
+        }),
         VitePWA({
             strategies: 'injectManifest',
             srcDir: 'src',

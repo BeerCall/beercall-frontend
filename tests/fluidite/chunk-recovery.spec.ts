@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './base';
 import path from 'node:path';
 
 // 8h-4b-0 — reproduit un chunk lazy disparu (rebuild) sans service worker

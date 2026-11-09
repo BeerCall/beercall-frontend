@@ -4,7 +4,7 @@
  * Instrumente HTMLCanvasElement.getContext et OffscreenCanvas.getContext avant tout montage React :
  * - Déduplication par canvas via WeakMap.
  * - Suivi strict des événements 'webglcontextlost' et 'webglcontextrestored'.
- * - Contrôle permanent de maxActive <= 1 (CHAL-02 / CHAL-09).
+ * - Contrôle du budget de contextes : 1 pour la carte ou le profil, 2 pour carte + monde.
  * - Helpers d'authentification API et injection de session déterministe.
  */
 
@@ -249,6 +249,70 @@ export async function expectMaxOneActiveContext(
         stats.maxActive,
         `[${label}] Le pic de contextes WebGL actifs a dépassé 1 (maxActive=${stats.maxActive})`
     ).toBeLessThanOrEqual(1);
+    return stats;
+}
+
+/**
+ * Budget carte + monde : deux contextes actifs au maximum, jamais plus.
+ */
+export async function expectAtMostTwoActiveContexts(
+    page: Page,
+    label: string = 'Vérification carte + monde'
+): Promise<ContextTrackerSnapshot> {
+    const stats = await readContextTracker(page);
+    expect(
+        stats.active,
+        `[${label}] Plus de deux contextes WebGL actifs simultanément (active=${stats.active})`
+    ).toBeLessThanOrEqual(2);
+    expect(
+        stats.maxActive,
+        `[${label}] Le pic de contextes WebGL actifs a dépassé 2 (maxActive=${stats.maxActive})`
+    ).toBeLessThanOrEqual(2);
+    return stats;
+}
+
+/**
+ * Après fermeture du monde : seul le contexte carte doit rester actif, avec un
+ * pic à 2 autorisé pendant la transition carte + monde.
+ */
+export async function expectNoContextLeak(
+    page: Page,
+    label: string = 'Vérification retour carte'
+): Promise<ContextTrackerSnapshot> {
+    const stats = await readContextTracker(page);
+    expect(
+        stats.active,
+        `[${label}] Contexte monde toujours actif après fermeture (active=${stats.active})`
+    ).toBeLessThanOrEqual(1);
+    expect(
+        stats.maxActive,
+        `[${label}] Le pic de contextes WebGL actifs a dépassé 2 (maxActive=${stats.maxActive})`
+    ).toBeLessThanOrEqual(2);
+    return stats;
+}
+
+/**
+ * Vérifie qu'une action n'a créé aucun nouveau contexte WebGL et que le budget
+ * reste borné à 2 (carte + monde préparé au repos).
+ */
+export async function expectNoNewContext(
+    page: Page,
+    previous: ContextTrackerSnapshot,
+    label: string = 'Vérification stabilité des contextes'
+): Promise<ContextTrackerSnapshot> {
+    const stats = await readContextTracker(page);
+    expect(
+        stats.totalCreated,
+        `[${label}] Nouveau contexte WebGL créé (${previous.totalCreated} -> ${stats.totalCreated})`
+    ).toBe(previous.totalCreated);
+    expect(
+        stats.active,
+        `[${label}] Plus de deux contextes WebGL actifs (active=${stats.active})`
+    ).toBeLessThanOrEqual(2);
+    expect(
+        stats.maxActive,
+        `[${label}] Le pic de contextes WebGL actifs a dépassé 2 (maxActive=${stats.maxActive})`
+    ).toBeLessThanOrEqual(2);
     return stats;
 }
 

@@ -9,6 +9,8 @@ interface ImportMetaEnv {
     readonly VITE_WORLD_PROBE?: string;
     /** Build de recette avec le panneau de diagnostic de fluidité. */
     readonly VITE_FF_PERF_PANEL?: string;
+    /** Build instrumenté Istanbul pour la couverture E2E. */
+    readonly VITE_E2E_COVERAGE?: string;
     /** 8h-4b-1 — hash court du commit frontend, injecté au build. */
     readonly VITE_APP_COMMIT?: string;
     /** 8h-4b-1 — date UTC du build, injectée au build. */

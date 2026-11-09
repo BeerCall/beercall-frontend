@@ -8,7 +8,7 @@
  * - Absence de crash liée à Firebase localement (limite explicitement acceptée).
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from './base';
 import {
     installContextTracker,
     expectMaxOneActiveContext,
@@ -25,8 +25,8 @@ test.describe('C03b — Flux applicatifs, Navbar et Isolation des comptes', () =
         await loginAs(page, request, 'FluiditeSolo');
         await page.goto('/dashboard');
 
-        // Attente du rendu du dashboard
-        await page.waitForSelector('nav, header', { timeout: 15_000 });
+        // Attente du rendu de la barre de navigation basse
+        await page.waitForSelector('[data-bottom-nav]', { timeout: 15_000 });
 
         // Le bouton de lancement d'apéro doit être désactivé ou absent sans squad
         const launchBtn = page.locator('button[title*="Rejoins ou crée une squad" i]').or(
@@ -64,9 +64,7 @@ test.describe('C03b — Flux applicatifs, Navbar et Isolation des comptes', () =
         await page.goto('/profile');
 
         // Sur son propre profil, le bouton de déconnexion est présent
-        const logoutBtn = page.locator('button[title="Déconnexion"]').or(
-            page.locator('button:has-text("Déconnexion")')
-        ).first();
+        const logoutBtn = page.getByRole('button', {name: 'Se déconnecter', exact: true});
         await expect(logoutBtn).toBeVisible({ timeout: 15_000 });
 
         await expectMaxOneActiveContext(page, 'Profil - Propre compte avec Déconnexion');

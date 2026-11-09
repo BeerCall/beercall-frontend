@@ -8,7 +8,7 @@
  * - Maintien du bail WebGL unique pendant les interactions.
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from './base';
 import {
     installContextTracker,
     expectMaxOneActiveContext,

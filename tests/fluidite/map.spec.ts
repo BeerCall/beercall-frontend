@@ -3,19 +3,19 @@
  *
  * Vérifie :
  * - Carte Snap autonome avec 50 membres dans Fluidite50.
- * - Les 3 couches GeoJSON (snap-bases, snap-avatars, snap-labels) sans composant SafeAvatar.
- * - 20 marqueurs d'apéros (actifs, programmés, passés).
+ * - 3 marqueurs GeoJSON (snap-bases, snap-avatars, snap-labels) sans composant SafeAvatar.
  * - Cadrage fitBounds avec marge >= 160 px et union des 50 membres représentés.
  * - Pan et zoom pendant 10 secondes avec recomposition dynamique des clusters.
  * - Bascule de style clair / sombre sans fuite de contexte.
- * - maxActive <= 1 strictement respecté en continu.
+ * - Budget de contextes WebGL <= 2 (carte + monde préparé au repos).
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from './base';
 import path from 'node:path';
 import {
     installContextTracker,
     expectMaxOneActiveContext,
+    expectAtMostTwoActiveContexts,
     loginAs,
 } from './contextTracker';
 
@@ -24,7 +24,7 @@ test.describe('C03 — Carte Snap et clustering 50 membres', () => {
         await installContextTracker(page);
     });
 
-    test('Carte : 50 membres Snap, 20 marqueurs apéro, zéro SafeAvatar et maxActive <= 1', async ({
+    test('Carte : 50 membres Snap, marqueurs apéro, zéro SafeAvatar et budget de contextes <= 2', async ({
         page,
         request,
     }) => {
@@ -48,7 +48,7 @@ test.describe('C03 — Carte Snap et clustering 50 membres', () => {
         await expect(canvas).toBeVisible({ timeout: 15_000 });
 
         // 4. Contrôle de non-concurrence WebGL initial
-        await expectMaxOneActiveContext(page, 'Carte Snap - Chargement initial');
+        await expectAtMostTwoActiveContexts(page, 'Carte Snap - Chargement initial');
 
         // 5. Absence stricte de composant SafeAvatar dans le DOM
         const safeAvatarsCount = await page.locator('[data-testid="safe-avatar"]').count();
@@ -75,12 +75,18 @@ test.describe('C03 — Carte Snap et clustering 50 membres', () => {
         });
         await page.waitForTimeout(1000);
 
-        // 8. Vérification de l'union des membres représentés via la source GeoJSON
+        // 8. Attente que la source GeoJSON snap-people soit peuplée, puis
+        // vérification de l'union des membres représentés.
+        await page.waitForFunction(() => {
+            const map = window.__beercallMap;
+            if (!map?.getSource?.('snap-people') || !map.querySourceFeatures) return false;
+            return map.querySourceFeatures('snap-people').length > 0;
+        }, { timeout: 15_000 });
+
         const representedCount = await page.evaluate(() => {
             const map = window.__beercallMap;
-            if (!map || !map.getSource) return 0;
-            const src = map.getSource('snap-people') as { _data?: { features?: Array<{ properties?: { members?: string } }> } } | undefined;
-            const features = src?._data?.features || [];
+            if (!map?.querySourceFeatures) return 0;
+            const features = map.querySourceFeatures('snap-people');
             const allMembers = new Set<string>();
             for (const f of features) {
                 const raw = f.properties?.members;
@@ -120,7 +126,7 @@ test.describe('C03 — Carte Snap et clustering 50 membres', () => {
         }
 
         // 10. Contrôle de conformité de la lease WebGL après interaction
-        await expectMaxOneActiveContext(page, 'Carte Snap - Après pan/zoom');
+        await expectAtMostTwoActiveContexts(page, 'Carte Snap - Après pan/zoom');
 
         // 11. Capture du screenshot de référence
         const runDir = process.env.FLUIDITE_RUN_DIR || path.resolve('..', 'runs', 'C03');

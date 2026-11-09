@@ -4,7 +4,7 @@
  * Le clic passe par la cible PROBE de la machine (aucun DOM en 3D) ; le seuil de
  * glissement de 8 px est vérifié séparément par le test unitaire.
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './base';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

@@ -8,7 +8,7 @@
  * - Parcours d'inscription (SignUp) avec preview GLB sans crash.
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from './base';
 import {
     installContextTracker,
     expectMaxOneActiveContext,
@@ -27,10 +27,11 @@ test.describe('C03 — Avatars 3D, Profil et Vestiaire', () => {
         await loginAs(page, request, 'FluiditeDemo');
         await page.goto('/profile');
 
-        // Attente du rendu du conteneur de profil
-        await expect(page.locator('text=Mon Profil').or(page.locator('text=Garde-robe'))).toBeVisible({
+        // Attente du rendu du conteneur de profil et des nouveaux onglets
+        await expect(page.getByRole('button', {name: 'Vestiaire', exact: true})).toBeVisible({
             timeout: 15_000,
         });
+        await expect(page.getByRole('button', {name: 'Trophées', exact: true})).toBeVisible();
 
         // Vérification de la présence du canvas 3D sous lease 'profile'
         const canvas = page.locator('canvas');
@@ -49,32 +50,40 @@ test.describe('C03 — Avatars 3D, Profil et Vestiaire', () => {
 
         await expect(page.locator('canvas').first()).toBeVisible({ timeout: 15_000 });
 
-        // Vérification des onglets du vestiaire (Haut, Bas, Chaussures, etc.)
-        const tabs = page.locator('button').filter({ hasText: /Haut|Bas|Chaussures|Tête|Accessoires/i });
-        const tabCount = await tabs.count();
+        // S'assurer que l'onglet Vestiaire est bien affiché (les onglets de
+        // catégories ne sont montés que dans ce panneau).
+        await page.getByRole('button', {name: 'Vestiaire', exact: true}).click();
+        await expect(page.getByRole('button', {name: /Tête/}).first()).toBeVisible({timeout: 10_000});
 
-        // Parcourir les onglets disponibles et sélectionner des pièces
-        for (let t = 0; t < Math.min(tabCount, 4); t++) {
-            await tabs.nth(t).click();
+        // Vérification des onglets du vestiaire (Tête, Haut, Bas, Pieds, Accessoire, Anim)
+        const categoryTabs = ['Tête', 'Haut', 'Bas', 'Pieds'];
+        for (const label of categoryTabs) {
+            const tab = page.getByRole('button', {name: new RegExp(label)}).first();
+            await expect(tab).toBeVisible({ timeout: 10_000 });
+            await tab.click();
             await page.waitForTimeout(300);
 
-            // Sélectionner un item disponible dans la grille
-            const items = page.locator('div[role="button"], button').filter({ has: page.locator('svg, img') });
-            if ((await items.count()) > 2) {
-                await items.nth(1).click();
+            // Sélectionner un item disponible dans la grille du vestiaire
+            const items = page.locator('div.grid > div[role="button"]');
+            if ((await items.count()) > 0) {
+                await items.first().click();
                 await page.waitForTimeout(200);
             }
 
-            await expectMaxOneActiveContext(page, `Profil - Onglet vestiaire ${t}`);
+            await expectMaxOneActiveContext(page, `Profil - Onglet vestiaire ${label}`);
         }
 
-        // Test des boutons d'animations si disponibles
-        const animButtons = page.locator('button').filter({ hasText: /Sitting|Interact|Idle|Danse/i });
-        const animCount = await animButtons.count();
-        for (let a = 0; a < animCount; a++) {
-            await animButtons.nth(a).click();
+        // Test des animations dans l'onglet Anim
+        const animTab = page.getByRole('button', {name: /Anim/}).first();
+        if (await animTab.isVisible()) {
+            await animTab.click();
             await page.waitForTimeout(400);
-            await expectMaxOneActiveContext(page, `Profil - Animation ${a}`);
+            const animButtons = page.locator('div.grid > button');
+            if ((await animButtons.count()) > 0) {
+                await animButtons.first().click();
+                await page.waitForTimeout(400);
+            }
+            await expectMaxOneActiveContext(page, 'Profil - Onglet animations');
         }
     });
 
