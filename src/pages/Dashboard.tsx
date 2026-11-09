@@ -38,18 +38,6 @@ export default function Dashboard() {
         ?? null;
     const { navigate, setIsWorldsModalOpen } = dashboard;
 
-    // 8l-3 — sur iPhone, la bande sous l'indicateur d'accueil est hors de
-    // `#root` (100dvh) : pendant le jeu, on peint le fond de page dans la
-    // couleur de l'écran pour qu'aucune barre blanche n'apparaisse.
-    React.useEffect(() => {
-        if (!dashboard.isGameScreenOpen) return;
-        const previous = document.body.style.backgroundColor;
-        document.body.style.backgroundColor = '#030712';
-        return () => {
-            document.body.style.backgroundColor = previous;
-        };
-    }, [dashboard.isGameScreenOpen]);
-
     // 8i — toucher un avatar ferme les mondes puis ouvre sa fiche, comme le
     // faisait l'ancien BarWorld. Le Canvas persistant n'est pas démonté.
     const handleSelectWorldUser = React.useCallback((userId: string) => {
@@ -99,7 +87,7 @@ export default function Dashboard() {
                     <motion.div
                         initial={{opacity: 0, y: "100%"}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: "100%"}}
                         transition={{type: "spring", damping: 25, stiffness: 200}}
-                        className="absolute inset-0 z-[100] bg-gray-950"
+                        className="fixed inset-0 z-[100] bg-gray-950"
                     >
                         <Suspense fallback={<div className="flex h-full items-center justify-center text-white"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-beer"></div></div>}>
                             <GameScreen aperoIdProp={dashboard.currentAperoId}/>
