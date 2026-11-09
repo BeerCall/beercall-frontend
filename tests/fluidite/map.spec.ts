@@ -136,6 +136,27 @@ test.describe('C03 — Carte Snap et clustering 50 membres', () => {
         });
     });
 
+    test('Carte : perte de contexte WebGL puis bouton Réessayer la carte', async ({page, request}) => {
+    await loginAs(page, request, 'FluiditeDemo');
+    await page.goto('/squad/2');
+    const canvas = page.locator('.maplibregl-canvas').first();
+    await expect(canvas).toBeVisible({timeout: 20_000});
+    await page.waitForTimeout(1_500);
+
+    await page.waitForFunction(() => Boolean((window as {__beercallMap?: unknown}).__beercallMap), {timeout: 20_000});
+    await page.evaluate(() => {
+        const map = (window as {__beercallMap?: {fire: (type: string, event: unknown) => void}}).__beercallMap;
+        if (!map) throw new Error('Carte MapLibre absente');
+        map.fire('webglcontextlost', {originalEvent: new Event('webglcontextlost', {cancelable: true})});
+    });
+
+    await expect(page.getByText(/Carte momentanément indisponible|Restauration de la carte/)).toBeVisible({timeout: 15_000});
+    const retry = page.getByRole('button', {name: 'Réessayer la carte'});
+    await expect(retry).toBeVisible({timeout: 15_000});
+    await retry.click();
+    await expect(page.locator('.maplibregl-canvas').first()).toBeVisible({timeout: 30_000});
+});
+
     test('Carte : reload du style et résilience sans second contexte', async ({ page, request }) => {
         await loginAs(page, request, 'FluiditeDemo');
         await page.goto('/dashboard');

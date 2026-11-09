@@ -69,3 +69,21 @@ export const test = base.extend({
 
 export {expect};
 export type {Page};
+
+/** Écrit immédiatement la couverture du document courant (utile pour un test
+ *  qui navigue plusieurs fois et dépasse la collecte de fin de fixture). */
+export async function captureCoverage(page: Page, label: string): Promise<void> {
+    if (!COVERAGE_DIR) return;
+    const coverage = await page.evaluate(() => {
+        const current = (window as {__coverage__?: CoverageMap}).__coverage__;
+        return current ?? null;
+    });
+    if (!coverage) return;
+    try {
+        fs.mkdirSync(COVERAGE_DIR, {recursive: true});
+        const safe = label.replace(/[^a-z0-9_-]+/gi, '-').slice(0, 80) || 'snapshot';
+        fs.writeFileSync(path.join(COVERAGE_DIR, `manual-${safe}-${Date.now()}.json`), JSON.stringify(coverage));
+    } catch (error) {
+        console.warn('[e2e-coverage] capture manuelle impossible', error);
+    }
+}

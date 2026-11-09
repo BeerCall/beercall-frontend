@@ -31,13 +31,6 @@ if (!fs.existsSync(rawDir)) {
     process.exit(1);
 }
 
-const coverageMap = createCoverageMap({});
-for (const entry of fs.readdirSync(rawDir)) {
-    if (!entry.endsWith('.json')) continue;
-    const data = JSON.parse(fs.readFileSync(path.join(rawDir, entry), 'utf8'));
-    coverageMap.merge(data);
-}
-
 const EXCLUDED_SOURCES = new Set([
     'map/snap/types.ts',
     'perf/WorldProbePanel.tsx',
@@ -52,6 +45,26 @@ const EXCLUDED_SOURCES = new Set([
 ]);
 const EXCLUDED_PREFIXES = ['types/', 'avatar/render/'];
 
+function relativeToSource(file) {
+    return path.relative(sourceRoot, path.resolve(file)).replaceAll('\\', '/');
+}
+
+function isExcluded(file) {
+    const relative = relativeToSource(file);
+    return EXCLUDED_PREFIXES.some((prefix) => relative.startsWith(prefix)) || EXCLUDED_SOURCES.has(relative);
+}
+
+const coverageMap = createCoverageMap({});
+for (const entry of fs.readdirSync(rawDir)) {
+    if (!entry.endsWith('.json')) continue;
+    const data = JSON.parse(fs.readFileSync(path.join(rawDir, entry), 'utf8'));
+    const filtered = {};
+    for (const [file, fileCoverage] of Object.entries(data)) {
+        if (!isExcluded(file)) filtered[file] = fileCoverage;
+    }
+    coverageMap.merge(filtered);
+}
+
 function collectSourceFiles(dir) {
     const files = [];
     for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
@@ -64,8 +77,7 @@ function collectSourceFiles(dir) {
         if (!/\.(ts|tsx)$/.test(entry.name)) continue;
         if (/\.(test|spec)\.(ts|tsx)$/.test(entry.name)) continue;
         if (entry.name.endsWith('.d.ts')) continue;
-        const relative = path.relative(sourceRoot, full).replaceAll('\\', '/');
-        if (EXCLUDED_PREFIXES.some((prefix) => relative.startsWith(prefix)) || EXCLUDED_SOURCES.has(relative)) continue;
+        if (isExcluded(full)) continue;
         files.push(full);
     }
     return files;
