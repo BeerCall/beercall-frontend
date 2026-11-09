@@ -39,7 +39,7 @@ function mountHook() {
 }
 beforeEach(() => {
     state().stopTracking();
-    useLocationStore.setState({ userLocation: null, acquiredAt: null, isTracking: false, hasSessionFix: false, locationStatus: 'idle', error: null, permissionGranted: true });
+    useLocationStore.setState({ userLocation: null, acquiredAt: null, isTracking: false, hasSessionFix: false, locationStatus: 'idle', error: null, permissionGranted: false });
     useToastStore.setState({ toasts: [] });
     points.length = 0; watches.length = 0;
     Object.defineProperty(navigator, 'geolocation', { configurable: true, value: {
@@ -213,37 +213,31 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(result.current.startingScheduledApero).toMatchObject({ id: 'scheduled', location_name: 'Lieu prévu' });
     });
 
-    it('démarre le suivi au montage actif quand la permission est déjà accordée et l arrête au démontage', () => {
+    it('démarre le suivi au montage actif sans permission préalable et l arrête au démontage', () => {
         const { unmount } = renderHook(() => useDashboard());
         expect(watches).toHaveLength(1);
         expect(points).toHaveLength(1);
-        expect(state().isTracking).toBe(true);
+        expect(state()).toMatchObject({ isTracking: true, permissionGranted: false });
 
         act(() => unmount());
         expect(state().isTracking).toBe(false);
     });
 
-    it('ne déclenche aucune acquisition au montage quand la permission n est pas connue', () => {
-        useLocationStore.setState({ permissionGranted: false });
-        const { unmount } = renderHook(() => useDashboard());
-        expect(points).toHaveLength(0);
-        expect(watches).toHaveLength(0);
-        expect(state()).toMatchObject({ isTracking: false, locationStatus: 'idle' });
-
-        act(() => unmount());
-    });
-
-    it('ne demande la géoloc qu au clic quand la permission n est pas connue', () => {
-        useLocationStore.setState({ permissionGranted: false });
-        render(<Dashboard />);
-        expect(points).toHaveLength(0);
-        expect(watches).toHaveLength(0);
-
-        fireEvent.click(screen.getByRole('button', { name: 'Relancer la localisation' }));
-
-        expect(points).toHaveLength(1);
-        expect(watches).toHaveLength(1);
-        expect(state()).toMatchObject({ isTracking: true, locationStatus: 'searching' });
+    it('ne relance pas d acquisition au retour visible après un refus', () => {
+        renderHook(() => useDashboard());
+        act(() => watches[0].error?.(gpsError));
+        const setVisibility = (value: DocumentVisibilityState) => {
+            Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => value });
+            act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+        };
+        try {
+            setVisibility('hidden');
+            setVisibility('visible');
+            expect(watches).toHaveLength(1);
+            expect(state()).toMatchObject({ locationStatus: 'denied', permissionGranted: false });
+        } finally {
+            Reflect.deleteProperty(document, 'visibilityState');
+        }
     });
 
     it('dix rerenders ne doublent ni le point ni le watch', () => {

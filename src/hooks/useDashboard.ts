@@ -49,7 +49,7 @@ export const useDashboard = () => {
     const squadQuery = useSquadDetails(id, active);
     const squadDetails = squadQuery.data;
     const { isGameScreenOpen, currentAperoId, closeGameScreen } = useGameUIStore();
-    const { userLocation, acquiredAt, hasSessionFix, locationStatus, startTrackingIfPermitted, stopTracking } = useLocationStore();
+    const { userLocation, acquiredAt, hasSessionFix, locationStatus, startTracking, startTrackingIfPermitted, stopTracking } = useLocationStore();
     const canCreateFromLocation = hasSessionFix && locationStatus === 'available' && userLocation !== null;
     const locationMessage = gpsMessage({ userLocation, acquiredAt, hasSessionFix, locationStatus });
     const isActiveApero = squadDetails?.active_beer_call?.some((call: { id: string }) => call.id === isWorldsModalOpen);
@@ -211,13 +211,14 @@ export const useDashboard = () => {
             stopTracking();
             return;
         }
-        // Le montage ne demande la permission que si elle est déjà connue
-        // (fix de la session ou Permissions API). Sinon la modale système ne
-        // s'ouvre qu'après un geste explicite sur le bouton de localisation.
-        void startTrackingIfPermitted();
+        // Acquisition au montage actif. Le navigateur ne rouvre la modale que
+        // si l'origine n'a pas encore (ou plus) la permission : c'est ce qui
+        // rend le bouton de localisation actif dès l'ouverture.
+        startTracking();
         const handleVisibility = () => {
-            // Le watch est suspendu par l'OS en arrière-plan et reprend au retour :
-            // l'arrêter ici rejouerait une acquisition (et une demande) inutile.
+            // Au retour visible, ne relance que si la permission est déjà
+            // connue : un refus ne doit pas rouvrir la modale à chaque passage.
+            // Le watch lui-même n'est pas arrêté en arrière-plan.
             if (document.visibilityState === 'visible') void startTrackingIfPermitted();
         };
         document.addEventListener('visibilitychange', handleVisibility);
@@ -227,7 +228,7 @@ export const useDashboard = () => {
             stopTracking();
             cancelLongPress();
         };
-    }, [active, startTrackingIfPermitted, stopTracking, cancelLongPress]);
+    }, [active, startTracking, startTrackingIfPermitted, stopTracking, cancelLongPress]);
 
     useEffect(() => {
         if (active && id && userLocation && mapRef.current && !hasCentered.current) {
