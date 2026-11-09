@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import coverageLib from 'istanbul-lib-coverage';
 import instrumentLib from 'istanbul-lib-instrument';
 import libReport from 'istanbul-lib-report';
@@ -37,6 +38,14 @@ for (const entry of fs.readdirSync(rawDir)) {
     coverageMap.merge(data);
 }
 
+const EXCLUDED_SOURCES = new Set([
+    'map/snap/types.ts',
+    'perf/WorldProbePanel.tsx',
+    'perf/WorldPreparationBadge.tsx',
+    'components/UI/PerformancePanel.tsx',
+    'setupTests.ts',
+]);
+
 function collectSourceFiles(dir) {
     const files = [];
     for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
@@ -49,6 +58,8 @@ function collectSourceFiles(dir) {
         if (!/\.(ts|tsx)$/.test(entry.name)) continue;
         if (/\.(test|spec)\.(ts|tsx)$/.test(entry.name)) continue;
         if (entry.name.endsWith('.d.ts')) continue;
+        const relative = path.relative(sourceRoot, full).replaceAll('\\', '/');
+        if (relative.startsWith('types/') || EXCLUDED_SOURCES.has(relative)) continue;
         files.push(full);
     }
     return files;
@@ -64,7 +75,20 @@ let added = 0;
 for (const file of collectSourceFiles(sourceRoot)) {
     if (known.has(path.resolve(file).toLowerCase())) continue;
     try {
-        instrumenter.instrumentSync(fs.readFileSync(file, 'utf8'), file);
+        // `istanbul-lib-instrument` ne parse pas TypeScript/TSX : on transpile
+        // d'abord. Ces fichiers n'ont aucun hit ; seuls les compteurs de
+        // statements/branches du dénominateur nous intéressent.
+        const source = fs.readFileSync(file, 'utf8');
+        const transpiled = ts.transpileModule(source, {
+            fileName: file,
+            compilerOptions: {
+                target: ts.ScriptTarget.ES2022,
+                module: ts.ModuleKind.ESNext,
+                jsx: ts.JsxEmit.ReactJSX,
+                esModuleInterop: true,
+            },
+        }).outputText;
+        instrumenter.instrumentSync(transpiled, file.replaceAll('\\', '/'));
         const fileCoverage = instrumenter.lastFileCoverage();
         for (const key of Object.keys(fileCoverage.s)) fileCoverage.s[key] = 0;
         for (const key of Object.keys(fileCoverage.f)) fileCoverage.f[key] = 0;

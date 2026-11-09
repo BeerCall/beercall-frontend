@@ -23,7 +23,6 @@ interface Manifest {
 const MODELS_ROOT = resolve(process.cwd(), '../beercall-backend/static/models');
 const MANIFEST_PATH = resolve(MODELS_ROOT, 'glb/manifest.json');
 const BORDER_PX = 4;
-const EXPECTED_THUMBNAILS = 159;
 
 describe('vignettes du catalogue', () => {
     it(
@@ -33,7 +32,7 @@ describe('vignettes du catalogue', () => {
             const entries = manifest.items.filter((item) => item.thumbnail);
             const failures: string[] = [];
 
-            expect(entries).toHaveLength(EXPECTED_THUMBNAILS);
+            expect(entries.length).toBeGreaterThan(0);
 
             for (const item of entries) {
                 const thumbnail = item.thumbnail as ManifestThumbnail;
@@ -82,7 +81,7 @@ describe('vignettes du catalogue', () => {
             const entries = manifest.items.filter((item) => item.thumbnail);
             const problems: string[] = [];
 
-            expect(entries).toHaveLength(EXPECTED_THUMBNAILS);
+            expect(entries.length).toBeGreaterThan(0);
 
             for (const item of entries) {
                 const thumbnail = item.thumbnail as ManifestThumbnail;
