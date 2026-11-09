@@ -118,6 +118,10 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
     useEffect(() => {
         callbacksRef.current = { onReady, onReadinessChange, onHeadAnchor };
     }, [onReady, onReadinessChange, onHeadAnchor]);
+    const configRef = useRef(config);
+    useEffect(() => {
+        configRef.current = config;
+    }, [config]);
     const headBoneRef = useRef<Object3D | null>(null);
 
     // 1. Résolution synchrone pure des pièces.
@@ -351,7 +355,14 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
         const measure = () => {
             const bone = headBoneRef.current;
             if (!bone) {
-                console.warn('[avatar] os de tête introuvable ; preuve photo non placée', { userId });
+                // Seulement si une preuve photo est attendue : sinon l'absence
+                // d'ancre de tête n'a aucune conséquence visible.
+                if (callbacksRef.current.onHeadAnchor) {
+                    console.warn('[avatar] os de tete introuvable ; preuve photo non placee', {
+                        userId,
+                        config: configRef.current,
+                    });
+                }
                 return;
             }
             avatarRoot.updateWorldMatrix(true, true);

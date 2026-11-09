@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -78,6 +78,34 @@ test('writeJsonAtomic écrit puis readManifest relit', () => {
         writeJsonAtomic(file, { version: 1, items: [] });
         assert.deepEqual(readManifest(file), { version: 1, items: [] });
         assert.equal(readManifest(path.join(dir, 'absent.json')), null);
+    } finally {
+        rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+test('writeJsonAtomic ne laisse aucun temporaire après succès', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'build-glb-'));
+    try {
+        const file = path.join(dir, 'manifest.json');
+        writeJsonAtomic(file, { version: 1, items: [] });
+        assert.deepEqual(readdirSync(dir), ['manifest.json']);
+    } finally {
+        rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+test('writeJsonAtomic laisse l ancien manifeste intact si la sérialisation échoue', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'build-glb-'));
+    try {
+        const file = path.join(dir, 'manifest.json');
+        writeFileSync(file, '{"version":1,"items":[{"key":"old"}]}', 'utf8');
+        const before = readFileSync(file, 'utf8');
+        const circular = {};
+        circular.self = circular;
+
+        assert.throws(() => writeJsonAtomic(file, circular), /circular/i);
+        assert.equal(readFileSync(file, 'utf8'), before);
+        assert.deepEqual(readdirSync(dir), ['manifest.json']);
     } finally {
         rmSync(dir, { recursive: true, force: true });
     }

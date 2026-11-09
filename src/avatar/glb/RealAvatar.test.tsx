@@ -151,6 +151,57 @@ describe('B11 — RealAvatar et matériaux économiques', () => {
         warn.mockRestore();
     });
 
+    it('avertit avec userId et config quand la preuve photo est demandée sans os de tête', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const onHeadAnchor = vi.fn();
+        const config: AvatarConfig = {
+            gender: 'Men',
+            head: 'Men_head_Casual_0',
+            body: 'Men_body_Casual_0',
+            legs: 'Men_legs_Casual_0',
+            feet: 'Men_feet_Casual_0',
+        };
+
+        wrap(<RealAvatar userId={42} config={config} onHeadAnchor={onHeadAnchor} />);
+
+        await waitFor(() => {
+            expect(warn).toHaveBeenCalledWith(
+                '[avatar] os de tete introuvable ; preuve photo non placee',
+                expect.objectContaining({
+                    userId: 42,
+                    config: expect.objectContaining({ head: 'Men_head_Casual_0' }),
+                }),
+            );
+        });
+        expect(onHeadAnchor).not.toHaveBeenCalled();
+        warn.mockRestore();
+    });
+
+    it('ne signale pas l’absence d’os de tête sans preuve photo demandée', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const onReady = vi.fn();
+
+        wrap(
+            <RealAvatar
+                userId={7}
+                onReady={onReady}
+                config={{
+                    gender: 'Men',
+                    head: 'Men_head_Casual_0',
+                    body: 'Men_body_Casual_0',
+                    legs: 'Men_legs_Casual_0',
+                    feet: 'Men_feet_Casual_0',
+                }}
+            />,
+        );
+
+        await waitFor(() => expect(onReady).toHaveBeenCalled());
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        const headWarnings = warn.mock.calls.filter((call) => String(call[0]).includes('os de tete'));
+        expect(headWarnings).toHaveLength(0);
+        warn.mockRestore();
+    });
+
     it('signale explicitement une pièce introuvable avec l’id de l’utilisateur', async () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
