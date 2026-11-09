@@ -5,6 +5,7 @@
  * glissement de 8 px est vérifié séparément par le test unitaire.
  */
 import { test, expect, type Page } from './base';
+import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +17,63 @@ import {
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const screenshotDir = path.resolve(HERE, '../../../.openchamber/screenshots');
+const BACKEND_CONTAINER = process.env.FLUIDITE_BACKEND_CONTAINER || 'beercall-fluidite-night-backend-1';
+
+function runPython(script: string): string {
+    return execFileSync('docker', ['exec', '-i', BACKEND_CONTAINER, 'python', '-'], {
+        input: script,
+        encoding: 'utf8',
+    });
+}
+
+/** Crée un apéro actif isolé dans FLUID40 et renvoie son id (nettoyé par le test). */
+function createTestApero(): number {
+    const output = runPython(`
+from datetime import datetime, timezone
+from db.database import SessionLocal
+from models.apero import Apero, AperoParticipant, AperoStatus, ParticipationStatus
+db = SessionLocal()
+try:
+    now = datetime.now(timezone.utc)
+    apero = Apero(
+        squad_id=2,
+        creator_id=1,
+        location_name='E2E world-slot',
+        latitude=48.8566,
+        longitude=2.3522,
+        status=AperoStatus.ACTIVE,
+        started_at=now,
+    )
+    db.add(apero)
+    db.flush()
+    db.add_all([
+        AperoParticipant(apero_id=apero.id, user_id=1, status=ParticipationStatus.JOINED, created_at=now),
+        AperoParticipant(apero_id=apero.id, user_id=4, status=ParticipationStatus.JOINED, created_at=now),
+    ])
+    db.commit()
+    print(f'APERO_ID={apero.id}')
+finally:
+    db.close()
+`);
+    const match = output.match(/APERO_ID=(\d+)/);
+    if (!match) throw new Error(`Création de l'apéro de test impossible: ${output}`);
+    return Number(match[1]);
+}
+
+function deleteTestApero(aperoId: number): void {
+    runPython(`
+from db.database import SessionLocal
+from models.apero import Apero, AperoParticipant
+db = SessionLocal()
+try:
+    db.query(AperoParticipant).filter(AperoParticipant.apero_id == ${aperoId}).delete()
+    db.query(Apero).filter(Apero.id == ${aperoId}).delete()
+    db.commit()
+    print('DELETED')
+finally:
+    db.close()
+`);
+}
 
 interface SlotTarget {
     ndcX: number;
@@ -56,8 +114,8 @@ async function pointForTarget(page: Page, target: SlotTarget) {
     };
 }
 
-async function openSquad(page: Page): Promise<void> {
-    await page.goto('/squad/4');
+async function openSquad(page: Page, squadId: number): Promise<void> {
+    await page.goto(`/squad/${squadId}`);
     await expect(page.locator('canvas').first()).toBeVisible({ timeout: 30_000 });
     // Crash MapLibre `_loaded` aléatoire et préexistant : un rechargement suffit.
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -68,8 +126,14 @@ async function openSquad(page: Page): Promise<void> {
     await expect(page.locator('text=L\'application a rencontré une erreur')).toHaveCount(0);
 }
 
-async function openWorlds(page: Page): Promise<void> {
-    const worldsButton = page.locator('button').filter({ hasText: /Mondes/i }).first();
+async function openWorlds(page: Page, locationName?: string): Promise<void> {
+    const worldsButton = locationName
+        ? page.locator('div')
+            .filter({hasText: locationName})
+            .filter({has: page.getByRole('button', {name: /Mondes/})})
+            .last()
+            .getByRole('button', {name: /Mondes/})
+        : page.getByRole('button', {name: /Mondes/}).first();
     await expect(worldsButton).toBeVisible({ timeout: 20_000 });
     await worldsButton.click();
     await expect(page.locator('button[data-world-tab="bar"]')).toBeVisible({ timeout: 20_000 });
@@ -108,75 +172,81 @@ async function advanceToRunningGame(
 
 test('8l — le levier du Bar lance puis reprend la partie au même endroit', async ({ page, request }) => {
     test.setTimeout(900_000);
-    await installContextTracker(page);
-    const session = await loginAs(page, request, 'FluiditeDemo');
-    const readGameState = async (): Promise<GameStatePayload> => {
-        const response = await request.get('/api/aperos/22/game/state', {
-            headers: { Authorization: `Bearer ${session.accessToken}` },
-        });
-        expect(response.ok()).toBeTruthy();
-        return response.json() as Promise<GameStatePayload>;
-    };
+    const aperoId = createTestApero();
+    try {
+        await installContextTracker(page);
+        const session = await loginAs(page, request, 'FluiditeDemo');
+        const readGameState = async (): Promise<GameStatePayload> => {
+            const response = await request.get(`/api/aperos/${aperoId}/game/state`, {
+                headers: { Authorization: `Bearer ${session.accessToken}` },
+            });
+            expect(response.ok()).toBeTruthy();
+            return response.json() as Promise<GameStatePayload>;
+        };
 
-    await openSquad(page);
-    await openWorlds(page);
-    await expect(page.locator('[data-world-name]').first()).toBeVisible({ timeout: 180_000 });
-    await expect(page.locator('button[aria-label="Démarrer la partie"]')).toBeEnabled({ timeout: 20_000 });
+        await openSquad(page, 2);
+        await openWorlds(page, 'E2E world-slot');
+        await expect(page.locator('[data-world-name]').first()).toBeVisible({ timeout: 180_000 });
+        await expect(page.locator('button[aria-label="Démarrer la partie"]')).toBeEnabled({ timeout: 20_000 });
 
-    const before = await readContextTracker(page);
-    await waitForSlotTarget(page);
-    await page.screenshot({ path: path.join(screenshotDir, '8l-bar-machine.png') });
+        const before = await readContextTracker(page);
+        await waitForSlotTarget(page);
+        await page.screenshot({ path: path.join(screenshotDir, '8l-bar-machine.png') });
 
-    // 1. Le levier s'abaisse puis ouvre le jeu (transition de tour).
-    await pullLever(page);
-    await expect(page.getByText('NOUVEAU DÉFI', { exact: false })).toBeVisible({ timeout: 30_000 });
-    await page.screenshot({ path: path.join(screenshotDir, '8l-jeu-ouverture.png') });
-    const afterOpen = await readContextTracker(page);
+        // 1. Le levier s'abaisse puis ouvre le jeu (transition de tour).
+        await pullLever(page);
+        await expect(page.getByText('NOUVEAU DÉFI', { exact: false })).toBeVisible({ timeout: 30_000 });
+        await page.screenshot({ path: path.join(screenshotDir, '8l-jeu-ouverture.png') });
+        const afterOpen = await readContextTracker(page);
 
-    // 2. Le tour avance jusqu'à un mini-jeu en cours : on retient son état.
-    const transitionHeader = (await page.locator('header h3').first().innerText()).trim();
-    const stateBefore = await advanceToRunningGame(page, readGameState);
-    const headerBefore = (await page.locator('header h3').first().innerText()).trim();
-    expect(headerBefore.toLocaleLowerCase()).toBe((stateBefore.instruction_header ?? '').toLocaleLowerCase());
-    await page.screenshot({ path: path.join(screenshotDir, '8l-jeu-mini-jeu.png') });
+        // 2. Le tour avance jusqu'à un mini-jeu en cours : on retient son état.
+        const transitionHeader = (await page.locator('header h3').first().innerText()).trim();
+        const stateBefore = await advanceToRunningGame(page, readGameState);
+        const headerBefore = (await page.locator('header h3').first().innerText()).trim();
+        expect(headerBefore.toLocaleLowerCase()).toBe((stateBefore.instruction_header ?? '').toLocaleLowerCase());
+        await page.screenshot({ path: path.join(screenshotDir, '8l-jeu-mini-jeu.png') });
 
-    // 3. Fermer le jeu, rouvrir le Bar, ré-actionner le levier : même partie.
-    await page.getByRole('button', { name: 'Fermer le jeu' }).click();
-    await expect(page.locator('header h3')).toHaveCount(0, { timeout: 20_000 });
-    const afterClose = await readContextTracker(page);
-    await openWorlds(page);
-    await pullLever(page);
-    await expect(page.locator('header h3').first()).toBeVisible({ timeout: 30_000 });
-    const headerAfter = (await page.locator('header h3').first().innerText()).trim();
-    const stateAfter = await readGameState();
-    expect(stateAfter.game_id).toBe(stateBefore.game_id);
-    expect(headerAfter.toLocaleLowerCase()).toBe((stateAfter.instruction_header ?? '').toLocaleLowerCase());
-    await page.screenshot({ path: path.join(screenshotDir, '8l-reprise.png') });
+        // 3. Fermer le jeu, rouvrir le Bar, ré-actionner le levier : même partie.
+        await page.getByRole('button', { name: 'Fermer le jeu' }).click();
+        await expect(page.locator('header h3')).toHaveCount(0, { timeout: 20_000 });
+        const afterClose = await readContextTracker(page);
+        await openWorlds(page, 'E2E world-slot');
+        await pullLever(page);
+        await expect(page.locator('header h3').first()).toBeVisible({ timeout: 30_000 });
+        const headerAfter = (await page.locator('header h3').first().innerText()).trim();
+        const stateAfter = await readGameState();
+        expect(stateAfter.game_id).toBe(stateBefore.game_id);
+        expect(headerAfter.toLocaleLowerCase()).toBe((stateAfter.instruction_header ?? '').toLocaleLowerCase());
+        await page.screenshot({ path: path.join(screenshotDir, '8l-reprise.png') });
 
-    const after = await readContextTracker(page);
+        const after = await readContextTracker(page);
 
-    writeFileSync(
-        path.join(screenshotDir, '8l-slot-machine.json'),
-        JSON.stringify({
-            launched: true,
-            transitionHeader,
-            headerBefore,
-            headerAfter,
-            gameIdBefore: stateBefore.game_id,
-            gameIdAfter: stateAfter.game_id,
-            contexts: {
-                before: { active: before.active, totalCreated: before.totalCreated, maxActive: before.maxActive, contexts: before.contexts },
-                afterOpen: { active: afterOpen.active, totalCreated: afterOpen.totalCreated, maxActive: afterOpen.maxActive, contexts: afterOpen.contexts },
-                afterClose: { active: afterClose.active, totalCreated: afterClose.totalCreated, maxActive: afterClose.maxActive, contexts: afterClose.contexts },
-                after: { active: after.active, totalCreated: after.totalCreated, maxActive: after.maxActive, contexts: after.contexts },
-            },
-            canvasRecreated: after.totalCreated !== before.totalCreated,
-        }, null, 2),
-    );
+        writeFileSync(
+            path.join(screenshotDir, '8l-slot-machine.json'),
+            JSON.stringify({
+                launched: true,
+                aperoId,
+                transitionHeader,
+                headerBefore,
+                headerAfter,
+                gameIdBefore: stateBefore.game_id,
+                gameIdAfter: stateAfter.game_id,
+                contexts: {
+                    before: { active: before.active, totalCreated: before.totalCreated, maxActive: before.maxActive, contexts: before.contexts },
+                    afterOpen: { active: afterOpen.active, totalCreated: afterOpen.totalCreated, maxActive: afterOpen.maxActive, contexts: afterOpen.contexts },
+                    afterClose: { active: afterClose.active, totalCreated: afterClose.totalCreated, maxActive: afterClose.maxActive, contexts: afterClose.contexts },
+                    after: { active: after.active, totalCreated: after.totalCreated, maxActive: after.maxActive, contexts: after.contexts },
+                },
+                canvasRecreated: after.totalCreated !== before.totalCreated,
+            }, null, 2),
+        );
 
-    // Deux contextes sont voulus depuis 8h-4b (carte + mondes) : on vérifie
-    // qu'aucun Canvas n'a été recréé ni perdu pendant le jeu et la reprise.
-    expect(after.totalCreated).toBe(before.totalCreated);
-    expect(after.totalLost).toBe(before.totalLost);
-    expect(after.active).toBe(before.active);
+        // Deux contextes sont voulus depuis 8h-4b (carte + mondes) : on vérifie
+        // qu'aucun Canvas n'a été recréé ni perdu pendant le jeu et la reprise.
+        expect(after.totalCreated).toBe(before.totalCreated);
+        expect(after.totalLost).toBe(before.totalLost);
+        expect(after.active).toBe(before.active);
+    } finally {
+        deleteTestApero(aperoId);
+    }
 });

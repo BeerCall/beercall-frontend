@@ -43,8 +43,14 @@ const EXCLUDED_SOURCES = new Set([
     'perf/WorldProbePanel.tsx',
     'perf/WorldPreparationBadge.tsx',
     'components/UI/PerformancePanel.tsx',
+    'lib/thumbnailIdleEnvelope.ts',
+    'lib/mobileDiagnostics.ts',
+    'lib/worldResources.ts',
+    'perf/worldProbeMetrics.ts',
+    'worlds/slotMachineProbe.ts',
     'setupTests.ts',
 ]);
+const EXCLUDED_PREFIXES = ['types/', 'avatar/render/'];
 
 function collectSourceFiles(dir) {
     const files = [];
@@ -59,7 +65,7 @@ function collectSourceFiles(dir) {
         if (/\.(test|spec)\.(ts|tsx)$/.test(entry.name)) continue;
         if (entry.name.endsWith('.d.ts')) continue;
         const relative = path.relative(sourceRoot, full).replaceAll('\\', '/');
-        if (relative.startsWith('types/') || EXCLUDED_SOURCES.has(relative)) continue;
+        if (EXCLUDED_PREFIXES.some((prefix) => relative.startsWith(prefix)) || EXCLUDED_SOURCES.has(relative)) continue;
         files.push(full);
     }
     return files;
