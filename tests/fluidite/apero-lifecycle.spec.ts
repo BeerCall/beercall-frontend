@@ -6,11 +6,37 @@ const BACKEND_CONTAINER = process.env.FLUIDITE_BACKEND_CONTAINER || 'beercall-fl
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=', 'base64');
 const stamp = () => Date.now().toString(36);
 
+interface UploadSnapshot {
+    aperos: string[];
+    proofs: string[];
+}
+
+interface UserSnapshot {
+    id: number;
+    capsules: number;
+    consecutive_joins: number;
+    consecutive_declines: number;
+    consecutive_piscine: number;
+    ia_fraud_count: number;
+    badges: string[];
+}
+
+interface DbState {
+    aperos: Array<{ id: number; status: string; photo_path: string | null }>;
+    participants: Array<{ user_id: number; status: string; excuse: string | null; photo_path: string | null }>;
+    jobs: Array<{ id: string; status: string }>;
+}
+
 function runPython(script: string): string {
     return execFileSync('docker', ['exec', '-i', BACKEND_CONTAINER, 'python', '-'], {
         input: script,
         encoding: 'utf8',
     });
+}
+
+function lastJsonLine(output: string): string {
+    const lines = output.trim().split(/\r?\n/).filter(Boolean);
+    return lines[lines.length - 1];
 }
 
 function createApero(name: string, creatorId: number): number {
@@ -34,9 +60,86 @@ finally:
     return Number(match[1]);
 }
 
-function cleanupByName(name: string): void {
+function snapshotUploads(): UploadSnapshot {
+    const output = runPython(`
+import json, os
+result = {}
+for key, folder in (('aperos', '/app/uploads/aperos'), ('proofs', '/app/uploads/proofs')):
+    result[key] = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+print(json.dumps(result))
+`);
+    return JSON.parse(lastJsonLine(output)) as UploadSnapshot;
+}
+
+function captureUsers(ids: number[]): UserSnapshot[] {
+    const output = runPython(`
+import json
+from db.database import SessionLocal
+from models.user import User
+from models.gamification import user_badges
+db = SessionLocal()
+try:
+    result = []
+    for user in db.query(User).filter(User.id.in_(${JSON.stringify(ids)})).all():
+        badges = [row[1] for row in db.execute(
+            user_badges.select().where(user_badges.c.user_id == user.id)
+        ).all()]
+        result.append({
+            'id': user.id,
+            'capsules': user.capsules,
+            'consecutive_joins': user.consecutive_joins,
+            'consecutive_declines': user.consecutive_declines,
+            'consecutive_piscine': user.consecutive_piscine,
+            'ia_fraud_count': user.ia_fraud_count,
+            'badges': sorted(badges),
+        })
+    print(json.dumps(result))
+finally:
+    db.close()
+`);
+    return JSON.parse(lastJsonLine(output)) as UserSnapshot[];
+}
+
+function restoreUsers(states: UserSnapshot[]): void {
+    if (states.length === 0) return;
     runPython(`
-import os
+import json
+from db.database import SessionLocal
+from models.user import User
+from models.gamification import user_badges
+states = json.loads(${JSON.stringify(JSON.stringify(states))})
+db = SessionLocal()
+try:
+    for state in states:
+        user = db.get(User, state['id'])
+        if not user:
+            continue
+        user.capsules = state['capsules']
+        user.consecutive_joins = state['consecutive_joins']
+        user.consecutive_declines = state['consecutive_declines']
+        user.consecutive_piscine = state['consecutive_piscine']
+        user.ia_fraud_count = state['ia_fraud_count']
+        current = {row[1] for row in db.execute(
+            user_badges.select().where(user_badges.c.user_id == user.id)
+        ).all()}
+        saved = set(state['badges'])
+        for extra in current - saved:
+            db.execute(user_badges.delete().where(
+                user_badges.c.user_id == user.id,
+                user_badges.c.badge_id == extra,
+            ))
+        for missing in saved - current:
+            db.execute(user_badges.insert().values(user_id=user.id, badge_id=missing))
+    db.commit()
+    print('RESTORED')
+finally:
+    db.close()
+`);
+}
+
+function fetchState(name: string): DbState {
+    const output = runPython(`
+import json
 from db.database import SessionLocal
 from models.apero import Apero, AperoParticipant
 from models.beer_call_job import BeerCallJob
@@ -44,35 +147,86 @@ db = SessionLocal()
 try:
     aperos = db.query(Apero).filter(Apero.location_name == ${JSON.stringify(name)}).all()
     ids = [a.id for a in aperos]
-    paths = [a.photo_path for a in aperos if a.photo_path]
+    participants = db.query(AperoParticipant).filter(
+        AperoParticipant.apero_id.in_(ids)
+    ).all() if ids else []
+    jobs = db.query(BeerCallJob).filter(
+        BeerCallJob.location_name == ${JSON.stringify(name)}
+    ).all()
+    print(json.dumps({
+        'aperos': [
+            {'id': a.id, 'status': a.status.name, 'photo_path': a.photo_path}
+            for a in aperos
+        ],
+        'participants': [
+            {'user_id': p.user_id, 'status': p.status.name, 'excuse': p.excuse, 'photo_path': p.photo_path}
+            for p in participants
+        ],
+        'jobs': [{'id': str(j.id), 'status': j.status.name} for j in jobs],
+    }))
+finally:
+    db.close()
+`);
+    return JSON.parse(lastJsonLine(output)) as DbState;
+}
+
+/**
+ * Supprime uniquement les données de l'apéro de test et les fichiers créés
+ * pendant le test. Les fichiers absents du snapshot initial ne sont retirés
+ * que s'ils ne sont référencés par aucune autre ligne de la base.
+ */
+function cleanupTestData(name: string, uploads: UploadSnapshot): void {
+    runPython(`
+import json, os
+from db.database import SessionLocal
+from models.apero import Apero, AperoParticipant
+from models.beer_call_job import BeerCallJob
+snapshot = json.loads(${JSON.stringify(JSON.stringify(uploads))})
+db = SessionLocal()
+try:
+    aperos = db.query(Apero).filter(Apero.location_name == ${JSON.stringify(name)}).all()
+    ids = [a.id for a in aperos]
+    referenced = set()
+    for apero in aperos:
+        if apero.photo_path:
+            referenced.add(apero.photo_path.lstrip('/'))
     if ids:
         for participant in db.query(AperoParticipant).filter(AperoParticipant.apero_id.in_(ids)).all():
             if participant.photo_path:
-                paths.append(participant.photo_path)
-        db.query(AperoParticipant).filter(AperoParticipant.apero_id.in_(ids)).delete(synchronize_session=False)
+                referenced.add(participant.photo_path.lstrip('/'))
+        db.query(AperoParticipant).filter(
+            AperoParticipant.apero_id.in_(ids)
+        ).delete(synchronize_session=False)
         db.query(Apero).filter(Apero.id.in_(ids)).delete(synchronize_session=False)
-    for job in db.query(BeerCallJob).filter(BeerCallJob.location_name == ${JSON.stringify(name)}).all():
-        db.delete(job)
+    db.query(BeerCallJob).filter(
+        BeerCallJob.location_name == ${JSON.stringify(name)}
+    ).delete(synchronize_session=False)
     db.commit()
-    referenced = set(paths)
-    for path in referenced:
+
+    remaining = set()
+    for apero in db.query(Apero).all():
+        if apero.photo_path:
+            remaining.add(apero.photo_path.lstrip('/'))
+    for participant in db.query(AperoParticipant).all():
+        if participant.photo_path:
+            remaining.add(participant.photo_path.lstrip('/'))
+
+    for relative in referenced - remaining:
         try:
-            os.remove('/app' + path)
+            os.remove('/app/' + relative)
         except FileNotFoundError:
             pass
-    import time
-    cutoff = time.time() - 900
-    for folder in ('/app/uploads/aperos', '/app/uploads/proofs'):
+
+    for key, folder in (('aperos', '/app/uploads/aperos'), ('proofs', '/app/uploads/proofs')):
         if not os.path.isdir(folder):
             continue
+        known = set(snapshot.get(key, []))
         for filename in os.listdir(folder):
-            full = os.path.join(folder, filename)
-            relative = '/uploads/' + ('aperos/' if folder.endswith('aperos') else 'proofs/') + filename
-            if relative in referenced:
+            relative = f'uploads/{key}/{filename}'
+            if filename in known or relative in remaining:
                 continue
             try:
-                if os.path.getmtime(full) >= cutoff:
-                    os.remove(full)
+                os.remove(os.path.join(folder, filename))
             except FileNotFoundError:
                 pass
     print('CLEANED')
@@ -90,9 +244,19 @@ async function waitForFix(page: import('@playwright/test').Page): Promise<void> 
     await expect(page.getByRole('button', {name: 'Me recentrer'})).toBeVisible({timeout: 30_000});
 }
 
+function beginTest(): {users: UserSnapshot[]; uploads: UploadSnapshot} {
+    return {users: captureUsers([1, 4]), uploads: snapshotUploads()};
+}
+
+function endTest(name: string, context: {users: UserSnapshot[]; uploads: UploadSnapshot}): void {
+    cleanupTestData(name, context.uploads);
+    restoreUsers(context.users);
+}
+
 test.describe('Apéro — cycle de vie complet', () => {
-    test('CreateBeerCall : soumission réelle puis nettoyage', async ({ page, request }) => {
+    test('CreateBeerCall : soumission réelle, job et nettoyage', async ({ page, request }) => {
         const name = `E2E create ${stamp()}`;
+        const context = beginTest();
         try {
             await loginAs(page, request, 'FluiditeDemo');
             await openDashboard(page);
@@ -106,13 +270,20 @@ test.describe('Apéro — cycle de vie complet', () => {
             await page.getByPlaceholder('Ex: Bar Le Central...').fill(name);
             await page.getByRole('button', {name: /LANCER L'APPEL/}).click();
             await expect(page.getByRole('heading', {name: /Valider l'Apéro/})).toHaveCount(0, {timeout: 90_000});
+
+            const state = fetchState(name);
+            expect(state.aperos).toHaveLength(1);
+            expect(state.aperos[0].status).toBe('ACTIVE');
+            expect(state.aperos[0].photo_path).toBeTruthy();
+            expect(state.jobs.at(-1)?.status).toBe('SUCCEEDED');
         } finally {
-            cleanupByName(name);
+            endTest(name, context);
         }
     });
 
     test('ScheduleApero : programmation puis démarrage réel', async ({ page, request }) => {
         const name = `E2E schedule ${stamp()}`;
+        const context = beginTest();
         try {
             await loginAs(page, request, 'FluiditeDemo');
             await openDashboard(page);
@@ -136,6 +307,10 @@ test.describe('Apéro — cycle de vie complet', () => {
             await page.getByRole('button', {name: /PROGRAMMER/}).click();
             await expect(page.getByRole('heading', {name: /Programmer l'Apéro/})).toHaveCount(0, {timeout: 20_000});
 
+            const scheduled = fetchState(name);
+            expect(scheduled.aperos).toHaveLength(1);
+            expect(scheduled.aperos[0].status).toBe('SCHEDULED');
+
             await openDashboard(page);
             await waitForFix(page);
             const card = page.locator('div')
@@ -149,13 +324,19 @@ test.describe('Apéro — cycle de vie complet', () => {
             await expect(page.getByRole('heading', {name: /Démarrer l'Apéro/})).toBeVisible({timeout: 15_000});
             await page.getByRole('button', {name: /LANCER L'APPEL/}).click();
             await expect(page.getByRole('heading', {name: /Démarrer l'Apéro/})).toHaveCount(0, {timeout: 90_000});
+
+            const started = fetchState(name);
+            expect(started.aperos).toHaveLength(1);
+            expect(started.aperos[0].status).toBe('ACTIVE');
+            expect(started.aperos[0].photo_path).toBeTruthy();
         } finally {
-            cleanupByName(name);
+            endTest(name, context);
         }
     });
 
     test('RespondBeerCall : refus Piscine avec excuse', async ({ page, request }) => {
         const name = `E2E decline ${stamp()}`;
+        const context = beginTest();
         createApero(name, 4);
         try {
             await loginAs(page, request, 'FluiditeDemo');
@@ -172,13 +353,22 @@ test.describe('Apéro — cycle de vie complet', () => {
             await page.getByPlaceholder('J\'ai aqua-poney...').fill('E2E excuse');
             await page.getByRole('button', {name: /ASSUMER MON ABSENCE/}).click();
             await expect(page.getByRole('heading', {name: "L'Esquive"})).toHaveCount(0, {timeout: 20_000});
+
+            const state = fetchState(name);
+            expect(state.participants).toHaveLength(1);
+            expect(state.participants[0]).toMatchObject({
+                user_id: 1,
+                status: 'DECLINED',
+                excuse: 'E2E excuse',
+            });
         } finally {
-            cleanupByName(name);
+            endTest(name, context);
         }
     });
 
     test('RespondBeerCall : participation Bar avec photo', async ({ page, request }) => {
         const name = `E2E join ${stamp()}`;
+        const context = beginTest();
         createApero(name, 4);
         try {
             await loginAs(page, request, 'FluiditeDemo');
@@ -197,8 +387,13 @@ test.describe('Apéro — cycle de vie complet', () => {
             await expect(page.getByRole('heading', {name: 'Prouve-le !'})).toBeVisible({timeout: 10_000});
             await page.getByRole('button', {name: /VALIDATION IA/}).click();
             await expect(page.getByRole('heading', {name: 'Prouve-le !'})).toHaveCount(0, {timeout: 30_000});
+
+            const state = fetchState(name);
+            expect(state.participants).toHaveLength(1);
+            expect(state.participants[0]).toMatchObject({user_id: 1, status: 'JOINED'});
+            expect(state.participants[0].photo_path).toBeTruthy();
         } finally {
-            cleanupByName(name);
+            endTest(name, context);
         }
     });
 });
