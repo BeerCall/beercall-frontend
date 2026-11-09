@@ -35,6 +35,7 @@ import {WorldProbePanel} from 'virtual:world-probe';
 
 // 📸 IMPORT DE TA MODALE
 import PhotoModal from '../Modals/PhotoModal';
+import type {PhotoItem} from '../Modals/PhotoModal';
 
 // --- LA MODALE PRINCIPALE ---
 interface SelectWorldModalProps {
@@ -162,7 +163,7 @@ export default function SelectWorldModal({
     };
 
     // 📸 NOUVEAU : STATE POUR LES PHOTOS GÉRÉ ICI
-    const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
+    const [selectedPhotos, setSelectedPhotos] = useState<PhotoItem[]>([]);
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
 
     const THEMES = {
@@ -195,8 +196,16 @@ export default function SelectWorldModal({
     );
     const proofPhotos = useMemo(
         () => currentParticipants
-            .map(participant => participant.proof_photo_url)
-            .filter((url): url is string => Boolean(url)),
+            .map((participant): PhotoItem | null => {
+                const ownerId = participant.user_id ?? participant.id;
+                if (!participant.proof_photo_url || !ownerId) return null;
+                return {
+                    url: participant.proof_photo_url,
+                    ownerId: String(ownerId),
+                    ownerUsername: participant.username,
+                };
+            })
+            .filter((photo): photo is PhotoItem => Boolean(photo)),
         [currentParticipants],
     );
     const hasWorldData = worldsData !== undefined && worldsData !== null;
@@ -308,9 +317,9 @@ export default function SelectWorldModal({
     }, [startGame, openGameScreen, beerCallId, onClose]);
 
     const handleSelectPhoto = (url: string) => {
-        const urls = proofPhotos.length ? proofPhotos : [url];
-        setSelectedPhotos(urls);
-        setCurrentPhotoIndex(Math.max(0, urls.indexOf(url)));
+        const photos = proofPhotos.length ? proofPhotos : [{url}];
+        setSelectedPhotos(photos);
+        setCurrentPhotoIndex(Math.max(0, photos.findIndex(photo => photo.url === url)));
     };
 
     return (
@@ -431,7 +440,10 @@ export default function SelectWorldModal({
             {/* 📸 LA MODALE PHOTO RENDUE ICI, TOTALEMENT SÉCURISÉE HORS DU CANVAS */}
             {isOpen && selectedPhotos.length > 0 && (
                 <PhotoModal
-                    imageUrls={selectedPhotos}
+                    imageUrls={selectedPhotos.map(photo => photo.url)}
+                    photoItems={selectedPhotos}
+                    squadId={activeSquadId}
+                    beerCallId={activeBeerCallId}
                     currentIndex={currentPhotoIndex}
                     onClose={() => {
                         setSelectedPhotos([]);

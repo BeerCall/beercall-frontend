@@ -15,6 +15,16 @@ export interface WorldParticipant {
     declined_at?: string | null;
 }
 
+/** Commentaire sous la preuve photo d'un participant. */
+export interface PhotoComment {
+    id: number;
+    author_id: number;
+    author_username: string;
+    content: string;
+    created_at: string;
+    can_delete: boolean;
+}
+
 /** B04 — Position « dernière connue » d'un membre localisé (A12). */
 export interface MemberLocation {
     user_id: number;
