@@ -1,42 +1,15 @@
 import { test, expect } from './base';
-import { execFileSync } from 'node:child_process';
 import { loginAs } from './contextTracker';
+import { captureUsers, lastJsonLine, restoreUsers, runPython, type UserSnapshot } from './backendState';
 
-const BACKEND_CONTAINER = process.env.FLUIDITE_BACKEND_CONTAINER || 'beercall-fluidite-night-backend-1';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=', 'base64');
 const stamp = () => Date.now().toString(36);
-
-interface UploadSnapshot {
-    aperos: string[];
-    proofs: string[];
-}
-
-interface UserSnapshot {
-    id: number;
-    capsules: number;
-    consecutive_joins: number;
-    consecutive_declines: number;
-    consecutive_piscine: number;
-    ia_fraud_count: number;
-    badges: string[];
-}
+const USER_IDS = [1, 4];
 
 interface DbState {
     aperos: Array<{ id: number; status: string; photo_path: string | null }>;
     participants: Array<{ user_id: number; status: string; excuse: string | null; photo_path: string | null }>;
     jobs: Array<{ id: string; status: string }>;
-}
-
-function runPython(script: string): string {
-    return execFileSync('docker', ['exec', '-i', BACKEND_CONTAINER, 'python', '-'], {
-        input: script,
-        encoding: 'utf8',
-    });
-}
-
-function lastJsonLine(output: string): string {
-    const lines = output.trim().split(/\r?\n/).filter(Boolean);
-    return lines[lines.length - 1];
 }
 
 function createApero(name: string, creatorId: number): number {
@@ -58,83 +31,6 @@ finally:
     const match = output.match(/APERO_ID=(\d+)/);
     if (!match) throw new Error(`Création apéro impossible: ${output}`);
     return Number(match[1]);
-}
-
-function snapshotUploads(): UploadSnapshot {
-    const output = runPython(`
-import json, os
-result = {}
-for key, folder in (('aperos', '/app/uploads/aperos'), ('proofs', '/app/uploads/proofs')):
-    result[key] = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
-print(json.dumps(result))
-`);
-    return JSON.parse(lastJsonLine(output)) as UploadSnapshot;
-}
-
-function captureUsers(ids: number[]): UserSnapshot[] {
-    const output = runPython(`
-import json
-from db.database import SessionLocal
-from models.user import User
-from models.gamification import user_badges
-db = SessionLocal()
-try:
-    result = []
-    for user in db.query(User).filter(User.id.in_(${JSON.stringify(ids)})).all():
-        badges = [row[1] for row in db.execute(
-            user_badges.select().where(user_badges.c.user_id == user.id)
-        ).all()]
-        result.append({
-            'id': user.id,
-            'capsules': user.capsules,
-            'consecutive_joins': user.consecutive_joins,
-            'consecutive_declines': user.consecutive_declines,
-            'consecutive_piscine': user.consecutive_piscine,
-            'ia_fraud_count': user.ia_fraud_count,
-            'badges': sorted(badges),
-        })
-    print(json.dumps(result))
-finally:
-    db.close()
-`);
-    return JSON.parse(lastJsonLine(output)) as UserSnapshot[];
-}
-
-function restoreUsers(states: UserSnapshot[]): void {
-    if (states.length === 0) return;
-    runPython(`
-import json
-from db.database import SessionLocal
-from models.user import User
-from models.gamification import user_badges
-states = json.loads(${JSON.stringify(JSON.stringify(states))})
-db = SessionLocal()
-try:
-    for state in states:
-        user = db.get(User, state['id'])
-        if not user:
-            continue
-        user.capsules = state['capsules']
-        user.consecutive_joins = state['consecutive_joins']
-        user.consecutive_declines = state['consecutive_declines']
-        user.consecutive_piscine = state['consecutive_piscine']
-        user.ia_fraud_count = state['ia_fraud_count']
-        current = {row[1] for row in db.execute(
-            user_badges.select().where(user_badges.c.user_id == user.id)
-        ).all()}
-        saved = set(state['badges'])
-        for extra in current - saved:
-            db.execute(user_badges.delete().where(
-                user_badges.c.user_id == user.id,
-                user_badges.c.badge_id == extra,
-            ))
-        for missing in saved - current:
-            db.execute(user_badges.insert().values(user_id=user.id, badge_id=missing))
-    db.commit()
-    print('RESTORED')
-finally:
-    db.close()
-`);
 }
 
 function fetchState(name: string): DbState {
@@ -171,36 +67,46 @@ finally:
 }
 
 /**
- * Supprime uniquement les données de l'apéro de test et les fichiers créés
- * pendant le test. Les fichiers absents du snapshot initial ne sont retirés
- * que s'ils ne sont référencés par aucune autre ligne de la base.
+ * Supprime uniquement les lignes de l'apéro de test et les fichiers qui leur
+ * appartiennent explicitement : chemins photo des apéros/participations et
+ * fichiers dérivés des jobs Beer Call associés. Aucun autre fichier du dossier
+ * n'est touché, même s'il est apparu pendant le test.
  */
-function cleanupTestData(name: string, uploads: UploadSnapshot): void {
+function cleanupTestData(name: string): void {
     runPython(`
-import json, os
+import os
 from db.database import SessionLocal
 from models.apero import Apero, AperoParticipant
 from models.beer_call_job import BeerCallJob
-snapshot = json.loads(${JSON.stringify(JSON.stringify(uploads))})
 db = SessionLocal()
 try:
     aperos = db.query(Apero).filter(Apero.location_name == ${JSON.stringify(name)}).all()
     ids = [a.id for a in aperos]
-    referenced = set()
+    jobs = db.query(BeerCallJob).filter(
+        BeerCallJob.location_name == ${JSON.stringify(name)}
+    ).all()
+    job_ids = [str(job.id) for job in jobs]
+
+    owned = set()
     for apero in aperos:
         if apero.photo_path:
-            referenced.add(apero.photo_path.lstrip('/'))
+            owned.add(apero.photo_path.lstrip('/'))
     if ids:
         for participant in db.query(AperoParticipant).filter(AperoParticipant.apero_id.in_(ids)).all():
             if participant.photo_path:
-                referenced.add(participant.photo_path.lstrip('/'))
+                owned.add(participant.photo_path.lstrip('/'))
         db.query(AperoParticipant).filter(
             AperoParticipant.apero_id.in_(ids)
         ).delete(synchronize_session=False)
         db.query(Apero).filter(Apero.id.in_(ids)).delete(synchronize_session=False)
-    db.query(BeerCallJob).filter(
-        BeerCallJob.location_name == ${JSON.stringify(name)}
-    ).delete(synchronize_session=False)
+    for job in jobs:
+        db.delete(job)
+    for job_id in job_ids:
+        owned.update({
+            f'uploads/jobs/{job_id}.input',
+            f'uploads/jobs/{job_id}.tmp',
+            f'uploads/aperos/{job_id}.jpg',
+        })
     db.commit()
 
     remaining = set()
@@ -211,27 +117,40 @@ try:
         if participant.photo_path:
             remaining.add(participant.photo_path.lstrip('/'))
 
-    for relative in referenced - remaining:
+    for relative in owned - remaining:
+        if not relative.startswith('uploads/') or '..' in relative:
+            continue
         try:
             os.remove('/app/' + relative)
         except FileNotFoundError:
             pass
-
-    for key, folder in (('aperos', '/app/uploads/aperos'), ('proofs', '/app/uploads/proofs')):
-        if not os.path.isdir(folder):
-            continue
-        known = set(snapshot.get(key, []))
-        for filename in os.listdir(folder):
-            relative = f'uploads/{key}/{filename}'
-            if filename in known or relative in remaining:
-                continue
-            try:
-                os.remove(os.path.join(folder, filename))
-            except FileNotFoundError:
-                pass
     print('CLEANED')
 finally:
     db.close()
+`);
+}
+
+function writeExternalUpload(): string {
+    const relative = `uploads/aperos/e2e-external-${stamp()}.jpg`;
+    runPython(`open('/app/${relative}', 'wb').write(b'external')`);
+    return relative;
+}
+
+function uploadExists(relative: string): boolean {
+    const output = runPython(`
+import os
+print('YES' if os.path.exists('/app/${relative}') else 'NO')
+`);
+    return lastJsonLine(output).trim() === 'YES';
+}
+
+function removeUpload(relative: string): void {
+    runPython(`
+import os
+try:
+    os.remove('/app/${relative}')
+except FileNotFoundError:
+    pass
 `);
 }
 
@@ -244,19 +163,35 @@ async function waitForFix(page: import('@playwright/test').Page): Promise<void> 
     await expect(page.getByRole('button', {name: 'Me recentrer'})).toBeVisible({timeout: 30_000});
 }
 
-function beginTest(): {users: UserSnapshot[]; uploads: UploadSnapshot} {
-    return {users: captureUsers([1, 4]), uploads: snapshotUploads()};
+function beginTest(): UserSnapshot[] {
+    return captureUsers(USER_IDS);
 }
 
-function endTest(name: string, context: {users: UserSnapshot[]; uploads: UploadSnapshot}): void {
-    cleanupTestData(name, context.uploads);
-    restoreUsers(context.users);
+/**
+ * Nettoyage et restauration sont indépendants : si le nettoyage échoue, la
+ * restauration des joueurs a quand même lieu, puis l'état final est comparé au
+ * snapshot. `preservedFile` prouve qu'un fichier étranger n'a pas été supprimé.
+ */
+function endTest(name: string, users: UserSnapshot[], preservedFile?: string): void {
+    try {
+        cleanupTestData(name);
+    } finally {
+        try {
+            restoreUsers(users);
+        } finally {
+            expect(captureUsers(users.map((user) => user.id))).toEqual(users);
+            if (preservedFile) {
+                expect(uploadExists(preservedFile), `fichier étranger supprimé: ${preservedFile}`).toBe(true);
+            }
+        }
+    }
 }
 
 test.describe('Apéro — cycle de vie complet', () => {
     test('CreateBeerCall : soumission réelle, job et nettoyage', async ({ page, request }) => {
         const name = `E2E create ${stamp()}`;
-        const context = beginTest();
+        const users = beginTest();
+        const externalFile = writeExternalUpload();
         try {
             await loginAs(page, request, 'FluiditeDemo');
             await openDashboard(page);
@@ -277,13 +212,17 @@ test.describe('Apéro — cycle de vie complet', () => {
             expect(state.aperos[0].photo_path).toBeTruthy();
             expect(state.jobs.at(-1)?.status).toBe('SUCCEEDED');
         } finally {
-            endTest(name, context);
+            try {
+                endTest(name, users, externalFile);
+            } finally {
+                removeUpload(externalFile);
+            }
         }
     });
 
     test('ScheduleApero : programmation puis démarrage réel', async ({ page, request }) => {
         const name = `E2E schedule ${stamp()}`;
-        const context = beginTest();
+        const users = beginTest();
         try {
             await loginAs(page, request, 'FluiditeDemo');
             await openDashboard(page);
@@ -330,15 +269,15 @@ test.describe('Apéro — cycle de vie complet', () => {
             expect(started.aperos[0].status).toBe('ACTIVE');
             expect(started.aperos[0].photo_path).toBeTruthy();
         } finally {
-            endTest(name, context);
+            endTest(name, users);
         }
     });
 
     test('RespondBeerCall : refus Piscine avec excuse', async ({ page, request }) => {
         const name = `E2E decline ${stamp()}`;
-        const context = beginTest();
-        createApero(name, 4);
+        const users = beginTest();
         try {
+            createApero(name, 4);
             await loginAs(page, request, 'FluiditeDemo');
             await openDashboard(page);
             const card = page.locator('div')
@@ -362,15 +301,15 @@ test.describe('Apéro — cycle de vie complet', () => {
                 excuse: 'E2E excuse',
             });
         } finally {
-            endTest(name, context);
+            endTest(name, users);
         }
     });
 
     test('RespondBeerCall : participation Bar avec photo', async ({ page, request }) => {
         const name = `E2E join ${stamp()}`;
-        const context = beginTest();
-        createApero(name, 4);
+        const users = beginTest();
         try {
+            createApero(name, 4);
             await loginAs(page, request, 'FluiditeDemo');
             await openDashboard(page);
             await waitForFix(page);
@@ -393,7 +332,7 @@ test.describe('Apéro — cycle de vie complet', () => {
             expect(state.participants[0]).toMatchObject({user_id: 1, status: 'JOINED'});
             expect(state.participants[0].photo_path).toBeTruthy();
         } finally {
-            endTest(name, context);
+            endTest(name, users);
         }
     });
 });
