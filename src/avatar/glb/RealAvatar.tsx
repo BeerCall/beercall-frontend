@@ -72,9 +72,6 @@ function countMeshes(root: Group): number {
     return count;
 }
 
-/** Diagnostic: proves each avatar rig is assembled once, not on every parent render. */
-let assemblyCount = 0;
-
 export const RealAvatar: React.FC<RealAvatarProps> = ({
     config,
     userId,
@@ -282,12 +279,6 @@ export const RealAvatar: React.FC<RealAvatarProps> = ({
                 setLoadError(null);
 
                 const totalMeshes = countMeshes(root);
-                assemblyCount += 1;
-                console.info('[avatar] assembled', {
-                    count: assemblyCount,
-                    avatar: resolvedParts.head.sourceId,
-                    parts: pieceNames.length,
-                });
                 callbacksRef.current.onReadinessChange?.(true, { parts: pieceNames, meshCount: totalMeshes });
                 callbacksRef.current.onReady?.();
                 readinessReported.current = true;

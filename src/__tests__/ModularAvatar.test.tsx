@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { ModularAvatar } from '../components/3D/ModularAvatar';
-import { ModularAvatar as LegacyModularAvatar } from '../components/3D/AvatarCanvas';
 import type { AvatarPresentationState } from '../lib/avatarPresentationState';
 
 const state = vi.hoisted(() => ({
@@ -102,10 +101,6 @@ describe('ModularAvatar assembly extraction', () => {
         state.deferredStatus = 'ready';
         state.notify.mockReset();
         state.retry.mockReset().mockResolvedValue(undefined);
-    });
-
-    it('keeps the worlds legacy export identical', () => {
-        expect(LegacyModularAvatar).toBe(ModularAvatar);
     });
 
     it('isolates skeletons, parents and mixers while retaining public geometry/materials', () => {

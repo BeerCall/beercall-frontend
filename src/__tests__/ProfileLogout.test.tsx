@@ -29,7 +29,6 @@ vi.mock('../hooks/useProfile', () => ({
     }),
 }));
 
-vi.mock('../components/3D/SafeAvatar', () => ({ default: () => <div data-testid='safe-avatar-fixture'/> }));
 vi.mock('../components/Profile/VestiairePanel', () => ({ default: () => <div data-testid='vestiaire-fixture'/> }));
 vi.mock('../store/useUserStore', () => ({
     useUserStore: (selector: (state: { logout: () => void }) => unknown) => selector({ logout: fixtures.logout }),

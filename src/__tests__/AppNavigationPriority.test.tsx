@@ -23,7 +23,6 @@ vi.mock('../hooks/usePushNotifications', () => ({usePushNotifications: () => und
 vi.mock('../components/PersistentDashboard', () => ({default: () => null}));
 vi.mock('../components/PersistentConnections', () => ({default: () => null}));
 vi.mock('../components/WorldWarmup', () => ({default: () => null}));
-vi.mock('../components/AvatarWarmup', () => ({default: () => null}));
 vi.mock('../components/UI/ToastContainer', () => ({default: () => null}));
 
 it('commits navigation without a low-priority router transition while the avatar renderer is busy', () => {
