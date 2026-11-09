@@ -188,11 +188,49 @@ function endTest(name: string, users: UserSnapshot[], preservedFile?: string): v
 }
 
 test.describe('Apéro — cycle de vie complet', () => {
+    test('Restauration : conserve les dates de badges historiques et nulles', async () => {
+        const initial = beginTest();
+        try {
+            for (const timestamp of [null, '2001-02-03T04:05:06+00:00']) {
+                runPython(`
+from datetime import datetime
+from db.database import SessionLocal
+from models.gamification import user_badges
+db = SessionLocal()
+try:
+    db.execute(user_badges.delete().where(
+        user_badges.c.user_id == 1, user_badges.c.badge_id == 'BAPTEME',
+    ))
+    db.execute(user_badges.insert().values(
+        user_id=1, badge_id='BAPTEME',
+        unlocked_at=${timestamp ? `datetime.fromisoformat('${timestamp}')` : 'None'},
+    ))
+    db.commit()
+finally:
+    db.close()
+`);
+                const snapshot = beginTest();
+                const badge = snapshot.find((user) => user.id === 1)?.badges.find((item) => item.badge_id === 'BAPTEME');
+                expect(badge?.unlocked_at).toBe(timestamp);
+                // Force une réinsertion pour tester le helper, pas seulement la capture.
+                restoreUsers(snapshot);
+                expect(beginTest()).toEqual(snapshot);
+            }
+        } finally {
+            try {
+                restoreUsers(initial);
+            } finally {
+                expect(beginTest()).toEqual(initial);
+            }
+        }
+    });
+
     test('CreateBeerCall : soumission réelle, job et nettoyage', async ({ page, request }) => {
         const name = `E2E create ${stamp()}`;
         const users = beginTest();
-        const externalFile = writeExternalUpload();
+        let externalFile: string | undefined;
         try {
+            externalFile = writeExternalUpload();
             await loginAs(page, request, 'FluiditeDemo');
             await openDashboard(page);
             await waitForFix(page);
@@ -215,7 +253,7 @@ test.describe('Apéro — cycle de vie complet', () => {
             try {
                 endTest(name, users, externalFile);
             } finally {
-                removeUpload(externalFile);
+                if (externalFile) removeUpload(externalFile);
             }
         }
     });

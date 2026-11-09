@@ -86,7 +86,7 @@ try:
     for state in states:
         user = db.get(User, state['id'])
         if not user:
-            continue
+            raise LookupError(f"Joueur à restaurer introuvable: {state['id']}")
         user.capsules = state['capsules']
         user.consecutive_joins = state['consecutive_joins']
         user.consecutive_declines = state['consecutive_declines']
@@ -94,9 +94,11 @@ try:
         user.ia_fraud_count = state['ia_fraud_count']
         db.execute(user_badges.delete().where(user_badges.c.user_id == user.id))
         for badge in state['badges']:
-            values = {'user_id': user.id, 'badge_id': badge['badge_id']}
-            if badge['unlocked_at']:
-                values['unlocked_at'] = datetime.fromisoformat(badge['unlocked_at'])
+            values = {
+                'user_id': user.id,
+                'badge_id': badge['badge_id'],
+                'unlocked_at': datetime.fromisoformat(badge['unlocked_at']) if badge['unlocked_at'] else None,
+            }
             db.execute(user_badges.insert().values(**values))
     db.commit()
     print('RESTORED')

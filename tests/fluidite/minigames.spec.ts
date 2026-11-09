@@ -316,11 +316,13 @@ async function exerciseSensor(
 }
 
 /** Vérifie la transition réellement persistée en base après l'action. */
-function assertPersistedTransition(gameId: string, before: PersistedGame, after: PersistedGame): void {
+function assertPersistedTransition(gameId: string, actionId: string, before: PersistedGame, after: PersistedGame): void {
+    expect(before.game_id).toBe(gameId);
+    expect(after.game_id).toBe(gameId === 'AVATAR_ROULETTE' ? 'TURN_TRANSITION' : gameId);
     const state = after.state;
     switch (gameId) {
         case 'AVATAR_ROULETTE':
-            expect(after.game_id).toBe('TURN_TRANSITION');
+            expect(state.turn_index).toBe(Number(before.state.turn_index) + 1);
             break;
         case 'HOT_POTATO':
             expect(
@@ -329,7 +331,7 @@ function assertPersistedTransition(gameId: string, before: PersistedGame, after:
             ).toBe(true);
             break;
         case 'BRAIN_DUEL':
-            expect(['P1', 'P2']).toContain(state.winner);
+            expect(state.winner).toBe(actionId === 'WINNER_TOP' ? 'P2' : 'P1');
             break;
         case 'DEATH_FINGER':
             expect(state.selection_done).toBe(true);
@@ -339,7 +341,7 @@ function assertPersistedTransition(gameId: string, before: PersistedGame, after:
             break;
         case 'MAX_PRESSURE':
         case 'PENALTY_SHOOTOUT':
-            expect(['WON', 'LOST']).toContain(state.status);
+            expect(state.status).toBe(actionId === 'GAME_WON' ? 'WON' : 'LOST');
             break;
         case 'PHOTO_CHALLENGE':
             expect(state.photo_base64).toBe(true);
@@ -417,9 +419,9 @@ test('Mini-jeux : les 9 capteurs envoient l’action attendue et la transition p
 
             const before = fetchPersistedGame(aperoId);
             const state = await readState();
-            await exerciseSensor(page, aperoId, state.required_sensor?.type ?? '', state);
+            const actionId = await exerciseSensor(page, aperoId, state.required_sensor?.type ?? '', state);
             const after = fetchPersistedGame(aperoId);
-            assertPersistedTransition(gameId, before, after);
+            assertPersistedTransition(gameId, actionId, before, after);
             await captureCoverage(page, gameId);
 
             await page.getByRole('button', {name: 'Fermer le jeu'}).click();
