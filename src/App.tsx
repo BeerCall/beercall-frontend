@@ -11,12 +11,12 @@ import PersistentConnections from './components/PersistentConnections';
 // Préchargement GLB au repos : aucun Canvas, aucun contexte WebGL.
 import WorldWarmup from './components/WorldWarmup';
 import { recoverableImport } from './lib/chunkRecovery';
+import { PerformancePanel } from 'virtual:perf-panel';
 
 // Lazy loading extrême pour tuer le Bundle Size Obèse (LCP optimisé).
 // Chaque import est enveloppé : un chunk disparu après rebuild déclenche la
 // récupération (rechargement unique puis message visible), jamais un écran blanc.
 const Login = React.lazy(recoverableImport(() => import('./pages/Login'), 'Login'));
-const PerformancePanel = React.lazy(recoverableImport(() => import('./components/UI/PerformancePanel'), 'PerformancePanel'));
 const SignUp = React.lazy(recoverableImport(() => import('./pages/SignUp.tsx'), 'SignUp'));
 let preparedProfile: typeof import('./pages/Profile.tsx')['default'] | undefined;
 const loadProfile = recoverableImport(() => import('./pages/Profile.tsx').then(module => {
@@ -93,7 +93,7 @@ function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
         <QueryClientProvider client={queryClient}>
             <BrowserRouter unstable_useTransitions={false}>
                 <ToastContainer/>
-                {diagnostics && <Suspense fallback={null}><PerformancePanel/></Suspense>}
+                {diagnostics && PerformancePanel ? <Suspense fallback={null}><PerformancePanel/></Suspense> : null}
                 <Suspense fallback={<LoadingFallback />}>
                     <Routes>
                         <Route element={<Layout/>}>

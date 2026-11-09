@@ -26,11 +26,34 @@ function worldProbePlugin(enabled: boolean): Plugin {
     };
 }
 
+/**
+ * Panneau de diagnostic de fluidité : même principe, activé uniquement par
+ * `VITE_FF_PERF_PANEL=1`. Sans cette variable, aucun chunk n'est produit.
+ */
+function perfPanelPlugin(enabled: boolean): Plugin {
+    const virtualId = 'virtual:perf-panel';
+    const resolvedId = `\0${virtualId}`;
+    return {
+        name: 'beercall-perf-panel',
+        resolveId(id) {
+            if (id === virtualId) return resolvedId;
+            return null;
+        },
+        load(id) {
+            if (id !== resolvedId) return null;
+            return enabled
+                ? "import {lazy} from 'react';\nexport const PerformancePanel = lazy(() => import('/src/components/UI/PerformancePanel.tsx'));\n"
+                : "export const PerformancePanel = null;\n";
+        },
+    };
+}
+
 export default defineConfig({
     plugins: [
         react(),
         tailwindcss(),
         worldProbePlugin(process.env.VITE_WORLD_PROBE === '1'),
+        perfPanelPlugin(process.env.VITE_FF_PERF_PANEL === '1'),
         VitePWA({
             strategies: 'injectManifest',
             srcDir: 'src',

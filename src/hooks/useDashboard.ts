@@ -49,7 +49,7 @@ export const useDashboard = () => {
     const squadQuery = useSquadDetails(id, active);
     const squadDetails = squadQuery.data;
     const { isGameScreenOpen, currentAperoId, closeGameScreen } = useGameUIStore();
-    const { userLocation, acquiredAt, hasSessionFix, locationStatus, startTracking, stopTracking } = useLocationStore();
+    const { userLocation, acquiredAt, hasSessionFix, locationStatus, startTrackingIfPermitted, stopTracking } = useLocationStore();
     const canCreateFromLocation = hasSessionFix && locationStatus === 'available' && userLocation !== null;
     const locationMessage = gpsMessage({ userLocation, acquiredAt, hasSessionFix, locationStatus });
     const isActiveApero = squadDetails?.active_beer_call?.some((call: { id: string }) => call.id === isWorldsModalOpen);
@@ -211,11 +211,14 @@ export const useDashboard = () => {
             stopTracking();
             return;
         }
-        // Acquisition au montage actif, sans attendre un clic arbitraire.
-        startTracking();
+        // Le montage ne demande la permission que si elle est déjà connue
+        // (fix de la session ou Permissions API). Sinon la modale système ne
+        // s'ouvre qu'après un geste explicite sur le bouton de localisation.
+        void startTrackingIfPermitted();
         const handleVisibility = () => {
-            if (document.visibilityState === 'visible') startTracking();
-            else stopTracking();
+            // Le watch est suspendu par l'OS en arrière-plan et reprend au retour :
+            // l'arrêter ici rejouerait une acquisition (et une demande) inutile.
+            if (document.visibilityState === 'visible') void startTrackingIfPermitted();
         };
         document.addEventListener('visibilitychange', handleVisibility);
 
@@ -224,7 +227,7 @@ export const useDashboard = () => {
             stopTracking();
             cancelLongPress();
         };
-    }, [active, startTracking, stopTracking, cancelLongPress]);
+    }, [active, startTrackingIfPermitted, stopTracking, cancelLongPress]);
 
     useEffect(() => {
         if (active && id && userLocation && mapRef.current && !hasCentered.current) {

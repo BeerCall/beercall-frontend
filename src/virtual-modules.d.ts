@@ -8,3 +8,10 @@ declare module 'virtual:world-probe' {
     /** `null` dans le build standard ; badge de préparation dans le build de recette. */
     export const WorldPreparationBadge: ComponentType | null;
 }
+
+declare module 'virtual:perf-panel' {
+    import type { ComponentType } from 'react';
+
+    /** `null` dans le build standard ; panneau lazy dans le build de recette. */
+    export const PerformancePanel: ComponentType | null;
+}

@@ -167,8 +167,33 @@ describe('SelectWorldModal avec contrôle accessible masqué et délégation à 
         });
     });
 
-    it('garde un seul WorldViewport monté lors du changement d’onglet', async () => {
+    it('retire le focus de la feuille quand elle passe en aria-hidden', async () => {
         server.use(
+            http.get('*/squads/1/beer-calls/bc_1/worlds', () =>
+                HttpResponse.json({ worlds: { bar: { participants: [] } } })
+            )
+        );
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const renderModal = (isOpen: boolean) => (
+            <QueryClientProvider client={queryClient}>
+                <SelectWorldModal isOpen={isOpen} onClose={vi.fn()} squadId="1" beerCallId="bc_1" isActiveApero={false}/>
+            </QueryClientProvider>
+        );
+        const view = render(renderModal(true));
+        const close = screen.getByRole('button', { name: 'Fermer les mondes' });
+        close.focus();
+        expect(close).toHaveFocus();
+
+        view.rerender(renderModal(false));
+
+        const sheet = close.closest('[aria-hidden]') as HTMLElement;
+        expect(sheet).toHaveAttribute('aria-hidden', 'true');
+        expect(sheet).toHaveAttribute('inert');
+        expect(close).not.toHaveFocus();
+        expect(document.activeElement).not.toBe(close);
+    });
+
+    it('garde un seul WorldViewport monté lors du changement d’onglet', async () => {        server.use(
             http.get('*/squads/1/beer-calls/bc_1/worlds', () =>
                 HttpResponse.json({
                     worlds: {

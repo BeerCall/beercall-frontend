@@ -11,6 +11,7 @@ import { ProfileAvatarFallback } from '../components/Profile/ProfileAvatarFallba
 import VestiairePanel from '../components/Profile/VestiairePanel';
 import { useGlbManifest } from '../avatar/glb/useGlbManifest';
 import { buildCatalogThumbnailMap } from '../lib/catalogThumbnails';
+import { FF_PERF_PANEL } from '../perf/perfPanelGate';
 import {motion, AnimatePresence} from 'framer-motion';
 import {toast} from "../store/useToastStore.ts";
 import type {AvatarConfig} from '../types/avatar';
@@ -319,7 +320,7 @@ export default function Profile() {
                                              trophée pour le moment</p></div>}
                                 </div>
                             </div>
-                            {isOwnProfile && <button type="button"
+                            {isOwnProfile && FF_PERF_PANEL && <button type="button"
                                 onClick={() => window.dispatchEvent(new Event('beercall:diagnostics-enable'))}
                                 className="text-xs font-bold text-gray-700 underline">
                                 Diagnostic de fluidité (local)

@@ -55,6 +55,21 @@ describe('single retained dashboard', () => {
         expect(lifecycle.mounts).toBe(1);
         expect(lifecycle.unmounts).toBe(0);
     });
+    it('retire le focus du dashboard quand il passe en aria-hidden', async () => {
+        render(<Harness/>);
+        const input = await screen.findByLabelText('état de la scène');
+        input.focus();
+        expect(input).toHaveFocus();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Profil test' }));
+        expect(await screen.findByRole('heading', { name: 'Profil test' })).toBeVisible();
+
+        const retained = screen.getByTestId('retained-dashboard');
+        expect(retained).toHaveAttribute('inert');
+        expect(retained).toHaveAttribute('aria-hidden', 'true');
+        expect(input).not.toHaveFocus();
+        expect(document.activeElement).not.toBe(input);
+    });
     it('updates squad params without accumulating another retained scene', async () => {
         render(<Harness/>);
         fireEvent.click(await screen.findByRole('button', { name: 'Squad suivante' }));

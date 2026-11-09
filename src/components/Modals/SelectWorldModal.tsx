@@ -9,6 +9,7 @@ import {useDashboardActive} from '../../lib/dashboardActivity';
 import type {WorldsResponse} from '../../types/api';
 import type {WorldTab} from '../../lib/worldResources';
 import {beginWorldOpen, endWorldOpen} from '../../lib/worldOpenState';
+import {blurFocusedDescendant} from '../../lib/focus';
 import {WorldViewport} from '../../worlds/WorldViewport';
 import {
     grantAllPreparationAvatars,
@@ -61,6 +62,7 @@ export default function SelectWorldModal({
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
     const [hasViewportData, setHasViewportData] = useState(false);
     const firstOpenBegan = useRef(false);
+    const sheetRef = useRef<HTMLDivElement>(null);
     const [readyWorlds, setReadyWorlds] = useState<Partial<Record<WorldTab, boolean>>>({});
     // Signal de disponibilité de la scène, consommé uniquement par le probe.
     const [sceneReady, setSceneReady] = useState<{world: WorldTab | null; tick: number}>({
@@ -81,6 +83,12 @@ export default function SelectWorldModal({
         if (!isOpen) return;
         beginWorldOpen();
         return () => endWorldOpen();
+    }, [isOpen]);
+
+    // La feuille reste montée pour le Canvas : quand elle passe en aria-hidden,
+    // aucun enfant ne doit conserver le focus (Safari ne le retire pas seul).
+    useEffect(() => {
+        if (!isOpen) blurFocusedDescendant(sheetRef.current);
     }, [isOpen]);
 
     // Conserve le dernier Beer Call pour garder le Canvas vivant après fermeture.
@@ -317,9 +325,11 @@ export default function SelectWorldModal({
 
             {/* La feuille reste montée : le Canvas persistant vit dedans, même fermé. */}
             <motion.div
+                ref={sheetRef}
                 initial={false}
                 animate={isOpen ? {y: 0, opacity: 1} : {y: '100%', opacity: 0}}
                 transition={{type: 'spring', damping: 25, stiffness: 200}}
+                inert={!isOpen}
                 aria-hidden={!isOpen}
                 className={`fixed top-12 bottom-0 left-0 right-0 bg-white rounded-t-[3rem] z-[101] shadow-2xl flex flex-col overflow-hidden ${isOpen ? '' : 'pointer-events-none'}`}
             >
