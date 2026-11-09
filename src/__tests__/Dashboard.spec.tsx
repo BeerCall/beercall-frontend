@@ -216,6 +216,51 @@ describe('Dashboard & Squads', () => {
         expect(modal).toHaveAttribute('aria-hidden', 'true');
     });
 
+    it('peint html et body en sombre uniquement pendant le jeu', async () => {
+        vi.mocked(useDashboard).mockReturnValue({
+            id: '1',
+            profile: { username: 'validUser' },
+            squadDetails: null,
+            userLocation: null,
+            isSquadModalOpen: false,
+            isJoinModalOpen: false,
+            selectedBeerCall: null,
+            isWorldsModalOpen: null,
+            isGameScreenOpen: true,
+            currentAperoId: 'apero-1',
+            isActiveApero: true,
+            scheduleCoordinates: null,
+            isScheduleModalOpen: false,
+            scheduledToStart: null,
+            isNightMode: false,
+            photoFile: null,
+            fileInputRef: { current: null },
+            mapRef: { current: null },
+            showPushBanner: false,
+            copied: false,
+            handleSquadCreated: vi.fn(),
+            handleCopyCode: vi.fn(),
+            requestPushPermission: vi.fn(),
+            dismissPushBanner: vi.fn(),
+            handleBeerCallRespond: vi.fn(),
+            centerToUser: vi.fn(),
+            triggerPhotoCapture: vi.fn(),
+            handleFileChange: vi.fn(),
+            closeCreateModal: vi.fn(),
+            handleScheduleModalSubmit: vi.fn(),
+        } as unknown as ReturnType<typeof useDashboard>);
+
+        const view = render(<Dashboard />);
+        await waitFor(() => {
+            expect(document.documentElement.style.backgroundColor).toBe('rgb(3, 7, 18)');
+            expect(document.body.style.backgroundColor).toBe('rgb(3, 7, 18)');
+        });
+
+        view.unmount();
+        expect(document.documentElement.style.backgroundColor).toBe('');
+        expect(document.body.style.backgroundColor).toBe('');
+    });
+
     it('Comportement temporel: Vérification des compteurs avec de faux timers', async () => {
         const scheduledTime = new Date(Date.now() + 60000).toISOString();
         vi.mocked(useDashboard).mockReturnValue({

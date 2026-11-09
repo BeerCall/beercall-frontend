@@ -38,6 +38,22 @@ export default function Dashboard() {
         ?? null;
     const { navigate, setIsWorldsModalOpen } = dashboard;
 
+    // 8l-5 — sur iOS en PWA `black-translucent`, la zone sous l'indicateur
+    // d'accueil est peinte par <html>/<body> et reste blanche sinon. On ne la
+    // peint en sombre que pendant l'écran de jeu : le reste de l'app garde sa
+    // barre blanche.
+    React.useEffect(() => {
+        if (!dashboard.isGameScreenOpen) return;
+        const previousHtml = document.documentElement.style.backgroundColor;
+        const previousBody = document.body.style.backgroundColor;
+        document.documentElement.style.backgroundColor = '#030712';
+        document.body.style.backgroundColor = '#030712';
+        return () => {
+            document.documentElement.style.backgroundColor = previousHtml;
+            document.body.style.backgroundColor = previousBody;
+        };
+    }, [dashboard.isGameScreenOpen]);
+
     // 8i — toucher un avatar ferme les mondes puis ouvre sa fiche, comme le
     // faisait l'ancien BarWorld. Le Canvas persistant n'est pas démonté.
     const handleSelectWorldUser = React.useCallback((userId: string) => {
@@ -87,7 +103,7 @@ export default function Dashboard() {
                     <motion.div
                         initial={{opacity: 0, y: "100%"}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: "100%"}}
                         transition={{type: "spring", damping: 25, stiffness: 200}}
-                        className="fixed inset-0 z-[100] bg-gray-950"
+                        className="fixed inset-x-0 top-0 h-[calc(100dvh+env(safe-area-inset-top,0px))] z-[100] bg-gray-950"
                     >
                         <Suspense fallback={<div className="flex h-full items-center justify-center text-white"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-beer"></div></div>}>
                             <GameScreen aperoIdProp={dashboard.currentAperoId}/>
