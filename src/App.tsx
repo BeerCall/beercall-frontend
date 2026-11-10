@@ -6,6 +6,7 @@ import {useUserStore} from './store/useUserStore';
 import {usePushNotifications} from './hooks/usePushNotifications';
 import Layout from './components/Layout';
 import ToastContainer from './components/UI/ToastContainer';
+import UpdateBanner from './components/UI/UpdateBanner';
 import PersistentDashboard from './components/PersistentDashboard';
 import PersistentConnections from './components/PersistentConnections';
 // Préchargement GLB au repos : aucun Canvas, aucun contexte WebGL.
@@ -93,6 +94,7 @@ function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
         <QueryClientProvider client={queryClient}>
             <BrowserRouter unstable_useTransitions={false}>
                 <ToastContainer/>
+                <UpdateBanner/>
                 {diagnostics && PerformancePanel ? <Suspense fallback={null}><PerformancePanel/></Suspense> : null}
                 <Suspense fallback={<LoadingFallback />}>
                     <Routes>

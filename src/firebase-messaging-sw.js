@@ -19,6 +19,13 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(self.clients.claim());
 });
 
+// Le bandeau « Nouvelle version disponible » demande explicitement l'activation.
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
+
 // 4. Même configuration optionnelle que l'application, injectée au build.
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
