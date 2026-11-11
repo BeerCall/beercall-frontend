@@ -57,7 +57,10 @@ const LoadingFallback = () => (
 export default function App() {
     const isAuthenticated = useUserStore((state) => state.isAuthenticated);
     const username = useUserStore((state) => state.username);
-    return <AppSession key={isAuthenticated ? `user:${username}` : 'guest'} isAuthenticated={isAuthenticated}/>;
+    return <>
+        <UpdateBanner/>
+        <AppSession key={isAuthenticated ? `user:${username}` : 'guest'} isAuthenticated={isAuthenticated}/>
+    </>;
 }
 
 function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
@@ -94,7 +97,6 @@ function AppSession({ isAuthenticated }: { isAuthenticated: boolean }) {
         <QueryClientProvider client={queryClient}>
             <BrowserRouter unstable_useTransitions={false}>
                 <ToastContainer/>
-                <UpdateBanner/>
                 {diagnostics && PerformancePanel ? <Suspense fallback={null}><PerformancePanel/></Suspense> : null}
                 <Suspense fallback={<LoadingFallback />}>
                     <Routes>

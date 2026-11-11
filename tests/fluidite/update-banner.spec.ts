@@ -13,11 +13,13 @@ test('11a — bandeau de mise à jour PWA et activation explicite du worker', as
                 (window as unknown as {__swMessage?: unknown}).__swMessage = message;
             },
             addEventListener: () => undefined,
+            removeEventListener: () => undefined,
         };
         const registration = {
             waiting,
             installing: null,
             addEventListener: () => undefined,
+            removeEventListener: () => undefined,
             update: async () => undefined,
         };
         Object.defineProperty(navigator, 'serviceWorker', {

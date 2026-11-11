@@ -51,7 +51,7 @@ describe('accessoryAttachment', () => {
     });
 
     it('tous les accessoires du manifeste restent résolus', () => {
-        expect(accessories.length).toBeGreaterThan(0);
+        expect(accessories).toHaveLength(126);
         for (const { sourceId, transform } of accessories as Array<{
             sourceId: string;
             transform?: unknown;

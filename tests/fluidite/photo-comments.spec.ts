@@ -19,6 +19,7 @@ function createTestApero(name: string): {aperoId: number; photoPath: string} {
     const photoPath = `uploads/aperos/e2e-comments-${Date.now().toString(36)}.png`;
     const output = runPython(`
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from PIL import Image, ImageDraw
 from db.database import SessionLocal
 from models.apero import Apero, AperoParticipant, AperoStatus, ParticipationStatus
@@ -37,13 +38,17 @@ try:
         AperoParticipant(apero_id=apero.id, user_id=4, status=ParticipationStatus.JOINED,
                          photo_path=${JSON.stringify(photoPath)}, created_at=now),
     ])
-    db.commit()
     image = Image.new('RGB', (240, 320), (180, 120, 40))
     draw = ImageDraw.Draw(image)
     draw.rectangle((24, 24, 216, 296), outline=(255, 255, 255), width=6)
     draw.text((56, 150), 'PREUVE E2E', fill=(255, 255, 255))
     image.save('/app/${photoPath}', 'PNG')
+    db.commit()
     print(f'APERO_ID={apero.id}')
+except Exception:
+    db.rollback()
+    Path('/app/${photoPath}').unlink(missing_ok=True)
+    raise
 finally:
     db.close()
 `);
@@ -58,11 +63,15 @@ import os
 from db.database import SessionLocal
 from models.apero import Apero, AperoParticipant
 from models.photo_comment import ProofPhotoComment
+from models.realtime_event import RealtimeEvent
 db = SessionLocal()
 try:
     aperos = db.query(Apero).filter(Apero.location_name == ${JSON.stringify(name)}).all()
     ids = [apero.id for apero in aperos]
     if ids:
+        for event in db.query(RealtimeEvent).filter(RealtimeEvent.squad_id == 2).all():
+            if event.payload.get('type') == 'PHOTO_COMMENT' and event.payload.get('beer_call_id') in ids:
+                db.delete(event)
         db.query(ProofPhotoComment).filter(ProofPhotoComment.apero_id.in_(ids)).delete(synchronize_session=False)
         db.query(AperoParticipant).filter(AperoParticipant.apero_id.in_(ids)).delete(synchronize_session=False)
         db.query(Apero).filter(Apero.id.in_(ids)).delete(synchronize_session=False)
@@ -80,8 +89,8 @@ finally:
 test('10b — commentaire sous une preuve photo : ajout, affichage et suppression', async ({page, request}) => {
     test.setTimeout(300_000);
     const name = `E2E comments ${Date.now().toString(36)}`;
-    const {aperoId, photoPath} = createTestApero(name);
     mkdirSync(screenshotDir, {recursive: true});
+    const {aperoId, photoPath} = createTestApero(name);
     try {
         const session = await loginAs(page, request, 'FluiditeDemo');
         await page.setViewportSize({width: 390, height: 844});
@@ -122,6 +131,19 @@ test('10b — commentaire sous une preuve photo : ajout, affichage et suppressio
         );
         expect(listed.status()).toBe(200);
         expect((await listed.json() as Array<{content: string}>).map((item) => item.content)).toContain('Petit joueur !');
+
+        // Requête distante : pas de mutation React Query locale ni reload.
+        // Seul l'événement WebSocket doit rafraîchir le panneau déjà ouvert.
+        const remote = await request.post(`/api/squads/2/beer-calls/bc_${aperoId}/photos/u_4/comments`, {
+            headers: {Authorization: `Bearer ${session.accessToken}`}, data: {content: 'Ajout distant en direct'},
+        });
+        expect(remote.status()).toBe(201);
+        const remoteId = (await remote.json() as {id: number}).id;
+        await expect(comments.getByText('Ajout distant en direct')).toBeVisible({timeout: 15_000});
+        expect((await request.delete(`/api/squads/2/beer-calls/bc_${aperoId}/comments/${remoteId}`, {
+            headers: {Authorization: `Bearer ${session.accessToken}`},
+        })).status()).toBe(204);
+        await expect(comments.getByText('Ajout distant en direct')).toHaveCount(0, {timeout: 15_000});
 
         const deleted = page.waitForResponse(
             (response) => response.url().includes('/comments/') && response.request().method() === 'DELETE',

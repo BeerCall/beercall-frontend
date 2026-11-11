@@ -19,6 +19,14 @@ complet de Safari/PWA identique à un simple retour SPA.
 
 ## Préparer les modèles
 
+> **Historique depuis 9g** : l'application utilise maintenant les GLB et
+> `RealAvatar`. `PreparedModelLoader` et le lecteur BC3D ne font plus partie du
+> frontend. Le générateur ci-dessous reste disponible comme outil hors ligne ;
+> ses tests contrôlent la sortie du générateur, pas un chargement applicatif.
+> L'ancien banc de copies est documenté dans
+> `bench/avatar-copy-hardware/README.md`. Les descriptions du fallback FBX et des
+> traces de décodage ci-dessous concernent l'ancienne architecture.
+
 Depuis `beercall-frontend` (Node récent compatible avec les types TypeScript effaçables) :
 
 ```powershell

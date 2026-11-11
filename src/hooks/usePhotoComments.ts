@@ -50,6 +50,7 @@ export function usePhotoComments({squadId, beerCallId, ownerId, enabled = true}:
         deleteComment: deleteMutation.mutateAsync,
         isAdding: addMutation.isPending,
         deletingId: deleteMutation.isPending ? deleteMutation.variables ?? null : null,
-        error: addMutation.error ?? deleteMutation.error,
+        addError: addMutation.error,
+        deleteError: deleteMutation.error,
     };
 }

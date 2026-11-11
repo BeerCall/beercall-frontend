@@ -12,6 +12,7 @@ interface ManifestThumbnail {
 }
 
 interface ManifestItem {
+    key: string;
     sourceId: string;
     thumbnail?: ManifestThumbnail;
 }
@@ -24,15 +25,20 @@ const MODELS_ROOT = resolve(process.cwd(), '../beercall-backend/static/models');
 const MANIFEST_PATH = resolve(MODELS_ROOT, 'glb/manifest.json');
 const BORDER_PX = 4;
 
+function catalogEntries(manifest: Manifest): ManifestItem[] {
+    const entries = manifest.items.filter((item) => !item.key.startsWith('decor/'));
+    expect(entries).toHaveLength(331);
+    expect(entries.filter((item) => !item.thumbnail).map((item) => item.sourceId)).toEqual([]);
+    return entries;
+}
+
 describe('vignettes du catalogue', () => {
     it(
         'chaque vignette remplit au moins 60 % de sa case',
         async () => {
             const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as Manifest;
-            const entries = manifest.items.filter((item) => item.thumbnail);
+            const entries = catalogEntries(manifest);
             const failures: string[] = [];
-
-            expect(entries.length).toBeGreaterThan(0);
 
             for (const item of entries) {
                 const thumbnail = item.thumbnail as ManifestThumbnail;
@@ -75,13 +81,11 @@ describe('vignettes du catalogue', () => {
     );
 
     it(
-        'les 159 vignettes ne touchent jamais la bordure de 4 px',
+        'toutes les vignettes du catalogue ne touchent jamais la bordure de 4 px',
         async () => {
             const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as Manifest;
-            const entries = manifest.items.filter((item) => item.thumbnail);
+            const entries = catalogEntries(manifest);
             const problems: string[] = [];
-
-            expect(entries.length).toBeGreaterThan(0);
 
             for (const item of entries) {
                 const thumbnail = item.thumbnail as ManifestThumbnail;

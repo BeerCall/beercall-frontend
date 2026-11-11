@@ -55,7 +55,8 @@ function PhotoCommentsPanel({squadId, beerCallId, ownerId, ownerUsername}: Comme
         deleteComment,
         isAdding,
         deletingId,
-        error,
+        addError,
+        deleteError,
     } = usePhotoComments({squadId, beerCallId, ownerId});
 
     const handleSubmit = async () => {
@@ -64,8 +65,16 @@ function PhotoCommentsPanel({squadId, beerCallId, ownerId, ownerUsername}: Comme
         try {
             await addComment(content);
             setDraft('');
-        } catch {
-            // L'erreur est exposée par le hook et affichée dans le panneau.
+        } catch (error) {
+            console.warn('[photo-comments] ajout impossible', error);
+        }
+    };
+
+    const handleDelete = async (commentId: number) => {
+        try {
+            await deleteComment(commentId);
+        } catch (error) {
+            console.warn('[photo-comments] suppression impossible', {commentId, error});
         }
     };
 
@@ -108,7 +117,7 @@ function PhotoCommentsPanel({squadId, beerCallId, ownerId, ownerUsername}: Comme
                                 type="button"
                                 aria-label="Supprimer le commentaire"
                                 disabled={deletingId === comment.id}
-                                onClick={() => void deleteComment(comment.id)}
+                                onClick={() => void handleDelete(comment.id)}
                                 className="mt-0.5 rounded-lg p-1 text-gray-400 active:bg-white/10 disabled:opacity-40"
                             >
                                 <Trash2 size={15}/>
@@ -143,7 +152,8 @@ function PhotoCommentsPanel({squadId, beerCallId, ownerId, ownerUsername}: Comme
                     Envoyer
                 </button>
             </div>
-            {error && <p className="mt-2 text-xs text-red-400">Impossible d'enregistrer le commentaire.</p>}
+            {addError && <p role="alert" className="mt-2 text-xs text-red-400">Impossible d'enregistrer le commentaire.</p>}
+            {deleteError && <p role="alert" className="mt-2 text-xs text-red-400">Impossible de supprimer le commentaire.</p>}
         </div>
     );
 }
@@ -235,6 +245,7 @@ export default function PhotoModal({
 
                     {commentsEnabled && (
                         <PhotoCommentsPanel
+                            key={`${squadId}:${beerCallId}:${currentItem.ownerId}`}
                             squadId={squadId!}
                             beerCallId={beerCallId!}
                             ownerId={currentItem.ownerId!}

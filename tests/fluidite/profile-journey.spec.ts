@@ -76,22 +76,33 @@ test('Profile : Trophées, achat gratuit, équipement et sauvegarde avec restaur
         // contient aussi le texte « Gratuit ».
         const free = page.locator('button').filter({hasText: 'Gratuit'}).first();
         await expect(free).toBeVisible({timeout: 20_000});
+        const source = await free.locator('xpath=ancestor::div[@role="button"][1]').getAttribute('data-source');
+        expect(source, 'article gratuit sans identifiant source').toBeTruthy();
         // La barre sticky peut recouvrir le bouton : on déclenche son handler
         // sans dépendre de l'empilement visuel.
         await free.evaluate((button) => (button as HTMLButtonElement).click());
         await expect(page.getByRole('heading', {name: 'Confirmation'})).toBeVisible({timeout: 10_000});
+        const purchaseResponse = page.waitForResponse((response) =>
+            response.url().endsWith('/api/auth/buy/') && response.request().method() === 'POST');
         await page.getByRole('button', {name: 'Acheter', exact: true}).click();
+        const purchase = await purchaseResponse;
+        expect(purchase.ok()).toBe(true);
+        const purchasedId = (purchase.request().postDataJSON() as {item_id: string}).item_id;
         await expect(page.getByText(/Achat validé/)).toBeVisible({timeout: 15_000});
         await expect(page.getByRole('heading', {name: 'Confirmation'})).toHaveCount(0, {timeout: 15_000});
 
         // Équiper l'article acheté puis sauvegarder la tenue.
-        const owned = page.locator('div[role="button"]').filter({hasText: /Possédé|Équipé/}).first();
+        const owned = page.locator(`div[role="button"][data-source=${JSON.stringify(source)}]`);
         await expect(owned).toBeVisible({timeout: 20_000});
+        await expect(owned).toContainText('Possédé');
         await owned.evaluate((card) => (card as HTMLElement).click());
         const save = page.getByRole('button', {name: /SAUVEGARDER LE STYLE/});
         await expect(save).toBeVisible({timeout: 10_000});
         await save.click();
         await expect(page.getByText(/Tenue sauvegardée/)).toBeVisible({timeout: 15_000});
+        const saved = JSON.parse(snapshotUserOne()) as {avatar_config: {head?: string}; skins: string[]};
+        expect(saved.avatar_config.head).toBe(purchasedId);
+        expect(saved.skins).toContain(purchasedId);
     } finally {
         restoreUserOne(snapshot);
     }

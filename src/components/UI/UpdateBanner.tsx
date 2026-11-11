@@ -2,7 +2,7 @@ import {RefreshCw, X} from 'lucide-react';
 import {useServiceWorkerUpdate} from '../../hooks/useServiceWorkerUpdate';
 
 export default function UpdateBanner() {
-    const {updateAvailable, applyUpdate, dismiss} = useServiceWorkerUpdate();
+    const {updateAvailable, isApplying, error, applyUpdate, dismiss} = useServiceWorkerUpdate();
 
     if (!updateAvailable) return null;
 
@@ -17,18 +17,21 @@ export default function UpdateBanner() {
             <div className="min-w-0 flex-1">
                 <p className="text-xs font-black uppercase tracking-wide">Nouvelle version disponible</p>
                 <p className="text-[11px] text-gray-400">Recharge pour profiter des dernières corrections.</p>
+                {error && <p role="alert" className="text-[11px] text-red-300">{error}</p>}
             </div>
             <button
                 type="button"
                 onClick={applyUpdate}
-                className="shrink-0 rounded-xl bg-amber-600 px-3 py-2 text-[11px] font-black uppercase active:bg-amber-700"
+                disabled={isApplying}
+                className="shrink-0 rounded-xl bg-amber-600 px-3 py-2 text-[11px] font-black uppercase active:bg-amber-700 disabled:opacity-50"
             >
-                Mettre à jour
+                {isApplying ? 'Mise à jour…' : 'Mettre à jour'}
             </button>
             <button
                 type="button"
                 aria-label="Ignorer la mise à jour"
                 onClick={dismiss}
+                disabled={isApplying}
                 className="shrink-0 rounded-lg p-1 text-gray-400 active:bg-white/10"
             >
                 <X size={16}/>

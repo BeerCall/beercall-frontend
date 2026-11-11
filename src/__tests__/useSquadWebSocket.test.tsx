@@ -2,11 +2,13 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useSquadWebSocket } from '../hooks/useSquadWebSocket';
+import {toast} from '../store/useToastStore';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../lib/api', () => ({
   api: { post: vi.fn() }
 }));
+vi.mock('../store/useToastStore', () => ({toast: {info: vi.fn()}}));
 
 describe('useSquadWebSocket', () => {
   let queryClient: QueryClient;
@@ -233,6 +235,44 @@ describe('useSquadWebSocket', () => {
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ['profile', 'me'] });
   });
 
+  it('refreshes comments on create/delete and notifies only the photo owner once', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({data: {ticket: 'comments'}});
+    queryClient.setQueryData(['profile', 'me'], {id: 4});
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const {result} = renderHook(() => useSquadWebSocket(10), {wrapper});
+    await waitFor(() => expect(result.current.current).not.toBeNull());
+    invalidateSpy.mockClear();
+    const emit = (action: string, author_id: number, comment_id = 7) => result.current.current?.onmessage?.({
+      data: JSON.stringify({type: 'PHOTO_COMMENT', action, author_id, photo_owner_id: 4, comment_id}),
+    } as MessageEvent);
+
+    emit('CREATE', 1);
+    expect(invalidateSpy).toHaveBeenCalledWith({queryKey: ['photo-comments', '10']});
+    expect(toast.info).toHaveBeenCalledTimes(1);
+    emit('CREATE', 1);
+    emit('DELETE', 1);
+    emit('CREATE', 4, 8);
+    expect(toast.info).toHaveBeenCalledTimes(1);
+    queryClient.setQueryData(['profile', 'me'], {id: 2});
+    emit('CREATE', 1, 9);
+    expect(toast.info).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores malformed comment events', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({data: {ticket: 'comments'}});
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const {result} = renderHook(() => useSquadWebSocket(10), {wrapper});
+    await waitFor(() => expect(result.current.current).not.toBeNull());
+    invalidateSpy.mockClear();
+    for (const payload of [
+      {action: 'CREATE'},
+      {action: 'OTHER', comment_id: 7, photo_owner_id: 4},
+      {action: 'CREATE', comment_id: -1, photo_owner_id: 4},
+    ]) result.current.current?.onmessage?.({data: JSON.stringify({type: 'PHOTO_COMMENT', ...payload})} as MessageEvent);
+    expect(invalidateSpy).not.toHaveBeenCalled();
+    expect(toast.info).not.toHaveBeenCalled();
+  });
+
   it('ignore BEER_CALL_JOB_UPDATED si le job_id n’est pas un UUID valide', async () => {
     vi.mocked(api.post).mockResolvedValueOnce({ data: { ticket: '123' } });
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
@@ -299,6 +339,7 @@ describe('useSquadWebSocket', () => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['squad', 10], type: 'active' });
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['worlds', '10'], type: 'active' });
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['beer-call-job', '10'], type: 'active' });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['photo-comments', '10'], type: 'active' });
     });
   });
 

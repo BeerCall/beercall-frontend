@@ -161,6 +161,7 @@ test.describe('Backend — parcours HTTP profonds', () => {
     test('Users : inscription, profils, boutique, équipement et réglages', async ({ request }) => {
         const users = captureUsers([1]);
         const username = `E2Euser${stamp()}`;
+        const unavailableUsername = `E2Eunavail${stamp()}`;
         const skin = skinSamples();
         try {
             const user = await login(request, 'FluiditeDemo', 'FluiditeTest2026!');
@@ -174,7 +175,7 @@ test.describe('Backend — parcours HTTP profonds', () => {
             if (skin.unavailable) {
                 const unavailableAvatar = {...userOneAvatar(), head: skin.unavailable};
                 const unavailable = await request.post('/api/auth/signup/', {
-                    data: {username: `E2Eunavail${stamp()}`, password: PASSWORD, avatar: unavailableAvatar},
+                    data: {username: unavailableUsername, password: PASSWORD, avatar: unavailableAvatar},
                 });
                 expect(unavailable.status()).toBe(409);
             }
@@ -236,9 +237,12 @@ test.describe('Backend — parcours HTTP profonds', () => {
                 headers: auth(temp), data: {latitude: 48.8566, longitude: 2.3522},
             })).status()).toBe(204);
         } finally {
-            deleteUsersByUsernames([username]);
-            restoreUsers(users);
-            expect(captureUsers([1])).toEqual(users);
+            try {
+                deleteUsersByUsernames([username, unavailableUsername]);
+            } finally {
+                restoreUsers(users);
+                expect(captureUsers([1])).toEqual(users);
+            }
         }
     });
 
@@ -296,10 +300,16 @@ test.describe('Backend — parcours HTTP profonds', () => {
             expect((await request.get('/api/squads/2/beer-calls/bc_999999/worlds', {headers: auth(temp)})).status()).toBe(404);
             expect((await request.get(`/api/squads/3/beer-calls/bc_${aperoId}/worlds`, {headers: auth(user)})).status()).toBe(403);
         } finally {
-            cleanupAperosByNames([aperoName]);
-            deleteUsersByUsernames([username]);
-            restoreUsers(users);
-            expect(captureUsers([1])).toEqual(users);
+            try {
+                cleanupAperosByNames([aperoName]);
+            } finally {
+                try {
+                    deleteUsersByUsernames([username]);
+                } finally {
+                    restoreUsers(users);
+                    expect(captureUsers([1])).toEqual(users);
+                }
+            }
         }
     });
 
@@ -450,10 +460,16 @@ test.describe('Backend — parcours HTTP profonds', () => {
             });
             expect(restart.status()).toBe(409);
         } finally {
-            cleanupAperosByNames([names.join, names.decline, names.ended, names.scheduled]);
-            deleteUsersByUsernames([username]);
-            restoreUsers(users);
-            expect(captureUsers([1])).toEqual(users);
+            try {
+                cleanupAperosByNames([names.join, names.decline, names.ended, names.scheduled]);
+            } finally {
+                try {
+                    deleteUsersByUsernames([username]);
+                } finally {
+                    restoreUsers(users);
+                    expect(captureUsers([1])).toEqual(users);
+                }
+            }
         }
     });
 });

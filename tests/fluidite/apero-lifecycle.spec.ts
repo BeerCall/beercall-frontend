@@ -315,9 +315,15 @@ finally:
         const name = `E2E decline ${stamp()}`;
         const users = beginTest();
         try {
-            createApero(name, 4);
+            const aperoId = createApero(name, 4);
             await loginAs(page, request, 'FluiditeDemo');
             await openDashboard(page);
+            // Ce scénario vérifie la transaction de refus, pas le temps de
+            // première préparation GLB (mesuré séparément par world-probe).
+            // Attendre son état réel évite de cliquer pendant l'assemblage GPU.
+            await expect.poll(() => page.evaluate(() =>
+                (window as {__beercallPreparation?: {phase: string}}).__beercallPreparation?.phase),
+                {timeout: 60_000}).toBe('done');
             const card = page.locator('div')
                 .filter({hasText: name})
                 .filter({has: page.getByRole('button', {name: /Répondre/})})
@@ -328,7 +334,12 @@ finally:
             await page.getByRole('button', {name: /Je Passe/}).click();
             await expect(page.getByRole('heading', {name: "L'Esquive"})).toBeVisible({timeout: 10_000});
             await page.getByPlaceholder('J\'ai aqua-poney...').fill('E2E excuse');
+            const declineResponse = page.waitForResponse((response) =>
+                response.url().endsWith(`/api/squads/2/beer-calls/bc_${aperoId}/decline/`) &&
+                response.request().method() === 'POST', {timeout: 30_000});
             await page.getByRole('button', {name: /ASSUMER MON ABSENCE/}).click();
+            const response = await declineResponse;
+            expect(response.ok(), `refus rejeté: ${response.status()}`).toBe(true);
             await expect(page.getByRole('heading', {name: "L'Esquive"})).toHaveCount(0, {timeout: 20_000});
 
             const state = fetchState(name);

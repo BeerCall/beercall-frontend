@@ -154,20 +154,27 @@ interface GameStatePayload {
 /** Avance les transitions jusqu'à un mini-jeu encore en cours. */
 async function advanceToRunningGame(
     page: Page,
+    aperoId: number,
     readGameState: () => Promise<GameStatePayload>,
 ): Promise<GameStatePayload> {
-    for (let attempt = 0; attempt < 6; attempt += 1) {
-        const ready = page.getByText('JE SUIS PRÊT !');
-        if (await ready.count() > 0) {
-            await ready.first().click();
-        }
-        await page.waitForTimeout(700);
-        const state = await readGameState();
-        if (state.game_id && state.game_id !== 'TURN_TRANSITION') {
-            return state;
-        }
-    }
-    throw new Error('Aucun mini-jeu actif après 6 tentatives');
+    expect((await readGameState()).game_id).toBe('TURN_TRANSITION');
+    const ready = page.getByRole('button', {name: /Je suis prêt !/i});
+    await expect(ready).toBeEnabled({timeout: 20_000});
+    const actionResponse = page.waitForResponse((response) =>
+        response.url().endsWith(`/api/aperos/${aperoId}/game/action`) &&
+        response.request().method() === 'POST', {timeout: 30_000});
+    // Un seul clic : une ancienne frame du bouton peut rester montée pendant
+    // AnimatePresence alors que le serveur a déjà changé de mini-jeu.
+    await ready.click({timeout: 20_000});
+    const response = await actionResponse;
+    expect(response.ok()).toBe(true);
+    expect(response.request().postDataJSON()).toMatchObject({action_id: 'START_RANDOM_GAME'});
+    const state = await response.json() as GameStatePayload;
+    expect(state.game_id).toBeTruthy();
+    expect(state.game_id).not.toBe('TURN_TRANSITION');
+    await expect(page.locator('header h3').first()).toHaveText(
+        state.instruction_header ?? '', {timeout: 20_000});
+    return state;
 }
 
 test('8l — le levier du Bar lance puis reprend la partie au même endroit', async ({ page, request }) => {
@@ -201,7 +208,7 @@ test('8l — le levier du Bar lance puis reprend la partie au même endroit', as
 
         // 2. Le tour avance jusqu'à un mini-jeu en cours : on retient son état.
         const transitionHeader = (await page.locator('header h3').first().innerText()).trim();
-        const stateBefore = await advanceToRunningGame(page, readGameState);
+        const stateBefore = await advanceToRunningGame(page, aperoId, readGameState);
         const headerBefore = (await page.locator('header h3').first().innerText()).trim();
         expect(headerBefore.toLocaleLowerCase()).toBe((stateBefore.instruction_header ?? '').toLocaleLowerCase());
         await page.screenshot({ path: path.join(screenshotDir, '8l-jeu-mini-jeu.png') });

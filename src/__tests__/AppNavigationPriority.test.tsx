@@ -3,7 +3,7 @@ import {act, render, screen} from '@testing-library/react';
 import {expect, it, vi} from 'vitest';
 import App from '../App';
 
-const options = vi.hoisted(() => ({transitions: undefined as boolean | undefined, authenticated: false, profileRoute: false, mounts: 0}));
+const options = vi.hoisted(() => ({transitions: undefined as boolean | undefined, authenticated: false, profileRoute: false, mounts: 0, bannerMounts: 0}));
 vi.mock('react-router-dom', () => ({
     BrowserRouter: ({children, unstable_useTransitions}: React.PropsWithChildren<{unstable_useTransitions?: boolean}>) => {
         options.transitions = unstable_useTransitions;
@@ -24,6 +24,10 @@ vi.mock('../components/PersistentDashboard', () => ({default: () => null}));
 vi.mock('../components/PersistentConnections', () => ({default: () => null}));
 vi.mock('../components/WorldWarmup', () => ({default: () => null}));
 vi.mock('../components/UI/ToastContainer', () => ({default: () => null}));
+vi.mock('../components/UI/UpdateBanner', () => ({default: function BannerFixture() {
+    React.useEffect(() => {options.bannerMounts++;}, []);
+    return null;
+}}));
 
 it('commits navigation without a low-priority router transition while the avatar renderer is busy', () => {
     render(<App/>);
@@ -41,4 +45,16 @@ it('reveals the resolved prepared profile synchronously without a lazy fallback 
     expect(options.mounts).toBe(1);
     view.rerender(<App/>);
     expect(options.mounts).toBe(1);
+});
+
+it('keeps the update banner mounted when the authenticated session changes', () => {
+    options.profileRoute = false;
+    options.authenticated = false;
+    const view = render(<App/>);
+    const mounts = options.bannerMounts;
+    options.authenticated = true;
+    view.rerender(<App/>);
+    options.authenticated = false;
+    view.rerender(<App/>);
+    expect(options.bannerMounts).toBe(mounts);
 });
