@@ -26,6 +26,11 @@ describe('Photo comments isolation and errors', () => {
         </QueryClientProvider>;
     }
 
+    it('uses a 16px comment input to prevent iOS focus zoom', () => {
+        render(modal(0));
+        expect(screen.getByLabelText('Ajouter un commentaire')).toHaveStyle({fontSize: '16px'});
+    });
+
     it('does not carry a draft to another photo', async () => {
         const {rerender} = render(modal(0));
         fireEvent.change(screen.getByLabelText('Ajouter un commentaire'), {target: {value: 'Pour la première photo'}});

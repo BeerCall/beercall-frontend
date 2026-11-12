@@ -76,13 +76,15 @@ describe('MobileShell - Confinement du scroll et barre basse (UX-03)', () => {
     expect(bottomNav.className).not.toContain('pb-[calc(16px_');
 
     const launch = container.querySelector('[aria-label="Lancer l\'apéro"]') as HTMLElement;
-    expect(launch.className).toContain('w-14');
-    expect(launch.className).toContain('h-14');
+    expect(launch.className).toContain('w-20');
+    expect(launch.className).toContain('h-20');
+    expect(launch.className).toContain('-translate-y-6');
     expect(launch.className).toContain('border-4');
-    expect(launch.className).toContain('shadow-md');
+    expect(launch.className).toContain('shadow-xl');
     expect(launch.className).toContain('bg-beer');
-    expect(launch.className).not.toContain('w-[70px]');
-    expect(launch.className).not.toContain('shadow-2xl');
+    expect(launch.className).not.toContain('w-14');
+    expect(launch.className).not.toContain('shadow-md');
+    expect(launch.querySelectorAll('svg')).toHaveLength(1);
     expect(container.querySelector('[aria-label="Profil"]')).toBeInTheDocument();
   });
 

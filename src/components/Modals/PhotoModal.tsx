@@ -140,7 +140,8 @@ function PhotoCommentsPanel({squadId, beerCallId, ownerId, ownerUsername}: Comme
                     maxLength={500}
                     placeholder="Ajouter un commentaire…"
                     aria-label="Ajouter un commentaire"
-                    className="min-w-0 flex-1 rounded-xl bg-white/10 px-3 py-2 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    style={{fontSize: '16px'}}
+                    className="min-w-0 flex-1 rounded-xl bg-white/10 px-3 py-2 text-base leading-tight text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
                 <button
                     type="button"
