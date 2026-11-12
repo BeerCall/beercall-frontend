@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: BeerCall/beercall-backend
-          ref: 7c90ed816d8c08071ce4e7fe52f8e498ff26790b
+          ref: ccfbb4db3e6134c192ca6c239f19d87e96ce3da5
           path: beercall-backend
           sparse-checkout: static/models/glb
           persist-credentials: false
