@@ -10,7 +10,9 @@ interface HumanizeCase {
 }
 
 const cases = JSON.parse(
-    readFileSync(resolve(process.cwd(), '../tests/fixtures/humanize-cases.json'), 'utf8'),
+    // Copie versionnée du contrat partagé avec le backend : la CI frontend
+    // ne reçoit que les dépôts frontend et backend épinglé.
+    readFileSync(resolve(process.cwd(), 'tests/fixtures/humanize-cases.json'), 'utf8'),
 ) as HumanizeCase[];
 
 describe('humanizeToken', () => {
