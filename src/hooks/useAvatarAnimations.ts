@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import type { AnimationClip } from 'three';
+import { AnimationClip } from 'three';
 import { ANIMATION_BYTE_LIMITS, createAnimationPackManager, validateManifest } from '../lib/animationPack';
 import type { AnimationManifest, AnimationPackManager, AvatarAnimationsResult } from '../types/animationPack';
 
@@ -41,10 +41,10 @@ export async function readAnimationResponse(url: string, limit: number, signal?:
   return bytes;
 }
 
-function manifestQueryOptions() {
+export function animationManifestQueryOptions() {
   return {
     ...queryPolicy,
-    queryKey: ['avatar-animations', 'manifest', 1],
+    queryKey: ['avatar-animations', 'manifest', 2],
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const bytes = await readAnimationResponse('/animations/manifest.json', ANIMATION_BYTE_LIMITS.manifest, signal);
       const data: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
@@ -56,7 +56,7 @@ function manifestQueryOptions() {
 function criticalQueryOptions(manifest: AnimationManifest | undefined) {
   return {
     ...queryPolicy,
-    queryKey: ['avatar-animations', 'idle', manifest?.formatVersion, manifest?.sourceHash, manifest?.critical.sha256],
+    queryKey: ['avatar-animations', 'idle', manifest?.formatVersion, manifest?.critical.sha256],
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       if (!manifest) throw new Error('Animation manifest is not loaded');
       const bytes = await readAnimationResponse(manifest.critical.url, manifest.critical.byteLength, signal);
@@ -72,7 +72,7 @@ function criticalQueryOptions(manifest: AnimationManifest | undefined) {
  */
 export async function preloadAvatarAnimations(queryClient: QueryClient): Promise<void> {
   try {
-    const manifestOptions = manifestQueryOptions();
+    const manifestOptions = animationManifestQueryOptions();
     await queryClient.prefetchQuery(manifestOptions);
     const manifest = queryClient.getQueryData<AnimationManifest>(manifestOptions.queryKey);
     if (manifest) await queryClient.prefetchQuery(criticalQueryOptions(manifest));
@@ -90,7 +90,7 @@ export function useAvatarAnimations(targetAnimation: string | null = 'Idle'): Av
   const [selection, setSelection] = useState<{
     manager: AnimationPackManager; name: string; clip?: AnimationClip; error?: Error;
   }>();
-  const manifestQuery = useQuery(manifestQueryOptions());
+  const manifestQuery = useQuery(animationManifestQueryOptions());
   const manifest = manifestQuery.data;
   const criticalQuery = useQuery({
     ...criticalQueryOptions(manifest),
@@ -99,7 +99,7 @@ export function useAvatarAnimations(targetAnimation: string | null = 'Idle'): Av
   const manager = criticalQuery.data;
   const deferredOptions = useMemo(() => ({
     ...queryPolicy,
-    queryKey: ['avatar-animations', 'deferred', manifest?.formatVersion, manifest?.sourceHash, manifest?.deferred.sha256],
+    queryKey: ['avatar-animations', 'deferred', manifest?.formatVersion, manifest?.deferred.sha256],
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       if (!manager || !manifest) throw new Error('Critical animation is not loaded');
       const bytes = await readAnimationResponse(manifest.deferred.url, manifest.deferred.byteLength, signal);
@@ -153,9 +153,16 @@ export function useAvatarAnimations(targetAnimation: string | null = 'Idle'): Av
     await deferredQuery.refetch();
   }, [manifestQuery, criticalQuery, deferredQuery]);
   const selected = selection && selection.manager === manager && selection.name === requested ? selection : undefined;
+  const clipNames = useMemo(
+    () => (manifest ? Object.freeze(manifest.clips.map(entry => entry.name)) : EMPTY_NAMES),
+    [manifest],
+  );
+  const activeClip = requested === 'Idle' ? manager?.criticalClip : selected?.clip ?? manager?.criticalClip;
   return {
-    clipNames: manifest?.clips ?? EMPTY_NAMES,
-    activeClip: requested === 'Idle' ? manager?.criticalClip : selected?.clip ?? manager?.criticalClip,
+    clipNames,
+    activeClip,
+    activeClipLoop: activeClip ? (manager?.isLoop(activeClip.name) ?? true) : true,
+    unknownClip: Boolean(manager && !manager.hasClip(requested)),
     isLoading: !manager && !manifestQuery.isError && !criticalQuery.isError,
     deferredStatus: deferredQuery.isError ? 'error' : deferredQuery.isSuccess ? 'ready' : deferredQuery.isFetching ? 'loading' : 'idle',
     error: manifestQuery.error ?? criticalQuery.error ?? deferredQuery.error ?? selected?.error ?? null,

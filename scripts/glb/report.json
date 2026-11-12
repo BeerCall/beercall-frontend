@@ -1,0 +1,2438 @@
+{
+  "generatedAt": "2026-11-02T13:28:13.008Z",
+  "totalItems": 162,
+  "passed": 162,
+  "failed": 0,
+  "results": [
+    {
+      "key": "acc/men/Men_accessory_Alpine_5000",
+      "sourceId": "Men_accessory_Alpine_5000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Alpine_5000.40303f92.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_AstonMartin_5000",
+      "sourceId": "Men_accessory_AstonMartin_5000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_AstonMartin_5000.e7326ef5.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Audi_5000",
+      "sourceId": "Men_accessory_Audi_5000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Audi_5000.66bcadba.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Backpack_0",
+      "sourceId": "Men_accessory_Backpack_0",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Backpack_0.b9404416.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 51044.18245230726,
+        "maxDiff": 32745.091344619494,
+        "diag": 64.15048644419885
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Beer_500",
+      "sourceId": "Men_accessory_Beer_500",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Beer_500.7ec58a4e.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 9257439.734860074,
+        "maxDiff": 32766.922676682472,
+        "diag": 0.3539523195953891
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Bellsprout_2000",
+      "sourceId": "Men_accessory_Bellsprout_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Bellsprout_2000.38c6cb91.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 8282.800778677612,
+        "maxDiff": 32699.213506756132,
+        "diag": 394.7844983901293
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Bulbasaur_2000",
+      "sourceId": "Men_accessory_Bulbasaur_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Bulbasaur_2000.8062dafe.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 21368.31065215699,
+        "maxDiff": 32745.245784485058,
+        "diag": 153.2420897352484
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Cadillac_5000",
+      "sourceId": "Men_accessory_Cadillac_5000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Cadillac_5000.8f6d6f20.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Charmander_2000",
+      "sourceId": "Men_accessory_Charmander_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Charmander_2000.b3306b9f.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 23081.470069498948,
+        "maxDiff": 32745.93208008792,
+        "diag": 141.87108525362123
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Cubone_2000",
+      "sourceId": "Men_accessory_Cubone_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Cubone_2000.833c03fa.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 29778.859332454944,
+        "maxDiff": 32746.33472239562,
+        "diag": 109.9650404900047
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Eevee_2000",
+      "sourceId": "Men_accessory_Eevee_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Eevee_2000.aeb74719.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 21179.66055000405,
+        "maxDiff": 32749.24950842309,
+        "diag": 154.62594138892763
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Ferrari_5000",
+      "sourceId": "Men_accessory_Ferrari_5000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Ferrari_5000.00371a1a.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Glalie_2000",
+      "sourceId": "Men_accessory_Glalie_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Glalie_2000.13deafcd.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 8396.784654319204,
+        "maxDiff": 32665.75908651638,
+        "diag": 389.02699582409207
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Haas_5000",
+      "sourceId": "Men_accessory_Haas_5000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Haas_5000.d29fae70.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Haunter_2000",
+      "sourceId": "Men_accessory_Haunter_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Haunter_2000.12318740.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 28272.907604902808,
+        "maxDiff": 32751.142781294842,
+        "diag": 115.83931599456528
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Jigglypuff_2000",
+      "sourceId": "Men_accessory_Jigglypuff_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Jigglypuff_2000.db73284d.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 14563.337084634359,
+        "maxDiff": 32738.5535482917,
+        "diag": 224.8011795513121
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Kart_3000",
+      "sourceId": "Men_accessory_Kart_3000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Kart_3000.543d1fa1.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 34808.59595672059,
+        "maxDiff": 32737.48819923401,
+        "diag": 94.05001063512674
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Magikarp_2000",
+      "sourceId": "Men_accessory_Magikarp_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Magikarp_2000.0730f2b8.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 26098.15737764323,
+        "maxDiff": 32743.35508030653,
+        "diag": 125.46232519984669
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Magnemite_2000",
+      "sourceId": "Men_accessory_Magnemite_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Magnemite_2000.05896c66.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19487.268855529244,
+        "maxDiff": 32741.312725820706,
+        "diag": 168.01386058021575
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Marill_2000",
+      "sourceId": "Men_accessory_Marill_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Marill_2000.c7ece8df.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 31412.980527427033,
+        "maxDiff": 32752.064290463924,
+        "diag": 104.26283574673127
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_McLaren_5000",
+      "sourceId": "Men_accessory_McLaren_5000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_McLaren_5000.c84121ab.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Mercedes_5000",
+      "sourceId": "Men_accessory_Mercedes_5000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Mercedes_5000.fee53cfa.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Mew_2000",
+      "sourceId": "Men_accessory_Mew_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Mew_2000.c75e1472.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 35716.35700540312,
+        "maxDiff": 32757.830710068974,
+        "diag": 91.71660677799086
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Oddish_2000",
+      "sourceId": "Men_accessory_Oddish_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Oddish_2000.d4e300b3.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19108.369369913613,
+        "maxDiff": 32748.056420724777,
+        "diag": 171.3806960016538
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Pikachu_2000",
+      "sourceId": "Men_accessory_Pikachu_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Pikachu_2000.671a4417.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 1735379.0658832754,
+        "maxDiff": 32766.772211700678,
+        "diag": 1.8881622382037326
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Pistol_500",
+      "sourceId": "Men_accessory_Pistol_500",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Pistol_500.cecb3c46.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 101493.02714976482,
+        "maxDiff": 32833.221333788555,
+        "diag": 32.350223710776994
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Poliwag_2000",
+      "sourceId": "Men_accessory_Poliwag_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Poliwag_2000.91e65f38.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 31111.401484138332,
+        "maxDiff": 32746.311882702827,
+        "diag": 105.25502009094006
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Porygon_2000",
+      "sourceId": "Men_accessory_Porygon_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Porygon_2000.ca364434.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 20854.349578693673,
+        "maxDiff": 32728.392611265182,
+        "diag": 156.93796868497353
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_RacingBulls_5000",
+      "sourceId": "Men_accessory_RacingBulls_5000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_RacingBulls_5000.f2946881.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_RedBull_5000",
+      "sourceId": "Men_accessory_RedBull_5000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_RedBull_5000.fcfa094a.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.70266136603,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.1350492857447
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Snorlax_2000",
+      "sourceId": "Men_accessory_Snorlax_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Snorlax_2000.f4e716b4.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 29741.0726213908,
+        "maxDiff": 32749.573337923615,
+        "diag": 110.11564295219468
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Soccer_500",
+      "sourceId": "Men_accessory_Soccer_500",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Soccer_500.5cb9bc12.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 12879.739845193868,
+        "maxDiff": 32693.72690153122,
+        "diag": 253.8384105151862
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Squirtle_2000",
+      "sourceId": "Men_accessory_Squirtle_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Squirtle_2000.ebed7433.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 53210.91670399387,
+        "maxDiff": 32753.890560388565,
+        "diag": 61.55483233373829
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Sudowoodo",
+      "sourceId": "Men_accessory_Sudowoodo",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Sudowoodo.010bc89c.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 7960.176393740814,
+        "maxDiff": 32728.631689706082,
+        "diag": 411.15460350151307
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Sword_500",
+      "sourceId": "Men_accessory_Sword_500",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Sword_500.e9148f0a.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 37125.93078157308,
+        "maxDiff": 32906.08838795482,
+        "diag": 88.63370613266156
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Victreebel_2000",
+      "sourceId": "Men_accessory_Victreebel_2000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Victreebel_2000.60efa5a7.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 2792.054363360729,
+        "maxDiff": 32627.78280210495,
+        "diag": 1168.594108706095
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/men/Men_accessory_Williams_5000",
+      "sourceId": "Men_accessory_Williams_5000",
+      "url": "/models/glb/v1/accessories/Men/Men_accessory_Williams_5000.b8a06829.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Alpine_5000",
+      "sourceId": "Women_accessory_Alpine_5000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Alpine_5000.40303f92.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_AstonMartin_5000",
+      "sourceId": "Women_accessory_AstonMartin_5000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_AstonMartin_5000.e7326ef5.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Audi_5000",
+      "sourceId": "Women_accessory_Audi_5000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Audi_5000.66bcadba.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Backpack_0",
+      "sourceId": "Women_accessory_Backpack_0",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Backpack_0.17ff253e.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 53562.36973662269,
+        "maxDiff": 32745.901170197118,
+        "diag": 61.13602017837434
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Beer_500",
+      "sourceId": "Women_accessory_Beer_500",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Beer_500.7ec58a4e.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 9257439.734860074,
+        "maxDiff": 32766.922676682472,
+        "diag": 0.3539523195953891
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Bellsprout_2000",
+      "sourceId": "Women_accessory_Bellsprout_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Bellsprout_2000.38c6cb91.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 8282.800778677612,
+        "maxDiff": 32699.213506756132,
+        "diag": 394.7844983901293
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Bulbasaur_2000",
+      "sourceId": "Women_accessory_Bulbasaur_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Bulbasaur_2000.8062dafe.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 21368.31065215699,
+        "maxDiff": 32745.245784485058,
+        "diag": 153.2420897352484
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Cadillac_5000",
+      "sourceId": "Women_accessory_Cadillac_5000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Cadillac_5000.eaeddf74.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Charmander_2000",
+      "sourceId": "Women_accessory_Charmander_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Charmander_2000.b3306b9f.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 23081.470069498948,
+        "maxDiff": 32745.93208008792,
+        "diag": 141.87108525362123
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Cubone_2000",
+      "sourceId": "Women_accessory_Cubone_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Cubone_2000.833c03fa.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 29778.859332454944,
+        "maxDiff": 32746.33472239562,
+        "diag": 109.9650404900047
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Eevee_2000",
+      "sourceId": "Women_accessory_Eevee_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Eevee_2000.aeb74719.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 21179.66055000405,
+        "maxDiff": 32749.24950842309,
+        "diag": 154.62594138892763
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Ferrari_5000",
+      "sourceId": "Women_accessory_Ferrari_5000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Ferrari_5000.00371a1a.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Glalie_2000",
+      "sourceId": "Women_accessory_Glalie_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Glalie_2000.13deafcd.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 8396.784654319204,
+        "maxDiff": 32665.75908651638,
+        "diag": 389.02699582409207
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Gun_500",
+      "sourceId": "Women_accessory_Gun_500",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Gun_500.b36721f3.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 93504.612306181,
+        "maxDiff": 32832.68080260688,
+        "diag": 35.11343450641367
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Haas_5000",
+      "sourceId": "Women_accessory_Haas_5000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Haas_5000.d29fae70.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Haunter_2000",
+      "sourceId": "Women_accessory_Haunter_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Haunter_2000.12318740.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 28272.907604902808,
+        "maxDiff": 32751.142781294842,
+        "diag": 115.83931599456528
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Jigglypuff_2000",
+      "sourceId": "Women_accessory_Jigglypuff_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Jigglypuff_2000.db73284d.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 14563.337084634359,
+        "maxDiff": 32738.5535482917,
+        "diag": 224.8011795513121
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Kart_3000",
+      "sourceId": "Women_accessory_Kart_3000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Kart_3000.543d1fa1.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 34808.59595672059,
+        "maxDiff": 32737.48819923401,
+        "diag": 94.05001063512674
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Magikarp_2000",
+      "sourceId": "Women_accessory_Magikarp_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Magikarp_2000.0730f2b8.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 26098.15737764323,
+        "maxDiff": 32743.35508030653,
+        "diag": 125.46232519984669
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Magnemite_2000",
+      "sourceId": "Women_accessory_Magnemite_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Magnemite_2000.05896c66.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19487.268855529244,
+        "maxDiff": 32741.312725820706,
+        "diag": 168.01386058021575
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Marill_2000",
+      "sourceId": "Women_accessory_Marill_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Marill_2000.c7ece8df.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 31412.980527427033,
+        "maxDiff": 32752.064290463924,
+        "diag": 104.26283574673127
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_McLaren_5000",
+      "sourceId": "Women_accessory_McLaren_5000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_McLaren_5000.c84121ab.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Mercedes_5000",
+      "sourceId": "Women_accessory_Mercedes_5000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Mercedes_5000.fee53cfa.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Mew_2000",
+      "sourceId": "Women_accessory_Mew_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Mew_2000.c75e1472.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 35716.35700540312,
+        "maxDiff": 32757.830710068974,
+        "diag": 91.71660677799086
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Oddish_2000",
+      "sourceId": "Women_accessory_Oddish_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Oddish_2000.d4e300b3.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19108.369369913613,
+        "maxDiff": 32748.056420724777,
+        "diag": 171.3806960016538
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Pikachu_2000",
+      "sourceId": "Women_accessory_Pikachu_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Pikachu_2000.671a4417.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 1735379.0658832754,
+        "maxDiff": 32766.772211700678,
+        "diag": 1.8881622382037326
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Poliwag_2000",
+      "sourceId": "Women_accessory_Poliwag_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Poliwag_2000.91e65f38.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 31111.401484138332,
+        "maxDiff": 32746.311882702827,
+        "diag": 105.25502009094006
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Porygon_2000",
+      "sourceId": "Women_accessory_Porygon_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Porygon_2000.ca364434.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 20854.349578693673,
+        "maxDiff": 32728.392611265182,
+        "diag": 156.93796868497353
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_RacingBulls_5000",
+      "sourceId": "Women_accessory_RacingBulls_5000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_RacingBulls_5000.f2946881.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_RedBull_5000",
+      "sourceId": "Women_accessory_RedBull_5000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_RedBull_5000.fcfa094a.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.70266136603,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.1350492857447
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Snorlax_2000",
+      "sourceId": "Women_accessory_Snorlax_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Snorlax_2000.f4e716b4.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 29741.0726213908,
+        "maxDiff": 32749.573337923615,
+        "diag": 110.11564295219468
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Soccer_500",
+      "sourceId": "Women_accessory_Soccer_500",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Soccer_500.5cb9bc12.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 12879.739845193868,
+        "maxDiff": 32693.72690153122,
+        "diag": 253.8384105151862
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Squirtle_2000",
+      "sourceId": "Women_accessory_Squirtle_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Squirtle_2000.ebed7433.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 53210.91670399387,
+        "maxDiff": 32753.890560388565,
+        "diag": 61.55483233373829
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Sudowoodo",
+      "sourceId": "Women_accessory_Sudowoodo",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Sudowoodo.010bc89c.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 7960.176393740814,
+        "maxDiff": 32728.631689706082,
+        "diag": 411.15460350151307
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Sword_500",
+      "sourceId": "Women_accessory_Sword_500",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Sword_500.9827eef8.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 37126.82548084211,
+        "maxDiff": 32906.88170197469,
+        "diag": 88.63370696467179
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Victreebel_2000",
+      "sourceId": "Women_accessory_Victreebel_2000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Victreebel_2000.60efa5a7.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 2792.054363360729,
+        "maxDiff": 32627.78280210495,
+        "diag": 1168.594108706095
+      },
+      "status": "pass"
+    },
+    {
+      "key": "acc/women/Women_accessory_Williams_5000",
+      "sourceId": "Women_accessory_Williams_5000",
+      "url": "/models/glb/v1/accessories/Women/Women_accessory_Williams_5000.b8a06829.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 6502.703592548932,
+        "maxDiff": 32717.376240169404,
+        "diag": 503.13497723713465
+      },
+      "status": "pass"
+    },
+    {
+      "key": "decor/bar",
+      "sourceId": "Bar",
+      "url": "/models/glb/v1/decors/_/Bar.93485c6c.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 1329.042710834353,
+        "maxDiff": 32810.39645234859,
+        "diag": 2468.7240059990786
+      },
+      "status": "pass"
+    },
+    {
+      "key": "decor/dodo",
+      "sourceId": "Floaty_Island",
+      "url": "/models/glb/v1/decors/_/Floaty_Island.3f99fd87.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 2763544.7590386905,
+        "maxDiff": 32766.77331469953,
+        "diag": 1.185679124882261
+      },
+      "status": "pass"
+    },
+    {
+      "key": "decor/piscine",
+      "sourceId": "Swimming_pool",
+      "url": "/models/glb/v1/decors/_/Swimming_pool.7bc79039.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 63916.312916628376,
+        "maxDiff": 32745.67897415161,
+        "diag": 51.232115057801686
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/body/Men_body_Adventurer_300",
+      "sourceId": "Men_body_Adventurer_300",
+      "url": "/models/glb/v1/pieces/Men/Men_body_Adventurer_300.08bbed7c.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18381.896758385512,
+        "maxDiff": 32683.22666789118,
+        "diag": 177.80116544818284
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/body/Men_body_Beach_300",
+      "sourceId": "Men_body_Beach_300",
+      "url": "/models/glb/v1/pieces/Men/Men_body_Beach_300.917fa301.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18419.01810336136,
+        "maxDiff": 32683.22666789118,
+        "diag": 177.44282830107372
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/body/Men_body_Casual2_0",
+      "sourceId": "Men_body_Casual2_0",
+      "url": "/models/glb/v1/pieces/Men/Men_body_Casual2_0.164160a8.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18393.184213597637,
+        "maxDiff": 32683.22666789118,
+        "diag": 177.6920531450409
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/body/Men_body_Casual_0",
+      "sourceId": "Men_body_Casual_0",
+      "url": "/models/glb/v1/pieces/Men/Men_body_Casual_0.446c8496.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18229.207722991694,
+        "maxDiff": 32683.22666789169,
+        "diag": 179.29043963150292
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/body/Men_body_Farmer_300",
+      "sourceId": "Men_body_Farmer_300",
+      "url": "/models/glb/v1/pieces/Men/Men_body_Farmer_300.7e5af5ce.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18316.18475371617,
+        "maxDiff": 32683.22666789118,
+        "diag": 178.43905326004142
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/body/Men_body_King_300",
+      "sourceId": "Men_body_King_300",
+      "url": "/models/glb/v1/pieces/Men/Men_body_King_300.a9e00810.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18204.761248482653,
+        "maxDiff": 32683.22666789118,
+        "diag": 179.53120187508802
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/body/Men_body_Punk_300",
+      "sourceId": "Men_body_Punk_300",
+      "url": "/models/glb/v1/pieces/Men/Men_body_Punk_300.8a918b61.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18164.51242502403,
+        "maxDiff": 32683.22666789118,
+        "diag": 179.92900609248224
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/body/Men_body_SpaceSuit_300",
+      "sourceId": "Men_body_SpaceSuit_300",
+      "url": "/models/glb/v1/pieces/Men/Men_body_SpaceSuit_300.e14f62b4.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18198.278662068435,
+        "maxDiff": 32683.22666789118,
+        "diag": 179.5951544363063
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/body/Men_body_Suit_300",
+      "sourceId": "Men_body_Suit_300",
+      "url": "/models/glb/v1/pieces/Men/Men_body_Suit_300.73846a4c.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18381.896758385512,
+        "maxDiff": 32683.22666789118,
+        "diag": 177.80116544818284
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/body/Men_body_Swat_300",
+      "sourceId": "Men_body_Swat_300",
+      "url": "/models/glb/v1/pieces/Men/Men_body_Swat_300.629d3523.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18335.63255003772,
+        "maxDiff": 32683.22666789118,
+        "diag": 178.24979083049928
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/body/Men_body_Worker_0",
+      "sourceId": "Men_body_Worker_0",
+      "url": "/models/glb/v1/pieces/Men/Men_body_Worker_0.069ab65c.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18351.826826650664,
+        "maxDiff": 32683.22666789118,
+        "diag": 178.09249714817682
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/feet/Men_feet_Adventurer_100",
+      "sourceId": "Men_feet_Adventurer_100",
+      "url": "/models/glb/v1/pieces/Men/Men_feet_Adventurer_100.2f70f717.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 62632.59972923055,
+        "maxDiff": 32747.844363675325,
+        "diag": 52.285622032693546
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/feet/Men_feet_Beach_100",
+      "sourceId": "Men_feet_Beach_100",
+      "url": "/models/glb/v1/pieces/Men/Men_feet_Beach_100.c0982de3.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 64928.03049205983,
+        "maxDiff": 32747.945611105013,
+        "diag": 50.437300135123955
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/feet/Men_feet_Casual2_0",
+      "sourceId": "Men_feet_Casual2_0",
+      "url": "/models/glb/v1/pieces/Men/Men_feet_Casual2_0.eba4aa88.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 60847.64470333458,
+        "maxDiff": 32747.844363675325,
+        "diag": 53.81941161952761
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/feet/Men_feet_Casual_0",
+      "sourceId": "Men_feet_Casual_0",
+      "url": "/models/glb/v1/pieces/Men/Men_feet_Casual_0.c7f2eca1.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 65667.26322391533,
+        "maxDiff": 32747.844363675325,
+        "diag": 49.869360707191625
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/feet/Men_feet_Farmer_100",
+      "sourceId": "Men_feet_Farmer_100",
+      "url": "/models/glb/v1/pieces/Men/Men_feet_Farmer_100.3c458b1b.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 63044.74907472033,
+        "maxDiff": 32747.844363675325,
+        "diag": 51.94380950721644
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/feet/Men_feet_King_100",
+      "sourceId": "Men_feet_King_100",
+      "url": "/models/glb/v1/pieces/Men/Men_feet_King_100.63aa3b50.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 62706.22392022623,
+        "maxDiff": 32748.05906705605,
+        "diag": 52.2245752012074
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/feet/Men_feet_Punk_100",
+      "sourceId": "Men_feet_Punk_100",
+      "url": "/models/glb/v1/pieces/Men/Men_feet_Punk_100.84d6d219.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 62811.1692108337,
+        "maxDiff": 32747.844363675325,
+        "diag": 52.136976233881285
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/feet/Men_feet_SpaceSuit_100",
+      "sourceId": "Men_feet_SpaceSuit_100",
+      "url": "/models/glb/v1/pieces/Men/Men_feet_SpaceSuit_100.6a6883b6.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 60148.088176316465,
+        "maxDiff": 32747.84436367532,
+        "diag": 54.4453620332523
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/feet/Men_feet_Suit_100",
+      "sourceId": "Men_feet_Suit_100",
+      "url": "/models/glb/v1/pieces/Men/Men_feet_Suit_100.2478e405.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 64409.330390275514,
+        "maxDiff": 32747.844363675325,
+        "diag": 50.843323731587155
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/feet/Men_feet_Swat_100",
+      "sourceId": "Men_feet_Swat_100",
+      "url": "/models/glb/v1/pieces/Men/Men_feet_Swat_100.1f661377.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 59055.21291622978,
+        "maxDiff": 32747.844363675325,
+        "diag": 55.45292743272024
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/feet/Men_feet_Worker_0",
+      "sourceId": "Men_feet_Worker_0",
+      "url": "/models/glb/v1/pieces/Men/Men_feet_Worker_0.a4fc307e.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 59670.32227731806,
+        "maxDiff": 32747.844363675325,
+        "diag": 54.88129293399755
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_Adventurer_150",
+      "sourceId": "Men_head_Adventurer_150",
+      "url": "/models/glb/v1/pieces/Men/Men_head_Adventurer_150.759f7f23.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 60600.814217421284,
+        "maxDiff": 32757.636166456814,
+        "diag": 54.05477894889369
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_Beach_150",
+      "sourceId": "Men_head_Beach_150",
+      "url": "/models/glb/v1/pieces/Men/Men_head_Beach_150.aea5839b.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 58498.87312937916,
+        "maxDiff": 32758.394383660278,
+        "diag": 55.99833403834994
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_Casual2_0",
+      "sourceId": "Men_head_Casual2_0",
+      "url": "/models/glb/v1/pieces/Men/Men_head_Casual2_0.409981af.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 60624.601500032244,
+        "maxDiff": 32750.19951799507,
+        "diag": 54.02130275112431
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_Casual_0",
+      "sourceId": "Men_head_Casual_0",
+      "url": "/models/glb/v1/pieces/Men/Men_head_Casual_0.d81b37f8.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 64863.70190343393,
+        "maxDiff": 32758.28010532797,
+        "diag": 50.50325396798502
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_Farmer_150",
+      "sourceId": "Men_head_Farmer_150",
+      "url": "/models/glb/v1/pieces/Men/Men_head_Farmer_150.3a80c5e6.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 50925.103995880905,
+        "maxDiff": 32755.674038333695,
+        "diag": 64.32127078421509
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_Horse_150",
+      "sourceId": "Men_head_Horse_150",
+      "url": "/models/glb/v1/pieces/Men/Men_head_Horse_150.5a6f4795.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 49297.537452892764,
+        "maxDiff": 32758.343828563586,
+        "diag": 66.45026409253498
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_King_150",
+      "sourceId": "Men_head_King_150",
+      "url": "/models/glb/v1/pieces/Men/Men_head_King_150.3fdfa851.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 58448.278054913375,
+        "maxDiff": 32758.784298733157,
+        "diag": 56.047475458482445
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_Punk_150",
+      "sourceId": "Men_head_Punk_150",
+      "url": "/models/glb/v1/pieces/Men/Men_head_Punk_150.5c6fce42.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 47523.281469264206,
+        "maxDiff": 32751.053585205827,
+        "diag": 68.91580836308125
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_SpaceSuit_150",
+      "sourceId": "Men_head_SpaceSuit_150",
+      "url": "/models/glb/v1/pieces/Men/Men_head_SpaceSuit_150.da77cb4d.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 50352.695179159935,
+        "maxDiff": 32753.004531566978,
+        "diag": 65.04717257939919
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_Suit_150",
+      "sourceId": "Men_head_Suit_150",
+      "url": "/models/glb/v1/pieces/Men/Men_head_Suit_150.8efc1f26.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 66295.17913753656,
+        "maxDiff": 32758.511250123727,
+        "diag": 49.413112199550184
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_Swat_150",
+      "sourceId": "Men_head_Swat_150",
+      "url": "/models/glb/v1/pieces/Men/Men_head_Swat_150.efd79c4d.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 63091.91391324393,
+        "maxDiff": 32758.624436821112,
+        "diag": 51.92206481779369
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/head/Men_head_Worker_0",
+      "sourceId": "Men_head_Worker_0",
+      "url": "/models/glb/v1/pieces/Men/Men_head_Worker_0.12f57b24.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 56510.06785565199,
+        "maxDiff": 32756.74389084915,
+        "diag": 57.9662087373921
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/legs/Men_legs_Adventurer_200",
+      "sourceId": "Men_legs_Adventurer_200",
+      "url": "/models/glb/v1/pieces/Men/Men_legs_Adventurer_200.d9d81eca.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 32996.52469479589,
+        "maxDiff": 32760.46058801689,
+        "diag": 99.28457887925322
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/legs/Men_legs_Beach_200",
+      "sourceId": "Men_legs_Beach_200",
+      "url": "/models/glb/v1/pieces/Men/Men_legs_Beach_200.245810d6.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 33103.243842830285,
+        "maxDiff": 32760.1085346338,
+        "diag": 98.96343902179
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/legs/Men_legs_Casual2_0",
+      "sourceId": "Men_legs_Casual2_0",
+      "url": "/models/glb/v1/pieces/Men/Men_legs_Casual2_0.b6f2a124.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 32735.543856079243,
+        "maxDiff": 32760.460419967952,
+        "diag": 100.07611470882614
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/legs/Men_legs_Casual_0",
+      "sourceId": "Men_legs_Casual_0",
+      "url": "/models/glb/v1/pieces/Men/Men_legs_Casual_0.ab923176.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 31935.548900404956,
+        "maxDiff": 32760.108535937077,
+        "diag": 102.58194915673319
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/legs/Men_legs_Farmer_200",
+      "sourceId": "Men_legs_Farmer_200",
+      "url": "/models/glb/v1/pieces/Men/Men_legs_Farmer_200.2adadf44.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 32099.738268157016,
+        "maxDiff": 32760.460591614108,
+        "diag": 102.05834177817121
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/legs/Men_legs_King_200",
+      "sourceId": "Men_legs_King_200",
+      "url": "/models/glb/v1/pieces/Men/Men_legs_King_200.7a2813bf.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 32173.14582181146,
+        "maxDiff": 32761.215181599055,
+        "diag": 101.8278267317861
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/legs/Men_legs_Punk_200",
+      "sourceId": "Men_legs_Punk_200",
+      "url": "/models/glb/v1/pieces/Men/Men_legs_Punk_200.3d055129.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 32586.204737994598,
+        "maxDiff": 32760.460506823874,
+        "diag": 100.53475318844387
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/legs/Men_legs_SpaceSuit_200",
+      "sourceId": "Men_legs_SpaceSuit_200",
+      "url": "/models/glb/v1/pieces/Men/Men_legs_SpaceSuit_200.060a248f.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 35672.04118093721,
+        "maxDiff": 32760.66653959573,
+        "diag": 91.83849719567691
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/legs/Men_legs_Suit_200",
+      "sourceId": "Men_legs_Suit_200",
+      "url": "/models/glb/v1/pieces/Men/Men_legs_Suit_200.74301bb3.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 32760.054466450412,
+        "maxDiff": 32760.460420295727,
+        "diag": 100.00123917329176
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/legs/Men_legs_Swat_200",
+      "sourceId": "Men_legs_Swat_200",
+      "url": "/models/glb/v1/pieces/Men/Men_legs_Swat_200.15f0f8f5.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 34038.08525804571,
+        "maxDiff": 32760.558249633585,
+        "diag": 96.24677181831152
+      },
+      "status": "pass"
+    },
+    {
+      "key": "men/legs/Men_legs_Worker_0",
+      "sourceId": "Men_legs_Worker_0",
+      "url": "/models/glb/v1/pieces/Men/Men_legs_Worker_0.812c4123.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 32686.537167204777,
+        "maxDiff": 32760.460618141577,
+        "diag": 100.22615871041539
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/body/Women_body_Adventurer_300",
+      "sourceId": "Women_body_Adventurer_300",
+      "url": "/models/glb/v1/pieces/Women/Women_body_Adventurer_300.5b8bbeb6.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19056.080530184285,
+        "maxDiff": 32684.537723767495,
+        "diag": 171.51763014433178
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/body/Women_body_Casual_0",
+      "sourceId": "Women_body_Casual_0",
+      "url": "/models/glb/v1/pieces/Women/Women_body_Casual_0.9af98b30.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18987.85657299182,
+        "maxDiff": 32684.494248145016,
+        "diag": 172.1336693401992
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/body/Women_body_Formal_300",
+      "sourceId": "Women_body_Formal_300",
+      "url": "/models/glb/v1/pieces/Women/Women_body_Formal_300.d52b875f.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19060.031043862175,
+        "maxDiff": 32684.53772972796,
+        "diag": 171.48208024694287
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/body/Women_body_Medieval_300",
+      "sourceId": "Women_body_Medieval_300",
+      "url": "/models/glb/v1/pieces/Women/Women_body_Medieval_300.105e95ab.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 18777.847750008816,
+        "maxDiff": 32684.537723767495,
+        "diag": 174.05901974975887
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/body/Women_body_Punk_300",
+      "sourceId": "Women_body_Punk_300",
+      "url": "/models/glb/v1/pieces/Women/Women_body_Punk_300.49bb7874.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19052.206625724244,
+        "maxDiff": 32684.537723767495,
+        "diag": 171.55250499769883
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/body/Women_body_SciFi_300",
+      "sourceId": "Women_body_SciFi_300",
+      "url": "/models/glb/v1/pieces/Women/Women_body_SciFi_300.59509718.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19052.2687831405,
+        "maxDiff": 32684.537723767495,
+        "diag": 171.55194531314976
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/body/Women_body_Soldier_300",
+      "sourceId": "Women_body_Soldier_300",
+      "url": "/models/glb/v1/pieces/Women/Women_body_Soldier_300.bdee34ce.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19074.059773988178,
+        "maxDiff": 32684.537723767495,
+        "diag": 171.35595731088304
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/body/Women_body_Suit_300",
+      "sourceId": "Women_body_Suit_300",
+      "url": "/models/glb/v1/pieces/Women/Women_body_Suit_300.c0ec6e3e.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19075.327371346328,
+        "maxDiff": 32684.537723767495,
+        "diag": 171.3445703315373
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/body/Women_body_Witch_300",
+      "sourceId": "Women_body_Witch_300",
+      "url": "/models/glb/v1/pieces/Women/Women_body_Witch_300.b5964881.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19090.937507251718,
+        "maxDiff": 32684.530493724375,
+        "diag": 171.20442870502882
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/body/Women_body_Worker_0",
+      "sourceId": "Women_body_Worker_0",
+      "url": "/models/glb/v1/pieces/Women/Women_body_Worker_0.322243f4.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 19124.32839544412,
+        "maxDiff": 32684.537723767495,
+        "diag": 170.90554527161197
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/feet/Women_feet_Adventurer_100",
+      "sourceId": "Women_feet_Adventurer_100",
+      "url": "/models/glb/v1/pieces/Women/Women_feet_Adventurer_100.98f3a0aa.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 52560.12189484704,
+        "maxDiff": 32764.098022645045,
+        "diag": 62.33641940213464
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/feet/Women_feet_Casual_0",
+      "sourceId": "Women_feet_Casual_0",
+      "url": "/models/glb/v1/pieces/Women/Women_feet_Casual_0.98a23d84.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 73307.5192779901,
+        "maxDiff": 32766.143303901612,
+        "diag": 44.69683823244492
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/feet/Women_feet_Formal_100",
+      "sourceId": "Women_feet_Formal_100",
+      "url": "/models/glb/v1/pieces/Women/Women_feet_Formal_100.184628fd.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 76736.62073775074,
+        "maxDiff": 32752.45867842436,
+        "diag": 42.68165364012663
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/feet/Women_feet_Medieval_100",
+      "sourceId": "Women_feet_Medieval_100",
+      "url": "/models/glb/v1/pieces/Women/Women_feet_Medieval_100.ee33f805.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 53902.39486475301,
+        "maxDiff": 32765.46896712092,
+        "diag": 60.786666435383914
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/feet/Women_feet_Punk_100",
+      "sourceId": "Women_feet_Punk_100",
+      "url": "/models/glb/v1/pieces/Women/Women_feet_Punk_100.65b2d543.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 55050.176963760714,
+        "maxDiff": 32764.271464427748,
+        "diag": 59.517104706123504
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/feet/Women_feet_SciFi_100",
+      "sourceId": "Women_feet_SciFi_100",
+      "url": "/models/glb/v1/pieces/Women/Women_feet_SciFi_100.7e10a8ce.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 48242.79747825901,
+        "maxDiff": 32764.6999383702,
+        "diag": 67.91625206464418
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/feet/Women_feet_Soldier_100",
+      "sourceId": "Women_feet_Soldier_100",
+      "url": "/models/glb/v1/pieces/Women/Women_feet_Soldier_100.42e153c7.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 52159.95416941977,
+        "maxDiff": 32763.410145190097,
+        "diag": 62.81334151247886
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/feet/Women_feet_Suit_100",
+      "sourceId": "Women_feet_Suit_100",
+      "url": "/models/glb/v1/pieces/Women/Women_feet_Suit_100.dc046113.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 71676.8575207957,
+        "maxDiff": 32751.61865377426,
+        "diag": 45.6934354917443
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/feet/Women_feet_Witch_100",
+      "sourceId": "Women_feet_Witch_100",
+      "url": "/models/glb/v1/pieces/Women/Women_feet_Witch_100.3beb3708.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 51706.38739211075,
+        "maxDiff": 32763.29563295545,
+        "diag": 63.364116669954015
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/feet/Women_feet_Worker_0",
+      "sourceId": "Women_feet_Worker_0",
+      "url": "/models/glb/v1/pieces/Women/Women_feet_Worker_0.fc437c3b.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 71321.46324440357,
+        "maxDiff": 32751.61865377426,
+        "diag": 45.92112551244412
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/head/Women_head_Adventurer_150",
+      "sourceId": "Women_head_Adventurer_150",
+      "url": "/models/glb/v1/pieces/Women/Women_head_Adventurer_150.d5a1543d.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 76062.60220335214,
+        "maxDiff": 32761.562230551506,
+        "diag": 43.07183988126516
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/head/Women_head_Casual_0",
+      "sourceId": "Women_head_Casual_0",
+      "url": "/models/glb/v1/pieces/Women/Women_head_Casual_0.a1b94fd7.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 66525.1218592975,
+        "maxDiff": 32757.053707062412,
+        "diag": 49.24012582245921
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/head/Women_head_Formal_150",
+      "sourceId": "Women_head_Formal_150",
+      "url": "/models/glb/v1/pieces/Women/Women_head_Formal_150.e24025ad.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 64243.3566250325,
+        "maxDiff": 32799.47274392367,
+        "diag": 51.0550420572877
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/head/Women_head_Medieval_150",
+      "sourceId": "Women_head_Medieval_150",
+      "url": "/models/glb/v1/pieces/Women/Women_head_Medieval_150.5d751f81.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 55876.808639836396,
+        "maxDiff": 32755.04758471067,
+        "diag": 58.62011160272051
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/head/Women_head_Punk_150",
+      "sourceId": "Women_head_Punk_150",
+      "url": "/models/glb/v1/pieces/Women/Women_head_Punk_150.b9f55fca.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 55983.84910122111,
+        "maxDiff": 32754.591634063094,
+        "diag": 58.50721620594798
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/head/Women_head_SciFi_150",
+      "sourceId": "Women_head_SciFi_150",
+      "url": "/models/glb/v1/pieces/Women/Women_head_SciFi_150.9f2ffe15.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 67174.32278092505,
+        "maxDiff": 32757.111210676943,
+        "diag": 48.764334130330404
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/head/Women_head_Soldier_150",
+      "sourceId": "Women_head_Soldier_150",
+      "url": "/models/glb/v1/pieces/Women/Women_head_Soldier_150.695b92c5.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 74463.49458496302,
+        "maxDiff": 32760.225821998865,
+        "diag": 43.99501528177592
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/head/Women_head_Suit_150",
+      "sourceId": "Women_head_Suit_150",
+      "url": "/models/glb/v1/pieces/Women/Women_head_Suit_150.1f74bea8.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 66512.47047100918,
+        "maxDiff": 32757.02333331439,
+        "diag": 49.2494461585098
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/head/Women_head_Witch_150",
+      "sourceId": "Women_head_Witch_150",
+      "url": "/models/glb/v1/pieces/Women/Women_head_Witch_150.31ca2b69.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 34573.99414303232,
+        "maxDiff": 32743.772801384064,
+        "diag": 94.70636417048996
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/head/Women_head_Worker_0",
+      "sourceId": "Women_head_Worker_0",
+      "url": "/models/glb/v1/pieces/Women/Women_head_Worker_0.38d72315.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 63624.26518265032,
+        "maxDiff": 32920.83845259418,
+        "diag": 51.74258336514565
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/legs/Women_legs_Adventurer_200",
+      "sourceId": "Women_legs_Adventurer_200",
+      "url": "/models/glb/v1/pieces/Women/Women_legs_Adventurer_200.a8e0e5f6.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 34709.41814480531,
+        "maxDiff": 32761.109260722624,
+        "diag": 94.38680050482415
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/legs/Women_legs_Casual_0",
+      "sourceId": "Women_legs_Casual_0",
+      "url": "/models/glb/v1/pieces/Women/Women_legs_Casual_0.4c9eda4d.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 30434.330358338593,
+        "maxDiff": 32761.10874207401,
+        "diag": 107.64524258079466
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/legs/Women_legs_Formal_200",
+      "sourceId": "Women_legs_Formal_200",
+      "url": "/models/glb/v1/pieces/Women/Women_legs_Formal_200.75f5b529.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 30090.719277493223,
+        "maxDiff": 32758.16944409773,
+        "diag": 108.86469393438415
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/legs/Women_legs_Medieval_200",
+      "sourceId": "Women_legs_Medieval_200",
+      "url": "/models/glb/v1/pieces/Women/Women_legs_Medieval_200.35d648f7.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 34808.042699144615,
+        "maxDiff": 32760.96545189845,
+        "diag": 94.11895329783519
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/legs/Women_legs_Punk_200",
+      "sourceId": "Women_legs_Punk_200",
+      "url": "/models/glb/v1/pieces/Women/Women_legs_Punk_200.93c8cb1d.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 37554.964784084856,
+        "maxDiff": 32761.10926124281,
+        "diag": 87.23509514546637
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/legs/Women_legs_SciFi_200",
+      "sourceId": "Women_legs_SciFi_200",
+      "url": "/models/glb/v1/pieces/Women/Women_legs_SciFi_200.9700b8ac.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 39493.45442913753,
+        "maxDiff": 32761.109260653404,
+        "diag": 82.95326335516215
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/legs/Women_legs_Soldier_200",
+      "sourceId": "Women_legs_Soldier_200",
+      "url": "/models/glb/v1/pieces/Women/Women_legs_Soldier_200.cb84f723.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 34837.687167931785,
+        "maxDiff": 32761.62915898137,
+        "diag": 94.04076970166541
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/legs/Women_legs_Suit_200",
+      "sourceId": "Women_legs_Suit_200",
+      "url": "/models/glb/v1/pieces/Women/Women_legs_Suit_200.11194ceb.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 29850.459740876067,
+        "maxDiff": 32761.109261037327,
+        "diag": 109.75076948706264
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/legs/Women_legs_Witch_200",
+      "sourceId": "Women_legs_Witch_200",
+      "url": "/models/glb/v1/pieces/Women/Women_legs_Witch_200.c1810514.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 35087.32752908601,
+        "maxDiff": 32753.675993929603,
+        "diag": 93.34901886379947
+      },
+      "status": "pass"
+    },
+    {
+      "key": "women/legs/Women_legs_Worker_0",
+      "sourceId": "Women_legs_Worker_0",
+      "url": "/models/glb/v1/pieces/Women/Women_legs_Worker_0.88c11cf0.glb",
+      "bytesMatch": true,
+      "hashMatch": true,
+      "structureErrors": [],
+      "bboxCheck": {
+        "pass": false,
+        "errorPercent": 29641.342453704976,
+        "maxDiff": 32761.109260436555,
+        "diag": 110.52505233730271
+      },
+      "status": "pass"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ const getPosition = vi.fn<Geolocation['getCurrentPosition']>();
 const watchPosition = vi.fn<Geolocation['watchPosition']>();
 const clearWatch = vi.fn<Geolocation['clearWatch']>();
 const originalGeo = Object.getOwnPropertyDescriptor(navigator, 'geolocation');
+const originalPermissions = Object.getOwnPropertyDescriptor(navigator, 'permissions');
 const position = (timestamp: number, lat = 48, lng = 2) => ({
     timestamp, coords: { latitude: lat, longitude: lng, accuracy: 1, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
 } as GeolocationPosition);
@@ -21,7 +22,7 @@ const pointError = (code: number) => pointCallbacks[0].error?.(gpsError(code));
 
 beforeEach(() => {
     state().stopTracking();
-    useLocationStore.setState({ userLocation: null, acquiredAt: null, hasSessionFix: false, locationStatus: 'idle', isTracking: false, error: null });
+    useLocationStore.setState({ userLocation: null, acquiredAt: null, hasSessionFix: false, locationStatus: 'idle', isTracking: false, error: null, permissionGranted: false });
     pointCallbacks.length = 0;
     watchCallbacks.length = 0;
     vi.clearAllMocks();
@@ -33,6 +34,8 @@ afterEach(() => {
     state().stopTracking();
     if (originalGeo) Object.defineProperty(navigator, 'geolocation', originalGeo);
     else Reflect.deleteProperty(navigator, 'geolocation');
+    if (originalPermissions) Object.defineProperty(navigator, 'permissions', originalPermissions);
+    else Reflect.deleteProperty(navigator, 'permissions');
 });
 
 describe('GPS de session : cache et acquisitions concurrentes', () => {
@@ -73,7 +76,7 @@ describe('GPS de session : cache et acquisitions concurrentes', () => {
 
     it('accepte une position GPS courante et ne persiste que coordonnées/date', () => {
         start(); watchSuccess(2000);
-        expect(state()).toMatchObject({ locationStatus: 'available', hasSessionFix: true, acquiredAt: 2000, userLocation: { lat: 48, lng: 2 }, error: null });
+        expect(state()).toMatchObject({ locationStatus: 'available', hasSessionFix: true, acquiredAt: 2000, userLocation: { lat: 48, lng: 2 }, error: null, permissionGranted: true });
         expect(JSON.parse(localStorage.getItem('beercall-location-storage')!).state).toEqual({ userLocation: { lat: 48, lng: 2 }, acquiredAt: 2000 });
     });
 
@@ -159,5 +162,63 @@ describe('GPS de session : cache et acquisitions concurrentes', () => {
         start();
         expect(getPosition).toHaveBeenCalledTimes(1);
         expect(watchPosition).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('permission de géolocalisation : aucune demande automatique sans certitude', () => {
+    const setPermissionQuery = (query: () => Promise<PermissionStatus>) => {
+        Object.defineProperty(navigator, 'permissions', { configurable: true, value: { query } });
+    };
+
+    it('ne demande rien au montage quand la permission est inconnue', async () => {
+        await state().startTrackingIfPermitted();
+        expect(getPosition).not.toHaveBeenCalled();
+        expect(watchPosition).not.toHaveBeenCalled();
+        expect(state()).toMatchObject({ isTracking: false, locationStatus: 'idle', permissionGranted: false });
+    });
+
+    it('démarre sans modale quand un fix de la session a déjà accordé la permission', async () => {
+        useLocationStore.setState({ permissionGranted: true });
+        await state().startTrackingIfPermitted();
+        expect(getPosition).toHaveBeenCalledTimes(1);
+        expect(watchPosition).toHaveBeenCalledTimes(1);
+    });
+
+    it('démarre quand la Permissions API répond granted', async () => {
+        const query = vi.fn(async () => ({ state: 'granted' } as PermissionStatus));
+        setPermissionQuery(query);
+        await state().startTrackingIfPermitted();
+        expect(query).toHaveBeenCalledWith({ name: 'geolocation' });
+        expect(getPosition).toHaveBeenCalledTimes(1);
+        expect(watchPosition).toHaveBeenCalledTimes(1);
+        expect(state()).toMatchObject({ isTracking: true, permissionGranted: true });
+    });
+
+    it('attend un geste quand la Permissions API répond prompt', async () => {
+        setPermissionQuery(async () => ({ state: 'prompt' } as PermissionStatus));
+        await state().startTrackingIfPermitted();
+        expect(getPosition).not.toHaveBeenCalled();
+        expect(watchPosition).not.toHaveBeenCalled();
+        expect(state()).toMatchObject({ isTracking: false, locationStatus: 'idle' });
+    });
+
+    it('expose denied sans demander quand la Permissions API répond denied', async () => {
+        setPermissionQuery(async () => ({ state: 'denied' } as PermissionStatus));
+        await state().startTrackingIfPermitted();
+        expect(getPosition).not.toHaveBeenCalled();
+        expect(watchPosition).not.toHaveBeenCalled();
+        expect(state()).toMatchObject({ isTracking: false, locationStatus: 'denied', permissionGranted: false });
+    });
+
+    it('ignore une permission accordée arrivée après un arrêt', async () => {
+        let resolve: (status: PermissionStatus) => void = () => {};
+        setPermissionQuery(() => new Promise<PermissionStatus>(done => { resolve = done; }));
+        const pending = state().startTrackingIfPermitted();
+        state().stopTracking();
+        resolve({ state: 'granted' } as PermissionStatus);
+        await pending;
+        expect(getPosition).not.toHaveBeenCalled();
+        expect(watchPosition).not.toHaveBeenCalled();
+        expect(state()).toMatchObject({ isTracking: false, locationStatus: 'idle' });
     });
 });

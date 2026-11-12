@@ -1,18 +1,41 @@
-import {useState, useLayoutEffect, useRef, useCallback, Suspense} from 'react';
+import {Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo} from 'react';
 import {X, Beer, Waves, Moon} from 'lucide-react';
-import {motion, AnimatePresence} from 'framer-motion';
+import {motion} from 'framer-motion';
 import {useQuery} from '@tanstack/react-query';
-import {Canvas} from '@react-three/fiber';
-import {OrbitControls, Html, useProgress} from '@react-three/drei';
 import {api} from '../../lib/api';
 import {useGameEngine} from '../../hooks/useGameEngine';
 import {useGameUIStore} from '../../store/useGameUIStore';
+import {useDashboardActive} from '../../lib/dashboardActivity';
 import type {WorldsResponse} from '../../types/api';
-import {loadWorldModule, worldModuleQueryOptions, type WorldTab, type LoadedWorldModule} from '../../lib/worldResources';
-import SceneReadyProbe from '../3D/SceneReadyProbe';
+import type {WorldTab} from '../../lib/worldResources';
+import {beginWorldOpen, endWorldOpen} from '../../lib/worldOpenState';
+import {blurFocusedDescendant} from '../../lib/focus';
+import {WorldViewport} from '../../worlds/WorldViewport';
+import {
+    grantAllPreparationAvatars,
+    markPreparationCanvasReady,
+    markPreparationDataReady,
+    markPreparationLabelsReady,
+    resetPreparationForTarget,
+    setPreparationOpenWorld,
+    setPreparationPriority,
+} from '../../worlds/worldPreparation';
+import {
+    beginFirstOpen,
+    failFirstOpen,
+    markFirstOpenAvatars,
+    markFirstOpenCanvas,
+    markFirstOpenData,
+    markFirstOpenFrame,
+    markFirstOpenLabels,
+} from '../../worlds/firstOpenMeasurement';
+import {countWorldLabels, expectedLabels, labelsSatisfied} from '../../perf/worldProbeMetrics';
+import {WORLD_PROBE_ENABLED} from '../../perf/worldProbeGate';
+import {WorldProbePanel} from 'virtual:world-probe';
 
 // 📸 IMPORT DE TA MODALE
 import PhotoModal from '../Modals/PhotoModal';
+import type {PhotoItem} from '../Modals/PhotoModal';
 
 // --- LA MODALE PRINCIPALE ---
 interface SelectWorldModalProps {
@@ -21,20 +44,10 @@ interface SelectWorldModalProps {
     squadId: string;
     beerCallId: string;
     isActiveApero: boolean;
-    worldModuleLoader?: (tab: WorldTab) => Promise<LoadedWorldModule>;
-}
-
-// ⏳ COMPOSANT DE CHARGEMENT SÉCURISÉ POUR LE CANVAS
-function CanvasLoader() {
-    const {progress} = useProgress();
-    return (
-        <Html center>
-            <div className="flex flex-col items-center bg-white/90 p-4 rounded-2xl shadow-xl backdrop-blur-md">
-                <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-xs font-black text-amber-500 mt-2 tracking-widest">{progress.toFixed(0)}%</p>
-            </div>
-        </Html>
-    );
+    /** Beer Call affiché sur la carte : préparation au repos même modale fermée. */
+    preparationBeerCallId?: string | null;
+    /** Ouvre le profil de l'avatar touché (Bar, Piscine ou Dodo). */
+    onSelectUser?: (userId: string) => void;
 }
 
 export default function SelectWorldModal({
@@ -43,72 +56,115 @@ export default function SelectWorldModal({
     squadId,
     beerCallId,
     isActiveApero,
-    worldModuleLoader = loadWorldModule,
+    preparationBeerCallId = null,
+    onSelectUser,
 }: SelectWorldModalProps) {
+    const dashboardActive = useDashboardActive();
     const [activeTab, setActiveTab] = useState<WorldTab>('bar');
-    const [tabGeneration, setTabGeneration] = useState(0);
-    const contextKey = isOpen ? JSON.stringify([squadId, beerCallId]) : null;
-    const [sceneContext, setSceneContext] = useState(contextKey);
-    if (sceneContext !== contextKey) {
-        // Reopen / another Beer Call requires a fresh readiness cycle, even on the same tab.
-        setSceneContext(contextKey);
-        setTabGeneration(generation => generation + 1);
-    }
-    const [worldReadiness, setWorldReadiness] = useState<{ tab: WorldTab; generation: number; ready: boolean }>({
-        tab: 'bar',
-        generation: 0,
-        ready: false,
+    const [hasViewportData, setHasViewportData] = useState(false);
+    const firstOpenBegan = useRef(false);
+    const sheetRef = useRef<HTMLDivElement>(null);
+    const [readyWorlds, setReadyWorlds] = useState<Partial<Record<WorldTab, boolean>>>({});
+    // Signal de disponibilité de la scène, consommé uniquement par le probe.
+    const [sceneReady, setSceneReady] = useState<{world: WorldTab | null; tick: number}>({
+        world: null,
+        tick: 0,
     });
-    const activeWorldRef = useRef({ tab: activeTab, generation: tabGeneration, open: isOpen });
-    useLayoutEffect(() => {
-        activeWorldRef.current = { tab: activeTab, generation: tabGeneration, open: isOpen };
-    }, [activeTab, tabGeneration, isOpen]);
 
-    // Le passage d'onglet réarme une nouvelle génération ; les callbacks de l'ancien monde sont ignorés (T12B / REV-04)
-    const isWorldReady = worldReadiness.tab === activeTab && worldReadiness.generation === tabGeneration && worldReadiness.ready;
+    const markSceneReady = useCallback((world: WorldTab) => {
+        setReadyWorlds((previous) => previous[world] ? previous : {...previous, [world]: true});
+        setSceneReady((previous) => ({world, tick: previous.tick + 1}));
+        if (WORLD_PROBE_ENABLED && isOpen && world === activeTab) {
+            markFirstOpenAvatars();
+        }
+    }, [activeTab, isOpen]);
+
+    // Le préchargement GLB au repos laisse la place au monde ouvert.
+    useEffect(() => {
+        if (!isOpen) return;
+        beginWorldOpen();
+        return () => endWorldOpen();
+    }, [isOpen]);
+
+    // La feuille reste montée pour le Canvas : quand elle passe en aria-hidden,
+    // aucun enfant ne doit conserver le focus (Safari ne le retire pas seul).
+    useEffect(() => {
+        if (!isOpen) blurFocusedDescendant(sheetRef.current);
+    }, [isOpen]);
+
+    // Conserve le dernier Beer Call pour garder le Canvas vivant après fermeture.
+    const [lastContext, setLastContext] = useState({squadId: '', beerCallId: ''});
+    if (isOpen && (lastContext.squadId !== squadId || lastContext.beerCallId !== beerCallId)) {
+        setLastContext({squadId, beerCallId});
+    }
+    const activeSquadId = isOpen ? squadId : (preparationBeerCallId ? squadId : lastContext.squadId);
+    const activeBeerCallId = isOpen ? beerCallId : (preparationBeerCallId || lastContext.beerCallId);
+
+    const {data: worldsData, isPending, isError, refetch} = useQuery({
+        queryKey: ['worlds', activeSquadId, activeBeerCallId],
+        queryFn: async () => {
+            const response = await api.get<WorldsResponse>(
+                `/squads/${activeSquadId}/beer-calls/${activeBeerCallId}/worlds`,
+            );
+            return response.data.worlds;
+        },
+        enabled: !!activeSquadId && !!activeBeerCallId,
+    });
+
+    // Ajustement pendant le rendu : le Canvas doit rester monté dès la première
+    // donnée, même quand une nouvelle requête repasse par `undefined`.
+    if (worldsData && !hasViewportData) setHasViewportData(true);
+
+    // La préparation suit le Beer Call réellement affiché/ouvert. Layout effect :
+    // le magasin doit connaître la cible avant les effets de montage des couches.
+    // Au changement de squad, l'ancienne cible est invalidée immédiatement : le
+    // badge ne montre jamais le total de la squad quittée pendant le chargement.
+    const preparationSquadId = useRef(squadId);
+    useLayoutEffect(() => {
+        if (preparationSquadId.current === squadId) return;
+        preparationSquadId.current = squadId;
+        resetPreparationForTarget(null);
+    }, [squadId]);
+
+    useLayoutEffect(() => {
+        const target = isOpen ? beerCallId : preparationBeerCallId;
+        if (target) resetPreparationForTarget(target);
+    }, [isOpen, beerCallId, preparationBeerCallId]);
+
+    useEffect(() => {
+        if (!worldsData || !activeBeerCallId) return;
+        markPreparationDataReady();
+    }, [worldsData, activeBeerCallId]);
+
+    // Le Canvas persiste d'une cible à l'autre : onCreated ne rejoue pas, donc
+    // on réarme explicitement l'état Canvas quand une nouvelle cible est prête.
+    useEffect(() => {
+        if (!hasViewportData || !activeBeerCallId) return;
+        const timer = window.setTimeout(() => markPreparationCanvasReady(), 0);
+        return () => window.clearTimeout(timer);
+    }, [hasViewportData, activeBeerCallId]);
+
+    // Une nouvelle version de données reconstruit les couches (jamais le Canvas).
+    const dataVersion = worldsData
+        ? `${activeBeerCallId}:${(['bar', 'piscine', 'dodo'] as WorldTab[])
+            .map((world) => `${world}:${worldsData[world]?.participants.length ?? 0}`)
+            .join('|')}`
+        : `none:${activeBeerCallId}`;
+    const [readyVersion, setReadyVersion] = useState(dataVersion);
+    if (readyVersion !== dataVersion) {
+        setReadyVersion(dataVersion);
+        setReadyWorlds({});
+        setSceneReady({world: null, tick: 0});
+    }
 
     const handleTabClick = (tab: WorldTab) => {
         if (tab === activeTab) return;
         setActiveTab(tab);
-        setTabGeneration((prev) => prev + 1);
     };
 
     // 📸 NOUVEAU : STATE POUR LES PHOTOS GÉRÉ ICI
-    const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
+    const [selectedPhotos, setSelectedPhotos] = useState<PhotoItem[]>([]);
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
-
-    const handleWorldReadinessChange = useCallback((tab: WorldTab, generation: number, isReady: boolean) => {
-        const active = activeWorldRef.current;
-        if (!active.open || active.tab !== tab || active.generation !== generation) return;
-        setWorldReadiness((prev) => {
-            if (prev.tab === tab && prev.generation === generation && prev.ready === isReady) {
-                return prev;
-            }
-            return { tab, generation, ready: isReady };
-        });
-    }, []);
-
-    const {data: worldsData, isPending, isError, refetch} = useQuery({
-        queryKey: ['worlds', squadId, beerCallId],
-        queryFn: async () => {
-            const response = await api.get<WorldsResponse>(`/squads/${squadId}/beer-calls/${beerCallId}/worlds`);
-            return response.data.worlds;
-        },
-        enabled: isOpen && !!squadId && !!beerCallId,
-    });
-
-    // Foreground remains selected-only; optional warm-up shares these cache keys.
-    const {
-        data: worldModule,
-        isPending: isModulePending,
-        isError: isModuleError,
-        refetch: refetchModule,
-    } = useQuery<LoadedWorldModule>({
-        ...worldModuleQueryOptions(activeTab, worldModuleLoader),
-        enabled: isOpen,
-    });
-
-    const ActiveWorld = worldModule?.default;
 
     const THEMES = {
         bar: {
@@ -134,210 +190,268 @@ export default function SelectWorldModal({
         }
     };
 
-    const currentParticipants = worldsData?.[activeTab]?.participants || [];
+    const currentParticipants = useMemo(
+        () => worldsData?.[activeTab]?.participants || [],
+        [worldsData, activeTab],
+    );
+    const proofPhotos = useMemo(
+        () => currentParticipants
+            .map((participant): PhotoItem | null => {
+                const ownerId = participant.user_id ?? participant.id;
+                if (!participant.proof_photo_url || !ownerId) return null;
+                return {
+                    url: participant.proof_photo_url,
+                    ownerId: String(ownerId),
+                    ownerUsername: participant.username,
+                };
+            })
+            .filter((photo): photo is PhotoItem => Boolean(photo)),
+        [currentParticipants],
+    );
     const hasWorldData = worldsData !== undefined && worldsData !== null;
     const participantsReliable = hasWorldData && !isPending && !isError;
     const canLaunchGame = isActiveApero && participantsReliable && currentParticipants.length >= 2;
 
+    // Priorité au monde affiché. Si on ouvre avant la fin (et même avant les
+    // données), on accorde tout de suite les avatars de ce monde dès qu'elles arrivent.
+    useEffect(() => {
+        setPreparationPriority(activeTab);
+        setPreparationOpenWorld(isOpen ? activeTab : null);
+        if (isOpen && hasWorldData) grantAllPreparationAvatars(activeTab);
+    }, [isOpen, activeTab, activeBeerCallId, hasWorldData]);
+
+    // Libellés du monde affiché déjà montés pour la préparation.
+    useEffect(() => {
+        if (!hasWorldData) return;
+        const expected = expectedLabels(activeTab, currentParticipants);
+        let cancelled = false;
+        let raf = 0;
+        const tick = () => {
+            if (cancelled) return;
+            if (labelsSatisfied(countWorldLabels(), expected)) {
+                markPreparationLabelsReady();
+                return;
+            }
+            raf = window.requestAnimationFrame(tick);
+        };
+        tick();
+        return () => {
+            cancelled = true;
+            window.cancelAnimationFrame(raf);
+        };
+    }, [hasWorldData, activeTab, currentParticipants]);
+
+    // Mesure de la vraie première ouverture, sans passer par le probe.
+    useEffect(() => {
+        if (!isOpen) {
+            firstOpenBegan.current = false;
+            return;
+        }
+        if (!WORLD_PROBE_ENABLED || firstOpenBegan.current || !worldsData) return;
+        firstOpenBegan.current = true;
+        const expected = expectedLabels(activeTab, currentParticipants);
+        const entry = beginFirstOpen(beerCallId, activeTab, expected, Boolean(readyWorlds[activeTab]));
+        if (entry.dataAt === null) markFirstOpenData();
+    }, [isOpen, worldsData, beerCallId, activeTab, currentParticipants, readyWorlds]);
+
+    useEffect(() => {
+        if (!isOpen || !WORLD_PROBE_ENABLED || !hasWorldData) return;
+        const expected = expectedLabels(activeTab, currentParticipants);
+        let cancelled = false;
+        let raf = 0;
+        // Un monde qui progresse lentement (réseau froid) reste mesuré ; on
+        // n'échoue que si plus aucun libellé n'apparaît pendant 30 s.
+        let lastCount = -1;
+        let lastProgressAt = performance.now();
+        const tick = () => {
+            if (cancelled) return;
+            const labels = countWorldLabels();
+            const count = labels.names + labels.photos + labels.excuses;
+            if (count > lastCount) {
+                lastCount = count;
+                lastProgressAt = performance.now();
+            }
+            if (labelsSatisfied(labels, expected)) {
+                markFirstOpenLabels(labels);
+                return;
+            }
+            if (performance.now() - lastProgressAt > 30_000) {
+                failFirstOpen(new Error('Libellés bloqués : aucun nouveau libellé depuis 30 s'));
+                return;
+            }
+            raf = window.requestAnimationFrame(tick);
+        };
+        tick();
+        return () => {
+            cancelled = true;
+            window.cancelAnimationFrame(raf);
+        };
+    }, [isOpen, hasWorldData, activeTab, currentParticipants]);
+
+    const handleCanvasCreated = useCallback(() => {
+        markPreparationCanvasReady();
+        if (WORLD_PROBE_ENABLED) markFirstOpenCanvas();
+    }, []);
+
+    const handleFirstFrame = useCallback(() => {
+        if (WORLD_PROBE_ENABLED) markFirstOpenFrame();
+    }, []);
+
     // Contrôle accessible de lancement : le levier 3D reste le contrôle visuel,
     // mais un bouton masqué permet aux lecteurs d'écran et aux tests E2E de démarrer la partie.
-    const {startGame, isLocked} = useGameEngine(beerCallId, {enabled: isActiveApero});
+    const {gameState, startGame, isLocked} = useGameEngine(beerCallId, {enabled: isActiveApero});
     const openGameScreen = useGameUIStore((state) => state.openGameScreen);
 
-    // Handler pour mettre à jour la liste des photos et l'index actuel
+    // 8l — le levier du Bar et le bouton accessible partagent ce lancement :
+    // la modale se referme (le Canvas reste monté) et le jeu prend l'écran.
+    const handleStartGame = useCallback(() => {
+        startGame({
+            onSuccess: () => {
+                openGameScreen(beerCallId);
+                onClose();
+            },
+            onError: (error) => {
+                console.error('[world] démarrage du jeu impossible', error);
+            },
+        });
+    }, [startGame, openGameScreen, beerCallId, onClose]);
+
     const handleSelectPhoto = (url: string) => {
-        // Récupérer toutes les preuves de photos des participants de l'onglet actuel
-        const allPhotos = currentParticipants
-            .map((p) => p.proof_photo_url)
-            .filter((url): url is string => url !== null && url !== undefined);
-        
-        setSelectedPhotos(allPhotos);
-        // Trouver l'index de la photo cliquée
-        const index = allPhotos.indexOf(url);
-        setCurrentPhotoIndex(index >= 0 ? index : 0);
+        const photos = proofPhotos.length ? proofPhotos : [{url}];
+        setSelectedPhotos(photos);
+        setCurrentPhotoIndex(Math.max(0, photos.findIndex(photo => photo.url === url)));
     };
 
     return (
-        <AnimatePresence>
+        <>
             {isOpen && (
-                <>
-                    <motion.div
-                        initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}}
-                        className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100]"
-                        onClick={onClose}
-                    />
+                <motion.div
+                    initial={{opacity: 0}} animate={{opacity: 1}}
+                    className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100]"
+                    onClick={onClose}
+                />
+            )}
 
-                    <motion.div
-                        initial={{y: "100%", opacity: 0}} animate={{y: 0, opacity: 1}} exit={{y: "100%", opacity: 0}}
-                        transition={{type: "spring", damping: 25, stiffness: 200}}
-                        className="fixed top-12 bottom-0 left-0 right-0 bg-white rounded-t-[3rem] z-[101] shadow-2xl flex flex-col overflow-hidden"
-                    >
-                        <div className="flex justify-between items-center p-6 bg-white shadow-sm z-20">
-                            <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter">Les 3
-                                Mondes</h2>
-                            <div className="flex items-center gap-2">
-                                <button onClick={onClose}
-                                        className="p-2 bg-gray-100 rounded-full text-gray-400 hover:bg-gray-200">
-                                    <X size={20}/>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="flex bg-white px-6 py-2 border-b border-gray-100 z-20 gap-2 shadow-md">
-                            {(Object.keys(THEMES) as WorldTab[]).map((tab) => (
-                                <button
-                                    key={tab} onClick={() => handleTabClick(tab)}
-                                    className={`flex-1 flex flex-col items-center p-3 rounded-2xl transition-all ${activeTab === tab ? THEMES[tab].color + ' text-white shadow-lg' : 'bg-gray-50 text-gray-400'}`}
-                                >
-                                    {THEMES[tab].icon}
-                                    <span className="text-[10px] font-black uppercase tracking-widest mt-1">{tab}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        <button
-                            type="button"
-                            aria-label="Démarrer la partie"
-                            className="sr-only"
-                            disabled={!canLaunchGame || isLocked}
-                            onClick={() => startGame({
-                                onSuccess: () => {
-                                    openGameScreen(beerCallId);
-                                    onClose();
-                                },
-                            })}
-                        >
-                            Démarrer la partie
+            {/* La feuille reste montée : le Canvas persistant vit dedans, même fermé. */}
+            <motion.div
+                ref={sheetRef}
+                initial={false}
+                animate={isOpen ? {y: 0, opacity: 1} : {y: '100%', opacity: 0}}
+                transition={{type: 'spring', damping: 25, stiffness: 200}}
+                inert={!isOpen}
+                aria-hidden={!isOpen}
+                className={`fixed top-12 bottom-0 left-0 right-0 bg-white rounded-t-[3rem] z-[101] shadow-2xl flex flex-col overflow-hidden ${isOpen ? '' : 'pointer-events-none'}`}
+            >
+                <div className="flex justify-between items-center p-6 bg-white shadow-sm z-20">
+                    <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter">Les 3
+                        Mondes</h2>
+                    <div className="flex items-center gap-2">
+                        <button onClick={onClose} aria-label="Fermer les mondes"
+                                className="p-2 bg-gray-100 rounded-full text-gray-400 hover:bg-gray-200">
+                            <X size={20}/>
                         </button>
+                    </div>
+                </div>
 
-                        {/* 🌟 LA SCÈNE 3D 🌟 */}
-                        {isError && hasWorldData && <div role="alert" className="mx-6 my-2 text-xs text-gray-900">
-                            Actualisation impossible — dernières données affichées
-                            <button onClick={() => refetch()} className="ml-2 underline font-bold">Réessayer</button>
-                        </div>}
-                        <div className="flex-1 relative transition-colors duration-500"
-                             style={{backgroundColor: THEMES[activeTab].bg}}>
-                             {!hasWorldData ? (
-                                 <div className="absolute inset-0 flex flex-col items-center justify-center z-50">
-                                     {isError ? <div role="alert" className="text-sm text-gray-900 text-center">
-                                         <p>Participants indisponibles</p>
-                                         <button onClick={() => refetch()} className="mt-3 underline font-bold">Réessayer</button>
-                                     </div> : <>
-                                         <div className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin border-gray-900"></div>
-                                         <p role="status" className="mt-3 text-sm text-gray-900">Chargement des participants…</p>
-                                     </>}
-                                </div>
-                            ) : isModuleError ? (
-                                <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/80 p-6 text-center">
-                                    <p className="text-sm font-bold text-gray-900 mb-1">Impossible de charger le monde 3D</p>
-                                    <p className="text-xs text-gray-600 mb-3">Vérifiez votre connexion réseau</p>
-                                    <div className="flex gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => refetchModule()}
-                                            className="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow hover:bg-amber-600 transition-colors"
-                                        >
-                                            Réessayer
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => window.location.reload()}
-                                            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-gray-300 transition-colors"
-                                        >
-                                            Recharger la page
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <>
-                                {isModulePending && !ActiveWorld && (
-                                    <div role="status" className="absolute inset-0 flex flex-col items-center justify-center z-40">
-                                        <div className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin border-gray-900"></div>
-                                        <p className="mt-3 text-sm text-gray-900 font-bold">Chargement du monde 3D…</p>
-                                    </div>
-                                )}
-                                <Canvas data-world-canvas camera={{position: [0, 80, 450], fov: 45}} dpr={[1, 1.5]}>
-                                    <ambientLight intensity={activeTab === 'bar' ? 1 : 1.5}/>
-                                    <directionalLight position={[10, 10, 10]} intensity={2.5}/>
-                                    <directionalLight position={[-10, 10, -10]} intensity={1}/>
+                <div className="flex bg-white px-6 py-2 border-b border-gray-100 z-20 gap-2 shadow-md">
+                    {(Object.keys(THEMES) as WorldTab[]).map((tab) => (
+                        <button
+                            key={tab} onClick={() => handleTabClick(tab)}
+                            data-world-tab={tab}
+                            className={`flex-1 flex flex-col items-center p-3 rounded-2xl transition-all ${activeTab === tab ? THEMES[tab].color + ' text-white shadow-lg' : 'bg-gray-50 text-gray-400'}`}
+                        >
+                            {THEMES[tab].icon}
+                            <span className="text-[10px] font-black uppercase tracking-widest mt-1">{tab}</span>
+                        </button>
+                    ))}
+                </div>
 
-                                    {/* 🛡️ SUSPENSE: EMPÊCHE LE DEMONTAGE GLOBAL DU DASHBOARD */}
-                                    <Suspense fallback={<CanvasLoader />}>
-                                        {/* AIGUILLAGE VERS LES BONS COMPOSANTS 3D AVEC LA FONCTION DE PHOTO */}
-                                        {ActiveWorld && activeTab === 'bar' && (
-                                            <ActiveWorld
-                                                key={`bar-${tabGeneration}`}
-                                                isActiveApero={isActiveApero}
-                                                aperoId={beerCallId}
-                                                squadId={squadId}
-                                                participants={currentParticipants}
-                                                onSelectPhoto={handleSelectPhoto}
-                                                participantsReliable={participantsReliable}
-                                                onReadinessChange={(ready) => handleWorldReadinessChange('bar', tabGeneration, ready)}
-                                            />
-                                        )}
-                                        {ActiveWorld && activeTab === 'piscine' && (
-                                            <ActiveWorld
-                                                key={`piscine-${tabGeneration}`}
-                                                participants={currentParticipants}
-                                                onReadinessChange={(ready) => handleWorldReadinessChange('piscine', tabGeneration, ready)}
-                                            />
-                                        )}
-                                        {ActiveWorld && activeTab === 'dodo' && (
-                                            <ActiveWorld
-                                                key={`dodo-${tabGeneration}`}
-                                                participants={currentParticipants}
-                                                onReadinessChange={(ready) => handleWorldReadinessChange('dodo', tabGeneration, ready)}
-                                            />
-                                        )}
-                                        <SceneReadyProbe
-                                            key={`world-probe-${activeTab}-${tabGeneration}`}
-                                            kind="world"
-                                            id={activeTab}
-                                            view={`world-${activeTab}`}
-                                            ready={participantsReliable && isWorldReady}
-                                        />
-                                    </Suspense>
+                <button
+                    type="button"
+                    aria-label="Démarrer la partie"
+                    className="sr-only"
+                    disabled={!canLaunchGame || isLocked}
+                    onClick={handleStartGame}
+                >
+                    Démarrer la partie
+                </button>
 
-                                    <OrbitControls
-                                        enableZoom={true}
-                                        target={[0, 80, 0]}
-                                        minPolarAngle={Math.PI / 3} maxPolarAngle={Math.PI / 1.8}
-                                        autoRotate={false}
-                                        autoRotateSpeed={0.5}
-                                    />
-                                </Canvas>
-                                </>
-                            )}
-
-                            {/* TITRE EN SURIMPRESSION */}
-                            {hasWorldData && <div
-                                className="absolute top-6 left-0 right-0 pointer-events-none flex flex-col items-center z-20">
-                                <h3 className={`font-black text-2xl uppercase italic drop-shadow-md ${THEMES[activeTab].text}`}>
-                                    {THEMES[activeTab].title}
-                                </h3>
-                                <p className="text-gray-900 bg-white/50 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mt-2 border border-white/50 shadow-sm">
-                                    {currentParticipants.length} Soldat(s)
-                                </p>
-                                {!isError && currentParticipants.length === 0 && <p className="mt-3 text-xs text-gray-900 bg-white p-2 rounded-xl">Aucun participant dans ce monde</p>}
-                            </div>}
-                        </div>
-                    </motion.div>
-
-                    {/* 📸 LA MODALE PHOTO RENDUE ICI, TOTALEMENT SÉCURISÉE HORS DU CANVAS */}
-                    {selectedPhotos.length > 0 && (
-                        <PhotoModal 
-                            imageUrls={selectedPhotos} 
-                            currentIndex={currentPhotoIndex} 
-                            onClose={() => {
-                                setSelectedPhotos([]);
-                                setCurrentPhotoIndex(0);
-                            }}
-                            onIndexChange={setCurrentPhotoIndex}
+                {isError && hasWorldData && <div role="alert" className="mx-6 my-2 text-xs text-gray-900">
+                    Actualisation impossible — dernières données affichées
+                    <button onClick={() => refetch()} className="ml-2 underline font-bold">Réessayer</button>
+                </div>}
+                <div className="flex-1 relative transition-colors duration-500"
+                     style={{backgroundColor: THEMES[activeTab].bg}}>
+                    {dashboardActive && hasViewportData && (
+                        <WorldViewport
+                            open={isOpen}
+                            activeTab={activeTab}
+                            worlds={worldsData}
+                            dataKey={`${activeSquadId}:${activeBeerCallId}`}
+                            dataVersion={dataVersion}
+                            onLayerReady={markSceneReady}
+                            onSelectPhoto={handleSelectPhoto}
+                            onSelectUser={onSelectUser}
+                            onPullLever={handleStartGame}
+                            gameInProgress={Boolean(gameState)}
+                            gameLocked={isLocked}
+                            canLaunchGame={canLaunchGame}
+                            onCanvasCreated={handleCanvasCreated}
+                            onFirstFrame={handleFirstFrame}
                         />
                     )}
-                </>
+
+                    {!hasWorldData && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center z-50">
+                            {isError ? <div role="alert" className="text-sm text-gray-900 text-center">
+                                <p>Participants indisponibles</p>
+                                <button onClick={() => refetch()} className="mt-3 underline font-bold">Réessayer</button>
+                            </div> : <>
+                                <div className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin border-gray-900"></div>
+                                <p role="status" className="mt-3 text-sm text-gray-900">Chargement des participants…</p>
+                            </>}
+                        </div>
+                    )}
+
+                    {/* TITRE EN SURIMPRESSION */}
+                    {hasWorldData && <div
+                        className="absolute top-6 left-0 right-0 pointer-events-none flex flex-col items-center z-20">
+                        <h3 className={`font-black text-2xl uppercase italic drop-shadow-md ${THEMES[activeTab].text}`}>
+                            {THEMES[activeTab].title}
+                        </h3>
+                        <p className="text-gray-900 bg-white/50 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mt-2 border border-white/50 shadow-sm">
+                            {currentParticipants.length} Soldat(s)
+                        </p>
+                        {!isError && currentParticipants.length === 0 && <p className="mt-3 text-xs text-gray-900 bg-white p-2 rounded-xl">Aucun participant dans ce monde</p>}
+                    </div>}
+                </div>
+
+                {isOpen && WORLD_PROBE_ENABLED && WorldProbePanel && (
+                    <Suspense fallback={null}>
+                        <WorldProbePanel
+                            worlds={worldsData}
+                            sceneReady={sceneReady}
+                            readyWorlds={readyWorlds}
+                        />
+                    </Suspense>
+                )}
+            </motion.div>
+
+            {/* 📸 LA MODALE PHOTO RENDUE ICI, TOTALEMENT SÉCURISÉE HORS DU CANVAS */}
+            {isOpen && selectedPhotos.length > 0 && (
+                <PhotoModal
+                    imageUrls={selectedPhotos.map(photo => photo.url)}
+                    photoItems={selectedPhotos}
+                    squadId={activeSquadId}
+                    beerCallId={activeBeerCallId}
+                    currentIndex={currentPhotoIndex}
+                    onClose={() => {
+                        setSelectedPhotos([]);
+                        setCurrentPhotoIndex(0);
+                    }}
+                    onIndexChange={setCurrentPhotoIndex}
+                />
             )}
-        </AnimatePresence>
+        </>
     );
 }

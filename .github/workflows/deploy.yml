@@ -12,17 +12,35 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: beercall-frontend
     permissions:
       contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          path: beercall-frontend
+          persist-credentials: false
+
+      # These tests validate real catalogue entries and thumbnails, not mocks.
+      # Publish this backend commit before opening/merging the frontend PR.
+      - name: Checkout pinned catalogue used by the release
+        uses: actions/checkout@v4
+        with:
+          repository: BeerCall/beercall-backend
+          ref: ccfbb4db3e6134c192ca6c239f19d87e96ce3da5
+          path: beercall-backend
+          sparse-checkout: static/models/glb
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
+          cache-dependency-path: beercall-frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
@@ -32,3 +50,19 @@ jobs:
 
       - name: Run Build
         run: npm run build
+
+  dispatch-submodule:
+    name: Dispatch submodule update
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Notify beercall-app
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.SUBMODULE_DISPATCH_TOKEN }}
+          repository: BeerCall/beercall-app
+          event-type: submodule-updated
+          client-payload: '{"repository":"beercall-frontend","sha":"${{ github.sha }}","ref":"${{ github.ref_name }}"}'

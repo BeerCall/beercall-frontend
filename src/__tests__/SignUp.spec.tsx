@@ -194,4 +194,42 @@ describe('Page SignUp (Coverage)', () => {
         expect(localStorage.getItem('refresh_token')).toBeNull();
         expect(button).toBeEnabled();
     });
+
+    it('monte la scène Profil (surface signup) à l’étape 2 sans aucun SafeAvatar', async () => {
+        server.use(
+            http.get('*/auth/profile/', () => HttpResponse.json({ shop_items: [] })),
+        );
+        render(<SignUp />);
+        await enterAvatar();
+        expect(screen.queryByTestId('safe-avatar-container')).toBeNull();
+        expect(screen.getByRole('button', { name: 'Créer mon compte' })).toBeInTheDocument();
+    });
+
+    it('ne choisit que des articles disponibles pour la tenue initiale', async () => {
+        let payload: { avatar: { head: string } } | null = null;
+        server.use(
+            http.get('*/auth/profile/', () => HttpResponse.json({
+                shop_items: [
+                    { id: 'hidden_head', category: 'head', gender: 'Men', name: 'Hidden', price: 0, is_owned: true, available: false },
+                    { id: 'visible_head', category: 'head', gender: 'Men', name: 'Visible', price: 0, is_owned: true, available: true },
+                ],
+            })),
+            http.post('*/auth/signup/', async ({ request }) => {
+                payload = await request.json() as { avatar: { head: string } };
+                return HttpResponse.json({
+                    access_token: 'visible-token',
+                    refresh_token: 'visible-refresh',
+                    token_type: 'bearer',
+                    username: 'NewUser',
+                });
+            }),
+        );
+        render(<SignUp />);
+        const user = await enterAvatar();
+        const button = screen.getByRole('button', { name: 'Créer mon compte' });
+        await waitFor(() => expect(button).toBeEnabled());
+        await user.click(button);
+        await waitFor(() => expect(payload).not.toBeNull());
+        expect(payload!.avatar.head).toBe('visible_head');
+    });
 });

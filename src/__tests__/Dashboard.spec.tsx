@@ -27,6 +27,16 @@ vi.mock('react-router-dom', async () => {
     };
 });
 
+// La modale réelle charge un Canvas 3D : un faux composant suffit pour vérifier
+// qu'elle reste montée (Canvas persistant) tout en étant fermée pendant le jeu.
+vi.mock('../components/Modals/SelectWorldModal', () => ({
+    default: ({isOpen}: {isOpen: boolean}) => (
+        <div data-testid="select-world-modal" data-open={isOpen ? '1' : '0'} aria-hidden={!isOpen}>
+            Les 3 Mondes
+        </div>
+    ),
+}));
+
 const { dashboardUseFrameMock, dashboardUseThreeMock } = vi.hoisted(() => {
     const frameCallbacks = new Set<(state: unknown, delta: number) => void>();
     const gl = {
@@ -104,6 +114,7 @@ vi.mock('../hooks/useAvatarAnimations', () => ({
     useAvatarAnimations: vi.fn().mockReturnValue({
         clipNames: ['Idle'],
         activeClip: { name: 'Idle' },
+        activeClipLoop: true,
         isLoading: false,
         deferredStatus: 'ready',
         error: null,
@@ -164,7 +175,7 @@ describe('Dashboard & Squads', () => {
         expect(screen.getByTestId('mock-map')).toBeInTheDocument();
     });
 
-    it('ferme la modale des mondes quand l’écran de jeu est ouvert', () => {
+    it('garde la modale des mondes montée mais fermée quand l’écran de jeu est ouvert', async () => {
         vi.mocked(useDashboard).mockReturnValue({
             id: '1',
             profile: { username: 'validUser' },
@@ -200,7 +211,54 @@ describe('Dashboard & Squads', () => {
 
         render(<Dashboard />);
 
-        expect(screen.queryByText('Les 3 Mondes')).not.toBeInTheDocument();
+        const modal = await screen.findByTestId('select-world-modal');
+        expect(modal).toHaveAttribute('data-open', '0');
+        expect(modal).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('peint html et body en sombre uniquement pendant le jeu', async () => {
+        vi.mocked(useDashboard).mockReturnValue({
+            id: '1',
+            profile: { username: 'validUser' },
+            squadDetails: null,
+            userLocation: null,
+            isSquadModalOpen: false,
+            isJoinModalOpen: false,
+            selectedBeerCall: null,
+            isWorldsModalOpen: null,
+            isGameScreenOpen: true,
+            currentAperoId: 'apero-1',
+            isActiveApero: true,
+            scheduleCoordinates: null,
+            isScheduleModalOpen: false,
+            scheduledToStart: null,
+            isNightMode: false,
+            photoFile: null,
+            fileInputRef: { current: null },
+            mapRef: { current: null },
+            showPushBanner: false,
+            copied: false,
+            handleSquadCreated: vi.fn(),
+            handleCopyCode: vi.fn(),
+            requestPushPermission: vi.fn(),
+            dismissPushBanner: vi.fn(),
+            handleBeerCallRespond: vi.fn(),
+            centerToUser: vi.fn(),
+            triggerPhotoCapture: vi.fn(),
+            handleFileChange: vi.fn(),
+            closeCreateModal: vi.fn(),
+            handleScheduleModalSubmit: vi.fn(),
+        } as unknown as ReturnType<typeof useDashboard>);
+
+        const view = render(<Dashboard />);
+        await waitFor(() => {
+            expect(document.documentElement.style.backgroundColor).toBe('rgb(3, 7, 18)');
+            expect(document.body.style.backgroundColor).toBe('rgb(3, 7, 18)');
+        });
+
+        view.unmount();
+        expect(document.documentElement.style.backgroundColor).toBe('');
+        expect(document.body.style.backgroundColor).toBe('');
     });
 
     it('Comportement temporel: Vérification des compteurs avec de faux timers', async () => {

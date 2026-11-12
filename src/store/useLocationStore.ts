@@ -1,14 +1,20 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { queryGeolocationPermission } from '../lib/geolocationPermission';
 
 interface LocationState {
     userLocation: { lat: number; lng: number } | null;
     acquiredAt: number | null;
+    accuracy: number | null;
     hasSessionFix: boolean;
     locationStatus: 'idle' | 'searching' | 'available' | 'denied' | 'unavailable' | 'timeout' | 'unsupported';
     isTracking: boolean;
     error: string | null;
+    /** Permission confirmée par un fix réussi pendant cette session. */
+    permissionGranted: boolean;
     startTracking: () => void;
+    /** Acquisition automatique uniquement si la permission est déjà connue. */
+    startTrackingIfPermitted: () => Promise<void>;
     stopTracking: () => void;
 }
 
@@ -17,17 +23,21 @@ export const useLocationStore = create<LocationState>()(
         (set, get) => {
             let watchId: number | null = null;
             let generation = 0;
+            let permissionQueryGeneration = 0;
             let trackingGeolocation: Geolocation | null = null;
 
             return {
                 userLocation: null,
                 acquiredAt: null,
+                accuracy: null,
                 hasSessionFix: false,
                 locationStatus: 'idle',
                 isTracking: false,
                 error: null,
+                permissionGranted: false,
 
                 startTracking: () => {
+                    permissionQueryGeneration++;
                     const current = get();
                     // Une acquisition en cours (recherche ou fix utilisable) ne se double pas.
                     // Après un échec terminal, la session reste stable mais une demande
@@ -40,10 +50,10 @@ export const useLocationStore = create<LocationState>()(
                     }
                     let watchHasReported = false;
                     let lastAcceptedTimestamp: number | null = null;
-                    set({ hasSessionFix: false, locationStatus: 'searching', error: null });
+                    set({ hasSessionFix: false, locationStatus: 'searching', error: null, accuracy: null });
                     const geolocation = navigator.geolocation;
                     if (!geolocation) {
-                        set({ locationStatus: 'unsupported', isTracking: false, error: "Géolocalisation non supportée par votre navigateur." });
+                        set({ locationStatus: 'unsupported', isTracking: false, permissionGranted: false, error: "Géolocalisation non supportée par votre navigateur." });
                         return;
                     }
                     trackingGeolocation = geolocation;
@@ -57,14 +67,20 @@ export const useLocationStore = create<LocationState>()(
                         if (!canAccept(source)) return;
                         if (lastAcceptedTimestamp !== null && pos.timestamp < lastAcceptedTimestamp) return;
                         lastAcceptedTimestamp = pos.timestamp;
+                        const accuracy = Number.isFinite(pos.coords.accuracy) && pos.coords.accuracy >= 0
+                            ? pos.coords.accuracy
+                            : null;
                         set({ userLocation: { lat: pos.coords.latitude, lng: pos.coords.longitude },
-                            acquiredAt: pos.timestamp, hasSessionFix: true, locationStatus: 'available', error: null });
+                            acquiredAt: pos.timestamp, accuracy, hasSessionFix: true, locationStatus: 'available', error: null,
+                            permissionGranted: true });
                     };
                     const failure = (source: 'watch' | 'point', err: GeolocationPositionError) => {
                         if (!canAccept(source)) return;
                         console.warn('Erreur de géolocalisation', err);
-                        set({ error: err.message, hasSessionFix: false,
-                            locationStatus: err.code === 1 ? 'denied' : err.code === 3 ? 'timeout' : 'unavailable' });
+                        const denied = err.code === 1;
+                        set({ error: err.message, hasSessionFix: false, accuracy: null,
+                            locationStatus: denied ? 'denied' : err.code === 3 ? 'timeout' : 'unavailable',
+                            permissionGranted: denied ? false : get().permissionGranted });
                     };
                     geolocation.getCurrentPosition(pos => success('point', pos), err => failure('point', err),
                         { maximumAge: 0, timeout: 5000, enableHighAccuracy: false });
@@ -74,9 +90,30 @@ export const useLocationStore = create<LocationState>()(
                     else watchId = newWatchId;
                 },
 
+                startTrackingIfPermitted: async () => {
+                    const current = get();
+                    if (current.isTracking && (current.locationStatus === 'searching' || current.locationStatus === 'available')) return;
+                    if (current.permissionGranted) {
+                        get().startTracking();
+                        return;
+                    }
+                    // Safari n'expose pas la permission geolocation : 'unknown' signifie
+                    // « attendre un geste utilisateur », jamais « demander maintenant ».
+                    const queryGeneration = ++permissionQueryGeneration;
+                    const permission = await queryGeolocationPermission();
+                    if (permissionQueryGeneration !== queryGeneration) return;
+                    if (permission === 'granted') {
+                        set({ permissionGranted: true });
+                        get().startTracking();
+                    } else if (permission === 'denied') {
+                        set({ permissionGranted: false, locationStatus: 'denied' });
+                    }
+                },
+
                 stopTracking: () => {
+                    permissionQueryGeneration++;
                     generation++;
-                    set({ isTracking: false, hasSessionFix: false, locationStatus: 'idle' });
+                    set({ isTracking: false, hasSessionFix: false, locationStatus: 'idle', accuracy: null });
                     if (watchId !== null) {
                         trackingGeolocation?.clearWatch(watchId);
                         watchId = null;
@@ -92,7 +129,8 @@ export const useLocationStore = create<LocationState>()(
                 const cached = persisted as Partial<Pick<LocationState, 'userLocation' | 'acquiredAt'>> | undefined;
                 return { ...current, userLocation: cached?.userLocation ?? null,
                     acquiredAt: typeof cached?.acquiredAt === 'number' ? cached.acquiredAt : null,
-                    hasSessionFix: false, locationStatus: 'idle', isTracking: false, error: null };
+                    accuracy: null, hasSessionFix: false, locationStatus: 'idle', isTracking: false, error: null,
+                    permissionGranted: false };
             },
         }
     )

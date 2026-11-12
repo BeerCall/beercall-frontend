@@ -9,7 +9,7 @@ vi.mock('../hooks/useProfile', () => ({ useProfile: () => ({ data: null }) }));
 vi.mock('../hooks/useSquadDetails', () => ({ useSquadDetails: () => ({ data: null }) }));
 vi.mock('../hooks/usePushNotifications', () => ({ usePushNotifications: () => ({ subscribeToNotifications: vi.fn() }) }));
 vi.mock('../hooks/useSquadWebSocket', () => ({ useSquadWebSocket: vi.fn() }));
-vi.mock('../store/useLocationStore', () => ({ useLocationStore: () => ({ userLocation: null, startTracking: vi.fn(), stopTracking: vi.fn() }) }));
+vi.mock('../store/useLocationStore', () => ({ useLocationStore: () => ({ userLocation: null, startTracking: vi.fn(), startTrackingIfPermitted: vi.fn(async () => {}), stopTracking: vi.fn() }) }));
 
 afterEach(() => {
     useGameUIStore.getState().closeGameScreen();

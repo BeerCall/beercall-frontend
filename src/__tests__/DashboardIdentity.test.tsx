@@ -1,5 +1,6 @@
 import {describe, expect, it, vi, beforeEach} from 'vitest';
 import {render, screen, fireEvent} from '@testing-library/react';
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import Dashboard from '../pages/Dashboard';
 
 const actions = vi.hoisted(() => ({
@@ -67,7 +68,7 @@ describe('DashboardIdentity (T25b)', () => {
     it('affiche le nom et le code sur deux rangées, identité avant la bannière push', () => {
         vi.mocked(useDashboard).mockReturnValue(baseDashboard({showPushBanner: true, locationMessage: 'Recherche de la position GPS…'}) as never);
 
-        render(<Dashboard/>);
+        render(<QueryClientProvider client={new QueryClient()}><Dashboard/></QueryClientProvider>);
 
         const identity = document.querySelector('[data-dashboard-identity]') as HTMLElement;
         expect(identity).toBeInTheDocument();
@@ -98,7 +99,7 @@ describe('DashboardIdentity (T25b)', () => {
 
     it('sans bannière push, l identité reste seule et le bouton Activer absent', () => {
         vi.mocked(useDashboard).mockReturnValue(baseDashboard({showPushBanner: false}) as never);
-        render(<Dashboard/>);
+        render(<QueryClientProvider client={new QueryClient()}><Dashboard/></QueryClientProvider>);
 
         expect(screen.getByRole('heading', {name: 'Les Amis du Bar'})).toBeInTheDocument();
         expect(document.querySelector('[data-push-banner]')).toBeNull();
@@ -107,7 +108,7 @@ describe('DashboardIdentity (T25b)', () => {
 
     it('la bannière conserve un bouton Activer de 44 px sans recouvrir le code', () => {
         vi.mocked(useDashboard).mockReturnValue(baseDashboard({showPushBanner: true}) as never);
-        render(<Dashboard/>);
+        render(<QueryClientProvider client={new QueryClient()}><Dashboard/></QueryClientProvider>);
 
         const activate = screen.getByRole('button', {name: 'Activer'});
         expect(activate).toHaveClass('min-h-11', 'min-w-11', 'shrink-0');
@@ -121,7 +122,7 @@ describe('DashboardIdentity (T25b)', () => {
             squadDetails: {...squad, name: longName, invite_code: 'CODE-TRES-LONG-1234'},
         }) as never);
 
-        render(<Dashboard/>);
+        render(<QueryClientProvider client={new QueryClient()}><Dashboard/></QueryClientProvider>);
 
         expect(screen.getByRole('heading', {name: longName})).toHaveClass('line-clamp-2', 'break-words');
         const codeButton = screen.getByRole('button', {name: 'CODE-TRES-LONG-1234'});
@@ -132,7 +133,7 @@ describe('DashboardIdentity (T25b)', () => {
 
     it('en mode nuit, l identité conserve la charte graphique blanche', () => {
         vi.mocked(useDashboard).mockReturnValue(baseDashboard({isNightMode: true}) as never);
-        render(<Dashboard/>);
+        render(<QueryClientProvider client={new QueryClient()}><Dashboard/></QueryClientProvider>);
 
         const identity = document.querySelector('[data-dashboard-identity]') as HTMLElement;
         expect(identity).toHaveClass('bg-white', 'text-gray-900', 'rounded-[2rem]');
@@ -141,7 +142,7 @@ describe('DashboardIdentity (T25b)', () => {
 
     it('affiche l erreur d actualisation sans masquer les dernières données', () => {
         vi.mocked(useDashboard).mockReturnValue(baseDashboard({isSquadError: true}) as never);
-        render(<Dashboard/>);
+        render(<QueryClientProvider client={new QueryClient()}><Dashboard/></QueryClientProvider>);
 
         expect(screen.getByRole('heading', {name: 'Les Amis du Bar'})).toBeInTheDocument();
         expect(screen.getByRole('alert')).toHaveTextContent('Actualisation impossible — dernières données affichées');
@@ -151,7 +152,7 @@ describe('DashboardIdentity (T25b)', () => {
 
     it('n affiche aucun texte ni bouton GPS dans le badge haut', () => {
         vi.mocked(useDashboard).mockReturnValue(baseDashboard({locationMessage: 'Position GPS indisponible'}) as never);
-        render(<Dashboard/>);
+        render(<QueryClientProvider client={new QueryClient()}><Dashboard/></QueryClientProvider>);
 
         const identity = document.querySelector('[data-dashboard-identity]') as HTMLElement;
         expect(identity).not.toHaveTextContent('Position GPS indisponible');

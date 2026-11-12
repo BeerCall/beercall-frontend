@@ -1,22 +1,23 @@
 import * as THREE from 'three';
 import type {
+  AnimationClipEntry,
+  AnimationGender,
   AnimationManifest,
   AnimationPackManager,
+  AnimationThumbnail,
+  ClipThumbnails,
   PackMetadata,
   SerializedClip,
   SerializedPack,
   SerializedTrack,
 } from '../types/animationPack';
 
-const EXPECTED_CLIP_COUNT = 25;
 const HEX_64_REGEX = /^[0-9a-f]{64}$/;
-export const ANIMATION_SOURCE_HASH = 'b455d642cd874130c3aba3ae03b207cc67c1817af3881cfbc3877e0921748d6e';
-export const ANIMATION_CLIP_NAMES: readonly string[] = Object.freeze([
-  'Punch_Right', 'Idle_Gun', 'Sword_Slash', 'Punch_Left', 'Idle_Gun_Pointing',
-  'Idle_Gun_Shoot', 'Interact', 'Idle_Neutral', 'Kick_Left', 'HitRecieve_2',
-  'Run_Back', 'Idle_Sword', 'Run_Right', 'Wave', 'Kick_Right', 'HitRecieve',
-  'Run', 'Gun_Shoot', 'Walk', 'Sitting', 'Death', 'Roll', 'Run_Shoot', 'Run_Left', 'Idle',
-]);
+/** Scene nodes that are not part of the humanoid rig and must not reach a part mixer. */
+const NON_HUMANOID = new Set(['Camera', 'Camera001', 'CharacterArmature', 'Light', 'Light001']);
+const DEFAULT_LOOP_CLIP = 'Idle';
+const THUMBNAIL_PREFIX = '/animations/thumbnails/';
+const GENDERS: readonly AnimationGender[] = Object.freeze(['Men', 'Women']);
 export const ANIMATION_BYTE_LIMITS = Object.freeze({ manifest: 64 * 1024, idle: 1024 * 1024, deferred: 8 * 1024 * 1024 });
 const UUID_REGEX = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
@@ -35,8 +36,12 @@ function base64ByteLength(value: string): number {
   return length;
 }
 
-function sameNames(actual: readonly string[], expected: readonly string[]): boolean {
-  return actual.length === expected.length && actual.every((name, i) => name === expected[i]);
+/** Compare deux catalogues comme des ensembles : aucun ordre n'est imposé. */
+function sameNameSet(actual: readonly string[], expected: readonly string[]): boolean {
+  if (actual.length !== expected.length) return false;
+  const actualSet = new Set(actual);
+  if (actualSet.size !== actual.length) return false;
+  return expected.every(name => actualSet.has(name));
 }
 
 export function decodeFloat32Array(base64Str: string): Float32Array {
@@ -77,6 +82,90 @@ export function validateUrl(url: string, expectedFileName: string): void {
   if (url !== `/animations/${expectedFileName}` || /[%\\?#]/.test(url)) {
     throw new Error(`URL does not match expected file name "${expectedFileName}": "${url}"`);
   }
+}
+
+export const ANIMATION_THUMBNAIL_WIDTH = 192;
+export const ANIMATION_THUMBNAIL_HEIGHT = 192;
+
+function validateThumbnailEntry(value: unknown, gender: AnimationGender, clipName: string): AnimationThumbnail {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error(`Invalid ${gender} thumbnail for clip "${clipName}": object expected`);
+  }
+  const thumbnail = value as Record<string, unknown>;
+  const url = thumbnail.url;
+  if (typeof url !== 'string' || !url.startsWith(THUMBNAIL_PREFIX) || url.includes('..') || /[\\?#%]/.test(url) || !url.endsWith('.webp')) {
+    throw new Error(`Invalid ${gender} thumbnail URL for clip "${clipName}": "${String(url)}"`);
+  }
+  if (typeof thumbnail.sha256 !== 'string' || !HEX_64_REGEX.test(thumbnail.sha256)) {
+    throw new Error(`Invalid ${gender} thumbnail sha256 for clip "${clipName}"`);
+  }
+  if (typeof thumbnail.bytes !== 'number' || !Number.isSafeInteger(thumbnail.bytes) || thumbnail.bytes <= 0) {
+    throw new Error(`Invalid ${gender} thumbnail bytes for clip "${clipName}"`);
+  }
+  if (thumbnail.width !== ANIMATION_THUMBNAIL_WIDTH || thumbnail.height !== ANIMATION_THUMBNAIL_HEIGHT) {
+    throw new Error(`Invalid ${gender} thumbnail dimensions for clip "${clipName}": ${String(thumbnail.width)}x${String(thumbnail.height)}`);
+  }
+  return Object.freeze({
+    url,
+    sha256: thumbnail.sha256,
+    bytes: thumbnail.bytes,
+    width: ANIMATION_THUMBNAIL_WIDTH,
+    height: ANIMATION_THUMBNAIL_HEIGHT,
+  });
+}
+
+export function validateThumbnails(value: unknown, clipName: string): ClipThumbnails {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error(`Thumbnails for clip "${clipName}" must be an object`);
+  }
+  const record = value as Record<string, unknown>;
+  const thumbnails: Record<AnimationGender, AnimationThumbnail | null> = { Men: null, Women: null };
+  for (const gender of GENDERS) {
+    const entry = record[gender];
+    if (entry === undefined || entry === null) continue;
+    thumbnails[gender] = validateThumbnailEntry(entry, gender, clipName);
+  }
+  return Object.freeze(thumbnails);
+}
+
+export function validateClipEntry(value: unknown): AnimationClipEntry {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error('Manifest clip entry must be an object');
+  }
+  const entry = value as Record<string, unknown>;
+
+  if (typeof entry.id !== 'string' || entry.id.length === 0) {
+    throw new Error('Manifest clip id must be a non-empty string');
+  }
+  if (typeof entry.name !== 'string' || entry.name.trim().length === 0) {
+    throw new Error(`Invalid clip name in manifest for id "${entry.id}"`);
+  }
+  if (typeof entry.loop !== 'boolean') {
+    throw new Error(`Clip "${entry.name}" must declare a boolean loop flag`);
+  }
+  if (typeof entry.duration !== 'number' || !Number.isFinite(entry.duration) || entry.duration <= 0) {
+    throw new Error(`Invalid duration for clip "${entry.name}": ${entry.duration}`);
+  }
+  const expectedPack = entry.name === DEFAULT_LOOP_CLIP ? 'idle' : 'deferred';
+  if (entry.pack !== expectedPack) {
+    throw new Error(`Clip "${entry.name}" must belong to pack "${expectedPack}", got "${entry.pack}"`);
+  }
+  if (entry.name === DEFAULT_LOOP_CLIP && entry.loop !== true) {
+    throw new Error(`Clip "${DEFAULT_LOOP_CLIP}" must loop`);
+  }
+  if (typeof entry.sourceSha256 !== 'string' || !HEX_64_REGEX.test(entry.sourceSha256)) {
+    throw new Error(`Invalid sourceSha256 for clip "${entry.name}"`);
+  }
+
+  return Object.freeze({
+    id: entry.id,
+    name: entry.name,
+    loop: entry.loop,
+    duration: entry.duration,
+    pack: expectedPack,
+    thumbnails: validateThumbnails(entry.thumbnails, entry.name),
+    sourceSha256: entry.sourceSha256,
+  });
 }
 
 export function validatePackMetadata(meta: unknown, expectedName: 'idle' | 'deferred'): PackMetadata {
@@ -121,16 +210,11 @@ export function validatePackMetadata(meta: unknown, expectedName: 'idle' | 'defe
   }
 
   if (expectedName === 'idle') {
-    if (m.clips.length !== 1 || m.clips[0] !== 'Idle') {
-      throw new Error(`Critical idle pack must contain exactly ['Idle'], got ${JSON.stringify(m.clips)}`);
+    if (m.clips.length !== 1 || m.clips[0] !== DEFAULT_LOOP_CLIP) {
+      throw new Error(`Critical idle pack must contain exactly ['${DEFAULT_LOOP_CLIP}'], got ${JSON.stringify(m.clips)}`);
     }
-  } else {
-    if (m.clips.includes('Idle')) {
-      throw new Error(`Deferred pack must not contain critical clip 'Idle'`);
-    }
-    if (m.clips.length !== 24) {
-      throw new Error(`Deferred pack must contain exactly 24 clips, got ${m.clips.length}`);
-    }
+  } else if (m.clips.includes(DEFAULT_LOOP_CLIP)) {
+    throw new Error(`Deferred pack must not contain critical clip '${DEFAULT_LOOP_CLIP}'`);
   }
 
   return Object.freeze({
@@ -150,65 +234,57 @@ export function validateManifest(data: unknown): AnimationManifest {
 
   const m = data as Record<string, unknown>;
 
-  if (m.formatVersion !== 1) {
-    throw new Error(`Unsupported manifest formatVersion: expected 1, got ${m.formatVersion}`);
+  if (m.formatVersion !== 2) {
+    throw new Error(`Unsupported manifest formatVersion: expected 2, got ${m.formatVersion}`);
   }
 
-  if (m.sourceHash !== ANIMATION_SOURCE_HASH) {
-    throw new Error(`Invalid sourceHash: expected 64-hex SHA-256, got "${m.sourceHash}"`);
+  if (typeof m.threeVersion !== 'string' || m.threeVersion !== THREE.REVISION) {
+    throw new Error(`Invalid threeVersion: expected "${THREE.REVISION}", got "${m.threeVersion}"`);
   }
 
-  if (m.threeVersion !== THREE.REVISION) {
-    throw new Error(`Invalid threeVersion: expected non-empty string, got "${m.threeVersion}"`);
+  if (!Array.isArray(m.clips) || m.clips.length === 0) {
+    throw new Error('Manifest clips must be a non-empty array');
   }
 
-  const clipsLength = Array.isArray(m.clips) ? m.clips.length : 0;
-  if (!Array.isArray(m.clips) || clipsLength !== EXPECTED_CLIP_COUNT) {
-    throw new Error(`Manifest clips must contain exactly ${EXPECTED_CLIP_COUNT} items, got ${clipsLength}`);
+  const clips: AnimationClipEntry[] = [];
+  const ids = new Set<string>();
+  const names = new Set<string>();
+  for (const rawEntry of m.clips) {
+    const entry = validateClipEntry(rawEntry);
+    if (ids.has(entry.id)) throw new Error(`Duplicate clip id in manifest: "${entry.id}"`);
+    if (names.has(entry.name)) throw new Error(`Duplicate clip name in manifest: "${entry.name}"`);
+    ids.add(entry.id);
+    names.add(entry.name);
+    clips.push(entry);
   }
 
-  const clipSet = new Set<string>();
-  for (const clipName of m.clips) {
-    if (typeof clipName !== 'string' || clipName.trim().length === 0) {
-      throw new Error(`Invalid clip name in manifest: ${clipName}`);
-    }
-    if (clipSet.has(clipName)) {
-      throw new Error(`Duplicate clip name in manifest: "${clipName}"`);
-    }
-    clipSet.add(clipName);
+  const idleEntries = clips.filter(entry => entry.name === DEFAULT_LOOP_CLIP);
+  if (idleEntries.length !== 1) {
+    throw new Error(`Manifest clips must include critical clip "${DEFAULT_LOOP_CLIP}" exactly once`);
   }
-
-  if (!clipSet.has('Idle')) {
-    throw new Error(`Manifest clips must include critical clip "Idle"`);
+  const criticalNames = clips.filter(entry => entry.pack === 'idle').map(entry => entry.name);
+  const deferredNames = clips.filter(entry => entry.pack === 'deferred').map(entry => entry.name);
+  if (criticalNames.length !== 1 || criticalNames[0] !== DEFAULT_LOOP_CLIP) {
+    throw new Error(`Manifest critical pack must contain only "${DEFAULT_LOOP_CLIP}"`);
+  }
+  if (deferredNames.length === 0) {
+    throw new Error('Manifest deferred pack must not be empty');
   }
 
   const critical = validatePackMetadata(m.critical, 'idle');
   const deferred = validatePackMetadata(m.deferred, 'deferred');
 
-  const combinedClips = [...critical.clips, ...deferred.clips];
-  if (combinedClips.length !== EXPECTED_CLIP_COUNT) {
-    throw new Error(`Combined pack clips count mismatch: expected ${EXPECTED_CLIP_COUNT}, got ${combinedClips.length}`);
+  if (!sameNameSet(critical.clips, criticalNames)) {
+    throw new Error('Critical pack clips do not match manifest idle entries');
   }
-
-  const combinedSet = new Set(combinedClips);
-  if (combinedSet.size !== EXPECTED_CLIP_COUNT) {
-    throw new Error('Combined pack clips contain duplicate names');
-  }
-
-  for (const name of m.clips) {
-    if (!combinedSet.has(name)) {
-      throw new Error(`Manifest clip "${name}" is missing from critical and deferred packs`);
-    }
-  }
-  if (!sameNames(m.clips, ANIMATION_CLIP_NAMES) || !sameNames(deferred.clips, ANIMATION_CLIP_NAMES.filter(name => name !== 'Idle'))) {
-    throw new Error('Manifest clip catalogue/order does not match animation format v1');
+  if (!sameNameSet(deferred.clips, deferredNames)) {
+    throw new Error('Deferred pack clips do not match manifest deferred entries');
   }
 
   return Object.freeze({
-    formatVersion: 1,
-    sourceHash: m.sourceHash,
+    formatVersion: 2,
     threeVersion: m.threeVersion,
-    clips: Object.freeze([...m.clips] as string[]),
+    clips: Object.freeze(clips) as readonly AnimationClipEntry[],
     critical,
     deferred,
   });
@@ -309,8 +385,8 @@ export function validateSerializedClip(clip: unknown): SerializedClip {
   }
 
   if ('fps' in c) throw new Error('fps must not be serialized');
-  if (!Array.isArray(c.tracks) || c.tracks.length !== 252) {
-    throw new Error(`Clip "${c.name}" must contain exactly 252 tracks`);
+  if (!Array.isArray(c.tracks) || c.tracks.length === 0) {
+    throw new Error(`Clip "${c.name}" must contain at least one track`);
   }
 
   const tracks: SerializedTrack[] = [];
@@ -337,7 +413,7 @@ export function validateSerializedClip(clip: unknown): SerializedClip {
 export function parseAndValidatePack(
   rawBytes: Uint8Array | ArrayBuffer,
   expectedType: 'idle' | 'deferred',
-  expectedSourceHash: string
+  manifest: AnimationManifest
 ): SerializedPack {
   const bytes = rawBytes instanceof Uint8Array ? rawBytes : new Uint8Array(rawBytes);
   if (bytes.byteLength > ANIMATION_BYTE_LIMITS[expectedType]) throw new Error('Pack exceeds byte limit');
@@ -359,44 +435,54 @@ export function parseAndValidatePack(
     throw new Error(`Pack type mismatch: expected "${expectedType}", got "${p.pack}"`);
   }
 
-  if (p.formatVersion !== 1) {
-    throw new Error(`Unsupported pack formatVersion: expected 1, got ${p.formatVersion}`);
-  }
-
-  if (p.sourceHash !== expectedSourceHash) {
-    throw new Error(`Source hash mismatch in ${expectedType} pack: expected "${expectedSourceHash}", got "${p.sourceHash}"`);
+  if (p.formatVersion !== 2) {
+    throw new Error(`Unsupported pack formatVersion: expected 2, got ${p.formatVersion}`);
   }
 
   if (!Array.isArray(p.clips)) {
     throw new Error(`Pack "${expectedType}" must contain a clips array`);
   }
 
-  if (expectedType === 'idle' && p.clips.length !== 1) {
-    throw new Error(`Critical idle pack must contain exactly 1 clip, got ${p.clips.length}`);
-  }
+  const expectedEntries = manifest.clips.filter(entry => entry.pack === expectedType);
+  const expectedNames = expectedEntries.map(entry => entry.name);
+  const durations = new Map(expectedEntries.map(entry => [entry.name, entry.duration]));
 
-  if (expectedType === 'deferred' && p.clips.length !== 24) {
-    throw new Error(`Deferred pack must contain exactly 24 clips, got ${p.clips.length}`);
+  if (p.clips.length !== expectedNames.length) {
+    throw new Error(`Pack "${expectedType}" must contain ${expectedNames.length} clips, got ${p.clips.length}`);
   }
 
   const clips: SerializedClip[] = [];
-  const clipNames = new Set<string>();
+  const clipNames: string[] = [];
 
   for (const rawClip of p.clips) {
     const validClip = validateSerializedClip(rawClip);
-    if (clipNames.has(validClip.name)) {
+    if (clipNames.includes(validClip.name)) {
       throw new Error(`Duplicate clip "${validClip.name}" in ${expectedType} pack`);
     }
-    clipNames.add(validClip.name);
+    const expectedDuration = durations.get(validClip.name);
+    if (expectedDuration === undefined) {
+      throw new Error(`Unexpected clip "${validClip.name}" in ${expectedType} pack`);
+    }
+    if (Math.abs(validClip.duration - expectedDuration) > 1e-6) {
+      throw new Error(`Clip "${validClip.name}" duration mismatch in ${expectedType} pack`);
+    }
+    clipNames.push(validClip.name);
     clips.push(validClip);
   }
-  const expectedNames = expectedType === 'idle' ? ['Idle'] : ANIMATION_CLIP_NAMES.filter(name => name !== 'Idle');
-  if (!sameNames(clips.map(clip => clip.name), expectedNames)) throw new Error('Pack clip catalogue/order mismatch');
+
+  if (!sameNameSet(clipNames, expectedNames)) {
+    throw new Error(`Pack "${expectedType}" clip catalogue does not match the manifest`);
+  }
+  if (expectedType === 'idle' && (clips.length !== 1 || clips[0].name !== DEFAULT_LOOP_CLIP)) {
+    throw new Error(`Critical idle pack must contain exactly '${DEFAULT_LOOP_CLIP}'`);
+  }
+  if (expectedType === 'deferred' && clipNames.includes(DEFAULT_LOOP_CLIP)) {
+    throw new Error(`Deferred pack must not contain critical clip '${DEFAULT_LOOP_CLIP}'`);
+  }
 
   return {
     pack: expectedType,
-    formatVersion: 1,
-    sourceHash: p.sourceHash as string,
+    formatVersion: 2,
     clips,
   };
 }
@@ -420,13 +506,20 @@ export function decodeSingleClip(serialized: SerializedClip): THREE.AnimationCli
     };
   });
 
+  // Keep the humanoid tracks only: camera and light curves would fail to bind on a part rig.
+  // Published GLBs also omit Blender leaf bones (`*_end`) that the PoC FBX sources keep.
+  const humanoidTracks = parsedTracks.filter((track) => {
+    const node = track.name.split('.')[0];
+    return Boolean(node) && !NON_HUMANOID.has(node) && !node.endsWith('_end');
+  });
+
   // Note: fps is intentionally omitted so AnimationClip.parse does not scale times by (1/fps)
   return THREE.AnimationClip.parse({
     name: serialized.name,
     duration: serialized.duration,
     blendMode: serialized.blendMode as THREE.AnimationBlendMode,
     uuid: serialized.uuid,
-    tracks: parsedTracks as unknown as THREE.KeyframeTrackJSON[],
+    tracks: humanoidTracks as unknown as THREE.KeyframeTrackJSON[],
   });
 }
 
@@ -435,6 +528,7 @@ export class AnimationPackManagerImpl implements AnimationPackManager {
   readonly criticalClip: THREE.AnimationClip;
   readonly clipNames: readonly string[];
 
+  private readonly entries = new Map<string, AnimationClipEntry>();
   private readonly decodedClips = new Map<string, THREE.AnimationClip>();
   private readonly rawDeferredClips = new Map<string, SerializedClip>();
   private deferredLoaded = false;
@@ -442,13 +536,22 @@ export class AnimationPackManagerImpl implements AnimationPackManager {
   constructor(manifest: AnimationManifest, criticalClip: THREE.AnimationClip) {
     this.manifest = manifest;
     this.criticalClip = criticalClip;
-    this.clipNames = Object.freeze([...manifest.clips]);
+    for (const entry of manifest.clips) this.entries.set(entry.name, entry);
+    this.clipNames = Object.freeze(manifest.clips.map(entry => entry.name));
 
     this.decodedClips.set(criticalClip.name, criticalClip);
   }
 
   hasClip(name: string): boolean {
-    return this.manifest.clips.includes(name);
+    return this.entries.has(name);
+  }
+
+  getClipEntry(name: string): AnimationClipEntry | undefined {
+    return this.entries.get(name);
+  }
+
+  isLoop(name: string): boolean {
+    return this.entries.get(name)?.loop ?? false;
   }
 
   isClipDecoded(name: string): boolean {
@@ -476,8 +579,10 @@ export class AnimationPackManagerImpl implements AnimationPackManager {
       throw new Error(`Deferred pack SHA-256 verification failed`);
     }
 
-    const pack = parseAndValidatePack(bytes, 'deferred', this.manifest.sourceHash);
-    if (!sameNames(pack.clips.map(clip => clip.name), this.manifest.deferred.clips)) throw new Error('Deferred catalogue mismatch');
+    const pack = parseAndValidatePack(bytes, 'deferred', this.manifest);
+    if (!sameNameSet(pack.clips.map(clip => clip.name), this.manifest.deferred.clips)) {
+      throw new Error('Deferred catalogue mismatch');
+    }
     if (this.deferredLoaded) return;
 
     // CHAL-05 Lazy Decoding: store serialized clips in memory, DO NOT decode them all now!
@@ -527,7 +632,7 @@ export async function createAnimationPackManager(
     throw new Error(`Critical pack SHA-256 verification failed`);
   }
 
-  const criticalPack = parseAndValidatePack(bytes, 'idle', manifest.sourceHash);
+  const criticalPack = parseAndValidatePack(bytes, 'idle', manifest);
   const criticalClip = decodeSingleClip(criticalPack.clips[0]);
 
   return new AnimationPackManagerImpl(manifest, criticalClip);

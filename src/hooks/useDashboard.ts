@@ -49,7 +49,7 @@ export const useDashboard = () => {
     const squadQuery = useSquadDetails(id, active);
     const squadDetails = squadQuery.data;
     const { isGameScreenOpen, currentAperoId, closeGameScreen } = useGameUIStore();
-    const { userLocation, acquiredAt, hasSessionFix, locationStatus, startTracking, stopTracking } = useLocationStore();
+    const { userLocation, acquiredAt, hasSessionFix, locationStatus, startTracking, startTrackingIfPermitted, stopTracking } = useLocationStore();
     const canCreateFromLocation = hasSessionFix && locationStatus === 'available' && userLocation !== null;
     const locationMessage = gpsMessage({ userLocation, acquiredAt, hasSessionFix, locationStatus });
     const isActiveApero = squadDetails?.active_beer_call?.some((call: { id: string }) => call.id === isWorldsModalOpen);
@@ -156,6 +156,10 @@ export const useDashboard = () => {
     // Toute preuve photo (création immédiate ou démarrage d'un apero programmé)
     // exige un fix live et utilise ses coordonnées, jamais celles du marqueur.
     const openCamera = useCallback((_location?: { lng: number; lat: number }, apero: BeerCall | null = null) => {
+        if (!id) {
+            toast.error('Aucune squad', 'Rejoins ou crée une squad pour lancer un apéro.');
+            return;
+        }
         const current = useLocationStore.getState();
         if (!current.hasSessionFix || current.locationStatus !== 'available' || !current.userLocation) {
             toast.error('GPS actuel nécessaire', gpsMessage(current) ?? 'Une nouvelle position GPS est nécessaire pour créer.');
@@ -164,7 +168,7 @@ export const useDashboard = () => {
         setPhotoLocation(current.userLocation);
         setStartingScheduledApero(apero);
         if (fileInputRef.current) fileInputRef.current.click();
-    }, []);
+    }, [id]);
 
     const handlePhotoCapture = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -207,11 +211,15 @@ export const useDashboard = () => {
             stopTracking();
             return;
         }
-        // Acquisition au montage actif, sans attendre un clic arbitraire.
+        // Acquisition au montage actif. Le navigateur ne rouvre la modale que
+        // si l'origine n'a pas encore (ou plus) la permission : c'est ce qui
+        // rend le bouton de localisation actif dès l'ouverture.
         startTracking();
         const handleVisibility = () => {
-            if (document.visibilityState === 'visible') startTracking();
-            else stopTracking();
+            // Au retour visible, ne relance que si la permission est déjà
+            // connue : un refus ne doit pas rouvrir la modale à chaque passage.
+            // Le watch lui-même n'est pas arrêté en arrière-plan.
+            if (document.visibilityState === 'visible') void startTrackingIfPermitted();
         };
         document.addEventListener('visibilitychange', handleVisibility);
 
@@ -220,7 +228,7 @@ export const useDashboard = () => {
             stopTracking();
             cancelLongPress();
         };
-    }, [active, startTracking, stopTracking, cancelLongPress]);
+    }, [active, startTracking, startTrackingIfPermitted, stopTracking, cancelLongPress]);
 
     useEffect(() => {
         if (active && id && userLocation && mapRef.current && !hasCentered.current) {

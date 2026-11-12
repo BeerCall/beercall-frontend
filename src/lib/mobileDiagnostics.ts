@@ -1,6 +1,4 @@
 import { getInitialDashboardSceneSignal, getSceneMetrics } from './sceneMetrics';
-import { getModelDecodeMetrics } from './modelTelemetry';
-import { getAvatarLoadingTrace } from './avatarLoadingTrace';
 
 export function summarizeFrames(samples: number[]) {
     const values = samples.filter(value => Number.isFinite(value) && value > 0).sort((a, b) => a - b);
@@ -42,8 +40,6 @@ export function readMobileDiagnostics() {
         navigationType: (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type ?? null,
         sceneSignals: getSceneMetrics(),
         initialDashboardScene: getInitialDashboardSceneSignal() ?? null,
-        modelDecodes: getModelDecodeMetrics(),
-        avatarLoadingTrace: getAvatarLoadingTrace(),
         resources: groups,
         limitations: [
             'Scene signals measure submitted WebGL frames, not physical presentation.',

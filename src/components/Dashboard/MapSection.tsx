@@ -1,14 +1,69 @@
-import React, { Suspense } from 'react';
+import React from 'react';
+import {createPortal} from 'react-dom';
 import Map, { Marker, NavigationControl, type MapRef, type MapLayerMouseEvent, type MapLayerTouchEvent } from 'react-map-gl/maplibre';
+import maplibregl from 'maplibre-gl';
 import { motion } from 'framer-motion';
-import { User as UserIcon, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
-import AvatarLoadingIndicator from './AvatarLoadingIndicator';
 import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
-import { QueryClientContext } from '@tanstack/react-query';
 import { useLocationStore } from '../../store/useLocationStore';
 import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
-import SafeAvatar, { preloadAvatarCanvas } from '../3D/SafeAvatar';
+import { SnapAvatarLayer } from './SnapAvatarLayer';
+import type { SnapPerson } from '../../map/snap/types';
+import { trackCanvasContext, webglStats } from '../../three/lease/webgl';
+
+export const MAP_CONTEXT_RESTORE_GRACE_MS = 5_000;
+
+interface NativeMap {
+    on?: (event: string, fn: (evt?: unknown) => void) => void;
+    off?: (event: string, fn: (evt?: unknown) => void) => void;
+    resize?: () => void;
+    triggerRepaint?: () => void;
+    stop?: () => void;
+    getCenter?: () => {lng: number; lat: number};
+    getZoom?: () => number;
+    getBearing?: () => number;
+    getPitch?: () => number;
+    getCanvas?: () => HTMLCanvasElement;
+}
+type MapView = {longitude: number; latitude: number; zoom: number; bearing: number; pitch: number};
+function readMapView(map: NativeMap | null): MapView | undefined {
+    try {
+        const center = map?.getCenter?.();
+        const view = {longitude: center?.lng, latitude: center?.lat, zoom: map?.getZoom?.(), bearing: map?.getBearing?.(), pitch: map?.getPitch?.()};
+        return Object.values(view).every(value => typeof value === 'number' && Number.isFinite(value)) ? view as MapView : undefined;
+    } catch { return undefined; }
+}
+
+type MapLibreErrorDetails = {
+    error?: unknown;
+    name?: string;
+    message?: string;
+    status?: number;
+    statusMessage?: string;
+    url?: string;
+    raw?: unknown;
+};
+
+// MapLibre encode le détail du refus WebGL dans le message JSON de l'erreur
+// (`requestedAttributes`, `statusMessage`...). On l'expose tel quel pour que le
+// diagnostic ne soit jamais tronqué dans la console.
+function describeMapError(event?: {error?: unknown}): MapLibreErrorDetails {
+    const error = event?.error;
+    if (error instanceof Error) {
+        const enriched = error as Error & {status?: number; statusMessage?: string; url?: string};
+        return {
+            error,
+            name: error.name,
+            message: error.message,
+            status: enriched.status,
+            statusMessage: enriched.statusMessage,
+            url: enriched.url,
+            raw: error,
+        };
+    }
+    return { error, raw: error };
+}
 
 // MapLibre retire son style pendant contextlost. react-map-gl ne protège pas
 // setProps contre ce style null : ne pas rerendre l'adaptateur avant restored
@@ -18,11 +73,11 @@ function MapContents() {
     return React.useContext(MapContentsContext);
 }
 const RetainedNativeMap = React.memo(function RetainedNativeMap({ element }: {
-    element: React.ReactElement;
+    element: React.ReactElement | null;
     frozen: boolean;
 }) {
     return element;
-}, (_previous, next) => next.frozen);
+}, (previous, next) => next.frozen && previous.element?.key === next.element?.key);
 
 interface MapSectionProps {
     mapRef: React.RefObject<MapRef | null>;
@@ -42,6 +97,9 @@ interface MapSectionProps {
     handleBeerCallClick: (beerCall: BeerCall) => void;
     openCamera: (location?: { lng: number; lat: number }, apero?: BeerCall) => void;
     setIsWorldsModalOpen: (id: string) => void;
+    /** B09 — personnes Snap déjà normalisées par le Dashboard. */
+    people?: readonly SnapPerson[];
+    onSelectUser?: (id: string) => void;
 }
 
 export const MapSection: React.FC<MapSectionProps> = React.memo(({
@@ -49,29 +107,25 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     userLocation,
     canCreateFromLocation = false,
     isNightMode,
-    isMapReady,
     handleMapLoaded,
     active = true,
     visible = true,
     squadDetails,
-    profile,
     handleMapPointerDown,
     cancelLongPress,
     handleMapPointerMove,
     handleManualRecenter,
     handleBeerCallClick,
     openCamera,
-    setIsWorldsModalOpen
+    setIsWorldsModalOpen,
+    people,
+    onSelectUser
 }) => {
     const mapStyle = isNightMode
         ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
         : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
     const startTracking = useLocationStore(state => state.startTracking);
     const hasLiveLocation = canCreateFromLocation && userLocation !== null;
-    const [hasHadLiveLocation, setHasHadLiveLocation] = React.useState(hasLiveLocation);
-    // Ne jamais monter le joueur à partir du cache seul. Après un vrai fix,
-    // conserver son Canvas en pause pendant le renouvellement au retour de route.
-    if (hasLiveLocation && !hasHadLiveLocation) setHasHadLiveLocation(true);
 
     // Avec un fix live, le bouton recentre la carte ; sans fix, il relance
     // explicitement l'acquisition GPS sans boucle automatique.
@@ -85,53 +139,45 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         startTracking();
     }, [hasLiveLocation, handleManualRecenter, startTracking]);
 
-    const handlePlayerClick = React.useCallback(() => {
-        openCamera();
-    }, [openCamera]);
-
     const handlePointerMove = React.useCallback((event: MapLayerMouseEvent | MapLayerTouchEvent) => {
         handleMapPointerMove?.(event as MapLayerMouseEvent);
     }, [handleMapPointerMove]);
 
-    // WebGL absent (jsdom, navigateur bridé) : inutile de télécharger le chunk 3D.
-    const canWarm3d = React.useMemo(
-        () => typeof WebGL2RenderingContext !== 'undefined' || typeof WebGLRenderingContext !== 'undefined',
-        []
-    );
-    const queryClient = React.useContext(QueryClientContext);
-
-    // Prépare les FBX pendant l'initialisation de la carte : sans cela, le
-    // Canvas attend `onLoad`, puis télécharge et parse encore les modèles.
-    React.useEffect(() => {
-        if (!visible || !canWarm3d || !profile?.avatar) return;
-        let cancelled = false;
-        // Loading code/Idle can overlap map style/tiles, not start after onLoad.
-        void preloadAvatarCanvas().catch(() => {});
-        if (queryClient) void import('../../hooks/useAvatarAnimations')
-            .then(module => { if (!cancelled) void module.preloadAvatarAnimations(queryClient); })
-            .catch(() => {});
-        void import('../3D/warmupAvatar')
-            .then(module => {
-                if (!cancelled) module.warmAvatarModels(profile.avatar);
-            })
-            .catch(() => {});
-        return () => { cancelled = true; };
-    }, [visible, canWarm3d, profile?.avatar, queryClient]);
-
     const [mapId] = React.useState(() => allocateSceneInstanceId('map'));
     // Avatar bootstrap is independent from current map readiness. A tile/style
     // error must invalidate map metrics, not tear down an already-loaded avatar.
-    const [hasMapLoaded, setHasMapLoaded] = React.useState(false);
+    const [, setHasMapLoaded] = React.useState(false);
     const [isMapContextLost, setIsMapContextLost] = React.useState(false);
-    const mapInstanceRef = React.useRef<{
-        on?: (event: string, fn: (evt?: unknown) => void) => void;
-        off?: (event: string, fn: (evt?: unknown) => void) => void;
-        resize?: () => void;
-        triggerRepaint?: () => void;
-        stop?: () => void;
+    const [mapRetryAvailable, setMapRetryAvailable] = React.useState(false);
+    const [mapEpoch, setMapEpoch] = React.useState(0);
+    const [rebuilding, setRebuilding] = React.useState(false);
+    const [initialMapView, setInitialMapView] = React.useState<MapView>(() => ({
+        longitude: userLocation?.lng ?? 2.3522, latitude: userLocation?.lat ?? 48.8566,
+        zoom: userLocation ? 14 : 12, pitch: 45, bearing: 0,
+    }));
+    const mapInstanceRef = React.useRef<NativeMap | null>(null);
+    const retiredMaps = React.useRef(new WeakSet<object>());
+    const savedView = React.useRef<MapView | undefined>(undefined);
+    const listeners = React.useRef<{
+        map: NativeMap;
+        epoch: number;
+        lost: () => void;
+        restored: () => void;
+        canvas?: HTMLCanvasElement;
+        preventLost?: (event: Event) => void;
     } | null>(null);
+    const mapRetryTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const clearMapRetryTimer = React.useCallback(() => {
+        if (mapRetryTimer.current !== null) {
+            clearTimeout(mapRetryTimer.current);
+            mapRetryTimer.current = null;
+        }
+    }, []);
 
-    const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; submitted: boolean; suspended: boolean }>({ mounted: false, loaded: false, submitted: false, suspended: false });
+    const lifecycle = React.useRef<{ generation?: number; mounted: boolean; loaded: boolean; everLoaded: boolean; submitted: boolean;
+        suspended: boolean; epoch: number; recovery: 'normal' | 'lost' | 'restoring' | 'rebuilding' }>({
+        mounted: false, loaded: false, everLoaded: false, submitted: false, suspended: false, epoch: 0, recovery: 'normal',
+    });
     React.useLayoutEffect(() => {
         const state = lifecycle.current;
         state.mounted = true;
@@ -144,62 +190,118 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     }, [mapId]);
 
     const handleContextLost = React.useCallback(() => {
-        setIsMapContextLost(true);
         const state = lifecycle.current;
+        if (!state.mounted || state.recovery === 'lost' || state.recovery === 'rebuilding') return;
+        savedView.current = readMapView(mapInstanceRef.current) ?? savedView.current;
+        state.recovery = 'lost';
+        setIsMapContextLost(true);
+        setMapRetryAvailable(false);
+        clearMapRetryTimer();
+        const stats = webglStats();
+        console.error('[MapSection] Contexte WebGL perdu', {
+            mapId,
+            created: stats.created,
+            active: stats.active,
+            unexpectedLoss: stats.unexpectedLoss,
+        });
+        mapRetryTimer.current = setTimeout(() => {
+            mapRetryTimer.current = null;
+            if (!state.mounted || state.recovery !== 'lost') return;
+            console.error('[MapSection] Restauration WebGL non confirmée après 5 s', {
+                mapId,
+                created: webglStats().created,
+                active: webglStats().active,
+            });
+            setMapRetryAvailable(true);
+        }, MAP_CONTEXT_RESTORE_GRACE_MS);
         if (state.generation !== undefined) {
             invalidateSceneInstance('dashboard', mapId, state.generation);
         }
         state.submitted = false;
         state.loaded = false;
-    }, [mapId]);
+    }, [clearMapRetryTimer, mapId]);
 
     const handleContextRestored = React.useCallback(() => {
         const state = lifecycle.current;
+        if (!state.mounted || state.recovery !== 'lost') return;
+        clearMapRetryTimer();
+        setMapRetryAvailable(false);
+        state.recovery = 'restoring';
         try {
             mapInstanceRef.current?.resize?.();
             mapInstanceRef.current?.triggerRepaint?.();
-        } catch {
-            // Tolérance environnements de simulation
+        } catch (error) {
+            console.error('[MapSection] resize/repaint après restauration WebGL a échoué', error);
         }
         // Réarmer la vérification pour certification au prochain idle valide
-        state.loaded = true;
+        state.loaded = state.everLoaded;
+        if (state.loaded && state.generation === undefined) state.generation = registerSceneInstance('dashboard', mapId);
         state.submitted = false;
-    }, []);
+    }, [clearMapRetryTimer, mapId]);
 
-    const attachMapInstance = React.useCallback((map: {
-        on?: (event: string, fn: (evt?: unknown) => void) => void;
-        off?: (event: string, fn: (evt?: unknown) => void) => void;
-        resize?: () => void;
-        triggerRepaint?: () => void;
-        stop?: () => void;
-    } | null) => {
-        if (!map || map === mapInstanceRef.current) return;
-        if (mapInstanceRef.current) {
-            mapInstanceRef.current.off?.('webglcontextlost', handleContextLost);
-            mapInstanceRef.current.off?.('webglcontextrestored', handleContextRestored);
+    const detachMapInstance = React.useCallback(() => {
+        const current = listeners.current;
+        current?.map.off?.('webglcontextlost', current.lost);
+        current?.map.off?.('webglcontextrestored', current.restored);
+        if (current?.canvas && current.preventLost) {
+            current.canvas.removeEventListener('webglcontextlost', current.preventLost);
         }
+        listeners.current = null;
+        mapInstanceRef.current = null;
+        if (typeof window !== 'undefined') {
+            delete (window as unknown as { __beercallMap?: unknown }).__beercallMap;
+        }
+    }, []);
+    const attachMapInstance = React.useCallback((map: NativeMap | null) => {
+        if (!map || retiredMaps.current.has(map) || map === mapInstanceRef.current) return;
+        detachMapInstance();
         mapInstanceRef.current = map;
-        map.on?.('webglcontextlost', handleContextLost);
-        map.on?.('webglcontextrestored', handleContextRestored);
-    }, [handleContextLost, handleContextRestored]);
+        const canvas = map.getCanvas?.();
+        let preventLost: ((event: Event) => void) | undefined;
+        if (canvas) {
+            // Le navigateur doit pouvoir restaurer le contexte : sans
+            // preventDefault, la perte est définitive. MapLibre le fait aussi ;
+            // ce garde-fou le rend explicite côté BeerCall.
+            preventLost = (event: Event) => event.preventDefault();
+            canvas.addEventListener('webglcontextlost', preventLost);
+            trackCanvasContext(canvas);
+        }
+        if (typeof window !== 'undefined') {
+            (window as unknown as { __beercallMap?: NativeMap }).__beercallMap = map;
+        }
+        const current = () => lifecycle.current.mounted && lifecycle.current.epoch === mapEpoch && mapInstanceRef.current === map;
+        const lost = () => { if (current()) handleContextLost(); };
+        const restored = () => { if (current()) handleContextRestored(); };
+        listeners.current = {map, epoch: mapEpoch, lost, restored, canvas: canvas ?? undefined, preventLost};
+        map.on?.('webglcontextlost', lost);
+        map.on?.('webglcontextrestored', restored);
+    }, [detachMapInstance, mapEpoch, handleContextLost, handleContextRestored]);
+
+    const retryMap = React.useCallback(() => {
+        const state = lifecycle.current;
+        if (!state.mounted || state.recovery !== 'lost') return;
+        clearMapRetryTimer();
+        setMapRetryAvailable(false);
+        const map = mapInstanceRef.current;
+        const camera = readMapView(map) ?? savedView.current;
+        if (camera) setInitialMapView(camera);
+        if (map) retiredMaps.current.add(map);
+        detachMapInstance();
+        state.epoch++;
+        state.loaded = false; state.everLoaded = false; state.submitted = false; state.recovery = 'rebuilding';
+        setRebuilding(true);
+        setMapEpoch(state.epoch);
+    }, [clearMapRetryTimer, detachMapInstance]);
 
     React.useEffect(() => {
-        const map = mapRef.current?.getMap?.() as {
-            on?: (event: string, fn: (evt?: unknown) => void) => void;
-            off?: (event: string, fn: (evt?: unknown) => void) => void;
-            resize?: () => void;
-            triggerRepaint?: () => void;
-            stop?: () => void;
-        } | undefined;
+        const map = mapRef.current?.getMap?.() as NativeMap | undefined;
         if (map) attachMapInstance(map);
         return () => {
-            if (mapInstanceRef.current) {
-                mapInstanceRef.current.off?.('webglcontextlost', handleContextLost);
-                mapInstanceRef.current.off?.('webglcontextrestored', handleContextRestored);
-                mapInstanceRef.current = null;
-            }
+            if (listeners.current?.epoch === mapEpoch) detachMapInstance();
         };
-    }, [mapRef, attachMapInstance, handleContextLost, handleContextRestored]);
+    }, [mapRef, attachMapInstance, mapEpoch, detachMapInstance]);
+
+    React.useEffect(() => () => clearMapRetryTimer(), [clearMapRetryTimer]);
 
     React.useLayoutEffect(() => {
         const update = () => {
@@ -222,36 +324,45 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     }, [visible, mapId, mapRef]);
     const handleMapLoad = React.useCallback((event?: { target?: unknown }) => {
         const state = lifecycle.current;
-        if (!state.mounted) return;
-        const targetMap = (event?.target ?? mapRef.current?.getMap?.()) as {
-            on?: (event: string, fn: (evt?: unknown) => void) => void;
-            off?: (event: string, fn: (evt?: unknown) => void) => void;
-            resize?: () => void;
-            triggerRepaint?: () => void;
-            stop?: () => void;
-        } | undefined;
+        if (!state.mounted || state.epoch !== mapEpoch || state.recovery === 'lost') return;
+        const targetMap = (event?.target ?? mapRef.current?.getMap?.()) as NativeMap | undefined;
+        if ((targetMap && retiredMaps.current.has(targetMap)) || (state.recovery === 'rebuilding' && !targetMap)) return;
         if (targetMap) {
             attachMapInstance(targetMap);
         }
         if (state.generation === undefined) state.generation = registerSceneInstance('dashboard', mapId);
         state.loaded = true;
+        state.everLoaded = true;
+        if (state.recovery === 'rebuilding') state.recovery = 'restoring';
         setHasMapLoaded(true);
         handleMapLoaded?.();
-    }, [mapId, handleMapLoaded, mapRef, attachMapInstance]);
-    const handleMapIdle = React.useCallback(() => {
+    }, [mapId, mapEpoch, handleMapLoaded, mapRef, attachMapInstance]);
+    const handleMapIdle = React.useCallback((event?: {target?: unknown}) => {
         const state = lifecycle.current;
-        if (state.mounted && state.loaded && !state.suspended && !document.hidden && state.generation !== undefined) {
+        if (state.epoch !== mapEpoch || (event?.target && event.target !== mapInstanceRef.current)) return;
+        if (state.mounted && state.loaded && state.recovery !== 'lost' && state.recovery !== 'rebuilding' && !state.suspended && !document.hidden && state.generation !== undefined) {
             if (!state.submitted) {
                 state.submitted = !!recordSceneSignal('mapInteractive', { view: 'dashboard', instanceId: mapId, generation: state.generation });
             }
             setIsMapContextLost(false);
+            setMapRetryAvailable(false);
+            setRebuilding(false);
+            state.recovery = 'normal';
         }
-    }, [mapId]);
-    const handleMapError = React.useCallback(() => {
+    }, [mapId, mapEpoch]);
+    const handleMapError = React.useCallback((event?: { error?: unknown; target?: unknown }) => {
         const state = lifecycle.current;
+        if (state.epoch !== mapEpoch) return;
+        // Ne jamais avaler une erreur MapLibre : la carte peut rester blanche
+        // sans que rien ne remonte (diagnostic étape 2).
+        console.error('[MapSection] Erreur MapLibre', {
+            mapId,
+            epoch: mapEpoch,
+            ...describeMapError(event),
+        });
         if (state.generation !== undefined) unregisterSceneInstance('dashboard', mapId, state.generation);
         state.generation = undefined; state.loaded = false; state.submitted = false;
-    }, [mapId]);
+    }, [mapId, mapEpoch]);
 
     // Sur iPhone (DPR 3), MapLibre rendrait sinon 9 fois plus de pixels que le
     // nécessaire. On plafonne le ratio comme les Canvas 3D et on supprime les
@@ -263,15 +374,26 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         refreshExpiredTiles: false,
     }), []);
 
+    React.useEffect(() => {
+        if (!active) {
+            const currentNative = (mapRef.current?.getMap?.() ?? mapInstanceRef.current) as NativeMap | undefined;
+            if (currentNative) {
+                const view = readMapView(currentNative);
+                if (view) {
+                    savedView.current = view;
+                    setInitialMapView(view);
+                }
+            }
+        }
+    }, [active, mapRef]);
+
+    // P0: la carte n'est plus sous lease. Elle est créée une seule fois par
+    // react-map-gl (classe native maplibregl.Map) et retenue par PersistentDashboard.
     const mapElement = (
-        <Map ref={mapRef}
+        <Map key={mapEpoch} ref={mapRef}
             {...mapRuntimeOptions}
-            initialViewState={{
-                longitude: userLocation?.lng || 2.3522,
-                latitude: userLocation?.lat || 48.8566,
-                zoom: userLocation ? 14 : 12,
-                pitch: 45
-            }}
+            mapLib={maplibregl}
+            initialViewState={initialMapView}
             mapStyle={mapStyle} interactive={true}
             onLoad={handleMapLoad}
             onIdle={handleMapIdle}
@@ -289,19 +411,19 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
     );
 
     return (
+        <>
+        {visible && isMapContextLost && typeof document !== 'undefined' && createPortal(
+            <div role="status" aria-label="Statut carte"
+                className="fixed inset-x-4 bottom-[calc(80px+env(safe-area-inset-bottom))] z-[110] flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-950 shadow-lg">
+                <p>{mapRetryAvailable ? 'Carte momentanément indisponible' : 'Restauration de la carte…'}</p>
+                {mapRetryAvailable && (
+                    <button type="button" disabled={rebuilding}
+                        onClick={event => { event.stopPropagation(); retryMap(); }} onKeyDown={event => event.stopPropagation()}
+                        className="min-h-11 rounded-lg bg-amber-700 px-3 text-white disabled:opacity-50">Réessayer la carte</button>
+                )}
+            </div>, document.body)}
         <MapContentsContext.Provider value={<>
-            
-            {/* STATUT CONTEXTE WEBGL PERDU */}
-            {isMapContextLost && (
-                <div
-                    role="status"
-                    aria-label="Statut carte"
-                    className="absolute inset-x-4 top-[calc(60px+env(safe-area-inset-top))] z-30 p-3 bg-amber-500/95 text-white text-xs font-bold text-center rounded-xl shadow-lg backdrop-blur-sm pointer-events-none transition-all"
-                >
-                    Carte momentanément indisponible
-                </div>
-            )}
-
+            <div data-active={active} className="hidden" aria-hidden="true"/>
             {/* BOUTON RECENTRER / RELANCER LA LOCALISATION */}
             <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-[20px] z-10">
                 <button onClick={handleLocateClick}
@@ -329,6 +451,12 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                 marginTop: 'calc(135px + env(safe-area-inset-top))',
                 marginRight: '20px'
             }}/>
+
+            <SnapAvatarLayer
+                people={people ?? []}
+                onSelectUser={onSelectUser}
+                onClusterClick={() => cancelLongPress()}
+            />
 
             {/* MARQUEURS ACTIFS */}
             {squadDetails?.active_beer_call?.map((call: BeerCall) => {
@@ -386,46 +514,6 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                 </Marker>;
             })}
 
-            {/* Joueur utilisable uniquement sur fix live ; Canvas conservé en pause sinon. */}
-            {hasHadLiveLocation && userLocation && (
-                <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="bottom"
-                        style={{zIndex: 50}}>
-                    <div onClick={hasLiveLocation ? handlePlayerClick : undefined}
-                         role={hasLiveLocation ? 'button' : undefined} tabIndex={hasLiveLocation ? 0 : -1}
-                         aria-label={hasLiveLocation ? 'Créer un Beer Call' : undefined}
-                         aria-hidden={!hasLiveLocation} inert={!hasLiveLocation}
-                         onKeyDown={(event) => {
-                             if (!hasLiveLocation) return;
-                             if (event.key === 'Enter' || event.key === ' ') {
-                                 event.preventDefault();
-                                 handlePlayerClick();
-                             }
-                         }}
-                            className={`relative flex flex-col items-center cursor-pointer group rounded-full p-2 after:content-[''] after:absolute after:inset-1 after:rounded-full after:animate-soft-pulse after:z-[-1] animate-in fade-in zoom-in-50 duration-500 delay-300 fill-mode-both ${hasLiveLocation ? '' : 'invisible pointer-events-none'}`}>
-                        <div
-                            className="absolute -top-7 px-3 py-1 bg-white/70 backdrop-blur-sm rounded-full shadow-sm border border-gray-100 transition-opacity opacity-100 group-hover:opacity-100 group-hover:scale-105 group-hover:bg-white group-hover:border-beer pointer-events-none whitespace-nowrap">
-                            <span
-                                className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-beer transition-colors">📸🍻</span>
-                        </div>
-                        <div className="relative w-24 h-32 flex items-end justify-center pb-2">
-                            <div className="absolute inset-0 pointer-events-none">
-                                {profile?.avatar ? (
-                                    (hasMapLoaded || Boolean(isMapReady)) ? (
-                                        <Suspense fallback={<AvatarLoadingIndicator phase="canvas-suspense"/>}>
-                                            <SafeAvatar config={profile.avatar} disableZoom={true} disablePan={true} view="dashboard" active={active && hasLiveLocation}/>
-                                        </Suspense>
-                                    ) : (
-                                        <AvatarLoadingIndicator phase="map-bootstrap"/>
-                                    )
-                                ) : (
-                                    <UserIcon size={32} className="text-beer drop-shadow-xl m-auto mt-10"/>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </Marker>
-            )}
-
             {/* MARQUEURS PASSÉS */}
             {squadDetails?.past_beer_calls?.map((call: BeerCall) => {
                 const numLng = Number(call.longitude);
@@ -453,5 +541,6 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
         </>}>
             <RetainedNativeMap element={mapElement} frozen={isMapContextLost}/>
         </MapContentsContext.Provider>
+        </>
     );
 });

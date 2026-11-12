@@ -4,3 +4,12 @@ dist
 .idea
 .opencode
 coverage
+.env
+.env.*
+!.env.example
+firebase-credentials*.json
+secrets
+.renderer-dist
+docs/runs
+runs
+

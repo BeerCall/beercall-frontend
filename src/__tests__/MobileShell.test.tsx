@@ -13,11 +13,6 @@ vi.mock('../hooks/useSquads', () => ({
   useSquads: () => ({ data: [], isLoading: false }),
 }));
 
-const mockLogout = vi.fn();
-vi.mock('../store/useUserStore', () => ({
-  useUserStore: (selector: (state: { logout: () => void }) => unknown) =>
-    selector({ logout: mockLogout }),
-}));
 
 describe('MobileShell - Confinement du scroll et barre basse (UX-03)', () => {
   it('définit le confinement de scroll racine dans index.css sans débordement safe-area', () => {
@@ -80,35 +75,65 @@ describe('MobileShell - Confinement du scroll et barre basse (UX-03)', () => {
     expect(bottomNav.className).not.toContain('pt-4');
     expect(bottomNav.className).not.toContain('pb-[calc(16px_');
 
-    const profile = container.querySelector('[aria-label="Profil"]') as HTMLElement;
-    expect(profile.className).toContain('w-14');
-    expect(profile.className).toContain('h-14');
-    expect(profile.className).toContain('border-4');
-    expect(profile.className).toContain('shadow-md');
-    expect(profile.className).not.toContain('w-[70px]');
-    expect(profile.className).not.toContain('shadow-2xl');
+    const launch = container.querySelector('[aria-label="Lancer l\'apéro"]') as HTMLElement;
+    expect(launch.className).toContain('absolute');
+    expect(launch.className).toContain('-top-11');
+    expect(launch.className).toContain('left-1/2');
+    expect(launch.className).toContain('-translate-x-1/2');
+    expect(launch.querySelectorAll('svg')).toHaveLength(1);
+    expect(launch.querySelector('svg')).toHaveAttribute('viewBox', '0 0 100 110');
+    expect(launch.querySelector('svg')).toHaveAttribute('width', '85');
+    expect(launch.querySelector('svg')).toHaveAttribute('height', '95');
+    expect(container.querySelector('[aria-label="Profil"]')).toBeInTheDocument();
   });
 
   it('préserve l’interactivité des boutons de navigation et les gestes internes', async () => {
     const user = userEvent.setup();
     const onCreate = vi.fn();
     const onJoin = vi.fn();
+    const onLaunch = vi.fn();
 
     render(
       <MemoryRouter>
-        <Navbar onCreateClick={onCreate} onJoinClick={onJoin} />
+        <Navbar onCreateClick={onCreate} onJoinClick={onJoin} onLaunchApero={onLaunch} />
       </MemoryRouter>
     );
 
     const connectionsBtn = screen.getByRole('button', { name: /Connexions/i });
     const profileBtn = screen.getByRole('button', { name: /Profil/i });
-    const signOutBtn = screen.getByRole('button', { name: /Sign Out/i });
+    const launchBtn = screen.getByRole('button', { name: /Lancer l'apéro/i });
 
     expect(connectionsBtn).toBeInTheDocument();
     expect(profileBtn).toBeInTheDocument();
-    expect(signOutBtn).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Sign Out/i })).not.toBeInTheDocument();
 
-    await user.click(signOutBtn);
-    expect(mockLogout).toHaveBeenCalledTimes(1);
+    await user.click(launchBtn);
+    expect(onLaunch).toHaveBeenCalledTimes(1);
+    expect(onLaunch.mock.calls[0]).toEqual([]);
+  });
+
+  it('le bouton central est désactivé sans squad et reste inerte hors Dashboard', async () => {
+    const user = userEvent.setup();
+    const onLaunch = vi.fn();
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <Navbar onCreateClick={vi.fn()} onJoinClick={vi.fn()} onLaunchApero={onLaunch} launchAperoDisabled />
+      </MemoryRouter>
+    );
+    const disabled = screen.getByRole('button', { name: /lancer un apéro/i });
+    expect(disabled).toBeDisabled();
+    expect(disabled).toHaveAttribute('aria-disabled', 'true');
+    await user.click(disabled);
+    expect(onLaunch).not.toHaveBeenCalled();
+
+    rerender(
+      <MemoryRouter>
+        <Navbar onCreateClick={vi.fn()} onJoinClick={vi.fn()} />
+      </MemoryRouter>
+    );
+    const fallback = screen.getByRole('button', { name: /Lancer l'apéro/i });
+    expect(fallback).toBeEnabled();
+    await user.click(fallback);
   });
 });

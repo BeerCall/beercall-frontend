@@ -6,12 +6,28 @@ import { mapMockControl } from '../../setupTests';
 import { clearSceneMetrics, getLatestSceneSignal } from '../lib/sceneMetrics';
 import type { MapRef } from 'react-map-gl/maplibre';
 
+vi.mock('../three/lease/useLease', () => ({
+    useLease: (_surface: string, enabled = true) => ({
+        requested: enabled,
+        granted: enabled,
+        blocked: false,
+        blockedReason: null,
+        token: enabled ? { surface: 'map', instanceId: 'inst_map', generation: 1 } : null,
+        error: null,
+        release: vi.fn(),
+    }),
+}));
+
 // Fake MapLibre Map instance avec gestionnaire d'événements
 class FakeMapLibreMap {
   private listeners = new Map<string, Set<(evt?: unknown) => void>>();
   public resizeCalled = 0;
   public repaintCalled = 0;
   public stopCalled = 0;
+  getCenter() { return {lng: 3.5, lat: 49.25}; }
+  getZoom() { return 15; }
+  getBearing() { return 37; }
+  getPitch() { return 51; }
 
   on(event: string, fn: (evt?: unknown) => void) {
     if (!this.listeners.has(event)) {
@@ -120,9 +136,9 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     // 1. La readiness est invalidée
     expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
 
-    // 2. Le statut HTML local est affiché
+    // 2. Le statut HTML local est affiché (restauration automatique en cours)
     expect(screen.getByRole('status', { name: 'Statut carte' })).toBeInTheDocument();
-    expect(screen.getByText('Carte momentanément indisponible')).toBeInTheDocument();
+    expect(screen.getByText('Restauration de la carte…')).toBeInTheDocument();
 
     // 3. La carte et le conteneur restent montés dans le DOM (aucun démontage brutal)
     expect(screen.getByTestId('mock-map')).toBeInTheDocument();
@@ -159,7 +175,7 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     act(() => {
       fakeMap.fire('webglcontextlost');
     });
-    expect(screen.getByText('Carte momentanément indisponible')).toBeInTheDocument();
+    expect(screen.getByText('Restauration de la carte…')).toBeInTheDocument();
 
     // Restauration
     act(() => {
@@ -171,7 +187,7 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     expect(fakeMap.repaintCalled).toBeGreaterThanOrEqual(1);
 
     // Le statut DOIT rester visible tant que le nouvel idle n'a pas été confirmé
-    expect(screen.getByText('Carte momentanément indisponible')).toBeInTheDocument();
+    expect(screen.getByText('Restauration de la carte…')).toBeInTheDocument();
     expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
 
     // Arrivée du nouvel idle valide
@@ -266,7 +282,6 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     };
     const { rerender, unmount } = render(<MapSection {...props}/>);
     act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
-    const mapNode = screen.getByTestId('mock-map');
     const initialNativeProps = mapMockControl.latestProps;
     expect(initialNativeProps?.mapStyle).toContain('positron');
 
@@ -276,20 +291,17 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
 
     rerender(<MapSection {...props} isNightMode={true} canCreateFromLocation={true} active={false}/>);
-    expect(mapMockControl.latestProps).toBe(initialNativeProps);
-    expect(screen.getByTestId('mock-map')).toBe(mapNode);
-    // Le nouveau fix et les enfants ne sont pas figés avec l'adaptateur.
-    expect(screen.getByRole('button', { name: 'Me recentrer' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Créer un Beer Call' })).toBeInTheDocument();
+    // P0 : la carte reste montée et garde son contexte ; PersistentDashboard la masque.
+    expect(screen.getByTestId('mock-map')).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Statut carte' })).toBeInTheDocument();
 
+    // Au retour actif, la même map est conservée avec la vue restaurée
+    rerender(<MapSection {...props} isNightMode={true} canCreateFromLocation={true} active={true}/>);
     act(() => { fakeMap.fire('webglcontextrestored'); });
-    expect(mapMockControl.latestProps).toBe(initialNativeProps);
-    expect(screen.getByRole('status', { name: 'Statut carte' })).toBeInTheDocument();
     act(() => { mapMockControl.triggerIdle(); });
-    expect(mapMockControl.latestProps).not.toBe(initialNativeProps);
     expect(mapMockControl.latestProps?.mapStyle).toContain('dark-matter');
-    expect(screen.getByTestId('mock-map')).toBe(mapNode);
+    expect(screen.getByTestId('mock-map')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Me recentrer' })).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Statut carte' })).not.toBeInTheDocument();
     expect(getLatestSceneSignal('mapInteractive')).toBeDefined();
 
@@ -298,7 +310,7 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     expect(fakeMap.getListenerCount('webglcontextrestored')).toBe(0);
   });
 
-  it('conserve le joueur inerte en pause après un vrai fix, sans rendre le cache initial actionnable', () => {
+  it('ne monte jamais le vieux marker joueur et garde la source Snap stable', () => {
     const fakeMap = new FakeMapLibreMap();
     const openCamera = vi.fn();
     const props: React.ComponentProps<typeof MapSection> = {
@@ -311,25 +323,94 @@ describe('Map Context Recovery (T14g / REL-01)', () => {
     act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
     expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
     expect(screen.queryByTestId('safe-avatar-container')).not.toBeInTheDocument();
+    const source = screen.getByTestId('mock-source');
+    expect(source.querySelectorAll('[data-layer]')).toHaveLength(3);
 
     rerender(<MapSection {...props} canCreateFromLocation={true}/>);
-    const player = screen.getByTestId('safe-avatar-container');
-    expect(screen.getByRole('button', { name: 'Créer un Beer Call' })).toBeInTheDocument();
     rerender(<MapSection {...props} active={false}/>);
-    expect(screen.getByTestId('safe-avatar-container')).toBe(player);
-    expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
-    expect(player.closest('[inert]')).not.toBeNull();
-    fireEvent.click(player);
-    expect(openCamera).not.toHaveBeenCalled();
-
-    // Retour actif, mais GPS encore en recherche : le cache ne réactive rien.
-    rerender(<MapSection {...props}/>);
-    expect(screen.getByTestId('safe-avatar-container')).toBe(player);
-    expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
     rerender(<MapSection {...props} canCreateFromLocation={true}/>);
-    expect(screen.getByTestId('safe-avatar-container')).toBe(player);
-    expect(player.closest('[inert]')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un Beer Call' }));
-    expect(openCamera).toHaveBeenCalledOnce();
+    const newSource = screen.getByTestId('mock-source');
+    expect(newSource).toBeInTheDocument();
+    expect(newSource.querySelectorAll('[data-layer]')).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+    expect(openCamera).not.toHaveBeenCalled();
+  });
+
+  it('manual retry replaces only the map, preserves its camera and rejects every retired callback', () => {
+    const oldMap = new FakeMapLibreMap();
+    const mapRef = createFakeMapRef(oldMap);
+    const openCamera = vi.fn();
+    render(<MapSection mapRef={mapRef} userLocation={{lat: 48, lng: 2}} isNightMode={false}
+      canCreateFromLocation={false} squadDetails={null} profile={dummyProfile} handleMapPointerDown={vi.fn()}
+      handleMapPointerMove={vi.fn()} cancelLongPress={vi.fn()} handleManualRecenter={vi.fn()}
+      handleBeerCallClick={vi.fn()} openCamera={openCamera} setIsWorldsModalOpen={vi.fn()}/>);
+    act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
+    const oldNode = screen.getByTestId('mock-map');
+    const oldLoad = mapMockControl.latestProps!.onLoad!;
+    const oldIdle = mapMockControl.latestProps!.onIdle!;
+    act(() => oldMap.fire('webglcontextlost'));
+    // Le bouton n'apparaît qu'après l'échec de la restauration automatique.
+    act(() => { vi.advanceTimersByTime(5_000); });
+    fireEvent.click(screen.getByRole('button', {name: 'Réessayer la carte'}));
+    expect(screen.getByTestId('mock-map')).not.toBe(oldNode);
+    expect(screen.getAllByTestId('mock-map')).toHaveLength(1);
+    expect(mapMockControl.latestProps!.initialViewState).toEqual({longitude: 3.5, latitude: 49.25, zoom: 15, bearing: 37, pitch: 51});
+    expect(oldMap.getListenerCount('webglcontextlost')).toBe(0);
+    expect(oldMap.getListenerCount('webglcontextrestored')).toBe(0);
+    const nextMap = new FakeMapLibreMap();
+    mapRef.current = createFakeMapRef(nextMap).current;
+    act(() => { oldLoad(); oldIdle(); oldMap.fire('webglcontextrestored'); mapMockControl.triggerIdle(); });
+    expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+    expect(screen.getByRole('status', {name: 'Statut carte'})).toBeInTheDocument();
+    act(() => { (mapMockControl.latestProps!.onLoad as (event: {target: unknown}) => void)({target: nextMap}); });
+    expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+    act(() => oldIdle());
+    expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+    act(() => mapMockControl.triggerIdle());
+    expect(getLatestSceneSignal('mapInteractive')).toBeDefined();
+    expect(screen.queryByRole('status', {name: 'Statut carte'})).not.toBeInTheDocument();
+    expect(nextMap.getListenerCount('webglcontextlost')).toBe(1);
+    expect(screen.queryByRole('button', {name: 'Créer un Beer Call'})).not.toBeInTheDocument();
+    expect(openCamera).not.toHaveBeenCalled();
+  });
+
+  it('keeps native recovery outside the map stacking context and hides it when the retained route is invisible', () => {
+    const fakeMap = new FakeMapLibreMap();
+    const props: React.ComponentProps<typeof MapSection> = {
+      mapRef: createFakeMapRef(fakeMap), userLocation: {lat: 48, lng: 2}, isNightMode: false, squadDetails: null,
+      profile: dummyProfile, handleMapPointerDown: vi.fn(), handleMapPointerMove: vi.fn(), cancelLongPress: vi.fn(),
+      handleManualRecenter: vi.fn(), handleBeerCallClick: vi.fn(), openCamera: vi.fn(), setIsWorldsModalOpen: vi.fn(),
+    };
+    const content = (visible: boolean) => <div data-testid="map-stacking-context" style={{position: 'relative', zIndex: 0}}>
+      <MapSection {...props} visible={visible}/>
+    </div>;
+    const view = render(content(true));
+    act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); fakeMap.fire('webglcontextlost'); });
+    const status = screen.getByRole('status', {name: 'Statut carte'});
+    expect(status.closest('[data-testid="map-stacking-context"]')).toBeNull();
+    act(() => { vi.advanceTimersByTime(5_000); });
+    expect(screen.getByRole('button', {name: 'Réessayer la carte'})).toBeEnabled();
+    view.rerender(content(false));
+    expect(screen.queryByRole('status', {name: 'Statut carte'})).toBeNull();
+    view.rerender(content(true));
+    expect(screen.getByRole('status', {name: 'Statut carte'})).toBeInTheDocument();
+  });
+
+  it('recertifies a loaded map after real restoration even when an earlier tile error removed its metric generation', () => {
+    const fakeMap = new FakeMapLibreMap();
+    render(<MapSection mapRef={createFakeMapRef(fakeMap)} userLocation={{lat: 48, lng: 2}} isNightMode={false}
+      squadDetails={null} profile={dummyProfile} handleMapPointerDown={vi.fn()} handleMapPointerMove={vi.fn()}
+      cancelLongPress={vi.fn()} handleManualRecenter={vi.fn()} handleBeerCallClick={vi.fn()}
+      openCamera={vi.fn()} setIsWorldsModalOpen={vi.fn()}/>);
+    act(() => { mapMockControl.triggerLoad(); mapMockControl.triggerIdle(); });
+    expect(getLatestSceneSignal('mapInteractive')).toBeDefined();
+    act(() => { mapMockControl.triggerError(); mapMockControl.triggerIdle(); });
+    expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+    act(() => { fakeMap.fire('webglcontextlost'); fakeMap.fire('webglcontextrestored'); });
+    expect(screen.getByRole('status', {name: 'Statut carte'})).toBeInTheDocument();
+    expect(getLatestSceneSignal('mapInteractive')).toBeUndefined();
+    act(() => mapMockControl.triggerIdle());
+    expect(getLatestSceneSignal('mapInteractive')).toBeDefined();
+    expect(screen.queryByRole('status', {name: 'Statut carte'})).toBeNull();
   });
 });

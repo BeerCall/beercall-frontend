@@ -8,13 +8,22 @@ import { getMessaging } from 'firebase/messaging/sw';
 // 2. On exécute la mise en cache de tes fichiers compilés
 precacheAndRoute(self.__WB_MANIFEST || []);
 
-// 🔥 3. LA MAGIE ANTI-CACHE : On force l'iPhone à tuer l'ancienne version
-self.addEventListener('install', () => {
-    self.skipWaiting();
-});
-
+// 3. Mise à jour sûre : plus de `skipWaiting()`.
+// Un nouveau service worker s'installe et attend que toutes les pages soient
+// fermées avant de s'activer. Sans cela, son activation supprime les anciens
+// chunks hachés pendant qu'une page ouverte peut encore les demander : c'est
+// exactement le scénario d'écran blanc après rebuild.
+// `clients.claim()` reste sans danger : il ne s'applique qu'après activation,
+// donc quand plus aucune ancienne page ne tourne.
 self.addEventListener('activate', (event) => {
     event.waitUntil(self.clients.claim());
+});
+
+// Le bandeau « Nouvelle version disponible » demande explicitement l'activation.
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        event.waitUntil(self.skipWaiting());
+    }
 });
 
 // 4. Même configuration optionnelle que l'application, injectée au build.

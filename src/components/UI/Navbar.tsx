@@ -1,6 +1,6 @@
-import {Users, User, LogOut} from 'lucide-react';
+import {Users, User} from 'lucide-react';
+import BigPintButton from './BigPintButton';
 import SquadWheel from './SquadWheel';
-import {useUserStore} from '../../store/useUserStore';
 import {useSquads} from '../../hooks/useSquads';
 import {useNavigate, useParams} from 'react-router-dom';
 
@@ -8,22 +8,33 @@ interface NavbarProps {
     onCreateClick: () => void;
     onJoinClick: () => void;
     isNightMode?: boolean;
+    /** B07 — lance l'apéro depuis le bouton central (Dashboard uniquement). */
+    onLaunchApero?: () => void;
+    launchAperoDisabled?: boolean;
 }
 
-export default function Navbar({onCreateClick, onJoinClick, isNightMode = false}: NavbarProps) {
+export default function Navbar({
+    onCreateClick,
+    onJoinClick,
+    isNightMode = false,
+    onLaunchApero,
+    launchAperoDisabled = false,
+}: NavbarProps) {
     const navigate = useNavigate();
-    const logout = useUserStore((state) => state.logout);
     const {data: squads, isLoading} = useSquads();
     const {id: currentSquadId} = useParams();
+    const launchTitle = launchAperoDisabled
+        ? 'Rejoins ou crée une squad pour lancer un apéro'
+        : "Lancer l'apéro";
 
     return (
         <div className="relative w-full pointer-events-none">
 
-            {/* 🎡 LA ROULETTE (Boutons + Squads) */}
+            {/* LA ROULETTE (Boutons + Squads) */}
             <SquadWheel squads={squads ?? []} currentSquadId={currentSquadId} isLoading={isLoading} isNightMode={isNightMode}
                         onCreate={onCreateClick} onJoin={onJoinClick} onSelect={id => navigate(`/squad/${id}`)} />
 
-            {/* 🔽 BARRE DE NAVIGATION INFÉRIEURE */}
+            {/* BARRE DE NAVIGATION INFÉRIEURE */}
             <div
                 data-bottom-nav
                 className="h-[64px] bg-white border-t border-gray-100 px-8 flex justify-between items-center pt-1 pb-1 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] relative z-50 pointer-events-auto touch-none overscroll-none">
@@ -35,15 +46,23 @@ export default function Navbar({onCreateClick, onJoinClick, isNightMode = false}
                     <span className="text-[10px] font-black uppercase mt-1 tracking-tighter">Connexions</span>
                 </button>
 
-                <button aria-label="Profil" onClick={() => navigate('/profile')}
-                        className="flex flex-col items-center justify-center bg-beer text-white w-14 h-14 rounded-full shadow-md transform border-4 border-white z-50 hover:scale-105 active:scale-95 transition-all">
-                    <User size={24}/>
+                <button
+                    type="button"
+                    aria-label={launchTitle}
+                    aria-disabled={launchAperoDisabled}
+                    title={launchTitle}
+                    disabled={launchAperoDisabled}
+                    onClick={() => onLaunchApero?.()}
+                    className="absolute -top-11 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center justify-center leading-none hover:scale-110 active:scale-95 transition-transform disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100 disabled:cursor-not-allowed"
+                >
+                    <BigPintButton variant="3d"/>
+                    <span className="sr-only">Lancer l'apéro</span>
                 </button>
 
-                <button onClick={logout}
-                        className="flex flex-col items-center min-w-11 min-h-11 justify-center text-gray-700 hover:text-red-700 transition-colors">
-                    <LogOut size={24}/>
-                    <span className="text-[10px] font-black uppercase mt-1 tracking-tighter">Sign Out</span>
+                <button aria-label="Profil" onClick={() => navigate('/profile')}
+                        className="flex flex-col items-center min-w-11 min-h-11 justify-center text-gray-700 hover:text-amber-800">
+                    <User size={24}/>
+                    <span className="text-[10px] font-black uppercase mt-1 tracking-tighter">Profil</span>
                 </button>
             </div>
         </div>

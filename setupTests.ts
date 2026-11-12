@@ -2,7 +2,21 @@ import '@testing-library/jest-dom';
 import * as React from 'react';
 import { afterEach, beforeAll, afterAll, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { Group } from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { server } from './src/__tests__/mocks/server';
+
+GLTFLoader.prototype.parseAsync = vi.fn().mockImplementation(async () => {
+    const scene = new Group();
+    return {
+        scene,
+        scenes: [scene],
+        animations: [],
+        cameras: [],
+        asset: {},
+        userData: {},
+    };
+});
 
 // Preserve the existing scene/animation doubles; prepared transport and decoding
 // have dedicated loader and exporter tests, independent of the GPU doubles.
@@ -129,8 +143,23 @@ vi.mock('react-map-gl/maplibre', () => {
         default: MockMap,
         Marker: ({ children }: React.PropsWithChildren<unknown>) => React.createElement('div', { 'data-testid': 'mock-marker' }, children),
         NavigationControl: () => React.createElement('div', { 'data-testid': 'mock-nav-control' }),
+        useMap: () => ({ current: null }),
+        Source: ({ children }: React.PropsWithChildren<unknown>) => React.createElement('div', { 'data-testid': 'mock-source' }, children),
+        Layer: ({ id }: { id: string }) => React.createElement('div', { 'data-layer': id }),
     };
 });
+
+vi.mock('./src/three/lease/useLease', () => ({
+    useLease: (surface: string, enabled = true) => ({
+        requested: enabled,
+        granted: enabled,
+        blocked: false,
+        blockedReason: null,
+        token: enabled ? { surface, instanceId: `mock_${surface}`, generation: 1 } : null,
+        error: null,
+        release: vi.fn(),
+    }),
+}));
 
 vi.mock('@react-three/fiber', () => ({
     Canvas: () => null,
@@ -188,6 +217,12 @@ global.Notification = {
     requestPermission: vi.fn().mockResolvedValue('granted'),
     permission: 'granted',
 } as unknown as typeof Notification;
+
+// jsdom n'implémente pas les URL de blobs : maplibre-gl s'en sert au chargement
+// pour enregistrer son worker. Le polyfill de Vitest échoue sur son Blob
+// (`_bytes` undefined), on le remplace donc systématiquement dans les tests.
+URL.createObjectURL = vi.fn(() => 'blob:vitest-maplibre-worker') as unknown as typeof URL.createObjectURL;
+URL.revokeObjectURL = vi.fn() as unknown as typeof URL.revokeObjectURL;
 
 if (!global.navigator.serviceWorker) {
     Object.defineProperty(global.navigator, 'serviceWorker', {

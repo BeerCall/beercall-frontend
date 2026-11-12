@@ -29,7 +29,7 @@ export default function GameScreen({aperoIdProp}: { aperoIdProp: string | null }
     // ERREUR CRITIQUE
     if (isError) {
         return (
-            <div className="h-screen bg-gray-950 flex flex-col items-center justify-center p-6 text-center">
+            <div className="h-full min-h-0 bg-gray-950 flex flex-col items-center justify-center p-6 text-center">
                 <AlertTriangle className="text-red-500 mb-4" size={64}/>
                 <h2 className="text-2xl font-black text-white mb-2 uppercase">Aïe, ça a cassé !</h2>
                 <p className="text-gray-400 mb-8">On a renversé une bière sur les serveurs...</p>
@@ -44,7 +44,7 @@ export default function GameScreen({aperoIdProp}: { aperoIdProp: string | null }
     // CHARGEMENT INITIAL (Le fameux loader qui tournait en boucle)
     if (!gameState) {
         return (
-            <div className="h-screen bg-gray-950 flex flex-col items-center justify-center">
+            <div className="h-full min-h-0 bg-gray-950 flex flex-col items-center justify-center">
                 <Loader2 className="animate-spin text-amber-600 mb-4" size={48}/>
                 <span className="text-gray-500 font-bold uppercase tracking-widest text-xs animate-pulse">
                     Chargement de l'apéro {aperoId}...
@@ -54,11 +54,12 @@ export default function GameScreen({aperoIdProp}: { aperoIdProp: string | null }
     }
 
     return (
-        <div className="h-screen w-full bg-gray-950 text-white flex flex-col overflow-hidden relative">
+        <div className="h-full min-h-0 w-full bg-gray-950 text-white flex flex-col overflow-hidden relative">
 
             {/* 🚀 2. LE BOUTON FERMER (Permanent, en haut à gauche) */}
             <button
                 onClick={closeGameScreen}
+                aria-label="Fermer le jeu"
                 className="absolute top-[calc(15px+env(safe-area-inset-top))] left-6 z-[110] p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/10 transition-all active:scale-90"
             >
                 <X size={24} className="text-white"/>

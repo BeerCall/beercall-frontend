@@ -9,7 +9,8 @@ import { useToastStore } from '../store/useToastStore';
 import Dashboard from '../pages/Dashboard';
 import type { BeerCall } from '../types/api';
 
-vi.mock('react-router-dom', async () => ({ ...await vi.importActual<typeof import('react-router-dom')>('react-router-dom'), useParams: () => ({ id: '1' }), useNavigate: () => vi.fn() }));
+const routerState = vi.hoisted(() => ({ squadId: '1' as string | undefined }));
+vi.mock('react-router-dom', async () => ({ ...await vi.importActual<typeof import('react-router-dom')>('react-router-dom'), useParams: () => ({ id: routerState.squadId }), useNavigate: () => vi.fn() }));
 vi.mock('../hooks/useProfile', () => ({ useProfile: () => ({ data: null }) }));
 vi.mock('../hooks/useSquadDetails', () => ({ useSquadDetails: () => ({ data: { id: '1', name: 'Squad test', color: '#F59E0B', icon: 'beer', invite_code: 'TEST', active_beer_call: [], scheduled_beer_calls: [], past_beer_calls: [] } }) }));
 vi.mock('../hooks/useSquads', () => ({ useSquads: () => ({ data: [], isLoading: false }) }));
@@ -18,6 +19,9 @@ vi.mock('../hooks/useSquadWebSocket', () => ({ useSquadWebSocket: vi.fn() }));
 vi.mock('react-map-gl/maplibre', () => ({
     default: ({ children }: PropsWithChildren) => <div>{children}</div>,
     Marker: ({ children }: PropsWithChildren) => <div>{children}</div>, NavigationControl: () => null,
+    useMap: () => ({ current: null }),
+    Source: ({ children }: PropsWithChildren) => <div>{children}</div>,
+    Layer: () => null,
 }));
 interface Callbacks { success: PositionCallback; error?: PositionErrorCallback | null }
 const points: Callbacks[] = [], watches: Callbacks[] = [];
@@ -35,7 +39,7 @@ function mountHook() {
 }
 beforeEach(() => {
     state().stopTracking();
-    useLocationStore.setState({ userLocation: null, acquiredAt: null, isTracking: false, hasSessionFix: false, locationStatus: 'idle', error: null });
+    useLocationStore.setState({ userLocation: null, acquiredAt: null, isTracking: false, hasSessionFix: false, locationStatus: 'idle', error: null, permissionGranted: false });
     useToastStore.setState({ toasts: [] });
     points.length = 0; watches.length = 0;
     Object.defineProperty(navigator, 'geolocation', { configurable: true, value: {
@@ -46,6 +50,7 @@ beforeEach(() => {
 });
 afterEach(() => {
     state().stopTracking();
+    routerState.squadId = '1';
     if (originalGeo) Object.defineProperty(navigator, 'geolocation', originalGeo);
     else Reflect.deleteProperty(navigator, 'geolocation');
 });
@@ -59,6 +64,29 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(click).not.toHaveBeenCalled();
         expect(useToastStore.getState().toasts.at(-1)?.message).toContain('Autorise la localisation');
         expect(useToastStore.getState().toasts.at(-1)?.message).not.toContain('Recherche en cours');
+    });
+
+    it('openCamera suit id absent → présent → absent sans clic hors squad', () => {
+        const view = renderHook(() => useDashboard());
+        const input = document.createElement('input');
+        const click = vi.spyOn(input, 'click').mockImplementation(() => {});
+        view.result.current.fileInputRef.current = input;
+
+        routerState.squadId = undefined;
+        view.rerender();
+        act(() => { state().startTracking(); watches[0].success(position(1000)); });
+        act(() => view.result.current.openCamera());
+        expect(click).not.toHaveBeenCalled();
+
+        routerState.squadId = '1';
+        view.rerender();
+        act(() => view.result.current.openCamera());
+        expect(click).toHaveBeenCalledTimes(1);
+
+        routerState.squadId = undefined;
+        view.rerender();
+        act(() => view.result.current.openCamera());
+        expect(click).toHaveBeenCalledTimes(1);
     });
 
     it('sans fix live : aucun joueur, aucun texte GPS mémorisé, cache conservé et création bloquée', () => {
@@ -78,14 +106,14 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(click).not.toHaveBeenCalled();
     });
 
-    it('affiche le joueur et recentre seulement avec un fix live', () => {
+    it('recentre seulement avec un fix live et ne monte jamais le marker Créer', () => {
         cache(1234);
         render(<Dashboard />);
         expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
 
         act(() => watches.at(-1)!.success(position(4000, 48, 2)));
 
-        expect(screen.getByRole('button', { name: 'Créer un Beer Call' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Me recentrer' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Relancer la localisation' })).not.toBeInTheDocument();
 
@@ -185,14 +213,31 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(result.current.startingScheduledApero).toMatchObject({ id: 'scheduled', location_name: 'Lieu prévu' });
     });
 
-    it('démarre le suivi au montage actif et l arrête au démontage', () => {
+    it('démarre le suivi au montage actif sans permission préalable et l arrête au démontage', () => {
         const { unmount } = renderHook(() => useDashboard());
         expect(watches).toHaveLength(1);
         expect(points).toHaveLength(1);
-        expect(state().isTracking).toBe(true);
+        expect(state()).toMatchObject({ isTracking: true, permissionGranted: false });
 
         act(() => unmount());
         expect(state().isTracking).toBe(false);
+    });
+
+    it('ne relance pas d acquisition au retour visible après un refus', () => {
+        renderHook(() => useDashboard());
+        act(() => watches[0].error?.(gpsError));
+        const setVisibility = (value: DocumentVisibilityState) => {
+            Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => value });
+            act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+        };
+        try {
+            setVisibility('hidden');
+            setVisibility('visible');
+            expect(watches).toHaveLength(1);
+            expect(state()).toMatchObject({ locationStatus: 'denied', permissionGranted: false });
+        } finally {
+            Reflect.deleteProperty(document, 'visibilityState');
+        }
     });
 
     it('dix rerenders ne doublent ni le point ni le watch', () => {
@@ -202,7 +247,7 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         expect(watches).toHaveLength(1);
     });
 
-    it('arrête à la mise en arrière-plan et reprend une seule fois au retour visible', () => {
+    it('garde le suivi en arrière-plan et ne rejoue pas d acquisition au retour visible', () => {
         renderHook(() => useDashboard());
         const setVisibility = (value: DocumentVisibilityState) => {
             Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => value });
@@ -210,11 +255,12 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
         };
         try {
             setVisibility('hidden');
-            expect(state()).toMatchObject({ isTracking: false, locationStatus: 'idle' });
+            expect(state()).toMatchObject({ isTracking: true, locationStatus: 'searching' });
+            expect(watches).toHaveLength(1);
             setVisibility('visible');
-            expect(watches).toHaveLength(2);
+            expect(watches).toHaveLength(1);
             setVisibility('visible');
-            expect(watches).toHaveLength(2);
+            expect(watches).toHaveLength(1);
         } finally {
             Reflect.deleteProperty(document, 'visibilityState');
         }
@@ -234,6 +280,31 @@ describe('Dashboard : GPS de session et garde live de caméra', () => {
             act(() => watches[0].success(position(3000, 90)));
             expect(state()).toMatchObject({ acquiredAt: 2000, userLocation: { lat: 49, lng: 2 } });
         }
+    });
+
+    it('sans fix, Lancer existe avec squad mais ne déclenche jamais l’input et aucun marker Créer n’existe', () => {
+        const { container } = render(<Dashboard />);
+        const input = container.querySelector('input[aria-label="Photo du Beer Call"]') as HTMLInputElement;
+        const click = vi.spyOn(input, 'click').mockImplementation(() => {});
+
+        const launch = screen.getByRole('button', { name: /Lancer l'apéro/i });
+        expect(launch).toBeEnabled();
+        fireEvent.click(launch);
+        expect(click).not.toHaveBeenCalled();
+        expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
+    });
+
+    it('avec fix live, Lancer déclenche l’input une fois avec la position live', () => {
+        const { container } = render(<Dashboard />);
+        act(() => { state().startTracking(); watches[0].success(position(2000, 49, 4)); });
+        const input = container.querySelector('input[aria-label="Photo du Beer Call"]') as HTMLInputElement;
+        const click = vi.spyOn(input, 'click').mockImplementation(() => {});
+
+        fireEvent.click(screen.getByRole('button', { name: /Lancer l'apéro/i }));
+
+        expect(click).toHaveBeenCalledTimes(1);
+        expect(state().userLocation).toEqual({ lat: 49, lng: 4 });
+        expect(screen.queryByRole('button', { name: 'Créer un Beer Call' })).not.toBeInTheDocument();
     });
 
     it('un refus ne relance pas de lui-même et une demande explicite réussit', () => {

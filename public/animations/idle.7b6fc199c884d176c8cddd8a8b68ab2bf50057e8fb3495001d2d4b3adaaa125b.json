@@ -1,0 +1,1316 @@
+{
+  "pack": "idle",
+  "formatVersion": 2,
+  "clips": [
+    {
+      "name": "Idle",
+      "duration": 1.6666666269302368,
+      "blendMode": 2500,
+      "uuid": "39119356-af1a-10c0-bc58-55abb8907a52",
+      "tracks": [
+        {
+          "name": "Root.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAABMMlL0AAGAZAAAAABMMlL0AAGAZ"
+        },
+        {
+          "name": "Root.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "9QQ1PwAAAAAAAAAA8gQ1P/UENT8AAAAAAAAAAPIENT8="
+        },
+        {
+          "name": "Root.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        },
+        {
+          "name": "Body.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "qpvtOdTobz+J54K7qpvtOUb5bz+J54K7qpvtObgJcD+J54K7qpvtOSoacD+K54K7qpvtOZ4qcD+K54K7qpvtORA7cD+K54K7qpvtOYJLcD+K54K7qpvtOfRbcD+K54K7qpvtOWZscD+K54K7qpvtOY6KcD+L54K7qpvtObaocD+L54K7qpvtOd7GcD+L54K7qpvtOQblcD+L54K7qpvtOS4DcT+M54K7qpvtOXojcT+M54K7qpvtOcZDcT+M54K7qpvtORJkcT+N54K7qpvtOV6EcT+N54K7qpvtOeh9cT+N54K7qpvtOXJ3cT+N54K7qpvtOf5wcT+N54K7qpvtOYhqcT+N54K7qpvtORJkcT+N54K7qpvtOZxdcT+N54K7qpvtOSZXcT+M54K7qpvtObJQcT+M54K7qpvtOTxKcT+M54K7qpvtOcZDcT+M54K7qpvtOVA9cT+M54K7qpvtOdo2cT+M54K7qpvtOWYwcT+M54K7qpvtOfApcT+M54K7qpvtOXojcT+M54K7qpvtOQQdcT+M54K7qpvtOY4WcT+M54K7qpvtORoQcT+M54K7qpvtOaQJcT+M54K7qpvtOS4DcT+M54K7qpvtOZjhcD+L54K7qpvtOQLAcD+L54K7qpvtOW6ecD+L54K7qpvtOdh8cD+K54K7qpvtOQBncD+K54K7qpvtOShRcD+K54K7qpvtOU47cD+K54K7qpvtOXYlcD+K54K7qpvtOZ4PcD+J54K7qpvtOcb5bz+J54K7qpvtOSD0bz+J54K7qpvtOXrubz+J54K7qpvtOdTobz+J54K7"
+        },
+        {
+          "name": "Body.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "keMZsdIucT58vx4yR8x4P5HjGbHSLnE+fL8eMkfMeD8="
+        },
+        {
+          "name": "Body.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/PwAAgD///38///9/PwAAgD///38/"
+        },
+        {
+          "name": "Hips.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "q+xQum8R6zzkkhs8q+xQum8R6zzkkhs8"
+        },
+        {
+          "name": "Hips.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "BDGOvTpWuzOicvOw2mF/PwQxjr06VrszonLzsNphfz8="
+        },
+        {
+          "name": "Hips.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP/3/fz///38/AACAP/3/fz///38/"
+        },
+        {
+          "name": "Abdomen.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "YND+MVtN2T0AABoyYND+MVtN2T0AABoy"
+        },
+        {
+          "name": "Abdomen.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "fGOevPEUBbMoaTEywPN/P3xjnrzxFAWzKGkxMsDzfz8="
+        },
+        {
+          "name": "Abdomen.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwAAgD8AAIA/AQCAPwAAgD8AAIA/"
+        },
+        {
+          "name": "Torso.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "oLCosTAxET4AgBC0oLCosTAxET4AgBC0"
+        },
+        {
+          "name": "Torso.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "lI8dPiZpc754cq271oR1P5SPHT4maXO+eHKtu9aEdT8="
+        },
+        {
+          "name": "Torso.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP/z/fz8BAIA/AACAP/z/fz8BAIA/"
+        },
+        {
+          "name": "Chest.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACkMfiHBT4AsK+yAACkMfiHBT4AsK+y"
+        },
+        {
+          "name": "Chest.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "ogJZuQHsDLMCkAgzAACAP0KIhLkBEB4zAz72NP//fz/cGs25BKDkMwWxbTX//38/NEkjugQtPDRDdgM2/f9/P0NkeLqFeoI0impoNvj/fz+ssrK6i9ClNG3btDbw/38/QrT0upmcxzShkgE34/9/P1XCILsw/OY0kyEvN87/fz8ZFUy769EBNQyFYjev/38/OrF7uwd8DjW5fo03hP9/P6pol7tvNBk1o9CrN03/fz+XR7K7H9shNW+vyzcI/38/G/XNu52IKDUQg+w3tf5/P4jo6bsjPC01n9QGOFX+fz/cygK8Rxw6NTw+Fzjp/X8/PToQvLe1RTVWLSc4dv1/PykCHbw1mFA12lU2OP78fz8X6Si8/l5bNY9zRDiE/H8/rb0zvM+WZjW4S1E4Dvx/P35XPbxn2XI1265cOKD7fz+Jl0W8plqANfB3Zjg8+38/jWdMvPhSiDW4jG445vp/PxS5UbwvjZE1Ndx0OKH6fz/jhFW8p1eFNTJbeThv+n8/XslXvAF8dzWFWnk4Ufp/P3uJWLyjtmU1n1l5OEf6fz9byVe8/3VVNbVYeThR+n8/34RVvBKsRjWjV3k4b/p/PxG5Ubx6ET01/tZ0OKH6fz+PZ0y8ISo2NUiIbjjm+n8/iZdFvBG3MTUtdGY4PPt/P35XPbzAXy81w6tcOKD7fz+tvTO8MrIuNUdJUTgO/H8/HekovCP3LjW2cUQ4hPx/PyoCHbzTvS81olQ2OP78fz83OhC8gmAwNY8sJzh2/X8/3soCvHJLMDXwPRc46f1/P4Do6bsanic1e9QGOFX+fz8b9c27jTQdNZ+C7De1/n8/p0eyu47wEDXgrss3CP9/P6pol7uclAI188+rN03/fz86sXu79HrkNMl9jTeE/38/GBVMuz/qvzRMg2I3r/9/P1XCILsf95c05B8vN87/fz8CtPS6HZlaNHGRATfj/38/rLKyugpkADRu2LQ28P9/P0BkeLoGfAwzCmZoNvj/fz9zSSO6BCiYMsNzAzb9/38/2xrNuQOAuzAGsG01//9/P0KIhLkBUIayBDT2NP//fz+iAlm5AewMswKQCDMAAIA/"
+        },
+        {
+          "name": "Chest.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P/3/fz/+/38///9/P/3/fz/+/38/"
+        },
+        {
+          "name": "Neck.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAB4MdlyCD4AgMyyAAB4MdlyCD4AgMyy"
+        },
+        {
+          "name": "Neck.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "Ci0bvH2hATJHgsUxD/1/PwotG7x9oQEyR4LFMQ/9fz8="
+        },
+        {
+          "name": "Neck.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP/3/fz/+/38/AACAP/3/fz/+/38/"
+        },
+        {
+          "name": "Head.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AIAissgjnT0AEP0yAIAissgjnT0AEP0y"
+        },
+        {
+          "name": "Head.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "uMrIvDVbCTLfOAU5T+x/P9cByLzo/gK0s7IEOXfsfz8po8W8VgZatKkfAznt7H8/VavBvD/LfrR9fQA5r+1/PyAcvLyfKXS0mJr5OLjufz8V/bS8EdY/tPwn8DgB8H8/M12svIlb0LMit+Q4fvF/P7xTorxsvKmzxmXXOCLzfz88AZe8o0hIs8xfyDjd9H8/t4+KvINkHLIG3bc4oPZ/P7VleryaJbgy2iGmOFj4fz+0TV68k8/pM31+kzj4+X8/gV1BvFB+ODRzS4A4b/t/P+gjJLzXU1s0ws5ZOLb8fz9hMwe87RZZNAlnMzjF/X8/xjXWu/ycMDTfHQ44mv5/P7nAoLugrsUzsErVNzb/fz+B8V27UiRWNNQ7kzeg/38/MlkDuxiSljQNPi433v9/P8IkTLoGxLY0pFWHNvv/fz85zo85AwXPNAVdv7X//38/ROuVOo5N4jR9Fse29f9/P8Tl7joeaPM0+5Uet+T/fz9oMxc7WD4CNWi5SLfT/38/aioqO+GdCzXF5GG3x/9/P9xxMDslpRY1CuZht8P/fz9qKio7JmoiNV3mYbfH/38/UTMXO2KgLzVJu0i30/9/P0Pl7jqY0T015Zcet+T/fz8E65U6zfRLNT0ax7b1/38/Mc6POUMUWTXFXb+1//9/PyklTLrGrmM1lVeHNvv/fz9NWQO7Z1RqNY1DLjfe/38/c/Fdu5tOazWxQJM3oP9/P8PAoLt3H2U1oFLVNzb/fz/PNda78GtWNYoiDjia/n8/ZTMHvC2cPjWjazM4xf1/P+wjJLxFAB01xNJZOLb8fz97XUG8zF0ONa9NgDhv+38/sk1evCcQ7zTugJM4+Pl/P7xlerznS7Q0bCSmOFj4fz+3j4q8X2FiNPvetzig9n8/NAGXvFrDqjMJYcg43fR/P7xTorwTRk2zK2bXOCLzfz82Xay8jusYtJ+25Dh+8X8/Ef20vGwcZbSCJ/A4AfB/Px8cvLy2+Ya0TZr5OLjufz9Yq8G8KeuGtGZ9ADmv7X8/KaPFvK2LXbSqHwM57ex/P9cByLycPvazxLIEOXfsfz+4ysi8NVsJMt84BTlP7H8/"
+        },
+        {
+          "name": "Head.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+/9/P/z/fz///38/+/9/P/z/fz///38/"
+        },
+        {
+          "name": "ShoulderL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "hlCMPbZQHD2nTfw8hlCMPbZQHD2nTfw8"
+        },
+        {
+          "name": "ShoulderL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "GyWKvpbQ1b52zdG+zchDPxslir6W0NW+ds3Rvs3IQz8="
+        },
+        {
+          "name": "ShoulderL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/P9/PwAAgD/9/38//P9/PwAAgD/9/38/"
+        },
+        {
+          "name": "UpperArmL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADgslUigj0AAAAyAADgslUigj0AAAAy"
+        },
+        {
+          "name": "UpperArmL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "TO49vzGMKb2HpDS+RkIlP7jdPb/S7im9D4M0vjVXJT8izT2/dlEqvZdhNL4hbCU/irw9v+SzKr0dQDS+DIElP5WrPb92eSu98Ag0vm+XJT9ymj2/vm4svUfHM76EriU/V3M9v2fHLb3aajO+FOAlPwhMPb+hSC+9WAUzvjISJj8bGz2/+BQxvVmVMr6FTyY/KOo8vx7gMr1IFzK+oo0mP9KzPL9R1DS9OpMxvuHRJj9lfTy/dMo2vb0KMb5IFic/10Y8v7K/OL3kgTC+oVonPywQPL9XtDq9sv0vvpOeJz+63ju/rH48vQd/L75H3Cc/La07v+xEPr3lDC++GxkoPz6FO7+nvz+9F6UuvrdKKD9nXTu/BBFBvURGLr6yeyg/Gkg7v4lSQr1HEy6+OZUoP/oyO78aZEO98+otvguuKD8kHju/eytEvTnTLb7HxSg/Swk7v7/yRL19uy2+gd0oP60TO79TrUS9z8wtvjTRKD8PHju/FGhEvSXeLb7lxCg/cCg7v7giRL157y2+lbgoP9AyO79o3UO9wwAuvkWsKD8sPTu/C5hDvQwSLr74nyg/7kc7vyz1Qr1VOC6+SpIoP8pSO7/ONEK9TWUuvi6EKD/ZcTu/yQRBvUmeLr5OXyg/+pA7v9y5P70t3S6+BTooPyywO79rVj69WyEvvloUKD+z1ju/dfY8vXJ7L7745Cc/Qf07v/2DO71c2S++RbUnP5gnPL8N8zm9RTswvhSBJz/sUTy/Elg4vRufML6uTCc/Yn08v8jKNr3ECjG+ShYnP8aoPL/CPDW9PnYxvtvfJj/E0jy/qLgzvQngMb7uqiY/s/w8vzs2Mr2MRTK+NXYmP8AiPb950TC9xKYyvvBFJj+uSD2/VH4vveIDM77kFSY/IWc9v0lILr2XUzO+EO8lP3OFPb9WKi292J0zvpPIJT+moz2/zyYsvTDiM75zoiU/QLI9v5OCK703HDS+co4lP/TAPb8y1iq9fUU0vnt7JT99zz2/kFcqvb9kNL4waSU/BN49v+7YKb37gzS+5VYlP1PsPb+plym92ZU0vn9FJT9M7j2/MYwpvYekNL5GQiU/"
+        },
+        {
+          "name": "UpperArmL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwIAgD8AAIA/AACAPwIAgD8AAIA/"
+        },
+        {
+          "name": "LowerArmL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACwsVY3Xj4AALayAACwsVY3Xj4AALay"
+        },
+        {
+          "name": "LowerArmL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "43P1vX2wq7zO80a+wC55P2SV9b26lau8KvRGvjwueT/ntvW9A3urvIz0Rr63LXk/ZNj1vURgq7zl9Ea+NC15P+X59b2DRau8RPVGvq8seT97Ova9/BGrvO/1Rr6wK3k/Dnv2vU7eqryi9ka+sSp5P8HP9r20mqq8jPdGvmEpeT9xJPe9HleqvHL4Rr4SKHk/QI33vWkDqryU+Ua+cSZ5P7cG+L14oqm82PpGvo4keT/8ifi9kTmpvEP8Rr6DInk/sxX5ve/JqLy8/Ua+VSB5P4Wo+b2uVKi8Sf9GvgkeeT/EQPq9HtunvOMAR76mG3k/vdz6vYFep7yEAke+Mxl5P4t6+71k4Ka8KwRHvrYWeT9mGPy9QmKmvNUFR744FHk/TrT8vaLlpbx2B0e+wBF5P4lM/b0AbKW8DQlHvlUPeT9J3/29wvakvJEKR77/DHk/AGv+vRqHpLwBDEe+xQp5PzLu/r1CHqS8WA1Hvq0IeT+eZ/+9Jr2jvJwOR767Bnk/YdD/vWBpo7yuD0e+DQV5P5UcAL6vFaO8wRBHvl4DeT+aRAC+pdWivJURR74UAnk/nmwAvqSVorxkEke+ygB5PxiEAL42cKK83xJHvggAeT+NmwC+mkqivFkTR75H/3g/BbMAviQlorzUE0e+hP54P6GiAL5QP6K8fhNHvgz/eD9AkgC+i1mivCcTR76T/3g/3YEAvrpzorzTEke+GwB5P3xxAL7wjaK8fRJHvqIAeT8VYQC+IqiivCoSR74pAXk/WxcAvgAeo7yoEEe+iQN5P3F0/73xsqO8vg5HvoYGeT+9l/69WGOkvHkMR74OCnk/2Z79vUUqpbzkCUe+Bg55P/GR/L0SAaa8GgdHvksSeT+Revu9X+CmvDAER762Fnk/KGP6vZS/p7xCAUe+HBt5PzRW+b1xlqi8bf5GvlMfeT82Xfi9UF2pvMn7Rr41I3k/aID3va4Nqrxu+Ua+pCZ5PwLG9r2Doqq8b/dGvogpeT99Mva9SxirvNz1Rr7QK3k/st31vQhcq7z29Ea+Hi15P+aI9b3An6u8CfRGvm0ueT/jc/W9fbCrvM7zRr7ALnk/"
+        },
+        {
+          "name": "LowerArmL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+/9/PwAAgD/8/38/+/9/PwAAgD/8/38/"
+        },
+        {
+          "name": "WristL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABgsYRScT4AAOqxAABgsYRScT4AAOqx"
+        },
+        {
+          "name": "WristL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "A14YPEXIzjsx+b08POp/PwNeGDxFyM47Mfm9PDzqfz8="
+        },
+        {
+          "name": "WristL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P///fz///38///9/P///fz///38/"
+        },
+        {
+          "name": "Index1L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADoMCfS3jwAAAixAADoMCfS3jwAAAix"
+        },
+        {
+          "name": "Index1L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "3b5bvafsbr2I6rm9aiJ+P92+W72n7G69iOq5vWoifj8="
+        },
+        {
+          "name": "Index1L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD/6/38/AACAPwAAgD/6/38/"
+        },
+        {
+          "name": "Index2L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACIMu7a9z0AAJixAACIMu7a9z0AAJix"
+        },
+        {
+          "name": "Index2L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "zk2Qu3BpFT4tor49WyJ8P9B1kLtvbxU+1qq+PQgifD/YnZC7b3UVPoOzvj20IXw/4sWQu297FT4uvL49YCF8P+XtkLtxgRU+2sS+PQ0hfD/4FZG7dIcVPojNvj25IHw/Bj6Ru3KNFT4y1r49ZiB8Pxlmkbt3kxU+4N6+PRIgfD8gjpG7dZkVPovnvj2/H3w/I7aRu3afFT428L49ax98Pynekbt4pRU+5/i+PRcffD86BpK7d6sVPowBvz3EHnw/RS6Su3ixFT48Cr89cB58P9b6J7uX5hU+/nK+PbIefD9s96Y6xnMWPo9AvT02HXw/8tS9OwIRFz4N17s9fxp8P1X7KDw+qxc+ymu6PX8WfD8Z4Gc8OzQYPqQ0uT3MEXw/YJKDPKVOGD7cnLg9nhB8P4DNfzxvMBg+r7+4PdURfD/Sb2k8J/wXPu8quT3uE3w/svxEPA+zFz7U2bk9nhZ8P1JFFTwSWRc+Yb66PWgZfD/WZr47TvUWPrnAuz3JG3w/zeskO5SBFj42w7w9Ah58P0crzLkDFxY+Yqa9PYUffD/I5iq7I70VPjFTvj2aIHw/9mGCu4mZFT4Lu749ZiB8P/1HkbuhjBU+kNu+PV0gfD/YO5G7B4sVPp/Yvj11IHw/lC+Ru2yJFT6o1b49jiB8P2QjkbvShxU+t9K+PaYgfD83F5G7OoYVPsPPvj2+IHw/AwuRu6GEFT7PzL491iB8P9X+kLsGgxU+2sm+Pe8gfD+l8pC7boEVPufGvj0HIXw/dOaQu9R/FT72w749HyF8P0rakLs7fhU+AsG+PTchfD8gzpC7onwVPg6+vj1PIXw/8MGQuwp7FT4bu749aCF8P8S1kLtxeRU+KLi+PYAhfD+VqZC71XcVPjW1vj2YIXw/YJ2Quzx2FT5Dsr49sCF8PzuRkLujdBU+UK++PcghfD8DhZC7CnMVPlusvj3hIXw/zniQu3BxFT5nqb49+SF8PzhwkLvXbxU+9ae+PQwifD+UZ5C7Om4VPoOmvj0gInw//l6Qu6RsFT4Qpb49NCJ8P1pWkLsHaxU+nqO+PUcifD/OTZC7cGkVPi2ivj1bInw/"
+        },
+        {
+          "name": "Index2L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwAAgD///38/AQCAPwAAgD///38/"
+        },
+        {
+          "name": "Index3L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAsf4lAj0AAAAAAACAsf4lAj0AAAAA"
+        },
+        {
+          "name": "Index3L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "43eovci/N7vKO6s8RBN/P+N3qL2dvze7yTurPEQTfz/ld6i9kb83u8g7qzxEE38/5HeovYe/N7vJO6s8RBN/P+V3qL2Mvze7yjurPEQTfz/ld6i9mr83u8s7qzxEE38/5XeovYG/N7vHO6s8RBN/P+d3qL2Evze7xjurPEQTfz/ld6i9Zb83u8g7qzxEE38/53eovWq/N7vIO6s8RBN/P+V3qL2Rvze7xzurPEQTfz/nd6i9Zb83u8c7qzxEE38/gC6mvebUNbuaqKs8Mxl/PxQYob3pkDG7epqsPBsmfz86uJq9bDksuw/JrTyzNX8/R/aTvRyPJrtLCa88h0V/P6mVjb2INiG7/jawPM1Tfz8Pfoi9KvEcu4onsTy+Xn8//TOGvcUFG7uTk7E8h2N/P2gkh728zxu7RGexPJNhfz+29Ym9Miweu0TisDyiW38/zXuOvRL3IbuBDLA81FF/P888lL2Vyia7SPyuPOVEfz+1cZq9KP4ruyLWrTxbNn8/DzKgvXPQMLsixaw8WCh/Pzq3pL3emTS7Ve6rPPYcfz/Eh6e9wvU2u29oqzy2FX8/2XeovX/ZN7tVY6s8PhN/P9x3qL1d2De7nWGrPD4Tfz/bd6i9SNc3u+Nfqzw+E38/2neovf7VN7srXqs8PxN/P9p3qL301De7clyrPD8Tfz/dd6i9y9M3u7taqzw/E38/3XeovcLSN7sFWas8PxN/P993qL2k0Te7TFerPEATfz/fd6i9dtA3u5NVqzxAE38/3neovUHPN7vcU6s8QBN/P993qL1Dzje7IVKrPEETfz/ed6i9Hs03u2lQqzxBE38/4HeovdTLN7u0Tqs8QRN/P993qL3byje7/EyrPEETfz/gd6i9wck3u0RLqzxCE38/4HeovY3IN7uMSas8QhN/P+B3qL2Qxze70UerPEITfz/gd6i9bcY3uxtGqzxDE38/4XeovT/FN7tkRKs8QxN/P+J3qL0nxDe7p0KrPEMTfz/id6i9AMM3u/VAqzxDE38/43eove/BN7s7P6s8RBN/P+N3qL2qwDe7gT2rPEQTfz/jd6i9yL83u8o7qzxEE38/"
+        },
+        {
+          "name": "Index3L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+/9/P/z/fz///38/+/9/P/z/fz///38/"
+        },
+        {
+          "name": "Index4L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAsdSw6jwAAEAyAACAsdSw6jwAAEAy"
+        },
+        {
+          "name": "Index4L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "mLn3vBVfUDwlWMU7idt/P5i597wVX1A8JVjFO4nbfz8="
+        },
+        {
+          "name": "Index4L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwIAgD/9/38/AQCAPwIAgD/9/38/"
+        },
+        {
+          "name": "Middle1L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADoMCfS3jwAAAixAADoMCfS3jwAAAix"
+        },
+        {
+          "name": "Middle1L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "9kw+vEZeQbxkM4c8Fu5/P/ZMPrxGXkG8ZDOHPBbufz8="
+        },
+        {
+          "name": "Middle1L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwEAgD///38/AACAPwEAgD///38/"
+        },
+        {
+          "name": "Middle2L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAMJhy9T0AABKyAAAAMJhy9T0AABKy"
+        },
+        {
+          "name": "Middle2L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "dXdbva8KcT366125HjB/P3Z3W72vCnE98OpduR4wfz91d1u9rwpxPX7rXbkeMH8/dXdbva4KcT3/6l25HjB/P3V3W72vCnE9xetduR4wfz92d1u9rQpxPaTqXbkeMH8/dndbva8KcT1t6125HjB/P3Z3W72uCnE9a+tduR4wfz92d1u9rwpxPW3rXbkeMH8/dndbvbAKcT0o6125HjB/P3Z3W72wCnE9getduR4wfz92d1u9sQpxPRnrXbkeMH8/d3dbvbAKcT1w6125HjB/P3Z3W72vCnE9W+tduR4wfz93d1u9rwpxPdnrXbkeMH8/dndbva8KcT046125HjB/P3Z3W72vCnE9l+pduR4wfz94d1u9rwpxPSjrXbkeMH8/eHdbvbEKcT0+6125HjB/P3Z3W72wCnE9OutduR4wfz92d1u9rwpxPX/rXbkeMH8/eXdbvbAKcT0H6125HjB/P3h3W72vCnE94OpduR4wfz93d1u9rwpxPUrrXbkeMH8/yWtVvaO1bz3fcZ83gDZ/P2rSQ70U1Gs9SfA0OjVIfz94gyq9pz1mPYvz2DpkX38/zzIRvcmkYD0vtis74nN/Pyks/7y6vlw9a7FXO46Afz+iEfO8jmdbPaTNZjuchH8/qRT2vPq8Wz0KC2M7nYN/PyUs/7y5vlw9bbFXO46Afz/5FAe9m2dePdb5RDtSe38/zTIRvcSkYD0xtis74nN/P+pPHb2tUmM9T3QNO2pqfz99gyq9pz1mPaTz2DpkX38/l7Y3vfQnaT1c/ZY6o1N/P2LSQ70V1Gs9lvA0OjVIfz+I7k298w5uPTC7nzkyPn8/xmtVvZy1bz0Mbp83gDZ/P2X2Wb3QtXA9Rbshubgxfz/td1u9kcJwPRbTYbliMH8/4HdbvZfKcD2AY2G5WjB/P9J3W72Z0nA9tPRguVIwfz/Ed1u9nNpwPTmFYLlLMH8/uHdbvaDicD2YFmC5QzB/P6t3W72k6nA9/KZfuTwwfz+dd1u9pvJwPTw5X7k0MH8/kHdbvaj6cD0NyV65LTB/P4N3W72rAnE9wlpeuSUwfz91d1u9rwpxPfrrXbkeMH8/"
+        },
+        {
+          "name": "Middle2L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+v9/P/z/fz///38/+v9/P/z/fz///38/"
+        },
+        {
+          "name": "Middle3L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAAHmBID0AAA0zAAAAAHmBID0AAA0z"
+        },
+        {
+          "name": "Middle3L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "QMf1vTNAj7sGNKy8JBd+P0HH9b1+P4+7iTWsvCQXfj9Ax/W9wD6Puw83rLwkF34/Qcf1vQ8+j7uROKy8Ixd+P0DH9b1LPY+7FjqsvCMXfj9Cx/W9gjyPu5k7rLwjF34/Q8f1vcc7j7sdPay8Ixd+P0PH9b0jO4+7oT6svCIXfj9Bx/W9QzqPuyNArLwiF34/Qsf1vZk5j7uoQay8Ihd+P0PH9b3WOI+7LkOsvCIXfj9Ix/W9IjiPu7RErLwhF34/RMf1vV83j7szRqy8IRd+P0XH9b2lNo+7uUesvCEXfj9Ex/W94TWPuz1JrLwhF34/Rcf1vSc1j7u/Sqy8IBd+P0TH9b1sNI+7REysvCAXfj9Fx/W9pjOPu8dNrLwgF34/Rcf1vdYyj7tLT6y8IBd+P0jH9b0vMo+7zlCsvB8Xfj9Hx/W9fjGPu1JSrLwfF34/R8f1vcYwj7vZU6y8Hxd+P0fH9b3/L4+7WlWsvB8Xfj9Mx/W9Qi+Pu99WrLweF34/3P3wvZbBobvOwqy8Nil+P/AM471Onte75mCuvKNbfj+O/M69ToUSvF6wsLx4nn4/xea6vYg3ObxC+7K8m9p+P6DrrL2xHlS8n5C0vHwAfz+IHai9KVxdvFobtbzADH8/gU+pvUMUW7yR3LS8wQl/P6frrL2lHlS8oJC0vHwAfz8J37K9EKxIvGDks7zD8H4/vea6vZM3Obw9+7K8m9p+P6WDxL0utCa8BOOxvKu+fj+O/M69TYUSvGKwsLx4nn4/AnTZvbuq/Lt5fK+8c3x+P/QM4716nte75WCuvKNbfj95D+u95Ka4u6uCrbwOP34/3/3wvbfBobvMwqy8Nil+P3GW9L01z5O7EXCsvKgbfj9Mx/W9vzGPu8pRrLwfF34/R8f1vWIzj7t5Tqy8IBd+P0rH9b3rNI+7LEusvCAXfj9Gx/W9lDaPu9tHrLwhF34/Scf1vTY4j7uORKy8IRd+P0PH9b3DOY+7P0GsvCIXfj9Cx/W9WjuPu/I9rLwjF34/Qcf1vfQ8j7ujOqy8Ixd+Pz/H9b2iPo+7VjesvCQXfj9Ax/W9M0CPuwY0rLwkF34/"
+        },
+        {
+          "name": "Middle3L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/P9/P/r/fz///38//P9/P/r/fz///38/"
+        },
+        {
+          "name": "Middle4L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAMelqID0AAAAyAAAAMelqID0AAAAy"
+        },
+        {
+          "name": "Middle4L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "qQucvNdmED1rofO7jcl/P6kLnLzXZhA9a6Hzu43Jfz8="
+        },
+        {
+          "name": "Middle4L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwMAgD8AAIA/AQCAPwMAgD8AAIA/"
+        },
+        {
+          "name": "Ring1L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADoMCfS3jwAAAixAADoMCfS3jwAAAix"
+        },
+        {
+          "name": "Ring1L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "xX75vONR7bwNaQM+tqd9P8V++bzjUe28DWkDPranfT8="
+        },
+        {
+          "name": "Ring1L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwIAgD8AAIA/AQCAPwIAgD8AAIA/"
+        },
+        {
+          "name": "Ring2L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABsssg89D0AGAGzAABsssg89D0AGAGz"
+        },
+        {
+          "name": "Ring2L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "3/Azvd322T23TCe9GBV+P93wM73d9tk9vUwnvRgVfj/e8DO92vbZPbpMJ70ZFX4/3fAzvdr22T27TCe9GRV+P9/wM73d9tk9tkwnvRgVfj/f8DO93PbZPbxMJ70YFX4/3vAzvd322T2/TCe9GBV+P9/wM73b9tk9uUwnvRkVfj/f8DO92/bZPbZMJ70ZFX4/4PAzvd722T24TCe9GBV+P9/wM73a9tk9uUwnvRkVfj/f8DO92vbZPblMJ70ZFX4/3/Azvdr22T28TCe9GRV+P+DwM73d9tk9tkwnvRgVfj/e8DO92vbZPbdMJ70ZFX4/4PAzvd322T22TCe9GBV+P+DwM73a9tk9uUwnvRkVfj/f8DO92vbZPbhMJ70ZFX4/4fAzvd322T28TCe9GBV+P+DwM73c9tk9ukwnvRgVfj/g8DO92vbZPbxMJ70ZFX4/4PAzvdr22T28TCe9GRV+P+DwM73d9tk9uEwnvRgVfj/g8DO93fbZPblMJ70YFX4/4fAzvd322T29TCe9GBV+P+DwM73d9tk9u0wnvRgVfj8lvSy9rm/YPcF7IL23I34/oMQXvQH70z3Logy930t+P/8z87yojc097SvgvFx/fj/Q17a8XBrHPc4Lp7x3q34/e9mMvHqawj1pm368ycV+P83XfLwcDsE9NUxjvADOfj/5AoK8ynDBPcQXarz/y34/gNmMvHiawj1om368ycV+P7u4nrwJhcQ9sDeQvAW7fj/O17a8WhrHPdALp7x3q34/CbrTvDExyj21YcK8SJd+P/4z87ykjc09+yvgvFx/fj8PVgm9dejQPWH0/bxtZX4/l8QXvff60z3Iogy930t+P8rQI72fitY9vQkYvT01fj8ivSy9qm/YPbp7IL23I34/JiYyvZSV2T2QmiW9xhh+P7H3M72jtNk93lMnvfIVfj+39jO9G77ZPdRSJ73TFX4/v/UzvY/H2T3PUSe9tBV+P8b0M70K0dk9y1AnvZUVfj/M8zO9eNrZPcVPJ712FX4/0PIzvfHj2T3FTie9VxV+P9bxM71l7dk9w00nvTgVfj/f8DO93fbZPbdMJ70YFX4/"
+        },
+        {
+          "name": "Ring2L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/PwIAgD8AAIA//v9/PwIAgD8AAIA/"
+        },
+        {
+          "name": "Ring3L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AABQMnTbBj0AAJ6yAABQMnTbBj0AAJ6y"
+        },
+        {
+          "name": "Ring3L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "k1D0vZqQaj0nYCO9EIt9P5NQ9L2YkGo9K2AjvRCLfT+TUPS9m5BqPShgI70Qi30/lFD0vZeQaj0nYCO9EIt9P5NQ9L2bkGo9KGAjvRCLfT+TUPS9l5BqPSVgI70Qi30/lVD0vZeQaj0nYCO9EIt9P5VQ9L2dkGo9JmAjvRCLfT+TUPS9l5BqPShgI70Qi30/kVD0vZaQaj0nYCO9EIt9P5JQ9L2XkGo9KWAjvRCLfT+RUPS9lpBqPSdgI70Qi30/klD0vZuQaj0nYCO9EIt9P5JQ9L2UkGo9KWAjvRCLfT+QUPS9lpBqPSdgI70Qi30/kFD0vZSQaj0nYCO9EIt9P5FQ9L2VkGo9KGAjvRCLfT+QUPS9lZBqPSlgI70Qi30/kVD0vZSQaj0nYCO9EIt9P5FQ9L2VkGo9KWAjvRCLfT+RUPS9l5BqPSlgI70Qi30/kVD0vZuQaj0rYCO9EIt9P5FQ9L2WkGo9KGAjvRCLfT+SUPS9m5BqPSpgI70Qi30/klD0vZuQaj0nYCO9EIt9P5FQ9L2UkGo9KmAjvRCLfT8FW/G98wBoPRGQH70vm30/67zovW+LYD0sdhS918h9Pz1W3L1Lz1U9kH4EvTMHfj8m7M+94g9LPcIJ6byuQX4/wUfHvUiUQz1xztK8EWh+P0VPxL3JAUE9yCrLvNN0fj+JDMW9p6VBPWkRzbyrcX4/ukfHvUGUQz1yztK8EWh+P3n1yr2zw0Y9tETcvPZXfj8q7M+96A9LPb0J6byuQX4/Md3VvcQ0UD3jU/i8LyZ+Pz5W3L1Rz1U9i34EvTMHfj9QzuK97mhbPZvSDL0p530/8rzovX+LYD0tdhS918h9P2Ow7b2J1GQ9xNYavdiufT8KW/G99ABoPQ6QH70um30/I5TzvXztaT1QbSK9GI99P5BQ9L2akGo9K2AjvRCLfT+QUPS9mJBqPS1gI70Qi30/kVD0vZiQaj0qYCO9EIt9P5FQ9L2VkGo9L2AjvRCLfT+RUPS9l5BqPSlgI70Qi30/kVD0vZSQaj0pYCO9EIt9P5NQ9L2UkGo9J2AjvRCLfT+TUPS9mpBqPSdgI70Qi30/"
+        },
+        {
+          "name": "Ring3L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwAAgD8CAIA/AQCAPwAAgD8CAIA/"
+        },
+        {
+          "name": "Ring4L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAsgLVAz0AAIIyAACAsgLVAz0AAIIy"
+        },
+        {
+          "name": "Ring4L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "MDWZvSLp5DyMFPq7ySx/PzA1mb0i6eQ8jBT6u8ksfz8="
+        },
+        {
+          "name": "Ring4L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwIAgD8CAIA/AQCAPwIAgD8CAIA/"
+        },
+        {
+          "name": "Pinky1L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADoMCfS3jwAAAixAADoMCfS3jwAAAix"
+        },
+        {
+          "name": "Pinky1L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "EbT+vJke4Lx0h2g+OBZ5PxG0/ryZHuC8dIdoPjgWeT8="
+        },
+        {
+          "name": "Pinky1L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/P9/PwEAgD///38//P9/PwEAgD///38/"
+        },
+        {
+          "name": "Pinky2L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAMM+Z87T0AAA+yAAAMM+Z87T0AAA+y"
+        },
+        {
+          "name": "Pinky2L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "I+KcvWEReT1adDq+3Hh6PyPinL1hEXk9WnQ6vtx4ej8="
+        },
+        {
+          "name": "Pinky2L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8BAIA/AACAPwAAgD8BAIA/"
+        },
+        {
+          "name": "Pinky3L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAMaYa0zwAACgxAAAAMaYa0zwAACgx"
+        },
+        {
+          "name": "Pinky3L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "F0S3vflQG72euba8YLl+PxdEt735UBu9nrm2vGC5fj8="
+        },
+        {
+          "name": "Pinky3L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+/9/PwEAgD/8/38/+/9/PwEAgD/8/38/"
+        },
+        {
+          "name": "Pinky4L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAMKk02zwAAKAxAADAMKk02zwAAKAx"
+        },
+        {
+          "name": "Pinky4L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "sofvvThPHrxk61O7yzp+P7KH7704Tx68ZOtTu8s6fj8="
+        },
+        {
+          "name": "Pinky4L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP/r/fz/+/38/AACAP/r/fz/+/38/"
+        },
+        {
+          "name": "Thumb1L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADoMCfS3jwAAAixAADoMCfS3jwAAAix"
+        },
+        {
+          "name": "Thumb1L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "fVqivs7Dor4mDTm+/gNgP31aor7Ow6K+Jg05vv4DYD8="
+        },
+        {
+          "name": "Thumb1L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwEAgD8BAIA/AACAPwEAgD8BAIA/"
+        },
+        {
+          "name": "Thumb2L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAMti+qT0AABgzAAAAMti+qT0AABgz"
+        },
+        {
+          "name": "Thumb2L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "tAAHPrWejD4DOjG8odBzP0zXBj7fi4w+h5UvvNnUcz88WQY+gXmMPjFrLLz823M/04UFPpVnjD4kuCe8B+ZzP6dZBD7OVow+lssgvPXycz/u2gI+PimMPoVtF7zIBnQ/pgYBPkb8iz6YNQy8PB10P+TB/T2XwYs+6dX9uxg4dD+Y2Pg9SH6LPrFw37tjVnQ/o1nzPakyiz7ncL27wHd0Px9Q7T1C34o+yxqYu7+bdD9myeY9uoSKPoiDX7vjwXQ/XdXfPdUjij5jlQm7pOl0P0uG2D16vYk+ajI9unUSdT+o8NA9vFKJPkhmOTrBO3U/lSrJPcjkiD6hSw4792R1P4BLwT3YdIg+ZGNvO42NdT+Ra7k9SQSIPlU9qDv/tHU/4qKxPXuUhz5YNNg72dp1P/AIqj25Joc+dIIDPLz+dT84tKI9WbyGPtUSGjxTIHY/VLmbPaJWhj6/jC88YT92P+IqlT2l9oU+VbZDPLtbdj8aGY89b52FPr9eVjxFdXY/zZGJPelLhT76W2c874t2PyWghD27AoU+SYx2PLqfdj/uS4A9LceEPhfkgTwPsHY/ej15PcuLhD7okIc80b52P34xcz2PY4Q++iyMPJvJdj+lgW49sTuEPnvNjzwA03Y/YB1rPeA9hD7oO5I8m9V2P/wiaT01QIQ+D0+TPALXdj9JeWg9UUOEPtutkzwp13Y/godqPQxIhD64l5I8v9R2P83ycD3rTYQ+ye2NPHXOdj9ZjHs985yEPkXLhTxpunY/FyWFPWsKhT7c83Q8rJ12P9B0jj0ClIU+qFdYPO13dj/mfJk99jWGPgttNjwjSXY/bOylPSTrhj6CKhA8sRF2P3pasz0vrYc+E6DNO5nSdT+CS8E92HSIPg5jbzuNjXU/yTnPPY06iT5vBoc68ER1P9Wf3D3z9ok+Y+DDurD7dD9MA+k9qaOKPk0Ke7v3tHQ/Cv3zPXM7iz49Y8G76HN0P+E9/T2Kuos+RqT6u0w7dD+oRwI+eh6MPh75E7xiDXQ/tegEPvhljD53QSS8xetzP8J9Bj4HgYw+TrMtvJbZcz+0AAc+tZ6MPgM6Mbyh0HM/"
+        },
+        {
+          "name": "Thumb2L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P/7/fz8AAIA///9/P/7/fz8AAIA/"
+        },
+        {
+          "name": "Thumb3L.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADgMtnx/jwAAKyyAADgMtnx/jwAAKyy"
+        },
+        {
+          "name": "Thumb3L.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "JIh0vfWQAj3qu/A9XKJ9PzZCdb1vlgI9ff3wPa2gfT/Ec3e97aYCPXvD8T2Rm30/OSB7vX3CAj32DvM985J9PyUkgL0m6QI9OuD0PbeGfT8EdYO9txoDPXM29z3Adn0/43+HvQFXAz2KD/o98GJ9P/o/jL2gnQM9A2j9PShLfT8JrpG9AO4DPUmdAD5QL30/gMCXvXxHBD0rwAI+Wg99P/Jqnr09qQQ9RxgFPj/rfD9GnqW9QxIFPR+gBz4Pw3w/l0itvWaBBT1bUQo+6pZ8P19Vtb1k9QU9uiQNPgxnfD/Wrb292WwGPTASED7HM3w/XznGvVfmBj0JERM+jf17P//dzr1bYAc9IxgWPuvEez8zgde9cNkHPTIeGT6Gins/dAjgvRhQCD3xGRw+Gk97PwRa6L0Jwwg9ZgIfPnITez+pXfC9CTEJPSTPIT5j2Ho/2fz3veuYCT1aeCQ+xp56P8Aj/73M+Qk9IfcmPm1nej9x4AK+0VIKPZRFKT4iM3o/3+IFvmajCj2bXis+nQJ6P0KTCL4R6wo9Nj4tPoPWeT/y7Aq+cikLPUDhLj5ir3k/r+wMvjleCz2JRTA+rY15PziQDr5jiQs9hmkxPsFxeT9I1g++0qoLPWdMMj7eW3k/er4QvqHCCz3x7TI+L0x5PxhJEb7I0As9XE4zPshCeT8JdxG+f9ULPU1uMz6pP3k/XuUQvprGCz33CDM+jUl5P7ksD75zmQs9bdYxPkRneT9ATAy+t00LPdjVLz5KmHk/+koIvpLjCj3hCy0+Ldt5P+05A741XAo99oMpPostej9qbfq9CboJPUlSJT4IjHo/5djsvdMACT2FlCA+gvJ6PwEn3r3+NQg9knEbPltcez8E3s69V2AHPSEYFj7rxHs/bZC/vbiHBj1uuxA+9yd8P6rRsL1stAU9HY8LPhWCfD+zKaO9g+4EPTfDBj7n0Hw/BgyXvRw9BD22gAI+GxN9P/nRjL0VpgM9w879PURIfT+FuYS9ri0DPRYb+D2UcH0/w859vZvWAj31APQ9m4x9P2DWdr1LogI9AozxPQCdfT8kiHS99ZACPeq78D1con0/"
+        },
+        {
+          "name": "Thumb3L.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz8BAIA/AACAP///fz8BAIA/"
+        },
+        {
+          "name": "ShoulderR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "luyKvdVUHD0TPvw8luyKvdVUHD0TPvw8"
+        },
+        {
+          "name": "ShoulderR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "CSWKvo3Q1T5rzdE+1chDPwklir6N0NU+a83RPtXIQz8="
+        },
+        {
+          "name": "ShoulderR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+v9/PwAAgD8BAIA/+v9/PwAAgD8BAIA/"
+        },
+        {
+          "name": "UpperArmR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAQs18igj0AAJAzAAAQs18igj0AAJAz"
+        },
+        {
+          "name": "UpperArmR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "ibs9vww6Lz5K4N49IdYjP2CpPb/HXS8+J77ePX3pIz83lz2/fIEvPhKc3j3T/CM/CYU9vzelLz7sed49KxAkP8dxPb+c2y8+MzfePS0kJD/3XT2/NRswPo3k3T2FOCQ/HzM9v7pyMD5BUt09FmckP74HPb9i0jA+SrHcPeuVJD8f0Dy/J04xPr4M3D3X0CQ/CJg8v0XQMT5dXNs97wslP91XPL+aXDI+mZHaPeVPJT8IFzy/B/EyPgLK2T2+kyU/Y9I7v+WJMz699dg9ntslP5SNO79YIzQ+ex/YPWUjJj/vSTu/j7o0PgVM1z2saSY/TgY7vwBPNT5BfNY9xa8mP5fIOr+K2zU+eb/VPSXvJj97izq/bV02Poj/1D1oLic/K1g6v5vSNj5kX9Q9yWInPzslOr9TQDc+D8zTPdmWJz8sBDq/2383Pgsm0z14uic/nOM5v8O2Nz5cj9I9wt0nP5TDOb+s5Dc+pAjSPbIAKD/6zDm/l+s3PlLz0T0/9ic/XNY5v4DyNz7y3dE9z+snP2rhOb9n3jc+T/nRPWrgJz947Dm/V8o3Pr4U0j0C1Sc/hfc5v0i2Nz4ZMNI9mcknP48COr8zojc+fkvSPTK+Jz8ADzq/inc3PpiP0j37sSc/+xs6v/BDNz6649I9c6UnPyxBOr/H+DY+9XrTPUl+Jz/UZjq/baU2Ppsg1D3JVic/5Yw6v5JKNj4709Q9/y4nP/TJOr+VyTU+GpXVPbHvJj84Bzu/FEM1PgBg1j0gsCY/Y0o7v5W0ND7cPdc92mkmP+aNO78xHzQ+nxXYPYMjJj+K0ju/3IczPsrw2D2v2yU/BBc8vwfxMj7rydk9xJMlP6NXPL+JXzI+spjaPc9PJT/qlzy/vdExPuVf2z3lCyU/HtA8vyROMT6+DNw92dAkPyQHPb9S2jA+gsTcPayVJD/xMj2/BXUwPsRX3T0GZyQ/N149v9oXMD5r3N09oDgkP8Z1Pb9f0C8+eyjePaEgJD8xjD2/+JkvPrl33j2zCCQ/yKE9v5NxLz6Krt49R/EjP163Pb8kSS8+WeXePdbZIz+Juz2/DDovPkrg3j0h1iM/"
+        },
+        {
+          "name": "UpperArmR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AwCAPwAAgD8AAIA/AwCAPwAAgD8AAIA/"
+        },
+        {
+          "name": "LowerArmR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAM003Xj4AAHQzAAAAM003Xj4AAHQz"
+        },
+        {
+          "name": "LowerArmR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "BOBPvoEfUL4D6Kk+IQZmP2AAUL4iG1C+W+epPqsEZj/AIFC+yRZQvrXmqT40A2Y/GUFQvmsSUL4M5qk+vgFmP3phUL4QDlC+Y+WpPkcAZj+oh1C+pfxPvuPmqT7S/mU/VtdQvo/6T76w46k+A/tlP9oqUb7i70++6OGpPjP3ZT9bilG+pulPvsXeqT6y8mU/Ve9RvivXT76s3ak+MO5lP45oUr4szE++R9qpPoPoZT9o5VK++rhPvj7YqT7S4mU/9nJTvkenT7451ak+QNxlPxgCVL75kU++ztKpPqnVZT/UnFS+cn1PvsLPqT5yzmU/nThVvn5mT74gzak+NcdlPwncVb5OUE++CsqpPom/ZT/qgVa+xjlPvuzGqT63t2U/kihXvhwjT77Tw6k+069lP2POV76PDE++wsCpPvCnZT+kcVi+TvZOvsa9qT4koGU/jg5Zvs7fTr4ju6k+o5hlP1yqWb63y06+HripPhuRZT+bOVq+f7ZOvt+1qT43imU/QMdavt2kTr4Ks6k+ToNlPwBEW76wkU6+PrGpPkZ9ZT/Nvlu+BINOvrWuqT46d2U/ayRcvhp1Tr7xrKk+QHJlPweKXL4yZ06+LqupPkJtZT8f0ly+tlpOvm6qqT7EaWU/Oxpdvj9OTr6tqak+Q2ZlPyBcXb7ET06+lKapPsdiZT/QX12+RTpOvnWqqT4MY2U/hWNdvsYkTr5Zrqk+UGNlP/dYXb5jL06+zqypPqNjZT9sTl2+AjpOvkOrqT72Y2U/3UNdvptETr63qak+SmRlP1E5Xb43T06+LKipPp1kZT8Nily+MWdOvi2rqT5CbWU/b5hbvkCITr5fr6k+G3llPwJsWr5MsU6+qbSpPryHZT/PEFm+oeBOvuK6qT6BmGU/VJdXvhUUT77Hwak+j6plPyUTVr7RSE++/8ipPvG8ZT8pmVS+FnxPvizQqT6pzmU/KD1TvjqrT77k1qk+z95lP64PUr7/00++ztypPq7sZT8LHVG+xPRPvqDhqT7D92U/7GxQvoQMUL4q5ak+wv9lP3YmUL4DFlC+luapPvICZj8E4E++gR9QvgPoqT4hBmY/"
+        },
+        {
+          "name": "LowerArmR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+/9/PwAAgD8AAIA/+/9/PwAAgD8AAIA/"
+        },
+        {
+          "name": "WristR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAs5dScT4AAKCyAAAAs5dScT4AAKCy"
+        },
+        {
+          "name": "WristR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "jsQGPEfaILz2A1W976F/P47EBjxH2iC89gNVve+hfz8="
+        },
+        {
+          "name": "WristR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/PwAAgD/+/38//v9/PwAAgD/+/38/"
+        },
+        {
+          "name": "Index1R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAslDS3jwAAMAyAADAslDS3jwAAMAy"
+        },
+        {
+          "name": "Index1R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "F8FbvTbhbj1H6rk9dCJ+PxfBW7024W49R+q5PXQifj8="
+        },
+        {
+          "name": "Index1R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP/v/fz///38/AACAP/v/fz///38/"
+        },
+        {
+          "name": "Index2R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADIswfb9z0AACCyAADIswfb9z0AACCy"
+        },
+        {
+          "name": "Index2R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "XRuFvCiNE77L2MG98iF8P10bhbwojRO+y9jBvfIhfD8="
+        },
+        {
+          "name": "Index2R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/PwEAgD/9/38///9/PwEAgD/9/38/"
+        },
+        {
+          "name": "Index3R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAsvolAj0AAACyAAAAsvolAj0AAACy"
+        },
+        {
+          "name": "Index3R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "hVa8vYVhSDv7i6e8ONx+P4VWvL2FYUg7+4unvDjcfj8="
+        },
+        {
+          "name": "Index3R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAP/3/fz/+/38/AQCAP/3/fz/+/38/"
+        },
+        {
+          "name": "Index4R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAslyw6jwAAAAyAADAslyw6jwAAAAy"
+        },
+        {
+          "name": "Index4R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "8bn3vAGCULwqTMW7iNt/P/G597wBglC8KkzFu4jbfz8="
+        },
+        {
+          "name": "Index4R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP/3/fz///38/AACAP/3/fz///38/"
+        },
+        {
+          "name": "Middle1R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAslDS3jwAAMAyAADAslDS3jwAAMAy"
+        },
+        {
+          "name": "Middle1R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "J1E+vKwvQTwYM4e8GO5/PydRPrysL0E8GDOHvBjufz8="
+        },
+        {
+          "name": "Middle1R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/P9/P/z/fz///38//P9/P/z/fz///38/"
+        },
+        {
+          "name": "Middle2R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAsqhy9T0AAAAAAACAsqhy9T0AAAAA"
+        },
+        {
+          "name": "Middle2R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+1qGvasha70iZpq9S0t+P/tahr2rIWu9ImaavUtLfj8="
+        },
+        {
+          "name": "Middle2R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/P/7/fz///38//v9/P/7/fz///38/"
+        },
+        {
+          "name": "Middle3R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAMmOBID0AAMAyAADAMmOBID0AAMAy"
+        },
+        {
+          "name": "Middle3R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "JMf1vXxdjztSNaw8JBd+PyTH9b18XY87UjWsPCQXfj8="
+        },
+        {
+          "name": "Middle3R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/P/3/fz/9/38//v9/P/3/fz/9/38/"
+        },
+        {
+          "name": "Middle4R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAsthqID0AAMAyAAAAsthqID0AAMAy"
+        },
+        {
+          "name": "Middle4R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "pwucvN1fEL3dtPM7kMl/P6cLnLzdXxC93bTzO5DJfz8="
+        },
+        {
+          "name": "Middle4R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwEAgD/9/38/AACAPwEAgD/9/38/"
+        },
+        {
+          "name": "Ring1R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAslDS3jwAAMAyAADAslDS3jwAAMAy"
+        },
+        {
+          "name": "Ring1R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "kH75vKc97TwTaQO+uqd9P5B++bynPe08E2kDvrqnfT8="
+        },
+        {
+          "name": "Ring1R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP/7/fz///38/AACAP/7/fz///38/"
+        },
+        {
+          "name": "Ring2R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAMrQ89D0AAEAyAAAAMrQ89D0AAEAy"
+        },
+        {
+          "name": "Ring2R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "n/EzvUn52b1STCc9EBV+P5/xM71J+dm9UkwnPRAVfj8="
+        },
+        {
+          "name": "Ring2R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+/9/P/3/fz/9/38/+/9/P/3/fz/9/38/"
+        },
+        {
+          "name": "Ring3R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAAspjbBj0AACCyAAAAspjbBj0AACCy"
+        },
+        {
+          "name": "Ring3R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "tE/0vSyFar3KYSM9HYt9P7RP9L0shWq9ymEjPR2LfT8="
+        },
+        {
+          "name": "Ring3R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+v9/P///fz/8/38/+v9/P///fz/8/38/"
+        },
+        {
+          "name": "Ring4R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAMtjUAz0AAEAyAACAMtjUAz0AAEAy"
+        },
+        {
+          "name": "Ring4R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "IzaZvQAE5bwa+/k7wSx/PyM2mb0ABOW8Gvv5O8Esfz8="
+        },
+        {
+          "name": "Ring4R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/f9/PwEAgD8AAIA//f9/PwEAgD8AAIA/"
+        },
+        {
+          "name": "Pinky1R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAslDS3jwAAMAyAADAslDS3jwAAMAy"
+        },
+        {
+          "name": "Pinky1R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+bD+vIYN4DyQh2i+OxZ5P/mw/ryGDeA8kIdovjsWeT8="
+        },
+        {
+          "name": "Pinky1R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+v9/P///fz/9/38/+v9/P///fz/9/38/"
+        },
+        {
+          "name": "Pinky2R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AAAwM/R87T0AAMCyAAAwM/R87T0AAMCy"
+        },
+        {
+          "name": "Pinky2R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "QeKcvYcceb1hdDo+0Xh6P0HinL2HHHm9YXQ6PtF4ej8="
+        },
+        {
+          "name": "Pinky2R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP/3/fz8AAIA/AACAP/3/fz8AAIA/"
+        },
+        {
+          "name": "Pinky3R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAsuAa0zwAAICxAACAsuAa0zwAAICx"
+        },
+        {
+          "name": "Pinky3R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "XEO3vSlhGz1kwbY8V7l+P1xDt70pYRs9ZMG2PFe5fj8="
+        },
+        {
+          "name": "Pinky3R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/PwAAgD/6/38//v9/PwAAgD/6/38/"
+        },
+        {
+          "name": "Pinky4R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADgsl802zwAAAgyAADgsl802zwAAAgy"
+        },
+        {
+          "name": "Pinky4R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "R4fvvXcVHjzmklM7zzp+P0eH7713FR485pJTO886fj8="
+        },
+        {
+          "name": "Pinky4R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AgCAPwEAgD///38/AgCAPwEAgD///38/"
+        },
+        {
+          "name": "Thumb1R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAslDS3jwAAMAyAADAslDS3jwAAMAy"
+        },
+        {
+          "name": "Thumb1R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "ITKCvvT9sz7GNX4+frhdPyEygr70/bM+xjV+Pn64XT8="
+        },
+        {
+          "name": "Thumb1R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "//9/P/7/fz///38///9/P/7/fz///38/"
+        },
+        {
+          "name": "Thumb2R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AADAMsG+qT0AAIAxAADAMsG+qT0AAIAx"
+        },
+        {
+          "name": "Thumb2R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "AQAHPgSfjL50RDE8m9BzP8rCBj4ufYy+4uMuPLXXcz+gBAY+C1yMvjgyKjw843M/asUEPo47jL6jMCM8HfNzP5YLAz5m7ou+nEoYPI8NdD843QA+wYyLvs6FCjyfLnQ/hY78PcAYi74uafQ7UVV0PwK59j2QlYq+VZvPO1CAdD+WavA9aQeKvrTXpzsBrnQ/tdzpPUBzib76D307o9x0PwVO4z2j3oi+zm8qO2kKdT88/dw9HU+IvuTJtTqrNXU/RCTXPeLJh76oPYo5AF11PzH00T1pU4e+8QxAulB/dT8ak809Nu+Gvjw6zrrbm3U/ghvKPcOfhr5vtxK7LbJ1Pz6axz0wcoa+018xu4bAdT+WIcY9/0OGviaiQ7uLy3U/SJrFPb9Rhr4VlEm7Wct1PzzCxT3VXoa+jOZFuxLJdT/JOsY992uGvuZ2P7vHxXU/nQTHPSp5hr6GPja7c8F1P/0hyD03hoa+M0kpuxW8dT9ki8k9oKeGvvpRGLvvsnU/RUjLPbDIhr468AK7uah1P45RzT169Ya+h+jSutmbdT8Cp889ESKHvh11mbrpjXU/QkDSPeVeh757ty+6uHx1Pxwc1T2Cm4e+HbIEuYJqdT9wMdg92eGHvocY9Dn7VXU/sHnbPaQsiL4kqo866z91Py3s3j0We4i+13zmOoModT9Sf+I9UcyIvqlDIDv8D3U/dyjmPV8fib7QYk47mfZ0P63c6T1Ac4m+ihB9O6PcdD+qkO09AseJvpjelTtmwnQ/ETnxPZgZir5n7aw7Nah0P+zK9D0Zaoq+EHDDO2KOdD/HO/g9jbeKvhcj2Ts/dXQ/EIL7PTABi77hy+07GV10PxeV/j0zRou+vZgAPDpGdD8etwA+CIOLvvSECTxNMXQ/SAICPgLAi775vxE8UR10P+YqAz6G8Iu+KO4YPC0MdD//LQQ+IiGMvlx0Hzw0/HM/0AoFPhFEjL6KwyQ8du9zP4a/BT4rZ4y+CVwpPArkcz/0TAY+znSMvjFwLDwV3XM/brEGPqeCjL4OyC48hddzP7fYBj7VkIy+VwYwPBHUcz8BAAc+BJ+MvnREMTyb0HM/"
+        },
+        {
+          "name": "Thumb2R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/PwAAgD/+/38//v9/PwAAgD/+/38/"
+        },
+        {
+          "name": "Thumb3R.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACqM8Tx/jwAAAAyAACqM8Tx/jwAAAAy"
+        },
+        {
+          "name": "Thumb3R.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "8IV0vaWLAr26vfC9WqJ9P0Imd70dfQK9QgXxvcaefT+SFn+9FVECvUfd8b3Kk30/WC+GvRoHAr1ZRvO91IB9P7d2j70bnwG9uT31vSBlfT/7SJu9fxkBvVe9973JP30/9HmpvYN3AL2Xuvq97Q99P43Hub1ddv+8SSb+vdnUfD9A2Mu9ps/9vC72AL5Djnw/QTzfvW0D/LwU+gK+fDx8Pypx873VHPq87RAFvqDgez849AO+myj4vLMrB76nfHs/5gcOvqU09rxmOwm+XBN7PyGtF75FT/S8yTELvi+oej8EpCC+X4byvFMCDb7yPno/dbYovtHl8Lypog6+htt5P725L74ZeO+85QoQvoyBeT+ujjW+OUXuvFg1Eb4rNHk/9yA6vvBS7byeHhK+4vV4P6RlPb7XpOy8BcUSvnnIeD9lWT++ZzzsvEEoE77/rHg/+fo/vrnN67zDFxO+7aV4P4WmP74jguy89/8SvraqeD/IoT6++KDsvFbbEr6PuHg/ae08vte97LwfrRK+C894PxOHOr6vPe288DISvmHweD9YcTe+d+HtvKCVEb6nGnk/hK8zvu6n7ryq1RC+Qk15P1xHL75sj++8/PMPvmGHeT9XQSq+qZXwvAryDr4FyHk/Eqkkvna38bzo0Q2+/Q16PxyNHr5g8fK8Q5YMvvZXej98/xe+DD/0vH5CC76ApHo/NRURvtOb9byi2gm+IPJ6P/HlCb6cAve8UGMIvl4/ez+kiwK+1234vLvhBr7Uins/K0P2vU/Y+bxaWwW+RNN7P1+H572qPPu87dUDvpsXfD/1Gtm9uZX8vEBXAr4DV3w/ZDLLvePe/bzb5AC+45B8P2X+vb1IFP+8Dgj/vd3EfD9TqrG9NRkAve1y/L3N8nw/Z1umvT+bAL2YEvq9uxp9P6ownL03DwG9Nu73vdU8fT+LQpO9WXQBvVUL9r1jWX0/a6OLvR7KAb1UbvS9uHB9P+Vfhb0qEAK9WxrzvS6DfT+rf4C9gUYCvUYR8r0bkX0/KAx6vQttAr0uVPG9y5p9P9rndb1FgAK9XwLxvQWgfT/whXS9pYsCvbq98L1aon0/"
+        },
+        {
+          "name": "Thumb3R.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "/v9/P///fz8AAIA//v9/P///fz8AAIA/"
+        },
+        {
+          "name": "UpperLegL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "VXDFPdi1gT0hTL68VXDFPdi1gT0hTL68"
+        },
+        {
+          "name": "UpperLegL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "TsZ3P4oQnj34YGO+s8i2PWPJdz8Y0p09k2VjvvLbtT1zzHc/uZOdPS1qY74j77Q9gc93P01VnT3CbmO+TQK0PYrSdz/qFp09WHNjvnYVsz2Q1Xc/fNicPeV3Y76ZKLI9kth3PxqanD1yfGO+zTuxPZHbdz+jW5w9+oBjvvhOsD3h4Hc/tuybPcyNY77Djq49POZ3P3l0mz3zmmO+UcysPYrrdz87/Jo9EqhjvvYJqz3L8Hc//YOaPSK1Y76CR6k9a/d3P77smT1cx2O+G/6mPfj9dz++VJk9f9ljvmi0pD1vBHg/z7yYPZPrY76baqI9eQp4P5osmD02/GO+wUKgPW4QeD9rnJc9zgxkvtsanj1EFng/iRGXPRMdZL4h9Js9hxp4P0Cqlj1lJ2S++WeaPcAeeD/hQpY9qDFkvubbmD3uIng/kduVPeU7ZL6/T5c9Eid4Pzp0lT0dRmS+kcOVPRcmeD+vlpU96ztkviZHlj0cJXg/IrmVPa4xZL65ypY9jyN4P3XclT3jMGS+PU+XPQIieD/X/5U9GTBkvpLTlz1zIHg/LSOWPU4vZL4EWJg95B54P4tGlj1+LmS+d9yYPVMdeD/daZY9sS1kvvZgmT3BG3g/NY2WPeEsZL5m5Zk9Lhp4P4ywlj0TLGS+w2maPZoYeD/Z05Y9QStkvk/umj0FF3g/PfeWPXEqZL6dcps9bxV4P4walz2bKWS+F/ebPbcPeD+gnZc94hhkvvUbnj3MCXg/zC2YPYoHZL65Q6A9zgN4P/i9mD0l9mO+k2uiPWP9dz/UVZk9UuNjvju1pD3i9nc/u+2ZPWvQY77Z/qY9TPB3P/iEmj1yvWO+QkipPVXqdz9LDZs93KxjvhVRqz1L5Hc/opWbPTacY77vWa09MN53P/cdnD2Ei2O+rWKvPUTadz9rcZw9xYJjvlansD1S1nc/0cScPfR5Y74Y7LE9WNJ3Pz0YnT0fcWO+xTCzPVjOdz+ua509SGhjvl51tD1Rync/A7+dPWpfY74NurU99ch3P8XcnT3OX2O+7RS2PZfHdz+W+p09O2Bjvq9vtj1Oxnc/ihCePfhgY76zyLY9"
+        },
+        {
+          "name": "UpperLegL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AgCAP///fz///38/AgCAP///fz///38/"
+        },
+        {
+          "name": "LowerLegL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAMX2w9j4AAGizAACAMX2w9j4AAGiz"
+        },
+        {
+          "name": "LowerLegL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "gWV9Pu+NqrRxfhAzwAl4PzUsfT4UW5S0oUfKMmgNeD/18nw+phS0tK44CDMOEXg/m2J8Phw6mbS9pRYzPhp4PwSYez6ZAZO0Hq4YMxoneD92k3o+isittOGDFDOUN3g/aFZ5PkqVoLRiVjEzh0t4P13jdz4yCqG0Gp/eMr9ieD9FPnY+TLOotJbF5jLrfHg/CWx0PicArbS/Yf8yrpl4Pxxwcj7Ljbq02+sJM8K4eD8VVXA+fF6ltNPTrDJy2Xg/tyRuPnCgn7QUxPYyG/t4Pzfpaz4etaW0zEEeMxodeT+1rWk+gCWdtNic+jLCPnk/RH1nPv4ilrQHfPoycF95P+xiZT6Bda+0YREgM4V+eT/baGM+o4ihtA4FyTJ4m3k/jZhhPgSOw7RmJfoyzLV5P2z5Xz7QSpK05g/RMibNeT85kl4+lRaWtOsprjI24Xk/2GddPh0JoLQmfZMyx/F5P9t9XD4uOKm0izzfMrT+eT8I1ls+m8WhtDP31DLwB3o/I5NbPgVUr7T4MDQznQt6P0BQWz6gFKW0WOWnMkgPej8hk1s+cnKJtCcAATOdC3o/CNZbPurDlrQpCAIz8Ad6P9x9XD7Se7S0FITAMrT+eT/YZ10+QT6etJtDtDLH8Xk/N5JePoF3m7SVlekyNuF5P2v5Xz6jjqe06ZC8MibNeT+FmGE+ay6qtDtILjPMtXk/3mhjPm9AoLQbOgEzeJt5P+tiZT5fEaC0m7zhMoV+eT9CfWc+NmCftNqqDTNwX3k/tK1pPjYiprSNjSwzwj55Pz/paz7jSJ+0p3sBMxodeT+4JG4+gXujtPxIHDMb+3g/FlVwPrKgrrTfngEzctl4PxZwcj6RzKi0GHDiMsO4eD8KbHQ+reGotBT9CTOumXg/RT52Pj0glbSqh94y63x4P1rjdz7xiqm0l4Q5M79ieD9nVnk+kW2btNb4AzOIS3g/dpN6PhrEnLSkZDEzlDd4P/6Xez7Q/aq0/KA3MxsneD+dYnw+RCevtO7mHjM+Gng/9fJ8Po14qLQ7/aAyDhF4PzQsfT7etKe0i7D3MmgNeD+BZX0+742qtHF+EDPACXg/"
+        },
+        {
+          "name": "LowerLegL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AgCAPwIAgD8AAIA/AgCAPwIAgD8AAIA/"
+        },
+        {
+          "name": "UpperLegR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "n0vHve21gT2yTL68n0vHve21gT2yTL68"
+        },
+        {
+          "name": "UpperLegR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "SRB3P120lrzyGy8+xENKPoMWdz/hD5a8Cx4vPgfKST66HHc/RmuVvCcgLz49UEk+7CJ3P8rGlLw9Ii8+etZIPhopdz9GIpS8USQvPrRcSD5FL3c/u32TvGQmLz7r4kc+bDV3PzPZkrxuKC8+H2lHPpdBdz+FipG8tiwvPkJ3Rj60TXc/1zuQvO8wLz5ZhUU+wVl3PybtjrwcNS8+bpNEPudodz/QSY28QjovPqJhQz7zd3c/rqaLvFY/Lz7nL0I+6oZ3P1YDirxZRC8+//1APmKXdz8PMYi840kvPu+qPz6+p3c/rV6GvFNPLz7AVz4+/bd3P1WKhLy/VC8+gAQ9Pl3Gdz9g6oK8fVkvPjrWOz6m1Hc/VUqBvCleLz7jpzo+2OJ3P7BUf7zDYi8+g3k5Pirrdz9JdH28WGUvPlfHOD5083c/7ZN7vOVnLz4uFTg+uft3P6mRebzTai8+lmI3PvUDeD91j3e8um0vPgKwNj6rAHg/WVB4vLZsLz5U9zY+YP13PxEReby2ay8+mz43PhT6dz/30Xm8r2ovPuyFNz7H9nc/vpJ6vK1pLz4yzTc+ePN3P41Te7ynaC8+gBQ4Pijwdz8oFHy8oWcvPrxbOD7X7Hc/BdV8vJdmLz4Iozg+hel3P8CVfbyPZS8+Suo4PjDmdz+jVn68h2QvPpUxOT7c4nc/VRd/vHtjLz7VeDk+qdR3P1kzgbyyXi8+Yac6Pl/Gdz8J24K81lkvPuTVOz7+t3c/sYKEvO1ULz5VBD0+wKd3PwtWhryLTy8+j1c+PmOXdz+EKYi8EEovPsSqPz7rhnc/3vyJvH9ELz7b/UA+TXd3Pye0i7w7Py8+HT1CPpVndz9ua4284zkvPkp8Qz7EV3c/pyKPvHk0Lz5ku0Q+f0t3P5J3kLwzMC8+drFFPis/dz9wzJG84CsvPnunRj7JMnc/OCGTvIUnLz5rnUc+ES13P8+5k7ycJS8+hg5IPlYndz9OUpS8syMvPpZ/SD6YIXc/v+qUvMQhLz6b8Eg+1ht3P06DlbzXHy8+rmFJPhEWdz/jG5a85B0vPr/SST5JEHc/XbSWvPIbLz7EQ0o+"
+        },
+        {
+          "name": "UpperLegR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8BAIA/AACAPwAAgD8BAIA/"
+        },
+        {
+          "name": "LowerLegR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAMYaw9j4AABiyAACAMYaw9j4AABiy"
+        },
+        {
+          "name": "LowerLegR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAImICD2JiIg9zczMPYmICD6rqio+zcxMPu/ubj6JiIg+mpmZPquqqj68u7s+zczMPt7d3T7v7u4+AAAAP4mICD8RERE/mpkZPyIiIj+rqio/MzMzP7y7Oz9EREQ/zcxMP1VVVT/e3V0/ZmZmP+/ubj93d3c/AACAP0REhD+JiIg/zcyMPxERkT9VVZU/mpmZP97dnT8iIqI/ZmamP6uqqj/v7q4/MzOzP3d3tz+8u7s/AADAP0RExD+JiMg/zczMPxER0T9VVdU/",
+          "values": "0lZkPvf7iDXACYq05I15P/YWZD4GTIk100+GtIqReT8U12M+FtWINbvXh7QwlXk/6jVjPsTThzXSdoi0Xp55P5tTYj7V3Ik1VruHtDereT9BMGE+Ob6JNZvjh7Suu3k/Qc1fPpErhzWgX4a0n895Pz8tXj7MvYc1Pq+FtNTmeT9RVFw+A5eINcLggrT+AHo/kkdaPhiDiTW614O0wR16P1EOWD47QIg1FRKAtKM8ej9FsVU+JiyJNXoBgLQaXXo/ITpTPmG/iTWHHH+0kX56P4u0UD6LEYk1Cah1tGGgej80LU4+Li2JNS0VcrTcwXo/p7BLPmPJiTWazna0XeJ6P4RLST5pnok19W52tEkBez+cCUc+EayKNUrZbbQVHns/7/VEPs77iDVRh3K0Rzh7P4QZQz4fbIo1/vtttIJPez9VfEE++EiINUgVbbR4Y3s/jSRAPgcCijU9iGa083N7P2sWPz5QnIk13+lltNCAez97VD4+FreJNaXMZLQBins/dOA9PuuJiDVNf2a0fI97P2/gPT76fog1HyJntHyPez9v4D0+EZaJNTHMZbR8j3s/eFQ+PsgHiTVYmG60AYp7P24WPz4z3Yo12+dhtNCAez+LJEA+DRGKNRMda7Tzc3s/VnxBPjqkiTVR1mm0eGN7P4UZQz719Yk1p5BrtIJPez/z9UQ+sgSINe4edLRHOHs/mglHPpqNiTV6JHC0FR57P4JLST6cKIk1G6t1tEkBez+nsEs+kU+KNbuXeLRd4no/NC1OPuS8iDWbsne03MF6P4m0UD73E4o1Wod1tGGgej8cOlM+qimKNVgsfLSRfno/SrFVPu0+iDWHwX+0Gl16P1AOWD4iwYg169GCtKM8ej+SR1o+p8GINbXRgrTBHXo/VlRcPsW3ijWJLIK0/QB6P0QtXj4kxIk1LdqEtNPmeT9AzV8+6oyHNU8HhbSfz3k/QzBhPtQKiTUn54W0rrt5P5tTYj4rz4g1yhCGtDereT/qNWM+semINfgDiLRennk/FNdjPgmDiDWN+Ie0MJV5P/gWZD62KIg13H2ItIqReT/SVmQ+9/uINcAJirTkjXk/"
+        },
+        {
+          "name": "LowerLegR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AQCAPwEAgD/9/38/AQCAPwEAgD/9/38/"
+        },
+        {
+          "name": "FootL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "Bl7GPZdhujwShD++Bl7GPZdhujwShD++"
+        },
+        {
+          "name": "FootL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "1kodP5Ywsj48PbG+OSAeP9ZKHT+WMLI+PD2xvjkgHj8="
+        },
+        {
+          "name": "FootL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "+P9/P/T/fz/6/38/+P9/P/T/fz/6/38/"
+        },
+        {
+          "name": "PTL.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "hWULP3B2Jj+yjmg+hWULP3B2Jj+yjmg+"
+        },
+        {
+          "name": "PTL.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "pzovuwAAAAAAAAAAxP9/P6c6L7sAAAAAAAAAAMT/fz8="
+        },
+        {
+          "name": "PTL.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAP///fz8AAIA/AACAP///fz8AAIA/"
+        },
+        {
+          "name": "FootR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "hGU3vdpnujyG2jE+hGU3vdpnujyG2jE+"
+        },
+        {
+          "name": "FootR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "bDs0Pw7kJz1D/ia9IjM1P2w7ND8O5Cc9Q/4mvSIzNT8="
+        },
+        {
+          "name": "FootR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD///38/AACAPwAAgD///38/"
+        },
+        {
+          "name": "PTR.position",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "EFu2O8rc5D7gryg/EFu2O8rc5D7gryg/"
+        },
+        {
+          "name": "PTR.quaternion",
+          "type": "quaternion",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "azkvuwAAAAAAAAAAxP9/P2s5L7sAAAAAAAAAAMT/fz8="
+        },
+        {
+          "name": "PTR.scale",
+          "type": "vector",
+          "interpolation": 2301,
+          "times": "AAAAAFVV1T8=",
+          "values": "AACAPwAAgD8AAIA/AACAPwAAgD8AAIA/"
+        }
+      ]
+    }
+  ]
+}

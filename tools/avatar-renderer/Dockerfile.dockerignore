@@ -1,0 +1,13 @@
+.git
+node_modules
+dist
+dev-dist
+.renderer-dist
+coverage
+test-results
+playwright-report
+*.env*
+secrets
+tmp
+.vscode
+.idea

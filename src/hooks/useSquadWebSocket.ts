@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { isAxiosError } from 'axios';
+import type {UserProfile} from './useProfile';
+import {toast} from '../store/useToastStore';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PROFILE_REFRESH_ACTIONS = ['CREATE', 'JOIN', 'START'];
@@ -20,6 +22,7 @@ export const useSquadWebSocket = (squadId?: number) => {
     mountedRef.current = true;
     let isConnecting = false;
     let cancelled = false;
+    const notifiedComments = new Set<number>();
 
     const clearHeartbeatTimers = () => {
       if (pingIntervalRef.current) {
@@ -39,6 +42,7 @@ export const useSquadWebSocket = (squadId?: number) => {
       queryClient.invalidateQueries({ queryKey: ['squad', squadId], type: 'active' });
       queryClient.invalidateQueries({ queryKey: ['worlds', strSquadId], type: 'active' });
       queryClient.invalidateQueries({ queryKey: ['beer-call-job', strSquadId], type: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['photo-comments', strSquadId], type: 'active' });
     };
 
     const connect = async () => {
@@ -101,6 +105,21 @@ export const useSquadWebSocket = (squadId?: number) => {
 
               if (!message.action || PROFILE_REFRESH_ACTIONS.includes(message.action)) {
                 queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+              }
+            } else if (message.type === 'PHOTO_COMMENT') {
+              if (!['CREATE', 'DELETE'].includes(message.action)
+                || !Number.isSafeInteger(message.comment_id) || message.comment_id <= 0
+                || !Number.isSafeInteger(message.photo_owner_id) || message.photo_owner_id <= 0) return;
+              queryClient.invalidateQueries({queryKey: ['photo-comments', String(squadId)]});
+              const profile = queryClient.getQueryData<Pick<UserProfile, 'id'>>(['profile', 'me']);
+              if (message.action === 'CREATE' && profile && profile.id === message.photo_owner_id
+                && Number.isSafeInteger(message.author_id) && message.author_id > 0
+                && message.author_id !== profile.id && !notifiedComments.has(message.comment_id)) {
+                notifiedComments.add(message.comment_id);
+                if (notifiedComments.size > 100) {
+                  notifiedComments.delete(notifiedComments.values().next().value!);
+                }
+                toast.info('Nouveau commentaire', 'Un membre a commenté ta preuve photo.');
               }
             } else if (message.type === 'BEER_CALL_JOB_UPDATED') {
               if (typeof message.job_id === 'string' && UUID_REGEX.test(message.job_id)) {

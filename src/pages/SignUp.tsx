@@ -2,10 +2,13 @@ import {useState, useEffect, useRef, useMemo, Suspense} from 'react';
 import {useNavigate, Link} from 'react-router-dom';
 import {ChevronLeft, ArrowRight, User, Lock} from 'lucide-react';
 import {useUserStore} from '../store/useUserStore';
+import {useAnimationManifest} from '../hooks/useAnimationManifest';
 import {api} from '../lib/api';
 import {saveTokens} from '../lib/authTokens';
-import SafeAvatar from '../components/3D/SafeAvatar';
+import { ProfileAvatarScene } from '../components/3D/ProfileAvatarScene';
 import VestiairePanel, {type Gender} from '../components/Profile/VestiairePanel';
+import { useGlbManifest } from '../avatar/glb/useGlbManifest';
+import { buildCatalogThumbnailMap } from '../lib/catalogThumbnails';
 import {useQuery} from '@tanstack/react-query';
 import {toast} from "../store/useToastStore.ts";
 import type {ShopItem} from "../hooks/useProfile.ts";
@@ -20,7 +23,9 @@ export default function SignUp() {
     const [signupError, setSignupError] = useState<string | null>(null);
     const [formData, setFormData] = useState({username: '', password: ''});
     const [gender, setGender] = useState<Gender>('Men');
-    const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
+    // Catalogue issu du manifeste v2, disponible même en repli sprite.
+    const {clips: availableAnimations} = useAnimationManifest();
+    const [animationReplay, setAnimationReplay] = useState(0);
 
     // On initialise à 'none' en attendant le chargement du backend
     const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>({
@@ -42,13 +47,22 @@ export default function SignUp() {
     });
 
     const publicShopItems: ShopItem[] = useMemo(() => publicProfile?.shop_items || [], [publicProfile]);
+    const manifestQuery = useGlbManifest();
+    const thumbnailUrls = useMemo(
+        () => buildCatalogThumbnailMap(manifestQuery.data),
+        [manifestQuery.data],
+    );
 
     // 🪄 MAGIE DYNAMIQUE : On sélectionne le 1er item de chaque catégorie selon le genre
     useEffect(() => {
         if (publicShopItems.length > 0) {
             // Fonction utilitaire pour trouver le 1er item dispo
             const getFirstItem = (cat: string) => {
-                const item = publicShopItems.find(i => i.category === cat && (i.gender === gender || i.gender === 'Unisex'));
+                const item = publicShopItems.find(i =>
+                    i.category === cat
+                    && (i.gender === gender || i.gender === 'Unisex')
+                    && i.available !== false
+                );
                 return item ? item.id : 'none';
             };
 
@@ -190,7 +204,18 @@ export default function SignUp() {
                                 className="absolute top-6 left-6 z-20 p-3 bg-white shadow-xl rounded-full border border-gray-100 hover:scale-110 active:scale-90 transition-transform">
                             <ChevronLeft size={20}/></button>
                         <Suspense fallback={<div className="flex h-full items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-beer"></div></div>}>
-                            <SafeAvatar config={avatarConfig} onAnimationsLoaded={setAvailableAnimations}/>
+                            <ProfileAvatarScene
+                                surface="signup"
+                                config={{ ...avatarConfig, gender }}
+                                replayToken={animationReplay}
+                                fallback={
+                                    <div className="flex h-full w-full items-center justify-center bg-gray-50">
+                                        <div className="w-16 h-16 rounded-full bg-beer/20 flex items-center justify-center font-black text-beer text-xl">
+                                            {formData.username ? formData.username.charAt(0).toUpperCase() : '?'}
+                                        </div>
+                                    </div>
+                                }
+                            />
                         </Suspense>
                     </div>
                     <VestiairePanel
@@ -202,6 +227,8 @@ export default function SignUp() {
                         setGender={handleGenderChange}
                         isSubmitting={isLoading}
                         availableAnimations={availableAnimations}
+                        thumbnailUrls={thumbnailUrls}
+                        onAnimationSelected={() => setAnimationReplay(token => token + 1)}
                     />
                     <footer className="shrink-0 bg-white px-6 pt-3 pb-[calc(12px_+_env(safe-area-inset-bottom))]">
                         {isPending && <p role="status" className="text-xs text-gray-700 mb-2">Chargement du catalogue…</p>}

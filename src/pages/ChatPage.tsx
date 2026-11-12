@@ -1,15 +1,15 @@
 // src/pages/ChatPage.tsx
-import {useState, useEffect, useRef, Suspense} from 'react';
+import {useState, useEffect, useRef} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
-import {motion, AnimatePresence, useInView} from 'framer-motion';
-import {ChevronLeft, Send, MessageCircle, User as UserIcon} from 'lucide-react';
+import {motion, AnimatePresence} from 'framer-motion';
+import {ChevronLeft, Send, MessageCircle} from 'lucide-react';
 import {useSquadDetails} from '../hooks/useSquadDetails';
 import {useSquadWebSocket} from '../hooks/useSquadWebSocket';
 import {useChat} from '../hooks/useChat';
 import {useProfile} from '../hooks/useProfile';
 import {useChatViewport} from '../hooks/useChatViewport';
 import type {ChatMessage} from '../types/chat';
-import SafeAvatar from '../components/3D/SafeAvatar';
+import {AvatarImage} from '../components/Avatar/AvatarImage';
 
 // ⏱️ Formate un timestamp en heure (ex: 14:32)
 const formatTime = (ts: number) => {
@@ -20,8 +20,14 @@ const formatTime = (ts: number) => {
 // 💬 Une seule bulle de message
 function MessageBubble({message, isOwn}: { message: ChatMessage, isOwn: boolean }) {
     const ref = useRef(null);
-    const isInView = useInView(ref, {margin: "50px"});
     const { data: senderProfile } = useProfile(String(message.userId));
+    const senderId = String(message.userId);
+    const signature = senderProfile ? JSON.stringify(senderProfile.avatar_sprites ?? null) : undefined;
+    const [retained, setRetained] = useState({senderId, signature, sprites: senderProfile?.avatar_sprites});
+    if (retained.senderId !== senderId || (signature !== undefined && signature !== retained.signature)) {
+        setRetained({senderId, signature, sprites: senderProfile?.avatar_sprites});
+    }
+    const sprites = senderProfile?.avatar_sprites ?? (retained.senderId === senderId ? retained.sprites : undefined);
 
     return (
         <motion.div
@@ -31,18 +37,11 @@ function MessageBubble({message, isOwn}: { message: ChatMessage, isOwn: boolean 
             transition={{type: "spring", damping: 20, stiffness: 300}}
             className={`flex gap-2 items-end ${isOwn ? 'flex-row-reverse' : ''}`}
         >
-            {/* Avatar */}
+            {/* Avatar 2D (portrait serveur) */}
             <div
                 className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white font-black text-xs shadow overflow-hidden relative ${isOwn ? 'bg-amber-500' : 'bg-gray-400'}`}>
-                {senderProfile?.avatar && senderProfile.avatar.head ? (
-                    isInView ? (
-                        <Suspense fallback={<div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>}>
-                            <SafeAvatar config={senderProfile.avatar} headOnly={true} disableZoom={true} disablePan={true}/>
-                        </Suspense>
-                    ) : null
-                ) : (
-                    <UserIcon size={18}/>
-                )}
+                <AvatarImage sprites={sprites} username={message.username || 'Squad'} kind='head' sizePx={36}
+                    className='h-9 w-9 rounded-full' />
             </div>
 
             {/* Bulle */}

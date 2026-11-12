@@ -11,7 +11,7 @@ describe('Zustand Stores', () => {
         useUserStore.setState({ username: null, isAuthenticated: false });
         useToastStore.setState({ toasts: [] });
         useGameUIStore.setState({ isGameScreenOpen: false, currentAperoId: null });
-        useLocationStore.setState({ userLocation: null, isTracking: false, acquiredAt: null, hasSessionFix: false, locationStatus: 'idle', error: null });
+        useLocationStore.setState({ userLocation: null, isTracking: false, acquiredAt: null, hasSessionFix: false, locationStatus: 'idle', error: null, permissionGranted: false });
     });
 
     it('useUserStore: login and logout', () => {

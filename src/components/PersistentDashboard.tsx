@@ -1,9 +1,11 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { matchPath, Route, Routes, useLocation, type Location } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import { DashboardActivityContext } from '../lib/dashboardActivity';
+import { recoverableImport } from '../lib/chunkRecovery';
+import { blurFocusedDescendant } from '../lib/focus';
 
-const Dashboard = lazy(() => import('../pages/Dashboard'));
+const Dashboard = lazy(recoverableImport(() => import('../pages/Dashboard'), 'Dashboard'));
 
 function isDashboard(location: Location): boolean {
     return location.pathname === '/dashboard' || !!matchPath('/squad/:id', location.pathname);
@@ -14,13 +16,22 @@ function RetainedDashboard() {
     const location = useLocation();
     const active = isDashboard(location);
     const [retained, setRetained] = useState<Location | null>(() => active ? location : null);
+    const containerRef = useRef<HTMLDivElement>(null);
     if (active && retained !== location) setRetained(location);
+
+    // `inert` retire le conteneur de l'ordre de tabulation, mais Safari peut
+    // conserver le focus déjà posé sur un enfant : on le retire explicitement.
+    useEffect(() => {
+        if (!active) blurFocusedDescendant(containerRef.current);
+    }, [active]);
+
     if (!retained) return null;
 
     return (
         // Keep positive layout bounds for MapLibre/Fiber while inactive. display:none
         // makes ResizeObserver report 0x0 and forces a resize/reconfigure on return.
-        <div className={`absolute inset-0 ${active ? '' : 'invisible opacity-0 pointer-events-none'}`}
+        <div ref={containerRef}
+             className={`absolute inset-0 ${active ? '' : 'invisible opacity-0 pointer-events-none'}`}
              inert={!active} aria-hidden={!active} data-testid="retained-dashboard">
             <DashboardActivityContext.Provider value={active}>
                 <Suspense fallback={<div role="status" className="flex h-full items-center justify-center">Chargement…</div>}>

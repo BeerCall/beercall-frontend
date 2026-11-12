@@ -1,0 +1,585 @@
+#!/usr/bin/env node
+/**
+ * A15 — Serveur HTTP Node de rendu des sprites d'avatar (Playwright / Chromium).
+ *
+ * Pilote un navigateur Chromium en mode isolé et sérialisé (concurrence 1, file max 32).
+ * Exécute le rendu WebGL, convertit la sortie PNG en WebP q90 via sharp,
+ * et sert les fichiers statiques (build, /models/, /animations/) avec protection anti-traversal.
+ */
+
+import { createServer } from 'node:http';
+import { createReadStream, existsSync, realpathSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { chromium } from 'playwright';
+import sharp from 'sharp';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+
+const PORT = parseInt(process.env.PORT || '8787', 10);
+const HOST = process.env.HOST || '127.0.0.1';
+
+const DIST_DIR = path.resolve(HERE, '../../.renderer-dist');
+const MODELS_DIR = path.resolve(process.env.MODELS_DIR || path.join(HERE, '../../../beercall-backend/static/models'));
+const ANIMATIONS_DIR = path.resolve(process.env.ANIMATIONS_DIR || path.join(HERE, '../../public/animations'));
+
+const MAX_QUEUE_SIZE = 32;
+const REQUEST_TIMEOUT_MS = 60_000;
+const MAX_RENDERS_BEFORE_RELOAD = 50;
+const MAX_BODY_BYTES = 64 * 1024; // 64 Ko
+
+const MIME_TYPES = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.glb': 'model/gltf-binary',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+};
+
+let browser = null;
+let page = null;
+let rendererReady = false;
+let renderCount = 0;
+let isShuttingDown = false;
+
+// File de requêtes sérialisées (concurrence 1)
+const requestQueue = [];
+let isProcessingQueue = false;
+
+function safeResolve(baseDir, requestedPath) {
+    const cleanPath = path.normalize(requestedPath).replace(/^(\.\.[/\\])+/, '').replace(/^[/\\]+/, '');
+    const absolutePath = path.resolve(baseDir, cleanPath);
+
+    const baseResolved = path.resolve(baseDir);
+    const baseLower = baseResolved.toLowerCase();
+    if (!absolutePath.toLowerCase().startsWith(baseLower)) return null;
+    if (!existsSync(absolutePath)) return null;
+
+    try {
+        const real = realpathSync(absolutePath);
+        if (!real.toLowerCase().startsWith(baseLower)) return null;
+        return real;
+    } catch {
+        return null;
+    }
+}
+
+function serveStatic(req, res) {
+    const url = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+    let pathname = decodeURIComponent(url.pathname);
+
+    let filePath = null;
+    if (pathname.startsWith('/models/')) {
+        filePath = safeResolve(MODELS_DIR, pathname.slice('/models/'.length));
+    } else if (pathname.startsWith('/animations/')) {
+        filePath = safeResolve(ANIMATIONS_DIR, pathname.slice('/animations/'.length));
+    } else {
+        if (pathname === '/' || pathname === '') pathname = '/render.html';
+        filePath = safeResolve(DIST_DIR, pathname);
+    }
+
+    if (!filePath || !statSync(filePath).isFile()) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Not Found');
+        return;
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+    res.writeHead(200, {
+        'Content-Type': contentType,
+        'Content-Length': statSync(filePath).size,
+    });
+    createReadStream(filePath).pipe(res);
+}
+
+async function convertToWebP(pngBase64, expectedWidth, expectedHeight, name) {
+    const buf = Buffer.from(pngBase64, 'base64');
+    const meta = await sharp(buf).metadata();
+
+    if (meta.width !== expectedWidth || meta.height !== expectedHeight) {
+        throw new Error(`Dimensions invalides pour ${name} : ${meta.width}x${meta.height} (attendu ${expectedWidth}x${expectedHeight})`);
+    }
+    if (!meta.hasAlpha) {
+        throw new Error(`L'image ${name} doit posséder un canal alpha transparent`);
+    }
+
+    const webpBuffer = await sharp(buf).webp({ quality: 90 }).toBuffer();
+    return webpBuffer.toString('base64');
+}
+
+async function convertThumbnailToWebP(pngBase64) {
+    const buf = Buffer.from(pngBase64, 'base64');
+    const meta = await sharp(buf).metadata();
+    if (meta.width !== 256 || meta.height !== 256) {
+        throw new Error(`Dimensions de rendu invalides : ${meta.width}x${meta.height} (attendu 256x256)`);
+    }
+
+    const webp = await sharp(buf)
+        .resize(192, 192, {
+            fit: 'contain',
+            background: { r: 0, g: 0, b: 0, alpha: 0 },
+        })
+        .webp({ quality: 85, alphaQuality: 100 })
+        .toBuffer();
+
+    const outMeta = await sharp(webp).metadata();
+    if (outMeta.width !== 192 || outMeta.height !== 192) {
+        throw new Error(`Dimensions de vignette invalides : ${outMeta.width}x${outMeta.height} (attendu 192x192)`);
+    }
+    if (!outMeta.hasAlpha) {
+        throw new Error('La vignette doit conserver un canal alpha transparent');
+    }
+    return { base64: webp.toString('base64'), bytes: webp.length };
+}
+
+async function initBrowser(localPort) {
+    rendererReady = false;
+    const isSoftwareGl = Boolean(process.env.RENDERER_SOFTWARE_GL || process.platform === 'linux');
+    const args = [
+        '--disable-background-networking',
+        '--disable-default-apps',
+        '--disable-extensions',
+        '--disable-sync',
+        '--no-first-run',
+    ];
+
+    if (isSoftwareGl) {
+        args.push(
+            '--use-gl=angle',
+            '--use-angle=swiftshader-webgl',
+            '--enable-unsafe-swiftshader',
+            '--ignore-gpu-blocklist',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+        );
+    }
+
+    browser = await chromium.launch({ headless: true, args });
+    page = await browser.newPage();
+    page.on('console', (msg) => {
+        if (msg.type() === 'error') console.error(`[browser:error] ${msg.text()}`);
+    });
+    page.on('pageerror', (err) => console.error(`[browser:pageerror]`, err));
+
+    // Bloquer les requêtes réseau externes (seul le serveur local est autorisé)
+    await page.route('**', (route) => {
+        const reqUrl = route.request().url();
+        if (reqUrl.startsWith(`http://127.0.0.1:${localPort}`) || reqUrl.startsWith(`http://localhost:${localPort}`)) {
+            route.continue();
+        } else {
+            route.abort();
+        }
+    });
+
+    const targetUrl = `http://127.0.0.1:${localPort}/render.html`;
+    await page.goto(targetUrl, { waitUntil: 'load', timeout: 30_000 });
+    await page.waitForFunction(() => Boolean(window.__rendererReady), null, { timeout: 30_000 });
+
+    rendererReady = true;
+    console.log(`[renderer] Navigateur prêt sur ${targetUrl}`);
+}
+
+async function reloadBrowser(localPort) {
+    console.log('[renderer] Rechargement preventif de la page du navigateur...');
+    rendererReady = false;
+    try {
+        // Recharge la page existante : fermer la derniere page ferme aussi le
+        // navigateur dans certains builds Chromium headless.
+        await page.reload({ waitUntil: 'load', timeout: 30_000 });
+        await page.waitForFunction(() => Boolean(window.__rendererReady), null, { timeout: 30_000 });
+        renderCount = 0;
+        rendererReady = true;
+        console.log('[renderer] Rechargement termine, renderer pret.');
+    } catch (error) {
+        console.error('[renderer] Echec du rechargement du navigateur :', error);
+    }
+}
+
+async function processQueue(localPort) {
+    if (isProcessingQueue || requestQueue.length === 0 || isShuttingDown) return;
+    isProcessingQueue = true;
+
+    while (requestQueue.length > 0 && !isShuttingDown) {
+        const item = requestQueue.shift();
+        const { kind = 'sprite', payload, resolve, reject } = item;
+
+        if (!rendererReady) {
+            reject({ status: 503, message: 'Renderer indisponible' });
+            continue;
+        }
+
+        let timeoutTimer = null;
+        try {
+            const timeoutPromise = new Promise((_, reqReject) => {
+                timeoutTimer = setTimeout(() => {
+                    reqReject(new Error('TIMEOUT_RENDER'));
+                }, REQUEST_TIMEOUT_MS);
+            });
+
+            if (kind === 'thumbnail') {
+                const png = await Promise.race([
+                    page.evaluate((sourceId) => window.__renderThumbnail(sourceId), payload.sourceId),
+                    timeoutPromise,
+                ]);
+                clearTimeout(timeoutTimer);
+
+                const thumbnail = await convertThumbnailToWebP(png);
+                // Les vignettes sont générées par lot : pas de rechargement au
+                // milieu du lot, le cache GLB borné suffit.
+                resolve({
+                    status: 200,
+                    data: {
+                        webp: thumbnail.base64,
+                        width: 192,
+                        height: 192,
+                        bytes: thumbnail.bytes,
+                    },
+                });
+            } else if (kind === 'animation-bounds') {
+                const bounds = await Promise.race([
+                    page.evaluate((request) => window.__animationThumbnailBounds(request), payload),
+                    timeoutPromise,
+                ]);
+                clearTimeout(timeoutTimer);
+                resolve({ status: 200, data: bounds });
+            } else if (kind === 'animation-thumbnail') {
+                const png = await Promise.race([
+                    page.evaluate((request) => window.__animationThumbnailRender(request), payload),
+                    timeoutPromise,
+                ]);
+                clearTimeout(timeoutTimer);
+                const thumbnail = await convertThumbnailToWebP(png);
+                resolve({
+                    status: 200,
+                    data: {
+                        webp: thumbnail.base64,
+                        width: 192,
+                        height: 192,
+                        bytes: thumbnail.bytes,
+                    },
+                });
+            } else {
+                const renderPromise = page.evaluate(
+                    ({ config, userId }) => window.__renderAvatar(config, userId),
+                    { config: payload.config, userId: payload.userId },
+                );
+                const rawResult = await Promise.race([renderPromise, timeoutPromise]);
+                clearTimeout(timeoutTimer);
+
+                const [headWebp, portraitWebp, bodyWebp] = await Promise.all([
+                    convertToWebP(rawResult.head, 256, 256, 'head'),
+                    convertToWebP(rawResult.portrait, 512, 512, 'portrait'),
+                    convertToWebP(rawResult.body, 256, 512, 'body'),
+                ]);
+
+                renderCount += 1;
+                resolve({
+                    status: 200,
+                    data: {
+                        head: headWebp,
+                        portrait: portraitWebp,
+                        body: bodyWebp,
+                        checks: rawResult.checks,
+                    },
+                });
+            }
+
+            if (renderCount >= MAX_RENDERS_BEFORE_RELOAD) {
+                await reloadBrowser(localPort);
+            }
+        } catch (error) {
+            clearTimeout(timeoutTimer);
+            if (error?.message === 'TIMEOUT_RENDER') {
+                console.error('[renderer] Requête expirée (> 60s), redémarrage du contexte...');
+                await reloadBrowser(localPort);
+                reject({ status: 504, message: 'Délai maximal de rendu dépassé (504)' });
+            } else {
+                reject({ status: 422, message: error?.message || 'Erreur lors du rendu' });
+            }
+        }
+    }
+
+    isProcessingQueue = false;
+}
+
+function handleAnimationPost(req, res, kind, localPort) {
+    if (!rendererReady) {
+        res.writeHead(503, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ detail: 'Renderer en cours d initialisation' }));
+        return;
+    }
+    if (requestQueue.length >= MAX_QUEUE_SIZE) {
+        res.writeHead(429, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ detail: 'File de rendu saturée (429)' }));
+        return;
+    }
+
+    const chunks = [];
+    let totalBytes = 0;
+    req.on('data', (chunk) => {
+        totalBytes += chunk.length;
+        if (totalBytes > MAX_BODY_BYTES) {
+            res.writeHead(413, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ detail: 'Payload trop volumineux (> 64 Ko)' }));
+            req.destroy();
+        } else {
+            chunks.push(chunk);
+        }
+    });
+    req.on('end', () => {
+        if (totalBytes > MAX_BODY_BYTES) return;
+        let payload = null;
+        try {
+            payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        } catch {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ detail: 'JSON malformé' }));
+            return;
+        }
+
+        if (typeof payload?.clipName !== 'string' || payload.clipName.length === 0) {
+            res.writeHead(422, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ detail: 'Champ "clipName" requis' }));
+            return;
+        }
+        if (payload.gender !== 'Men' && payload.gender !== 'Women') {
+            res.writeHead(422, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ detail: 'Champ "gender" requis (Men|Women)' }));
+            return;
+        }
+        if (typeof payload.keyTime !== 'number' || !Number.isFinite(payload.keyTime) || payload.keyTime < 0) {
+            res.writeHead(422, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ detail: 'Champ "keyTime" requis (nombre >= 0)' }));
+            return;
+        }
+        if (kind === 'animation-thumbnail') {
+            if (!Array.isArray(payload.center) || payload.center.length !== 3
+                || payload.center.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
+                res.writeHead(422, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: 'Champ "center" requis ([x,y,z])' }));
+                return;
+            }
+            if (typeof payload.extent !== 'number' || !Number.isFinite(payload.extent) || payload.extent <= 0) {
+                res.writeHead(422, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: 'Champ "extent" requis (nombre > 0)' }));
+                return;
+            }
+        }
+
+        new Promise((resolve, reject) => {
+            requestQueue.push({ kind, payload, resolve, reject });
+            processQueue(localPort);
+        })
+            .then(({ status: respStatus, data }) => {
+                res.writeHead(respStatus, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(data));
+            })
+            .catch(({ status: errStatus, message }) => {
+                res.writeHead(errStatus || 500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: message }));
+            });
+    });
+}
+
+export function createRendererServer(options = {}) {
+    const port = options.port || PORT;
+    const host = options.host || HOST;
+
+    const server = createServer((req, res) => {
+        const url = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+
+        // 1. Healthcheck
+        if (req.method === 'GET' && url.pathname === '/healthz') {
+            if (rendererReady && !isShuttingDown) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'ok', ready: true }));
+            } else {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'initializing', ready: false }));
+            }
+            return;
+        }
+
+        // 2. Vignette POST /thumbnail
+        if (req.method === 'POST' && url.pathname === '/thumbnail') {
+            if (!rendererReady) {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: 'Renderer en cours d initialisation' }));
+                return;
+            }
+
+            if (requestQueue.length >= MAX_QUEUE_SIZE) {
+                res.writeHead(429, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: 'File de rendu saturée (429)' }));
+                return;
+            }
+
+            const chunks = [];
+            let totalBytes = 0;
+
+            req.on('data', (chunk) => {
+                totalBytes += chunk.length;
+                if (totalBytes > MAX_BODY_BYTES) {
+                    res.writeHead(413, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ detail: 'Payload trop volumineux (> 64 Ko)' }));
+                    req.destroy();
+                } else {
+                    chunks.push(chunk);
+                }
+            });
+
+            req.on('end', () => {
+                if (totalBytes > MAX_BODY_BYTES) return;
+                let payload = null;
+                try {
+                    payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                } catch {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ detail: 'JSON malformé' }));
+                    return;
+                }
+
+                if (!payload?.sourceId || typeof payload.sourceId !== 'string') {
+                    res.writeHead(422, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ detail: 'Champ "sourceId" requis' }));
+                    return;
+                }
+
+                new Promise((resolve, reject) => {
+                    requestQueue.push({ kind: 'thumbnail', payload, resolve, reject });
+                    processQueue(port);
+                })
+                    .then(({ status: respStatus, data }) => {
+                        res.writeHead(respStatus, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify(data));
+                    })
+                    .catch(({ status: errStatus, message }) => {
+                        res.writeHead(errStatus || 500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ detail: message }));
+                    });
+            });
+            return;
+        }
+
+        // 3. Vignettes d'animations
+        if (req.method === 'POST' && url.pathname === '/animation-thumbnail/bounds') {
+            handleAnimationPost(req, res, 'animation-bounds', port);
+            return;
+        }
+        if (req.method === 'POST' && url.pathname === '/animation-thumbnail/render') {
+            handleAnimationPost(req, res, 'animation-thumbnail', port);
+            return;
+        }
+
+        // 4. Rendu POST /render ou POST /
+        if (req.method === 'POST' && (url.pathname === '/render' || url.pathname === '/')) {
+            if (!rendererReady) {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: 'Renderer en cours d initialisation' }));
+                return;
+            }
+
+            if (requestQueue.length >= MAX_QUEUE_SIZE) {
+                res.writeHead(429, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: 'File de rendu saturée (429)' }));
+                return;
+            }
+
+            const chunks = [];
+            let totalBytes = 0;
+
+            req.on('data', (chunk) => {
+                totalBytes += chunk.length;
+                if (totalBytes > MAX_BODY_BYTES) {
+                    res.writeHead(413, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ detail: 'Payload trop volumineux (> 64 Ko)' }));
+                    req.destroy();
+                } else {
+                    chunks.push(chunk);
+                }
+            });
+
+            req.on('end', () => {
+                if (totalBytes > MAX_BODY_BYTES) return;
+                let payload = null;
+                try {
+                    payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                } catch {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ detail: 'JSON malformé' }));
+                    return;
+                }
+
+                if (!payload?.config || typeof payload.config !== 'object') {
+                    res.writeHead(422, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ detail: 'Champ "config" requis' }));
+                    return;
+                }
+                if (!payload?.hash || !/^[0-9a-f]{16}$/.test(payload.hash)) {
+                    res.writeHead(422, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ detail: 'Champ "hash" requis (16 hex)' }));
+                    return;
+                }
+
+                new Promise((resolve, reject) => {
+                    requestQueue.push({ payload, resolve, reject });
+                    processQueue(port);
+                })
+                    .then(({ status: respStatus, data }) => {
+                        res.writeHead(respStatus, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify(data));
+                    })
+                    .catch(({ status: errStatus, message }) => {
+                        res.writeHead(errStatus || 500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ detail: message }));
+                    });
+            });
+            return;
+        }
+
+        // 5. Fichiers statiques
+        if (req.method === 'GET' || req.method === 'HEAD') {
+            serveStatic(req, res);
+            return;
+        }
+
+        res.writeHead(405, { 'Content-Type': 'text/plain' });
+        res.end('Method Not Allowed');
+    });
+
+    return {
+        server,
+        start: async () => {
+            await new Promise((resolve) => server.listen(port, host, resolve));
+            console.log(`[renderer] Serveur HTTP écoute sur http://${host}:${port}`);
+            await initBrowser(port);
+        },
+        stop: async () => {
+            isShuttingDown = true;
+            await page?.close().catch(() => {});
+            await browser?.close().catch(() => {});
+            await new Promise((resolve) => server.close(resolve));
+        },
+    };
+}
+
+const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isDirectRun) {
+    const instance = createRendererServer();
+    const shutdown = async () => {
+        console.log('[renderer] Arrêt demandé...');
+        await instance.stop();
+        process.exit(0);
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+
+    instance.start().catch((error) => {
+        console.error('[renderer] Erreur critique au démarrage :', error);
+        process.exit(1);
+    });
+}

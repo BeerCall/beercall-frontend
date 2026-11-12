@@ -1,7 +1,10 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useRef} from 'react';
 import {Check, Play, ShoppingBag} from 'lucide-react';
 import type {ShopItem, Badge} from "../../hooks/useProfile.ts";
 import type {AvatarConfig} from "../../types/avatar.ts";
+import type {AnimationClipEntry} from "../../types/animationPack.ts";
+import {catalogAssetId} from "../../lib/catalogItem.ts";
+import {humanizeToken} from "../../lib/humanize.ts";
 
 export type Gender = 'Men' | 'Women' | 'Unisex';
 
@@ -18,7 +21,10 @@ interface VestiairePanelProps {
     isSubmitting?: boolean;
     readonly?: boolean;
     hideTabs?: boolean;
-    availableAnimations?: string[];
+    availableAnimations?: readonly AnimationClipEntry[];
+    thumbnailUrls?: Record<string, string>;
+    /** Appelé à chaque appui sur une animation, même déjà équipée. */
+    onAnimationSelected?: (name: string) => void;
 }
 
 export default function VestiairePanel({
@@ -33,12 +39,16 @@ export default function VestiairePanel({
                                            isSubmitting = false,
                                            readonly = false,
                                            hideTabs = false,
-                                           availableAnimations = []
+                                           availableAnimations = [],
+                                           thumbnailUrls,
+                                           onAnimationSelected
                                        }: VestiairePanelProps) {
     const [activeTab, setActiveTab] = useState('head');
     const [hasChanges, setHasChanges] = useState(false);
     const [isSavingStyle, setIsSavingStyle] = useState(false);
     const [initialConfig, setInitialConfig] = useState<AvatarConfig | null>(null);
+    const warnedThumbnails = useRef<Set<string>>(new Set());
+    const warnedAnimationThumbnails = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         if (!initialConfig && avatarConfig) {
@@ -85,10 +95,32 @@ export default function VestiairePanel({
     // 🚀 SÉCURITÉ 2 : On force (shopItems || []) avant de filter
     const itemsToDisplay = (shopItems || []).filter(item =>
         item.category === activeTab &&
-        (item.gender === gender || item.gender === 'Unisex')
+        (item.gender === gender || item.gender === 'Unisex') &&
+        item.available !== false
     );
 
     // 🚀 SÉCURITÉ 3 : On force (shopItems || []) avant de find
+    useEffect(() => {
+        if (!thumbnailUrls) return;
+        for (const item of itemsToDisplay) {
+            const key = catalogAssetId(item);
+            if (!thumbnailUrls[key] && !warnedThumbnails.current.has(item.id)) {
+                warnedThumbnails.current.add(item.id);
+                console.warn(`[catalog] vignette absente pour ${item.id}`);
+            }
+        }
+    }, [itemsToDisplay, thumbnailUrls]);
+
+    const animationThumbnailGender = gender === 'Women' ? 'Women' : 'Men';
+    useEffect(() => {
+        for (const entry of availableAnimations) {
+            if (!entry.thumbnails[animationThumbnailGender] && !warnedAnimationThumbnails.current.has(entry.id)) {
+                warnedAnimationThumbnails.current.add(entry.id);
+                console.warn(`[animations] vignette absente pour ${entry.id}`);
+            }
+        }
+    }, [availableAnimations, animationThumbnailGender]);
+
     const hasUnownedItemsEquipped = ['head', 'body', 'legs', 'feet', 'accessory'].some(cat => {
         const equippedId = avatarConfig[cat];
         if (equippedId === 'none') return false;
@@ -137,20 +169,45 @@ export default function VestiairePanel({
             <div
                 className="flex-1 overflow-y-auto p-6 grid grid-cols-2 sm:grid-cols-3 gap-4 pb-32 hide-scrollbar content-start">
                 {activeTab === 'animation' ? (
-                    (availableAnimations || []).map((animName) => {
+                    (availableAnimations || []).map((entry) => {
+                        const animName = entry.name;
+                        const thumbnail = entry.thumbnails[animationThumbnailGender];
                         const isEquipped = avatarConfig.animation === animName;
                         return (
-                            <button key={animName}
-                                    onClick={() => !readonly && setAvatarConfig({...avatarConfig, animation: animName})}
+                            <button key={entry.id}
+                                    onClick={() => {
+                                        if (readonly) return;
+                                        // Déjà équipée : on ne réécrit pas la config (pas de
+                                        // reconstruction de l'avatar ni d'appel /auth/equip/),
+                                        // on demande seulement la relance du clip.
+                                        if (avatarConfig.animation !== animName) {
+                                            setAvatarConfig({...avatarConfig, animation: animName});
+                                        }
+                                        onAnimationSelected?.(animName);
+                                    }}
                                     disabled={readonly}
                                     className={`relative p-4 rounded-3xl flex flex-col items-center justify-center gap-3 border-2 transition-all active:scale-95 ${isEquipped ? 'bg-amber-50/50 border-beer shadow-[0_0_20px_rgba(217,119,6,0.15)] scale-105' : 'bg-white border-gray-100 hover:border-gray-300 hover:shadow-md'}`}>
-                                <div
-                                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isEquipped ? 'bg-beer text-white shadow-inner' : 'bg-gray-50 text-gray-400'}`}>
-                                    <Play size={24} className={isEquipped ? 'fill-white' : 'fill-gray-300'}/>
+                                <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden">
+                                    {thumbnail ? (
+                                        <img
+                                            src={thumbnail.url}
+                                            alt=""
+                                            width={64}
+                                            height={64}
+                                            loading="lazy"
+                                            decoding="async"
+                                            draggable={false}
+                                            className="w-16 h-16 object-contain"
+                                        />
+                                    ) : (
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isEquipped ? 'bg-beer text-white shadow-inner' : 'bg-gray-50 text-gray-400'}`}>
+                                            <Play size={24} className={isEquipped ? 'fill-white' : 'fill-gray-300'}/>
+                                        </div>
+                                    )}
                                 </div>
                                 <span
                                     className={`text-[10px] font-black uppercase tracking-wider text-center leading-tight ${isEquipped ? 'text-amber-800' : 'text-gray-500'}`}>
-                                    {animName.replace(/_/g, ' ')}
+                                    {humanizeToken(animName)}
                                 </span>
                                 {isEquipped && <div
                                     className="absolute top-3 right-3 w-3 h-3 bg-beer rounded-full animate-pulse shadow-sm"/>}
@@ -173,17 +230,32 @@ export default function VestiairePanel({
                         {itemsToDisplay.map(item => {
                             const isEquipped = avatarConfig[activeTab] === item.id;
                             const isOwned = item.is_owned;
+                            const thumbnailUrl = thumbnailUrls?.[catalogAssetId(item)];
 
                             return (
-                                <div key={item.id} onClick={() => {
+                                <div key={catalogAssetId(item)} data-source={item.source ?? undefined} onClick={() => {
                                     if (!readonly) handleEquip(activeTab, item.id);
                                 }}
                                      role="button"
                                      tabIndex={0}
                                      className={`relative p-4 rounded-3xl border-2 flex flex-col items-center text-center transition-all active:scale-95 cursor-pointer ${isEquipped ? 'border-beer bg-amber-50/50 shadow-[0_0_20px_rgba(217,119,6,0.15)] scale-105' : 'border-gray-100 bg-white hover:border-gray-300 hover:shadow-md'}`}>
-                                    <div
-                                        className="w-16 h-16 bg-gray-100 rounded-2xl mb-3 flex items-center justify-center text-3xl shadow-inner">
-                                        {activeTab === 'head' && '🧢'}{activeTab === 'body' && '👕'}{activeTab === 'legs' && '👖'}{activeTab === 'feet' && '👟'}{activeTab === 'accessory' && '🎒'}
+                                    <div className="w-16 h-16 rounded-2xl mb-3 flex items-center justify-center">
+                                        {thumbnailUrl ? (
+                                            <img
+                                                src={thumbnailUrl}
+                                                alt=""
+                                                width={64}
+                                                height={64}
+                                                loading="lazy"
+                                                decoding="async"
+                                                draggable={false}
+                                                className="w-16 h-16 object-contain"
+                                            />
+                                        ) : (
+                                            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center text-3xl shadow-inner">
+                                                {activeTab === 'head' && '🧢'}{activeTab === 'body' && '👕'}{activeTab === 'legs' && '👖'}{activeTab === 'feet' && '👟'}{activeTab === 'accessory' && '🎒'}
+                                            </div>
+                                        )}
                                     </div>
                                     <span
                                         className={`text-[10px] font-black uppercase tracking-wider mb-2 leading-tight ${isEquipped ? 'text-amber-800' : 'text-gray-700'}`}>{item.name}</span>
@@ -198,7 +270,7 @@ export default function VestiairePanel({
                                                 if (!readonly && onBuy) onBuy(item.id, item.price, item.name);
                                             }}
                                                     className="w-full bg-gray-900 text-white text-[9px] font-black px-2 py-2 rounded-xl uppercase tracking-widest flex items-center justify-center gap-1 shadow-md hover:bg-black active:scale-95 transition-all">
-                                                <ShoppingBag size={12}/> ACHETER {item.price}
+                                                <ShoppingBag size={12}/> {item.price === 0 ? 'Gratuit' : `ACHETER ${item.price}`}
                                             </button>
                                         ) : isEquipped ? (
                                             <div

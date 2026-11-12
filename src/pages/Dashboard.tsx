@@ -8,21 +8,92 @@ import { MapSection } from '../components/Dashboard/MapSection';
 import { Timeline } from '../components/Dashboard/Timeline';
 import { isAxiosError } from 'axios';
 import { useDashboardActive } from '../lib/dashboardActivity';
+import { useMemberLocations } from '../hooks/useMemberLocations';
+import { useLocationSync } from '../hooks/useLocationSync';
+import { toSnapPeople } from '../map/snap/toSnapPeople';
+import { recoverableImport } from '../lib/chunkRecovery';
+// Installe tôt l'écoute du toucher « Mondes » pour mesurer depuis le doigt.
+import '../worlds/firstOpenMeasurement';
+import { WorldPreparationBadge } from 'virtual:world-probe';
 
-const GameScreen = React.lazy(() => import('./GameScreen'));
-const CreateSquadModal = React.lazy(() => import('../components/Modals/CreateSquadModal'));
-const CreateBeerCallModal = React.lazy(() => import('../components/Modals/CreateBeerCallModal'));
-const JoinSquadModal = React.lazy(() => import('../components/Modals/JoinSquadModal'));
-const RespondBeerCallModal = React.lazy(() => import('../components/Modals/RespondBeerCallModal'));
-const SelectWorldModal = React.lazy(() => import('../components/Modals/SelectWorldModal'));
-const ScheduleAperoModal = React.lazy(() => import('../components/Modals/ScheduleAperoModal'));
+const GameScreen = React.lazy(recoverableImport(() => import('./GameScreen'), 'GameScreen'));
+const CreateSquadModal = React.lazy(recoverableImport(() => import('../components/Modals/CreateSquadModal'), 'CreateSquadModal'));
+const CreateBeerCallModal = React.lazy(recoverableImport(() => import('../components/Modals/CreateBeerCallModal'), 'CreateBeerCallModal'));
+const JoinSquadModal = React.lazy(recoverableImport(() => import('../components/Modals/JoinSquadModal'), 'JoinSquadModal'));
+const RespondBeerCallModal = React.lazy(recoverableImport(() => import('../components/Modals/RespondBeerCallModal'), 'RespondBeerCallModal'));
+const SelectWorldModal = React.lazy(recoverableImport(() => import('../components/Modals/SelectWorldModal'), 'SelectWorldModal'));
+const ScheduleAperoModal = React.lazy(recoverableImport(() => import('../components/Modals/ScheduleAperoModal'), 'ScheduleAperoModal'));
 
 export default function Dashboard() {
     const routeActive = useDashboardActive();
     const { fileInputRef, mapRef, ...dashboard } = useDashboard();
+    const memberLocations = useMemberLocations(dashboard.id, routeActive);
+    useLocationSync(routeActive);
     const squadErrorStatus = isAxiosError(dashboard.squadError) ? dashboard.squadError.response?.status : undefined;
     const squadErrorMessage = squadErrorStatus === 403 ? 'Accès à cette squad refusé'
         : squadErrorStatus === 404 ? 'Squad introuvable' : 'Squad indisponible';
+    // Préparation au repos : l'apéro affiché sur la carte (actif, sinon le premier passé).
+    const preparationBeerCallId = dashboard.squadDetails?.active_beer_call?.[0]?.id
+        ?? dashboard.squadDetails?.past_beer_calls?.[0]?.id
+        ?? null;
+    const { navigate, setIsWorldsModalOpen } = dashboard;
+
+    // 8l-5 — sur iOS en PWA `black-translucent`, la zone sous l'indicateur
+    // d'accueil est peinte par <html>/<body> et reste blanche sinon. On ne la
+    // peint en sombre que pendant l'écran de jeu : le reste de l'app garde sa
+    // barre blanche.
+    React.useEffect(() => {
+        if (!dashboard.isGameScreenOpen) return;
+        const previousHtml = document.documentElement.style.backgroundColor;
+        const previousBody = document.body.style.backgroundColor;
+        document.documentElement.style.backgroundColor = '#030712';
+        document.body.style.backgroundColor = '#030712';
+        return () => {
+            document.documentElement.style.backgroundColor = previousHtml;
+            document.body.style.backgroundColor = previousBody;
+        };
+    }, [dashboard.isGameScreenOpen]);
+
+    // 8i — toucher un avatar ferme les mondes puis ouvre sa fiche, comme le
+    // faisait l'ancien BarWorld. Le Canvas persistant n'est pas démonté.
+    const handleSelectWorldUser = React.useCallback((userId: string) => {
+        setIsWorldsModalOpen(null);
+        navigate(`/profile/${userId}`);
+    }, [navigate, setIsWorldsModalOpen]);
+
+    const people = React.useMemo(() => toSnapPeople({
+        members: memberLocations.data ?? [],
+        self: dashboard.profile
+            ? {
+                id: dashboard.profile.id,
+                username: dashboard.profile.username,
+                avatar_sprites: dashboard.profile.avatar_sprites,
+            }
+            : null,
+        selfLocation: {
+            userLocation: dashboard.userLocation ?? null,
+            acquiredAt: dashboard.acquiredAt ?? null,
+            hasSessionFix: Boolean(dashboard.hasSessionFix),
+            locationStatus: dashboard.locationStatus ?? 'idle',
+        },
+    }), [
+        memberLocations.data,
+        dashboard.profile,
+        dashboard.userLocation,
+        dashboard.acquiredAt,
+        dashboard.hasSessionFix,
+        dashboard.locationStatus,
+    ]);
+
+    const shareStatus = memberLocations.isError
+        ? 'Positions des membres indisponibles'
+        : dashboard.hasSessionFix && dashboard.userLocation
+            ? 'Position partagée avec la squad'
+            : dashboard.userLocation && dashboard.acquiredAt
+                ? `Dernière position partagée — ${new Date(dashboard.acquiredAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`
+                : memberLocations.isLoading
+                    ? 'Chargement des positions…'
+                    : null;
 
     return (
         <div className="h-full w-full relative flex flex-col bg-[#f8fafc] overflow-hidden font-sans">
@@ -32,7 +103,7 @@ export default function Dashboard() {
                     <motion.div
                         initial={{opacity: 0, y: "100%"}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: "100%"}}
                         transition={{type: "spring", damping: 25, stiffness: 200}}
-                        className="absolute inset-0 z-[100] bg-gray-950"
+                        className="fixed inset-x-0 top-0 h-[calc(100dvh+env(safe-area-inset-top,0px))] z-[100] bg-gray-950"
                     >
                         <Suspense fallback={<div className="flex h-full items-center justify-center text-white"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-beer"></div></div>}>
                             <GameScreen aperoIdProp={dashboard.currentAperoId}/>
@@ -98,6 +169,13 @@ export default function Dashboard() {
                             </button>
                         </div>
                     )}
+
+                    {shareStatus && (
+                        <div data-location-share role="status" aria-label="Partage de position"
+                             className="pointer-events-none bg-white/80 text-gray-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                            {shareStatus}
+                        </div>
+                    )}
                 </div>
 
                 <input type="file" aria-label="Photo du Beer Call" accept="image/*" capture="environment" ref={fileInputRef}
@@ -120,7 +198,7 @@ export default function Dashboard() {
                             isNightMode={dashboard.isNightMode}
                             isMapReady={dashboard.isMapReady}
                             handleMapLoaded={dashboard.handleMapLoaded}
-                            active={routeActive && !dashboard.isGameScreenOpen && !dashboard.isWorldsModalOpen}
+                            active={true}
                             visible={routeActive}
                             squadDetails={dashboard.squadDetails}
                             profile={dashboard.profile}
@@ -131,6 +209,8 @@ export default function Dashboard() {
                             handleBeerCallClick={dashboard.handleBeerCallClick}
                             openCamera={dashboard.openCamera}
                             setIsWorldsModalOpen={dashboard.setIsWorldsModalOpen}
+                            people={people}
+                            onSelectUser={(id) => dashboard.navigate(`/profile/${id}`)}
                         />
                     </div>
                 </div>
@@ -147,7 +227,8 @@ export default function Dashboard() {
                             setIsWorldsModalOpen={dashboard.setIsWorldsModalOpen}
                         />
                     )}
-                    <Navbar isNightMode={dashboard.isNightMode} onCreateClick={() => dashboard.setIsSquadModalOpen(true)} onJoinClick={() => dashboard.setIsJoinModalOpen(true)}/>
+                    <Navbar isNightMode={dashboard.isNightMode} onCreateClick={() => dashboard.setIsSquadModalOpen(true)} onJoinClick={() => dashboard.setIsJoinModalOpen(true)}
+                            onLaunchApero={dashboard.openCamera} launchAperoDisabled={!dashboard.id}/>
                 </div>
             </div>
 
@@ -166,10 +247,13 @@ export default function Dashboard() {
                                   hasLiveLocation={dashboard.canCreateFromLocation}/>}
             {routeActive && dashboard.isScheduleModalOpen && <ScheduleAperoModal isOpen onClose={() => dashboard.setIsScheduleModalOpen(false)}
                                 squadId={dashboard.id || ''} coordinates={dashboard.scheduleCoordinates}/>}
-            {routeActive && !dashboard.isGameScreenOpen && dashboard.isWorldsModalOpen && (
-                <SelectWorldModal isOpen={!!dashboard.isWorldsModalOpen} onClose={() => dashboard.setIsWorldsModalOpen(null)}
-                                  squadId={dashboard.id || ''} beerCallId={dashboard.isWorldsModalOpen || ''} isActiveApero={!!dashboard.isActiveApero}/>
+            {routeActive && (
+                <SelectWorldModal isOpen={!!dashboard.isWorldsModalOpen && !dashboard.isGameScreenOpen} onClose={() => dashboard.setIsWorldsModalOpen(null)}
+                                  squadId={dashboard.id || ''} beerCallId={dashboard.isWorldsModalOpen || ''} isActiveApero={!!dashboard.isActiveApero}
+                                  preparationBeerCallId={preparationBeerCallId}
+                                  onSelectUser={handleSelectWorldUser}/>
             )}
+            {routeActive && WorldPreparationBadge && !dashboard.isGameScreenOpen && <WorldPreparationBadge/>}
             </Suspense>
         </div>
     );

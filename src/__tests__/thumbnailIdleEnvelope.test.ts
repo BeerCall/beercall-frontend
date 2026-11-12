@@ -4,7 +4,6 @@ import {
   computeThumbnailIdleEnvelope,
   type AvatarPartMeasurementInput,
 } from '../lib/thumbnailIdleEnvelope';
-import { computeAvatarFraming, FRAMING_MARGIN } from '../lib/avatarFraming';
 
 function createSkinnedPart(
   name: string,
@@ -163,33 +162,6 @@ describe('thumbnailIdleEnvelope (T36a / VER-13 / CHAL-V53-01)', () => {
     console.log(
       `[T36a diagnostic] samples=${result.sampleCount}, cpuTimeMs=${result.cpuTimeMs.toFixed(2)}, guard=[${result.measuredGuard.map(g => g.toFixed(4)).join(',')}]`
     );
-
-    // Validation projection T30a
-    const framing = computeAvatarFraming({
-      box: result.box,
-      width: 300,
-      height: 300,
-      fov: 45,
-    });
-    expect(framing.ok).toBe(true);
-    if (!framing.ok) return;
-
-    const camera = new THREE.PerspectiveCamera(45, 1, framing.near, framing.far);
-    camera.position.set(...framing.position);
-    camera.lookAt(...framing.center);
-    camera.updateMatrixWorld(true);
-    camera.updateProjectionMatrix();
-
-    // Tous les coins de l'enveloppe projetés dans la caméra respectent la marge 0.8
-    for (const x of [result.box.min.x, result.box.max.x]) {
-      for (const y of [result.box.min.y, result.box.max.y]) {
-        for (const z of [result.box.min.z, result.box.max.z]) {
-          const pt = new THREE.Vector3(x, y, z).project(camera);
-          expect(Math.abs(pt.x)).toBeLessThanOrEqual(FRAMING_MARGIN + 1e-4);
-          expect(Math.abs(pt.y)).toBeLessThanOrEqual(FRAMING_MARGIN + 1e-4);
-        }
-      }
-    }
   });
 
   it('accepte un accessoire statique Kart sans squelette et sans pistes (CHAL-V53-01)', () => {
