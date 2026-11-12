@@ -58,6 +58,14 @@ describe('B08 - logout du profil', () => {
         expect(screen.queryByRole('button', { name: 'Se déconnecter' })).toBeNull();
     });
 
+    it('regroupe score et capsules dans une pastille unique sous le pseudo', () => {
+        render(host());
+        const stats = screen.getByTestId('profile-stats');
+        expect(stats).toHaveTextContent('2');
+        expect(stats).toHaveTextContent('10');
+        expect(stats).not.toContainElement(screen.getByRole('button', {name: 'Se déconnecter'}));
+    });
+
     it('est atteignable au clavier', () => {
         render(host());
         const button = screen.getByRole('button', { name: 'Se déconnecter' });

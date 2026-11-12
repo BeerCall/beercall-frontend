@@ -1,6 +1,6 @@
 import {useMemo, useState, Suspense} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
-import {ChevronLeft, Check, Medal, Users, BarChart2, Trophy, LogOut} from 'lucide-react';
+import {ChevronLeft, Check, Medal, Users, BarChart2} from 'lucide-react';
 import {useQueryClient} from '@tanstack/react-query';
 import {useProfile} from '../hooks/useProfile';
 import {useAnimationManifest} from '../hooks/useAnimationManifest';
@@ -9,6 +9,7 @@ import {api} from '../lib/api';
 import { ProfileAvatarScene } from '../components/3D/ProfileAvatarScene';
 import { ProfileAvatarFallback } from '../components/Profile/ProfileAvatarFallback';
 import VestiairePanel from '../components/Profile/VestiairePanel';
+import {CapsuleIcon, LogoutIcon, TrophyIcon} from '../components/Profile/ProfileStatIcons';
 import { useGlbManifest } from '../avatar/glb/useGlbManifest';
 import { buildCatalogThumbnailMap } from '../lib/catalogThumbnails';
 import { FF_PERF_PANEL } from '../perf/perfPanelGate';
@@ -136,44 +137,42 @@ export default function Profile() {
             </AnimatePresence>
 
             <div
-                className="absolute top-[calc(0px+env(safe-area-inset-top))] left-0 right-0 z-20 px-4 py-3 flex justify-between items-center pointer-events-none">
+                className="absolute top-[calc(0px+env(safe-area-inset-top))] left-0 right-0 z-20 px-4 py-3 flex justify-between items-start pointer-events-none">
 
-                <button onClick={() => navigate(-1)}
-                        className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-sm border border-gray-100 pointer-events-auto hover:scale-105 active:scale-95 transition-all shrink-0">
-                    <ChevronLeft size={22} className="text-gray-700"/>
+                <button onClick={() => navigate(-1)} aria-label="Retour"
+                        className="w-11 h-11 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 text-gray-700 pointer-events-auto hover:scale-105 active:scale-95 transition-all shrink-0">
+                    <ChevronLeft size={20} strokeWidth={2.5}/>
                 </button>
 
-                <div className="flex flex-col items-center flex-1 px-3 pointer-events-none overflow-hidden">
+                <div className="flex flex-col items-center flex-1 min-w-0 px-3 pointer-events-none">
                     <span
-                        className="bg-amber-100 text-amber-900 px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm border border-amber-200 mb-0.5 leading-none whitespace-nowrap">
+                        className="bg-[#fef9c3] text-[#a16207] px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shadow-sm mb-1 leading-none whitespace-nowrap">
                         {profile.title}
                     </span>
-                    <h1 className="text-xl sm:text-2xl font-black text-gray-900 uppercase italic tracking-tight drop-shadow-sm truncate w-full text-center leading-none">
+                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 uppercase italic tracking-tight truncate w-full text-center leading-none">
                         {profile.username}
                     </h1>
+
+                    {/* 🏆 Score + 💊 Capsules : une seule pastille centrée sous le pseudo */}
+                    <div data-testid="profile-stats"
+                         className="mt-3 flex items-center gap-3 bg-white px-4 py-1.5 rounded-full shadow-sm border border-gray-100 pointer-events-auto">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-[#b47a18]">
+                            <TrophyIcon/>
+                            <span className="leading-none pt-px">{profile.score}</span>
+                        </div>
+                        <div className="w-px h-3 bg-gray-200"/>
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
+                            <CapsuleIcon/>
+                            <span className="leading-none pt-px">{profile.caps}</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="flex flex-col gap-1 shrink-0">
-                    {/* 🏆 Score XP */}
-                    <div
-                        className="flex items-center gap-1.5 bg-gradient-to-br from-amber-100 to-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/50 shadow-sm">
-                        <Trophy size={14} className="text-amber-500 drop-shadow-sm"/>
-                        <span
-                            className="text-xs font-black text-amber-700 pt-[2px] leading-none tracking-wide">{profile.score}</span>
-                    </div>
-
-                    {/* 💊 Capsules */}
-                    <div
-                        className="flex items-center gap-1.5 bg-gray-100/80 px-3 py-1.5 rounded-xl border border-gray-200/80 shadow-sm">
-                        <span className="text-xs leading-none drop-shadow-sm">💊</span>
-                        <span
-                            className="text-xs font-black text-gray-600 pt-[2px] leading-none tracking-wide">{profile.caps}</span>
-                    </div>
-
+                <div className="flex justify-end min-w-[44px] shrink-0">
                     {isOwnProfile && (
                         <button type="button" onClick={logout} aria-label="Se déconnecter"
-                                className="pointer-events-auto min-h-11 min-w-11 inline-flex items-center justify-center rounded-xl text-gray-500 hover:text-gray-700 hover:bg-white/70 transition-colors">
-                            <LogOut size={16}/>
+                                className="pointer-events-auto w-11 h-11 inline-flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 text-gray-500 hover:text-gray-900 hover:scale-105 active:scale-95 transition-all">
+                            <LogoutIcon className="w-5 h-5 ml-1"/>
                         </button>
                     )}
                 </div>
@@ -183,7 +182,7 @@ export default function Profile() {
             <div
                 className="flex-1 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-500">
 
-                <div className={`h-[50vh] w-full pt-[calc(76px+env(safe-area-inset-top))] ${isOwnProfile ? 'pb-14' : 'pb-4'} relative shrink-0`}>
+                <div className={`h-[50vh] w-full pt-[calc(112px+env(safe-area-inset-top))] ${isOwnProfile ? 'pb-14' : 'pb-4'} relative shrink-0`}>
 
                     {/* 🚀 LE SWITCH DÉPLACÉ EN BAS : Aux pieds de l'avatar, juste au-dessus du panneau ! */}
                     {isOwnProfile && (
