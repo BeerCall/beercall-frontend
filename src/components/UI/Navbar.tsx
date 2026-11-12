@@ -1,5 +1,5 @@
 import {Users, User} from 'lucide-react';
-import BeerCameraIcon from './BeerCameraIcon';
+import BigPintButton from './BigPintButton';
 import SquadWheel from './SquadWheel';
 import {useSquads} from '../../hooks/useSquads';
 import {useNavigate, useParams} from 'react-router-dom';
@@ -53,9 +53,9 @@ export default function Navbar({
                     title={launchTitle}
                     disabled={launchAperoDisabled}
                     onClick={() => onLaunchApero?.()}
-                    className="flex flex-col items-center justify-center bg-beer text-white w-20 h-20 rounded-full shadow-xl border-4 border-white z-50 -translate-y-6 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100 disabled:cursor-not-allowed"
+                    className="absolute -top-11 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center justify-center leading-none hover:scale-110 active:scale-95 transition-transform disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100 disabled:cursor-not-allowed"
                 >
-                    <BeerCameraIcon size={40}/>
+                    <BigPintButton variant="3d"/>
                     <span className="sr-only">Lancer l'apéro</span>
                 </button>
 
