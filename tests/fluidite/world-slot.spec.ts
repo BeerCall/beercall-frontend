@@ -240,6 +240,8 @@ test('8l — le levier du Bar lance puis reprend la partie au même endroit', as
         await expect(page.locator('header h3')).toHaveCount(0, { timeout: 20_000 });
         const afterClose = await readContextTracker(page);
         await openWorlds(page, 'E2E world-slot');
+        await expect(page.locator('[data-world-name]').first()).toBeVisible({timeout: 180_000});
+        await expect(page.locator('button[aria-label="Démarrer la partie"]')).toBeEnabled({timeout: 20_000});
         await pullLever(page);
         await expect(page.locator('header h3').first()).toBeVisible({ timeout: 30_000 });
         const headerAfter = (await page.locator('header h3').first().innerText()).trim();
