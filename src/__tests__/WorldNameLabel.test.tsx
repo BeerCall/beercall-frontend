@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-import WorldNameLabel, { WorldIdentityStack, nameForWorld } from '../worlds/WorldNameLabel';
+import WorldNameLabel, { WorldIdentityStack } from '../worlds/WorldNameLabel';
+import { nameForWorld } from '../worlds/worldParticipantLabels';
 
 describe('pseudos des mondes Bar et Dodo (8h)', () => {
     it('n’affiche un pseudo autonome qu’au Bar et au Dodo', () => {

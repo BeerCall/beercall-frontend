@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { act, render, waitFor } from '@testing-library/react';
 import maplibregl from 'maplibre-gl';
 

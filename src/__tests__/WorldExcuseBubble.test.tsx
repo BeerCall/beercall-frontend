@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-import WorldExcuseBubble, { excuseForWorld } from '../worlds/WorldExcuseBubble';
+import WorldExcuseBubble from '../worlds/WorldExcuseBubble';
+import { excuseForWorld } from '../worlds/worldParticipantLabels';
 
 const longExcuse = "J'avais promis de venir mais mon poisson rouge a besoin d'une présence constante, et en plus j'ai perdu mes chaussures.";
 

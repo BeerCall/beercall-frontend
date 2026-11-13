@@ -30,8 +30,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { loadGlb } from '../avatar/glb/loadGlb';
 import { RealAvatar } from '../avatar/glb/RealAvatar';
 import { useGlbManifest } from '../avatar/glb/useGlbManifest';
-import WorldExcuseBubble, { excuseForWorld } from './WorldExcuseBubble';
-import { WorldIdentityStack, nameForWorld } from './WorldNameLabel';
+import WorldExcuseBubble from './WorldExcuseBubble';
+import { WorldIdentityStack } from './WorldNameLabel';
+import { excuseForWorld, nameForWorld } from './worldParticipantLabels';
 import { excuseAnchorY, photoAnchorY } from './photoAnchor';
 import { createHeadHeightBatcher } from './headHeightBatcher';
 import {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { motion, useMotionValue, type PanInfo } from 'framer-motion';
 import { Beer, Martini, Pizza, Rocket, Ghost, Flame, Plus, Key } from 'lucide-react';
 import type { Squad } from '../../types/api';
@@ -64,29 +64,28 @@ export default function SquadWheel({ squads, currentSquadId, isLoading = false, 
     );
     const labels = useMemo(() => squadLabels(ordered.map(squad => squad.name)), [ordered]);
     const maxStart = Math.max(0, ordered.length - VISIBLE_SQUADS);
-    const [start, setStart] = useState(0);
-
-    useEffect(() => {
-        setStart(previous => Math.min(previous, maxStart));
-    }, [maxStart]);
-
-    // Garde la squad active dans la fenêtre de 6.
-    useEffect(() => {
+    const [windowState, setWindowState] = useState(() => {
         const currentIndex = ordered.findIndex(squad => String(squad.id) === currentId);
-        if (currentIndex < 0) return;
-        setStart(previous => {
-            if (currentIndex < previous) return currentIndex;
-            if (currentIndex >= previous + VISIBLE_SQUADS) {
-                return Math.max(0, Math.min(maxStart, currentIndex - VISIBLE_SQUADS + 1));
-            }
-            return previous;
-        });
-    }, [currentId, ordered, maxStart]);
+        const start = Math.max(0, Math.min(maxStart, currentIndex - VISIBLE_SQUADS + 1));
+        return { start, ordered, currentId };
+    });
+    let start = windowState.start;
+    // Adjust only when the input changes, before rendering its visible window.
+    // A user drag may still move the active squad out of view until that change.
+    if (windowState.ordered !== ordered || windowState.currentId !== currentId) {
+        start = Math.min(start, maxStart);
+        const currentIndex = ordered.findIndex(squad => String(squad.id) === currentId);
+        if (currentIndex >= 0 && currentIndex < start) start = currentIndex;
+        else if (currentIndex >= start + VISIBLE_SQUADS) {
+            start = Math.max(0, Math.min(maxStart, currentIndex - VISIBLE_SQUADS + 1));
+        }
+        setWindowState({ start, ordered, currentId });
+    }
 
     const visible = ordered.slice(start, start + VISIBLE_SQUADS);
     const slotStart = Math.floor((VISIBLE_SQUADS - visible.length) / 2);
     const shift = (delta: number) => {
-        setStart(previous => Math.max(0, Math.min(maxStart, previous + delta)));
+        setWindowState(previous => ({ ...previous, start: Math.max(0, Math.min(maxStart, previous.start + delta)) }));
     };
     const isTap = (event: { detail: number }) => event.detail === 0 || !suppressClick.current;
 

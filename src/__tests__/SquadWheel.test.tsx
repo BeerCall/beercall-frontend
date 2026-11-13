@@ -76,6 +76,25 @@ function drag(distance: number) {
 }
 
 describe('arc des squads (8b-2)', () => {
+    it('montre une ancienne squad active dès le premier rendu', () => {
+        mount(eight(), '1');
+        expect(visibleIds()).toEqual([7, 6, 5, 4, 2, 1]);
+        expect(screen.getByRole('button', {name: 'Fluidite50'})).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('réajuste la fenêtre à la sélection et au retrait de squads, sans annuler les gestes', () => {
+        const list = eight();
+        const { rerender, onSelect, onCreate, onJoin } = mount(list, '9');
+        drag(-200);
+        expect(visibleIds()).toEqual([7, 6, 5, 4, 2, 1]);
+        rerender(<SquadWheel squads={list} currentSquadId="9" onSelect={onSelect} onCreate={onCreate} onJoin={onJoin}/>);
+        expect(visibleIds()).toEqual([7, 6, 5, 4, 2, 1]);
+        rerender(<SquadWheel squads={list} currentSquadId="8" onSelect={onSelect} onCreate={onCreate} onJoin={onJoin}/>);
+        expect(visibleIds()).toEqual([8, 7, 6, 5, 4, 2]);
+        rerender(<SquadWheel squads={list.slice(0, 2)} currentSquadId="1" onSelect={onSelect} onCreate={onCreate} onJoin={onJoin}/>);
+        expect(visibleIds()).toEqual([2, 1]);
+    });
+
     it('affiche 6 squads maximum, les plus récentes d’abord, sans pagination', () => {
         mount();
         expect(visibleIds()).toEqual([9, 8, 7, 6, 5, 4]);
