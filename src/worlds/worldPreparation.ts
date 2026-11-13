@@ -204,9 +204,11 @@ export function markPreparationCanvasReady(): void {
 }
 
 /**
- * Déclare les avatars d'un monde. Les indices sont les positions stables dans
- * les participants ; un changement de signature (autre Beer Call) réinitialise
- * les accords de ce monde.
+ * Déclare les avatars d'un monde. Les indices sont des **emplacements de rendu**
+ * (tranches de préparation), pas l'identité d'un participant : un participant
+ * remplacé ou réordonné à effectif constant réutilise le même emplacement déjà
+ * accordé. Un ajout ou un retrait ne révoque que les emplacements concernés, et
+ * une préparation déjà terminée est rouverte pour accorder les nouveaux.
  */
 export function registerPreparationWorld(world: WorldKind, indices: number[]): void {
     if (!snapshot.targetBeerCallId) return;
@@ -214,22 +216,28 @@ export function registerPreparationWorld(world: WorldKind, indices: number[]): v
     if (worldSignatures[world] === signature) return;
     worldSignatures[world] = signature;
 
+    const wanted = new Set(indices);
     for (const key of [...granted]) {
-        if (key.startsWith(`${world}:`)) granted.delete(key);
+        if (!key.startsWith(`${world}:`)) continue;
+        const index = Number(key.slice(world.length + 1));
+        if (!wanted.has(index)) granted.delete(key);
     }
     queue = queue.filter((entry) => entry.world !== world);
     for (const index of indices) {
         const key = avatarKey(world, index);
         if (!granted.has(key)) queue.push({world, index});
     }
+    const retained = indices.filter((index) => granted.has(avatarKey(world, index))).length;
     const worlds = worldProgress(snapshot.worlds, world, {
         total: indices.length,
-        granted: 0,
-        frame: false,
+        granted: retained,
     });
+    // Une préparation terminée ne doit pas geler les nouveaux emplacements :
+    // elle repasse en phase d'accord, puis `maybeFinish` la referme.
+    const reopen = snapshot.phase === 'done' && queue.length > 0;
     publish({
         worlds,
-        phase: snapshot.phase === 'gpu' ? 'avatars' : snapshot.phase,
+        phase: reopen || snapshot.phase === 'gpu' ? 'avatars' : snapshot.phase,
     });
     scheduleWork();
     if (openWorld === world) grantAllPreparationAvatars(world);
@@ -237,8 +245,8 @@ export function registerPreparationWorld(world: WorldKind, indices: number[]): v
 
 /** Accorde un avatar. Le monde prioritaire passe devant les autres. */
 export function grantNextPreparationAvatar(priorityWorld?: WorldKind): { world: WorldKind; index: number } | null {
-    if (!snapshot.targetBeerCallId || snapshot.phase === 'done') return null;
-    if (queue.length === 0) return null;
+    if (!snapshot.targetBeerCallId || queue.length === 0) return null;
+    if (snapshot.phase === 'done') publish({phase: 'avatars'});
     let position = priorityWorld
         ? queue.findIndex((entry) => entry.world === priorityWorld)
         : -1;
@@ -252,12 +260,17 @@ export function grantNextPreparationAvatar(priorityWorld?: WorldKind): { world: 
         worlds,
         phase: queue.length === 0 ? 'gpu' : 'avatars',
     });
+    maybeFinish();
     return entry;
 }
 
 /** Termine en priorité un monde (touche Mondes avant la fin du repos). */
 export function grantAllPreparationAvatars(world: WorldKind): number {
-    if (!snapshot.targetBeerCallId || snapshot.phase === 'done') return 0;
+    if (!snapshot.targetBeerCallId) return 0;
+    if (snapshot.phase === 'done') {
+        if (queue.length === 0) return 0;
+        publish({phase: 'avatars'});
+    }
     let grantedCount = 0;
     for (const entry of [...queue]) {
         if (entry.world !== world) continue;
@@ -273,6 +286,7 @@ export function grantAllPreparationAvatars(world: WorldKind): number {
             worlds,
             phase: queue.length === 0 ? 'gpu' : 'avatars',
         });
+        maybeFinish();
     }
     scheduleWork();
     return grantedCount;
