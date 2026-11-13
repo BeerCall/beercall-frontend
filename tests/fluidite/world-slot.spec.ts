@@ -26,8 +26,13 @@ function runPython(script: string): string {
     });
 }
 
-/** Crée un apéro actif isolé dans FLUID40 et renvoie son id (nettoyé par le test). */
-function createTestApero(): number {
+interface TestApero {
+    id: number;
+    endedIds: number[];
+}
+
+/** Crée un apéro actif isolé dans FLUID40 et met de côté les autres actifs. */
+function createTestApero(): TestApero {
     const output = runPython(`
 from datetime import datetime, timezone
 from db.database import SessionLocal
@@ -35,6 +40,14 @@ from models.apero import Apero, AperoParticipant, AperoStatus, ParticipationStat
 db = SessionLocal()
 try:
     now = datetime.now(timezone.utc)
+    competing = db.query(Apero).filter(
+        Apero.squad_id == 2,
+        Apero.status == AperoStatus.ACTIVE,
+    ).all()
+    ended_ids = [a.id for a in competing]
+    for existing in competing:
+        existing.status = AperoStatus.ENDED
+        existing.ended_at = now
     apero = Apero(
         squad_id=2,
         creator_id=1,
@@ -51,23 +64,32 @@ try:
         AperoParticipant(apero_id=apero.id, user_id=4, status=ParticipationStatus.JOINED, created_at=now),
     ])
     db.commit()
-    print(f'APERO_ID={apero.id}')
+    print(f'APERO_ID={apero.id} ENDED_IDS={",".join(str(i) for i in ended_ids)}')
 finally:
     db.close()
 `);
     const match = output.match(/APERO_ID=(\d+)/);
     if (!match) throw new Error(`Création de l'apéro de test impossible: ${output}`);
-    return Number(match[1]);
+    const ended = output.match(/ENDED_IDS=([\d,]*)/);
+    return {
+        id: Number(match[1]),
+        endedIds: ended && ended[1] ? ended[1].split(',').map(Number) : [],
+    };
 }
 
-function deleteTestApero(aperoId: number): void {
+function deleteTestApero(aperoId: number, endedIds: number[]): void {
+    const restore = endedIds.length
+        ? `db.query(Apero).filter(Apero.id.in_([${endedIds.join(',')}])).update(
+        {Apero.status: AperoStatus.ACTIVE, Apero.ended_at: None}, synchronize_session=False)`
+        : 'pass';
     runPython(`
 from db.database import SessionLocal
-from models.apero import Apero, AperoParticipant
+from models.apero import Apero, AperoParticipant, AperoStatus
 db = SessionLocal()
 try:
     db.query(AperoParticipant).filter(AperoParticipant.apero_id == ${aperoId}).delete()
     db.query(Apero).filter(Apero.id == ${aperoId}).delete()
+    ${restore}
     db.commit()
     print('DELETED')
 finally:
@@ -179,7 +201,7 @@ async function advanceToRunningGame(
 
 test('8l — le levier du Bar lance puis reprend la partie au même endroit', async ({ page, request }) => {
     test.setTimeout(900_000);
-    const aperoId = createTestApero();
+    const {id: aperoId, endedIds} = createTestApero();
     try {
         await installContextTracker(page);
         const session = await loginAs(page, request, 'FluiditeDemo');
@@ -254,6 +276,6 @@ test('8l — le levier du Bar lance puis reprend la partie au même endroit', as
         expect(after.totalLost).toBe(before.totalLost);
         expect(after.active).toBe(before.active);
     } finally {
-        deleteTestApero(aperoId);
+        deleteTestApero(aperoId, endedIds);
     }
 });
