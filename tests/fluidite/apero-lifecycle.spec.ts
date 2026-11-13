@@ -278,9 +278,13 @@ finally:
             });
             await expect(page.getByRole('heading', {name: /Programmer l'Apéro/})).toBeVisible({timeout: 15_000});
             await page.getByPlaceholder('Ex: Bar Le Central, Parc...').fill(name);
-            const future = new Date(Date.now() + 3_600_000);
-            const pad = (n: number) => String(n).padStart(2, '0');
-            const local = `${future.getFullYear()}-${pad(future.getMonth() + 1)}-${pad(future.getDate())}T${pad(future.getHours())}:${pad(future.getMinutes())}`;
+            // La valeur datetime-local doit etre calculee dans le fuseau du
+            // navigateur (Europe/Paris), pas dans celui du runner (UTC).
+            const local = await page.evaluate(() => {
+                const future = new Date(Date.now() + 3_600_000);
+                const pad = (n: number) => String(n).padStart(2, '0');
+                return `${future.getFullYear()}-${pad(future.getMonth() + 1)}-${pad(future.getDate())}T${pad(future.getHours())}:${pad(future.getMinutes())}`;
+            });
             await page.locator('input[type="datetime-local"]').fill(local);
             await page.getByRole('button', {name: /PROGRAMMER/}).click();
             await expect(page.getByRole('heading', {name: /Programmer l'Apéro/})).toHaveCount(0, {timeout: 20_000});
