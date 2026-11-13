@@ -1,6 +1,6 @@
 import { test, expect } from './base';
 
 test('minimal test', async ({ page }) => {
-    await page.goto('http://127.0.0.1:5180');
+    await page.goto('/');
     expect(await page.title()).toBeDefined();
 });

@@ -1,6 +1,6 @@
 import { test, expect } from './base';
 import { loginAs } from './contextTracker';
-import { captureUsers, lastJsonLine, restoreUsers, runPython, type UserSnapshot } from './backendState';
+import { captureUsers, lastJsonLine, restoreActiveAperos, restoreUsers, runPython, suspendCompetingActiveAperos, type UserSnapshot } from './backendState';
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=', 'base64');
 const stamp = () => Date.now().toString(36);
@@ -261,6 +261,7 @@ finally:
     test('ScheduleApero : programmation puis démarrage réel', async ({ page, request }) => {
         const name = `E2E schedule ${stamp()}`;
         const users = beginTest();
+        const suspended = suspendCompetingActiveAperos(2);
         try {
             await loginAs(page, request, 'FluiditeDemo');
             await openDashboard(page);
@@ -307,7 +308,11 @@ finally:
             expect(started.aperos[0].status).toBe('ACTIVE');
             expect(started.aperos[0].photo_path).toBeTruthy();
         } finally {
-            endTest(name, users);
+            try {
+                endTest(name, users);
+            } finally {
+                restoreActiveAperos(suspended);
+            }
         }
     });
 

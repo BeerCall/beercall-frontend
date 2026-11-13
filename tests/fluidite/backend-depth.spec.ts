@@ -5,8 +5,10 @@ import {
     cleanupAperosByNames,
     deleteUsersByUsernames,
     lastJsonLine,
+    restoreActiveAperos,
     restoreUsers,
     runPython,
+    suspendCompetingActiveAperos,
 } from './backendState';
 
 type Api = import('@playwright/test').APIRequestContext;
@@ -315,6 +317,7 @@ test.describe('Backend — parcours HTTP profonds', () => {
 
     test('Participation et programmation : erreurs, fraude, démarrage', async ({ request }) => {
         const users = captureUsers([1]);
+        const suspended = suspendCompetingActiveAperos(2);
         const username = `E2Epart${stamp()}`;
         const names = {
             join: `E2E join-depth ${stamp()}`,
@@ -415,6 +418,8 @@ test.describe('Backend — parcours HTTP profonds', () => {
             });
             expect(past.status()).toBe(400);
 
+            // La squad 2 contient un apéro actif de référence depuis moins de
+            // 4 h : il est mis de côté le temps du scénario, puis restauré.
             const future = new Date(Date.now() + 3_600_000).toISOString();
             const scheduled = await request.post('/api/squads/2/scheduled-beer-calls/', {
                 headers: auth(user),
@@ -466,8 +471,12 @@ test.describe('Backend — parcours HTTP profonds', () => {
                 try {
                     deleteUsersByUsernames([username]);
                 } finally {
-                    restoreUsers(users);
-                    expect(captureUsers([1])).toEqual(users);
+                    try {
+                        restoreUsers(users);
+                        expect(captureUsers([1])).toEqual(users);
+                    } finally {
+                        restoreActiveAperos(suspended);
+                    }
                 }
             }
         }

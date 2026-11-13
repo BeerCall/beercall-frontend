@@ -29,6 +29,46 @@ export function lastJsonLine(output: string): string {
     return lines[lines.length - 1];
 }
 
+/** Met de côté les apéros actifs d'une squad, pour un scénario qui crée le sien. */
+export function suspendCompetingActiveAperos(squadId: number): number[] {
+    const output = runPython(`
+from datetime import datetime, timezone
+from db.database import SessionLocal
+from models.apero import Apero, AperoStatus
+db = SessionLocal()
+try:
+    now = datetime.now(timezone.utc)
+    rows = db.query(Apero).filter(Apero.squad_id == ${squadId}, Apero.status == AperoStatus.ACTIVE).all()
+    ids = [row.id for row in rows]
+    for row in rows:
+        row.status = AperoStatus.ENDED
+        row.ended_at = now
+    db.commit()
+    print('SUSPENDED=' + ','.join(str(i) for i in ids))
+finally:
+    db.close()
+`);
+    const match = output.match(/SUSPENDED=([\d,]*)/);
+    return match && match[1] ? match[1].split(',').map(Number) : [];
+}
+
+/** Restaure à l'identique les apéros mis de côté par le scénario. */
+export function restoreActiveAperos(ids: number[]): void {
+    if (ids.length === 0) return;
+    runPython(`
+from db.database import SessionLocal
+from models.apero import Apero, AperoStatus
+db = SessionLocal()
+try:
+    db.query(Apero).filter(Apero.id.in_([${ids.join(',')}])).update(
+        {Apero.status: AperoStatus.ACTIVE, Apero.ended_at: None}, synchronize_session=False)
+    db.commit()
+    print('RESTORED')
+finally:
+    db.close()
+`);
+}
+
 /** Sérialise une valeur en littéral JSON utilisable dans un script Python. */
 function pythonJson(value: unknown): string {
     return JSON.stringify(JSON.stringify(value));
