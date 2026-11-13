@@ -120,6 +120,25 @@ async function waitForSlotTarget(page: Page): Promise<SlotTarget> {
     return target;
 }
 
+/**
+ * Attend que la feuille monde soit geometriquement stable avant de convertir
+ * la cible NDC en pixels : un clic souris ne beneficie pas des controles
+ * d'actionnabilité de Playwright.
+ */
+async function waitForStableViewport(page: Page): Promise<void> {
+    let previous = '';
+    await expect.poll(async () => {
+        const box = await page.getByTestId('world-viewport').boundingBox();
+        if (!box) return false;
+        const current = [box.x, box.y, box.width, box.height]
+            .map((value) => Math.round(value))
+            .join(',');
+        const stable = current === previous;
+        previous = current;
+        return stable;
+    }, { timeout: 15_000, intervals: [250] }).toBe(true);
+}
+
 async function worldCanvasBox(page: Page) {
     const canvas = page.getByTestId('world-viewport').locator('canvas');
     await expect(canvas).toBeVisible({ timeout: 20_000 });
@@ -217,6 +236,9 @@ test('8l — le levier du Bar lance puis reprend la partie au même endroit', as
         await openWorlds(page, 'E2E world-slot');
         await expect(page.locator('[data-world-name]').first()).toBeVisible({ timeout: 180_000 });
         await expect(page.locator('button[aria-label="Démarrer la partie"]')).toBeEnabled({ timeout: 20_000 });
+        // Le clic du levier se fait a des coordonnees : attendre que la feuille
+        // monde soit stable avant de convertir la cible NDC en pixels.
+        await waitForStableViewport(page);
 
         const before = await readContextTracker(page);
         await waitForSlotTarget(page);
@@ -242,6 +264,7 @@ test('8l — le levier du Bar lance puis reprend la partie au même endroit', as
         await openWorlds(page, 'E2E world-slot');
         await expect(page.locator('[data-world-name]').first()).toBeVisible({timeout: 180_000});
         await expect(page.locator('button[aria-label="Démarrer la partie"]')).toBeEnabled({timeout: 20_000});
+        await waitForStableViewport(page);
         await pullLever(page);
         await expect(page.locator('header h3').first()).toBeVisible({ timeout: 30_000 });
         const headerAfter = (await page.locator('header h3').first().innerText()).trim();
