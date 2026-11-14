@@ -232,13 +232,19 @@ export function registerPreparationWorld(world: WorldKind, indices: number[]): v
         total: indices.length,
         granted: retained,
     });
-    // Une préparation terminée ne doit pas geler les nouveaux emplacements :
-    // elle repasse en phase d'accord, puis `maybeFinish` la referme.
-    const reopen = snapshot.phase === 'done' && queue.length > 0;
+    // Réconcilier aussi la phase lorsque des retraits vident la file : aucun
+    // nouvel octroi ne viendra alors déclencher le passage aux rendus GPU.
+    let phase = snapshot.phase;
+    if (queue.length > 0 && (phase === 'done' || phase === 'gpu')) {
+        phase = 'avatars';
+    } else if (queue.length === 0 && phase === 'avatars') {
+        phase = 'gpu';
+    }
     publish({
         worlds,
-        phase: reopen || snapshot.phase === 'gpu' ? 'avatars' : snapshot.phase,
+        phase,
     });
+    if (phase === 'gpu') maybeFinish();
     scheduleWork();
     if (openWorld === world) grantAllPreparationAvatars(world);
 }

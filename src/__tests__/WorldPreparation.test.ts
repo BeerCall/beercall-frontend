@@ -7,6 +7,7 @@ import {
     isPreparationAvatarGranted,
     markPreparationCanvasReady,
     markPreparationDataReady,
+    markPreparationError,
     markPreparationGpuFrame,
     markPreparationLabelsReady,
     registerPreparationWorld,
@@ -126,6 +127,76 @@ describe('préparation au repos des mondes', () => {
         expect(getPreparationSnapshot().worlds.bar).toEqual({total: 2, granted: 2, frame: true});
         expect(getPreparationDebug().queued).toBe(0);
         expect(getPreparationSnapshot().phase).toBe('done');
+    });
+
+    it('referme la préparation si le dernier nouvel arrivant part avant son octroi au repos', () => {
+        resetPreparationForTarget('bc_1');
+        finishPreparation();
+        // Monde fermé : le nouvel emplacement attend sa tranche de repos.
+        registerPreparationWorld('bar', [0, 1, 2]);
+        expect(getPreparationSnapshot().phase).toBe('avatars');
+        expect(isPreparationAvatarGranted('bar', 2)).toBe(false);
+
+        registerPreparationWorld('bar', [0, 1]);
+
+        expect(getPreparationDebug().queued).toBe(0);
+        expect(getPreparationSnapshot().phase).toBe('done');
+        expect(getPreparationSnapshot().worlds.bar).toEqual({total: 2, granted: 2, frame: true});
+        expect(isPreparationAvatarGranted('bar', 0)).toBe(true);
+        expect(isPreparationAvatarGranted('bar', 1)).toBe(true);
+        expect(isPreparationAvatarGranted('piscine', 2)).toBe(true);
+        expect(grantNextPreparationAvatar()).toBeNull();
+    });
+
+    it('conserve la phase GPU si un départ ne laisse aucun nouvel octroi', () => {
+        resetPreparationForTarget('bc_1');
+        markPreparationDataReady();
+        markPreparationCanvasReady();
+        registerPreparationWorld('bar', [0, 1]);
+        registerPreparationWorld('piscine', []);
+        registerPreparationWorld('dodo', []);
+        grantAllPreparationAvatars('bar');
+        markPreparationLabelsReady();
+        expect(getPreparationSnapshot().phase).toBe('gpu');
+
+        registerPreparationWorld('bar', [0]);
+
+        expect(getPreparationDebug().queued).toBe(0);
+        expect(getPreparationSnapshot().phase).toBe('gpu');
+        expect(getPreparationSnapshot().worlds.bar).toEqual({total: 1, granted: 1, frame: false});
+        markPreparationGpuFrame('bar');
+        markPreparationGpuFrame('piscine');
+        markPreparationGpuFrame('dodo');
+        expect(getPreparationSnapshot().phase).toBe('done');
+    });
+
+    it('ne termine pas si un autre monde a encore des octrois en attente', () => {
+        resetPreparationForTarget('bc_1');
+        finishPreparation();
+        registerPreparationWorld('bar', [0, 1, 2]);
+        registerPreparationWorld('dodo', [0]);
+
+        registerPreparationWorld('bar', [0, 1]);
+
+        expect(getPreparationSnapshot().phase).toBe('avatars');
+        expect(getPreparationDebug().queued).toBe(1);
+        expect(isPreparationAvatarGranted('piscine', 2)).toBe(true);
+        expect(grantNextPreparationAvatar()).toEqual({world: 'dodo', index: 0});
+        expect(getPreparationSnapshot().phase).toBe('done');
+    });
+
+    it('préserve les états d’attente et d’erreur lors de la réconciliation', () => {
+        resetPreparationForTarget('bc_1');
+        registerPreparationWorld('bar', [0]);
+        registerPreparationWorld('bar', []);
+        expect(getPreparationSnapshot().phase).toBe('waiting-data');
+        markPreparationError(new Error('synthetic preparation failure'));
+
+        registerPreparationWorld('bar', [0]);
+        registerPreparationWorld('bar', []);
+
+        expect(getPreparationSnapshot().phase).toBe('error');
+        expect(getPreparationSnapshot().errors).toEqual(['synthetic preparation failure']);
     });
 
     it('conserve les accords déjà obtenus quand un participant rejoint en cours de préparation', () => {
