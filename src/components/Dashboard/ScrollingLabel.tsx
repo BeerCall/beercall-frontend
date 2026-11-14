@@ -3,6 +3,7 @@ import {useEffect, useRef, useState, type CSSProperties} from 'react';
 const KEYFRAMES_ID = 'beercall-scrolling-label-keyframes';
 const SCROLL_SPEED_PX_PER_SECOND = 28;
 const MIN_DURATION_SECONDS = 8;
+const VISIBILITY_THRESHOLD = 0.1;
 
 function ensureScrollKeyframes(): void {
     if (typeof document === 'undefined' || document.getElementById(KEYFRAMES_ID)) return;
@@ -91,8 +92,8 @@ export function ScrollingLabel({text, className = ''}: ScrollingLabelProps) {
         let observer: IntersectionObserver;
         try {
             observer = new IntersectionObserver((entries) => {
-                setVisible(entries.some((entry) => entry.isIntersecting));
-            }, {threshold: 0.1});
+                setVisible(entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= VISIBILITY_THRESHOLD));
+            }, {threshold: VISIBILITY_THRESHOLD});
             observer.observe(host);
         } catch (error) {
             console.warn('[ScrollingLabel] IntersectionObserver indisponible, défilement maintenu', error);
@@ -107,7 +108,9 @@ export function ScrollingLabel({text, className = ''}: ScrollingLabelProps) {
 
     const animated = overflow && !reducedMotion;
     const manual = overflow && reducedMotion;
-    const hostStyle: CSSProperties | undefined = manual ? {touchAction: 'pan-x'} : undefined;
+    // Native horizontal scrolling must not disable vertical panning or pinch
+    // zoom. Contain horizontal overscroll so reading does not drag the carousel.
+    const hostStyle: CSSProperties | undefined = manual ? {touchAction: 'auto', overscrollBehaviorX: 'contain'} : undefined;
     const trackStyle: CSSProperties | undefined = animated
         ? {
             animationName: 'beercall-card-scroll',
@@ -125,6 +128,7 @@ export function ScrollingLabel({text, className = ''}: ScrollingLabelProps) {
             data-testid="scrolling-label-host"
             data-overflow={overflow ? 'true' : 'false'}
             data-reduced={manual ? 'true' : 'false'}
+            tabIndex={manual ? 0 : undefined}
             style={hostStyle}
             className={`relative block min-w-0 whitespace-nowrap ${manual ? 'overflow-x-auto hide-scrollbar' : 'overflow-hidden'} ${className}`}
         >

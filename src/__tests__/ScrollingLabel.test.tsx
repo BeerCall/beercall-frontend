@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ScrollingLabel } from '../components/Dashboard/ScrollingLabel';
 
 let resizeTriggers: Array<() => void> = [];
-let intersectionTriggers: Array<(visible: boolean) => void> = [];
+let intersectionTriggers: Array<(visible: boolean, ratio: number) => void> = [];
 let reducedMotion = false;
+let motionListeners = new Set<() => void>();
 
 class ResizeObserverMock {
     constructor(callback: ResizeObserverCallback) {
@@ -17,8 +18,8 @@ class ResizeObserverMock {
 
 class IntersectionObserverMock {
     constructor(callback: IntersectionObserverCallback) {
-        intersectionTriggers.push((visible: boolean) => callback(
-            [{ isIntersecting: visible } as IntersectionObserverEntry],
+        intersectionTriggers.push((visible: boolean, ratio: number) => callback(
+            [{ isIntersecting: visible, intersectionRatio: ratio } as IntersectionObserverEntry],
             this as unknown as IntersectionObserver,
         ));
     }
@@ -41,9 +42,9 @@ function measure(textWidth: number, available: number): void {
     });
 }
 
-function setVisible(visible: boolean): void {
+function setVisible(visible: boolean, ratio = visible ? 1 : 0): void {
     act(() => {
-        for (const trigger of intersectionTriggers) trigger(visible);
+        for (const trigger of intersectionTriggers) trigger(visible, ratio);
     });
 }
 
@@ -51,22 +52,19 @@ beforeEach(() => {
     resizeTriggers = [];
     intersectionTriggers = [];
     reducedMotion = false;
+    motionListeners = new Set();
     vi.stubGlobal('ResizeObserver', ResizeObserverMock);
     vi.stubGlobal('IntersectionObserver', IntersectionObserverMock);
-    Object.defineProperty(window, 'matchMedia', {
-        configurable: true,
-        writable: true,
-        value: (query: string) => ({
-            matches: reducedMotion && query.includes('prefers-reduced-motion'),
+    vi.stubGlobal('matchMedia', (query: string) => ({
+            get matches() { return reducedMotion && query.includes('prefers-reduced-motion'); },
             media: query,
             onchange: null,
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
+            addEventListener: vi.fn((_type: string, listener: () => void) => motionListeners.add(listener)),
+            removeEventListener: vi.fn((_type: string, listener: () => void) => motionListeners.delete(listener)),
             addListener: vi.fn(),
             removeListener: vi.fn(),
             dispatchEvent: vi.fn(),
-        }),
-    });
+        }));
 });
 
 afterEach(() => {
@@ -121,7 +119,7 @@ describe('ScrollingLabel', () => {
 
         const host = screen.getByTestId('scrolling-label-host');
         expect(host).toHaveAttribute('data-reduced', 'true');
-        expect(host.style.touchAction).toBe('pan-x');
+        expect(host.style.touchAction).toBe('auto');
         expect(host.className).toContain('overflow-x-auto');
         expect(host.className).toContain('hide-scrollbar');
         expect(screen.queryByTestId('scrolling-label-track')).not.toBeInTheDocument();
@@ -130,6 +128,58 @@ describe('ScrollingLabel', () => {
         expect(scroll).toHaveTextContent(long);
         expect(screen.getByTestId('scrolling-label-measure')).toHaveTextContent(long);
         expect(screen.getByRole('heading', { name: long })).toBe(host);
+    });
+
+    it('attend au moins dix pour cent de visibilité pour reprendre le défilement', () => {
+        render(<ScrollingLabel text="LIEU LONG PARTIELLEMENT VISIBLE"/>);
+        measure(420, 170);
+
+        setVisible(true, 0.05);
+        expect(screen.getByTestId('scrolling-label-track').style.animationPlayState).toBe('paused');
+        setVisible(true, 0.1);
+        expect(screen.getByTestId('scrolling-label-track').style.animationPlayState).toBe('running');
+    });
+
+    it('permet la lecture au clavier en mode réduit sans restreindre les gestes natifs', () => {
+        reducedMotion = true;
+        render(<ScrollingLabel text="UNE TERRASSE TRES LONGUE AVEC UNE BELLE VUE"/>);
+        measure(420, 170);
+
+        const host = screen.getByTestId('scrolling-label-host');
+        expect(host).toHaveAttribute('tabindex', '0');
+        expect(host.style.touchAction).toBe('auto');
+        expect(host.style.overscrollBehaviorX).toBe('contain');
+        host.focus();
+        expect(host).toHaveFocus();
+        expect(screen.getByRole('heading')).toBe(host);
+    });
+
+    it('réagit à un changement de préférence sans rechargement et nettoie les abonnements', () => {
+        const resizeDisconnect = vi.spyOn(ResizeObserverMock.prototype, 'disconnect');
+        const intersectionDisconnect = vi.spyOn(IntersectionObserverMock.prototype, 'disconnect');
+        const {unmount} = render(<ScrollingLabel text="UN LIEU LONG AVEC DES ACCENTS ÉTÉ ET UN EMOJI 🍻"/>);
+        measure(420, 170);
+        expect(screen.getByTestId('scrolling-label-track')).toBeInTheDocument();
+
+        act(() => {
+            reducedMotion = true;
+            for (const listener of motionListeners) listener();
+        });
+        expect(screen.queryByTestId('scrolling-label-track')).not.toBeInTheDocument();
+        expect(screen.getByTestId('scrolling-label-host')).toHaveAttribute('tabindex', '0');
+        act(() => {
+            reducedMotion = false;
+            for (const listener of motionListeners) listener();
+        });
+        expect(screen.getByTestId('scrolling-label-track')).toBeInTheDocument();
+        expect(screen.getByTestId('scrolling-label-host')).not.toHaveAttribute('tabindex');
+
+        unmount();
+        expect(motionListeners.size).toBe(0);
+        expect(resizeDisconnect).toHaveBeenCalledOnce();
+        expect(intersectionDisconnect).toHaveBeenCalledOnce();
+        resizeDisconnect.mockRestore();
+        intersectionDisconnect.mockRestore();
     });
 
     it('retire le défilement si la place redevient suffisante', () => {
