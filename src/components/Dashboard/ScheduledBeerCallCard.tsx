@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, MapPin, MessageCircle } from 'lucide-react';
 import type { BeerCall } from '../../types/dashboard';
+import { ScrollingLabel } from './ScrollingLabel';
 
 const formatCountdown = (dateString: string | undefined, now: number) => {
     if (!dateString) return 'Date inconnue';
@@ -56,10 +57,11 @@ export const ScheduledBeerCallCard: React.FC<ScheduledBeerCallCardProps> = ({ ca
                     </span>
                     <Clock size={14} className={isImminent ? 'text-rose-400 animate-bounce' : 'text-indigo-400'} />
                 </div>
-                <h3 className="font-black text-gray-900 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
-                    <MapPin size={14} className={isImminent ? 'text-rose-500' : 'text-indigo-500'} />
-                    {call.location_name}
-                </h3>
+                <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
+                    <MapPin size={14} className={`shrink-0 ${isImminent ? 'text-rose-500' : 'text-indigo-500'}`}/>
+                    <ScrollingLabel text={call.location_name}
+                                    className="font-black text-gray-900 text-sm uppercase italic leading-tight"/>
+                </div>
             </div>
             <div className={`mt-auto pt-2 border-t flex flex-col gap-1.5 ${isImminent ? 'border-rose-100/50' : 'border-indigo-100/50'}`}>
                 <p className={`text-[10px] font-mono font-bold tracking-widest text-center rounded-lg py-1 ${

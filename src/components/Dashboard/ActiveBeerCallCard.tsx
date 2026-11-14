@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin, Users, MessageCircle, Camera, Waves } from 'lucide-react';
 import type { BeerCall } from '../../types/dashboard';
+import { ScrollingLabel } from './ScrollingLabel';
 
 interface ActiveBeerCallCardProps {
     call: BeerCall;
@@ -49,10 +50,11 @@ export const ActiveBeerCallCard: React.FC<ActiveBeerCallCardProps> = ({
                     <span
                         className="text-gray-400 text-[9px] font-bold uppercase tracking-wider bg-gray-100 px-1.5 py-0.5 rounded-md leading-none">{timeAgo(call.started_at)}</span>
                 </div>
-                <h3 className="font-black text-gray-900 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
-                    <StatusIcon size={14} className={participation.icon}/>
-                    {call.location_name}
-                </h3>
+                <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
+                    <StatusIcon size={14} className={`shrink-0 ${participation.icon}`}/>
+                    <ScrollingLabel text={call.location_name}
+                                    className="font-black text-gray-900 text-sm uppercase italic leading-tight"/>
+                </div>
             </div>
             <div
                 className="mt-auto pt-2 border-t border-gray-200/50 flex flex-col gap-1.5">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin, Users, MessageCircle } from 'lucide-react';
 import type { BeerCall } from '../../types/dashboard';
+import { ScrollingLabel } from './ScrollingLabel';
 
 interface PastBeerCallCardProps {
     call: BeerCall;
@@ -31,9 +32,11 @@ export const PastBeerCallCard: React.FC<PastBeerCallCardProps> = ({
                     <span
                         className="text-gray-400 text-[9px] font-bold uppercase tracking-wider leading-none">{timeAgo(call.started_at)}</span>
                 </div>
-                <h3 className="font-black text-gray-700 text-sm uppercase italic mt-0.5 truncate flex items-center gap-1.5 leading-tight">
-                    <MapPin size={14} className="text-gray-400"/> {call.location_name}
-                </h3>
+                <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
+                    <MapPin size={14} className="shrink-0 text-gray-400"/>
+                    <ScrollingLabel text={call.location_name}
+                                    className="font-black text-gray-700 text-sm uppercase italic leading-tight"/>
+                </div>
             </div>
             <div
                 className="mt-auto pt-2 border-t border-gray-200/50 flex flex-col gap-1.5">
