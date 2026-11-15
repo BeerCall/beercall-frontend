@@ -4,6 +4,7 @@ import type { PropsWithChildren } from 'react';
 import { useDashboard } from '../hooks/useDashboard';
 import { useLocationStore } from '../store/useLocationStore';
 import { DashboardActivityContext } from '../lib/dashboardActivity';
+import type { MapRef } from 'react-map-gl/maplibre';
 
 const route = vi.hoisted(() => ({ id: '1' }));
 
@@ -89,6 +90,16 @@ describe('Garanties de maintien carte (UX-01 / T01)', () => {
 
         expect(result.current.isScheduleModalOpen).toBe(false);
         expect(result.current.scheduleCoordinates).toBeNull();
+    });
+
+    it('un appui sur un totem annule aussi un maintien antérieur hors totem', () => {
+        const { result } = renderHook(() => useDashboard());
+        const query = vi.fn().mockReturnValueOnce([]).mockReturnValue([{}]);
+        result.current.mapRef.current = {getMap: () => ({getLayer: () => ({}), queryRenderedFeatures: query})} as unknown as MapRef;
+        const event = {originalEvent: {target: {closest: () => null}}, point: {x: 100, y: 100}, lngLat: {toArray: () => [2.35, 48.85]}};
+        act(() => { result.current.handleMapPointerDown(event); vi.advanceTimersByTime(300); });
+        act(() => { result.current.handleMapPointerDown(event); vi.advanceTimersByTime(800); });
+        expect(result.current.isScheduleModalOpen).toBe(false);
     });
 
     it('ouvert à 700 ms aux coordonnées initiales', () => {

@@ -127,6 +127,14 @@ export const useDashboard = () => {
         const ev = event as { originalEvent?: { target?: { closest?: (s: string) => boolean }, touches?: unknown[] }, point?: { x: number, y: number }, lngLat?: { toArray: () => [number, number] } };
         if (ev.originalEvent?.target?.closest?.('button, a, input, [role="button"]')) return;
 
+        // Un appui sur un totem d'apéro ne doit jamais ouvrir la création programmée.
+        const nativeMap = mapRef.current?.getMap?.();
+        if (nativeMap && ev.point && nativeMap.getLayer?.('apero-totems')
+            && nativeMap.queryRenderedFeatures?.([ev.point.x, ev.point.y], {layers: ['apero-totems']}).length) {
+            cancelLongPress();
+            return;
+        }
+
         // Un nouvel appui remplace toujours le maintien précédent.
         cancelLongPress();
 
