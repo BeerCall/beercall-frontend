@@ -1,5 +1,4 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {motion} from 'framer-motion';
 import {Marker, useMap} from 'react-map-gl/maplibre';
 import type {BeerCall, SquadDetails} from '../../types/dashboard';
 import {ScheduledMarkerCountdown} from '../UI/ScheduledMarkerCountdown';
@@ -18,6 +17,8 @@ import {
 import type {AperoEntry} from '../../map/snap/aperoClusters';
 import {zoomBucket} from '../../map/snap/clusters';
 import {AperoGroupMarker} from './AperoGroupMarker';
+import {AperoMarkerBadge} from './AperoMarkerVisual';
+import {squadAccent, timeAgoLabel} from './aperoMarkerStyle';
 import {AperoMemberSheet, type AperoCallKind} from './AperoMemberSheet';
 
 export interface AperoMarkerLayerProps {
@@ -168,6 +169,8 @@ function AperoMarkerContents({
         });
     };
 
+    const color = squadAccent(squadDetails?.color);
+
     return (
         <>
             {entries.map((entry) => {
@@ -178,6 +181,7 @@ function AperoMarkerContents({
                                 style={{zIndex: APERO_GROUP_Z_INDEX}}>
                             <AperoGroupMarker
                                 count={entry.calls.length}
+                                color={color}
                                 statuses={entry.statuses}
                                 dominantStatus={entry.dominantStatus}
                                 canExpand={entry.canExpand}
@@ -204,6 +208,8 @@ function AperoMarkerContents({
                                 style={{zIndex: 55}}>
                             <ScheduledMarkerCountdown
                                 scheduledFor={call.scheduled_for || ''}
+                                color={color}
+                                label={call.location_name}
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     openCamera({lat: entry.coordinates[1], lng: entry.coordinates[0]}, call);
@@ -218,18 +224,24 @@ function AperoMarkerContents({
                         <Marker key={`past-${entry.id}`} longitude={entry.coordinates[0]}
                                 latitude={entry.coordinates[1]} anchor="bottom"
                                 style={{zIndex: 30}}>
-                            <div onClick={(event) => {
-                                event.stopPropagation();
-                                setIsWorldsModalOpen(call.id);
-                            }}
-                                 className="relative flex items-center justify-center cursor-pointer group pb-2 opacity-60 hover:opacity-100 transition-opacity">
-                                <motion.div whileHover={{scale: 1.1, y: -4}} whileTap={{scale: 0.9}}
-                                            className="relative z-10 w-8 h-8 rounded-full shadow-sm flex items-center justify-center border-2 backdrop-blur-sm transition-all bg-gray-400 text-white border-white">
-                                    <span className="text-sm drop-shadow-sm leading-none">👻</span>
-                                </motion.div>
-                                <div
-                                    className="absolute -bottom-1 w-2.5 h-2.5 rotate-45 rounded-sm shadow-sm transition-all z-0 bg-gray-400 border-r border-b border-white"/>
-                            </div>
+                            <button
+                                type="button"
+                                data-apero-marker="single"
+                                data-apero-status="past"
+                                aria-label={`Voir le monde de ${call.location_name}`}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    setIsWorldsModalOpen(call.id);
+                                }}
+                                className="group relative flex touch-manipulation items-center justify-center rounded-full opacity-90 transition-all duration-200 hover:scale-105 hover:opacity-100 active:scale-95 motion-reduce:hover:scale-100 motion-reduce:active:scale-100 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/80"
+                            >
+                                <AperoMarkerBadge
+                                    variant="past"
+                                    color={color}
+                                    pillText={timeAgoLabel(call.ended_at ?? call.started_at)}
+                                    pillKind="past"
+                                />
+                            </button>
                         </Marker>
                     );
                 }
@@ -238,26 +250,24 @@ function AperoMarkerContents({
                     <Marker key={`active-${entry.id}`} longitude={entry.coordinates[0]}
                             latitude={entry.coordinates[1]} anchor="bottom"
                             style={{zIndex: 60}}>
-                        <div onClick={(event) => {
-                            event.stopPropagation();
-                            handleBeerCallClick(call);
-                        }}
-                             className="relative flex items-center justify-center cursor-pointer group pb-2">
-                            <div
-                                className="absolute top-1 w-8 h-8 rounded-full animate-ping opacity-60 z-0 bg-amber-500"/>
-                            <motion.div whileHover={{scale: 1.1, y: -4}} whileTap={{scale: 0.9}}
-                                        className="relative z-10 w-10 h-10 rounded-full shadow-lg flex items-center justify-center border-2 backdrop-blur-md transition-all bg-amber-500 text-white border-white shadow-amber-500/40">
-                                <span className="text-lg drop-shadow-sm leading-none">🍻</span>
-                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                    <span
-                                        className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
-                                    <span
-                                        className="relative inline-flex rounded-full h-3 w-3 bg-amber-200"></span>
-                                </span>
-                            </motion.div>
-                            <div
-                                className="absolute -bottom-1 w-3 h-3 rotate-45 rounded-sm shadow-sm transition-all z-0 bg-amber-500 border-r border-b border-white"/>
-                        </div>
+                        <button
+                            type="button"
+                            data-apero-marker="single"
+                            data-apero-status="active"
+                            aria-label={`Voir l'apéro ${call.location_name}`}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                handleBeerCallClick(call);
+                            }}
+                            className="group relative flex touch-manipulation items-center justify-center rounded-full transition-transform duration-200 hover:scale-105 active:scale-95 motion-reduce:hover:scale-100 motion-reduce:active:scale-100 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/80"
+                        >
+                            <AperoMarkerBadge
+                                variant="active"
+                                color={color}
+                                pillText="EN COURS"
+                                pillKind="navy"
+                            />
+                        </button>
                     </Marker>
                 );
             })}

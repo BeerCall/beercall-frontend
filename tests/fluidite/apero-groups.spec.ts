@@ -356,11 +356,9 @@ async function sentinelValue(page: Page): Promise<string | undefined> {
 }
 
 function activeSingles(page: Page) {
-    // Les marqueurs individuels actifs portent l'emoji `text-lg` ; la pastille
-    // de groupe utilise `text-sm`. Aucun testid produit n'est ajouté.
-    return page
-        .locator('.maplibregl-marker')
-        .filter({ has: page.locator('span.text-lg') });
+    // Les marqueurs individuels actifs exposent un attribut stable, indépendant
+    // du rendu visuel (médaillon 14d).
+    return page.locator('.maplibregl-marker [data-apero-marker="single"][data-apero-status="active"]');
 }
 
 test.describe('14c — regroupement visuel des apéros', () => {

@@ -1,8 +1,11 @@
 import React from 'react';
-import {act, fireEvent, render, screen} from '@testing-library/react';
+import {act, fireEvent, render, screen, within} from '@testing-library/react';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import type {BeerCall, SquadDetails} from '../../types/api';
 import {AperoMarkerLayer} from './AperoMarkerLayer';
+import {AperoGroupBadge, AperoMarkerBadge} from './AperoMarkerVisual';
+import {APERO_NAVY, readableInk, squadAccent} from './aperoMarkerStyle';
+import {ScheduledMarkerCountdown} from '../UI/ScheduledMarkerCountdown';
 
 const mapState = vi.hoisted(() => ({current: null as unknown}));
 
@@ -108,12 +111,50 @@ afterEach(() => {
 });
 
 describe('AperoMarkerLayer', () => {
+    it('choisit une encre avec contraste AA sur les couleurs de squad', () => {
+        const luminance = (hex: string) => {
+            const channels = [1, 3, 5].map((start) => Number.parseInt(hex.slice(start, start + 2), 16) / 255)
+                .map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+            return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+        };
+        for (const color of ['#06B6D4', '#FFCC00', '#EF4444', '#22C55E', '#777777', '#FFFFFF', '#000000']) {
+            const values = [luminance(color), luminance(readableInk(color))].sort((a, b) => a - b);
+            expect((values[1] + 0.05) / (values[0] + 0.05), color).toBeGreaterThanOrEqual(4.5);
+        }
+        expect(readableInk('#06B6D4')).toBe(APERO_NAVY);
+    });
+
+    it('normalise les couleurs courtes avant composition des ombres alpha', () => {
+        expect(squadAccent('#abc')).toBe('#aabbcc');
+        expect(squadAccent('var(--foreign)')).toBe('#F59E0B');
+    });
+
+    it('expose heure et état prêt dans le nom accessible du marqueur programmé', () => {
+        const date = new Date(Date.now() + 3_600_000).toISOString();
+        const {rerender} = render(<ScheduledMarkerCountdown scheduledFor={date} label="Chez Léa" onClick={vi.fn()} />);
+        expect(screen.getByRole('button', {name: /Chez Léa.*\d{2}H\d{2}/})).not.toBeNull();
+        rerender(<ScheduledMarkerCountdown scheduledFor={new Date(Date.now() + 60_000).toISOString()} label="Chez Léa" onClick={vi.fn()} />);
+        expect(screen.getByRole('button', {name: /Chez Léa.*PRÊT/})).not.toBeNull();
+    });
+
+    it('neutralise aussi les points pulsés en mouvement réduit', () => {
+        const {container} = render(<AperoMarkerBadge variant="active" color="#FFCC00" pillText="EN COURS" pillKind="navy" />);
+        const dot = container.querySelector('.animate-pulse');
+        expect(dot?.classList.contains('motion-reduce:animate-none')).toBe(true);
+    });
+
+    it('ne suggère pas de statut programmé dans les cercles d’un groupe uniquement actif', () => {
+        const {container} = render(<AperoGroupBadge count={2} color="#06B6D4" statuses={['active']} dominantStatus="active" />);
+        const backColors = [...container.querySelectorAll<HTMLElement>('.absolute')].map((circle) => circle.style.backgroundColor);
+        expect(backColors).toEqual(['rgb(6, 182, 212)', 'rgb(6, 182, 212)']);
+    });
+
     it('utilise la provenance du doublon valide retenu après filtrage des coordonnées', () => {
         const invalid = call('bc_same', Number.NaN, 48.85);
         const scheduled = call('bc_same', 2.35, 48.85, {status: 'scheduled', scheduled_for: future()});
         const props = makeProps({squadDetails: squad({active_beer_call: [invalid], scheduled_beer_calls: [scheduled]})});
         render(<AperoMarkerLayer {...props} />);
-        fireEvent.click(screen.getByText('⏳'));
+        fireEvent.click(screen.getByRole('button', {name: /Participer à l'apéro Lieu bc_same/}));
         expect(props.openCamera).toHaveBeenCalledWith({lng: 2.35, lat: 48.85}, scheduled);
         expect(props.handleBeerCallClick).not.toHaveBeenCalled();
     });
@@ -144,7 +185,8 @@ describe('AperoMarkerLayer', () => {
         const props = makeProps({squadDetails: squad({active_beer_call: [a, b]})});
         const {rerender} = render(<AperoMarkerLayer {...props} />);
         fireEvent.click(screen.getByRole('button', {name: /2 apéros regroupés/}));
-        screen.getByRole('button', {name: /Lieu bc_b/}).focus();
+        const dialog = screen.getByRole('dialog', {name: /Apéros au même endroit/});
+        within(dialog).getByRole('button', {name: /Lieu bc_b/}).focus();
         rerender(<AperoMarkerLayer {...props} squadDetails={squad({active_beer_call: [a]})} />);
         fireEvent.keyDown(document, {key: 'Tab'});
         expect(document.activeElement).toBe(screen.getByRole('button', {name: 'Fermer'}));
@@ -160,7 +202,8 @@ describe('AperoMarkerLayer', () => {
         rerender(<AperoMarkerLayer {...props} squadDetails={squad({past_beer_calls: [updated]})} />);
         expect(screen.queryByText('Ancien lieu')).toBeNull();
         expect(screen.queryByText('Lieu retiré')).toBeNull();
-        fireEvent.click(screen.getByRole('button', {name: /Lieu actuel/}));
+        const dialog = screen.getByRole('dialog', {name: /Apéros au même endroit/});
+        fireEvent.click(within(dialog).getByRole('button', {name: /Lieu actuel/}));
         expect(props.handleBeerCallClick).not.toHaveBeenCalled();
         expect(props.setIsWorldsModalOpen).toHaveBeenCalledWith(updated.id);
     });
@@ -191,7 +234,7 @@ describe('AperoMarkerLayer', () => {
         const group = screen.getByRole('button', {name: /2 apéros regroupés/});
         expect(group.getAttribute('aria-label')).not.toMatch(/passé et passé/);
         // La bande de statuts contient un seul dot pour les deux statuts métier passés.
-        expect(group.lastElementChild?.children).toHaveLength(1);
+        expect(within(group).getByTestId('apero-group-statuses').children).toHaveLength(1);
     });
 
     it('cadre au bearing courant et respecte la réduction des animations', () => {
@@ -226,13 +269,13 @@ describe('AperoMarkerLayer', () => {
         render(<AperoMarkerLayer {...props} />);
         expect(screen.getAllByTestId('mock-marker')).toHaveLength(3);
 
-        fireEvent.click(screen.getByText('🍻'));
+        fireEvent.click(screen.getByRole('button', {name: /Voir l'apéro Lieu bc_a/}));
         expect(props.handleBeerCallClick).toHaveBeenCalledWith(active);
 
-        fireEvent.click(screen.getByText('⏳'));
+        fireEvent.click(screen.getByRole('button', {name: /Participer à l'apéro Lieu bc_s/}));
         expect(props.openCamera).toHaveBeenCalledWith({lat: 48.85, lng: 2.45}, scheduled);
 
-        fireEvent.click(screen.getByText('👻'));
+        fireEvent.click(screen.getByRole('button', {name: /Voir le monde de Lieu bc_p/}));
         expect(props.setIsWorldsModalOpen).toHaveBeenCalledWith('bc_p');
         expect(props.handleBeerCallClick).toHaveBeenCalledTimes(1);
     });
