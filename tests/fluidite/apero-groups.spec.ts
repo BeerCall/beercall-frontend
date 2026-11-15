@@ -409,7 +409,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
     test('Compteur d\'apéros, groupe au dézoom et séparation au zoom sans action métier', async ({
         page,
         request,
-    }) => {
+    }, testInfo) => {
         await loginAs(page, request, 'FluiditeDemo');
         await openSquad(page, fixtures.a);
         await focusMap(page, NEAR_CENTER, 14);
@@ -438,6 +438,24 @@ test.describe('14c — regroupement visuel des apéros', () => {
         await expect(groupTwo).toHaveCount(0);
         const singles = activeSingles(page);
         await expect(singles).toHaveCount(2);
+
+        // Régression : les images doivent réellement changer carte immobile,
+        // pas uniquement pendant un pan/scroll qui redessine le canvas.
+        await page.waitForTimeout(2000);
+        const box = await singles.first().boundingBox();
+        const viewport = page.viewportSize();
+        if (!box || !viewport) throw new Error('Totem non mesurable pour la preuve d’animation');
+        const x = Math.max(0, box.x + box.width / 2 - 54);
+        const y = Math.max(0, box.y + box.height - 72);
+        const clip = {x, y, width: Math.min(108, viewport.width - x), height: Math.min(72, viewport.height - y)};
+        const frames: Buffer[] = [];
+        for (let frame = 0; frame < 3; frame += 1) {
+            await page.waitForTimeout(170);
+            const pixels = await page.screenshot({clip});
+            frames.push(pixels);
+            await testInfo.attach(`totem-at-rest-${frame}`, {body: pixels, contentType: 'image/png'});
+        }
+        expect(frames.some((pixels) => !pixels.equals(frames[0])), 'Le totem doit bouger sans geste sur la carte').toBe(true);
 
         const opened: string[] = [];
         for (let index = 0; index < 2; index += 1) {

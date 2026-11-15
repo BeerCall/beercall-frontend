@@ -26,6 +26,7 @@ import {
     pastTotemSpec,
     scheduledTotemAnimation,
     totemPalette,
+    TOTEM_ANIMATION_FPS,
     type TotemSpec,
 } from './aperoTotems';
 import type {AperoStatus} from '../../types/api';
@@ -55,6 +56,7 @@ interface Blueprint {
 }
 
 interface MapEvent {
+    sourceId?: string;
     point?: {x: number; y: number};
     features?: Array<{properties?: Record<string, unknown> | null}>;
 }
@@ -82,6 +84,7 @@ interface NativeTotemMap {
     hasImage: (id: string) => boolean;
     removeImage: (id: string) => void;
     updateImage: (id: string, image: unknown) => void;
+    triggerRepaint: () => void;
     queryRenderedFeatures: (point: unknown, options?: {layers?: string[]}) => unknown[];
     isStyleLoaded?: () => boolean;
 }
@@ -94,11 +97,23 @@ function hasTotemStyle(map: NativeTotemMap): boolean {
     return !map.getStyle || Boolean(map.getStyle());
 }
 
-function loadTotemImage(svg: string): Promise<HTMLImageElement> {
+function loadTotemImage(svg: string): Promise<ImageData> {
     return new Promise((resolve, reject) => {
         const image = new Image();
         image.decoding = 'async';
-        image.onload = () => resolve(image);
+        image.onload = () => {
+            try {
+                // Rasterisation hors de la boucle d'animation : updateImage
+                // reçoit ensuite un tampon RGBA, sans canvas/readback par tick.
+                const canvas = document.createElement('canvas');
+                canvas.width = image.naturalWidth;
+                canvas.height = image.naturalHeight;
+                const context = canvas.getContext('2d', {willReadFrequently: true});
+                if (!context) throw new Error('Décodage 2D des totems indisponible');
+                context.drawImage(image, 0, 0);
+                resolve(context.getImageData(0, 0, canvas.width, canvas.height));
+            } catch (error) { reject(error); }
+        };
         image.onerror = () => reject(new Error('Image de totem illisible'));
         image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     });
@@ -264,7 +279,7 @@ function AperoMarkerContents({
     }, [expandGroup]);
     const proxyRefs = useRef(new Map<string, HTMLButtonElement>());
     const imageKeysRef = useRef(new Set<string>());
-    const frameImagesRef = useRef(new Map<string, HTMLImageElement[]>());
+    const frameImagesRef = useRef(new Map<string, ImageData[]>());
     const [failedEntries, setFailedEntries] = useState<Set<string>>(() => new Set());
 
     // Source + couche de totems, placées sous la première couche d'avatars.
@@ -272,6 +287,7 @@ function AperoMarkerContents({
         if (!native || !enabled) return;
         const map = native;
         let disposed = false;
+        let orderVerified = false;
         const ensure = (): boolean => {
             if (disposed || !hasTotemStyle(map)) return false;
             if (map.isStyleLoaded && !map.isStyleLoaded()) return false;
@@ -304,14 +320,17 @@ function AperoMarkerContents({
                 const beforeIndex = layers.findIndex((layer) => layer.id === before);
                 if (index >= 0 && beforeIndex >= 0 && index > beforeIndex) map.moveLayer(LAYER_ID, before);
             }
+            orderVerified = Boolean(before);
             return added;
         };
         const ensureAndNotify = () => {
             if (ensure()) setStyleEpoch((value) => value + 1);
         };
         const onStyle = () => {
+            orderVerified = false;
             ensureAndNotify();
         };
+        const onIdle = () => { if (!orderVerified) ensureAndNotify(); };
         const onRender = () => {
             if (ensure()) {
                 setStyleEpoch((value) => value + 1);
@@ -348,14 +367,14 @@ function AperoMarkerContents({
         const added = ensure();
         if (!added) map.on('render', onRender);
         map.on('styledata', onStyle);
-        map.on('idle', ensureAndNotify);
+        map.on('idle', onIdle);
         map.on('click', LAYER_ID, onClick);
         map.on('mouseenter', LAYER_ID, onEnter);
         map.on('mouseleave', LAYER_ID, onLeave);
         return () => {
             disposed = true;
             map.off('styledata', onStyle);
-            map.off('idle', ensureAndNotify);
+            map.off('idle', onIdle);
             map.off('render', onRender);
             map.off('click', LAYER_ID, onClick);
             map.off('mouseenter', LAYER_ID, onEnter);
@@ -434,9 +453,8 @@ function AperoMarkerContents({
         };
     }, [native, enabled, entries, kindOf, squadDetails?.color, styleEpoch]);
 
-    // Les bières qui trinquent et la pinte qui se remplit : quelques images
-    // de carte échangées à basse fréquence, jamais pour un groupe ni en
-    // mouvement réduit.
+    // Une horloge bornée pour les seules icônes animées rendues dans le viewport.
+    // Aucun état React ni rasterisation par frame ; un seul repaint par tick.
     useEffect(() => {
         if (!native || !enabled) return;
         const keys = new Set<string>();
@@ -454,30 +472,101 @@ function AperoMarkerContents({
             ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
         let phase = 0;
         let timer: number | undefined;
+        let visibleKeys = new Set<string>();
+        let dirty = true;
+        let forceRefresh = true;
+        let lastVisibilityCheck = Number.NEGATIVE_INFINITY;
+        const written = new Map<string, number>();
+        const ready = () => native.isStyleLoaded ? native.isStyleLoaded() : hasTotemStyle(native);
+        const stop = () => {
+            if (timer !== undefined) window.clearInterval(timer);
+            timer = undefined;
+        };
         const updateFrames = () => {
-            if (!hasTotemStyle(native)) return;
-            if (native.isStyleLoaded && !native.isStyleLoaded()) return;
-            for (const key of keys) {
+            if (!ready()) return;
+            let changed = false;
+            for (const key of visibleKeys) {
                 const images = frameImagesRef.current.get(key);
                 if (!images || images.length < 2 || !native.hasImage(key)) continue;
-                native.updateImage?.(key, images[phase % images.length]);
+                const frame = phase % images.length;
+                if (written.get(key) === frame) continue;
+                native.updateImage(key, images[frame]);
+                written.set(key, frame);
+                changed = true;
+            }
+            // updateImage ne programme pas lui-même le prochain rendu MapLibre.
+            if (changed) native.triggerRepaint();
+        };
+        const refreshVisibility = () => {
+            dirty = false;
+            forceRefresh = false;
+            lastVisibilityCheck = performance.now();
+            if (document.hidden || !ready() || !native.getLayer(LAYER_ID)) {
+                // Le layer ou le style peut arriver après ce passage : la
+                // prochaine frame doit retenter au lieu de consommer l'essai.
+                dirty = true;
+                visibleKeys.clear();
+                stop();
+                return;
+            }
+            const features = native.queryRenderedFeatures(undefined, {layers: [LAYER_ID]}) as NonNullable<MapEvent['features']>;
+            visibleKeys = new Set(features.map((feature) => feature.properties?.icon)
+                .filter((key): key is string => typeof key === 'string' && keys.has(key)));
+            if (!visibleKeys.size || media?.matches) {
+                stop();
+                phase = 0;
+                if (visibleKeys.size) updateFrames();
+                return;
+            }
+            if (timer === undefined) {
+                timer = window.setInterval(() => { phase += 1; updateFrames(); }, 1000 / TOTEM_ANIMATION_FPS);
+            }
+        };
+        const onRender = () => {
+            if (dirty && (forceRefresh || performance.now() - lastVisibilityCheck >= 100)) refreshVisibility();
+        };
+        const onMove = () => { dirty = true; };
+        const onMoveEnd = () => {
+            dirty = true;
+            forceRefresh = true;
+            refreshVisibility();
+        };
+        const onSource = (event: MapEvent) => {
+            if (event.sourceId === SOURCE_ID) { dirty = true; forceRefresh = true; }
+        };
+        // MapLibre passe `idle` juste après le rendu des nouvelles données :
+        // c'est le moment fiable pour mesurer les totems réellement placés,
+        // même sans le moindre geste de caméra.
+        const onIdle = () => {
+            if (timer === undefined) {
+                dirty = true;
+                forceRefresh = true;
+                refreshVisibility();
             }
         };
         const sync = () => {
-            if (timer !== undefined) window.clearInterval(timer);
-            timer = undefined;
-            if (media?.matches || document.hidden) {
-                phase = 0;
-                updateFrames();
-                return;
-            }
-            timer = window.setInterval(() => { phase += 1; updateFrames(); }, 320);
+            refreshVisibility();
+            // Une dernière frame force la mesure après placement, sans boucle
+            // permanente lorsque les totems sont tous hors écran.
+            dirty = true;
+            forceRefresh = true;
+            if (!document.hidden) native.triggerRepaint();
         };
-        sync();
+        native.on('render', onRender);
+        native.on('move', onMove);
+        native.on('moveend', onMoveEnd);
+        native.on('sourcedata', onSource);
+        native.on('idle', onIdle);
         media?.addEventListener?.('change', sync);
         document.addEventListener('visibilitychange', sync);
+        sync();
         return () => {
-            if (timer !== undefined) window.clearInterval(timer);
+            stop();
+            native.off('render', onRender);
+            native.off('move', onMove);
+            native.off('moveend', onMoveEnd);
+            native.off('sourcedata', onSource);
+            native.off('idle', onIdle);
             media?.removeEventListener?.('change', sync);
             document.removeEventListener('visibilitychange', sync);
         };

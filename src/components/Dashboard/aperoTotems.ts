@@ -7,6 +7,9 @@ import type {AperoStatus} from '../../types/api';
  * se remplit sont animées par une petite série d'images de carte.
  */
 export type TotemVariant = 'active' | 'scheduled' | 'past' | 'group';
+export const TOTEM_ANIMATION_FPS = 24;
+const ANIMATION_FRAMES = 24;
+const animations = new Map<string, TotemAnimation>();
 
 export interface TotemPalette {
     top: string;
@@ -67,7 +70,7 @@ export interface TotemAnimation {
 
 function keyOf(variant: TotemVariant, count: number, palette: TotemPalette): string {
     let hash = 2166136261;
-    const raw = `${variant}|${count}|${palette.top}|${palette.bottom}|${palette.stroke}`;
+    const raw = `${variant}|${count}|${palette.top}|${palette.bottom}|${palette.stroke}|${ANIMATION_FRAMES}`;
     for (let index = 0; index < raw.length; index += 1) {
         hash ^= raw.charCodeAt(index);
         hash = Math.imul(hash, 16777619);
@@ -80,19 +83,27 @@ const CLINK_RIGHT = [14, 7, -1, -6, -1, 7] as const;
 const SPARK_SCALE = [0.35, 0.7, 1.2, 1.3, 0.8, 0.45] as const;
 const SPARK_OPACITY = [0, 0.35, 1, 1, 0.6, 0] as const;
 
+/** Interpolation cyclique des poses existantes, décodée une seule fois. */
+function pose(values: readonly number[], frame: number): number {
+    const position = frame * values.length / ANIMATION_FRAMES;
+    const index = Math.floor(position) % values.length;
+    const fraction = position - Math.floor(position);
+    const eased = fraction * fraction * (3 - 2 * fraction);
+    return Number((values[index] + (values[(index + 1) % values.length] - values[index]) * eased).toFixed(4));
+}
+
 /** Deux chopes qui trinquent, sans libellé. */
 function activeTotem(frame: number, palette: TotemPalette): string {
     const c = palette;
-    const index = frame % CLINK_LEFT.length;
     return wrap(108, 72, `
 <g transform="translate(6 0)">
-  <g transform="translate(48 14) scale(${SPARK_SCALE[index]}) translate(-48 -14)"
-     opacity="${SPARK_OPACITY[index]}">
+  <g transform="translate(48 14) scale(${pose(SPARK_SCALE, frame)}) translate(-48 -14)"
+     opacity="${pose(SPARK_OPACITY, frame)}">
     <path d="M48 4L50.5 11.5L58 14L50.5 16.5L48 24L45.5 16.5L38 14L45.5 11.5L48 4Z" fill="#FBBF24" stroke="#0F172A" stroke-width="2"/>
     <circle cx="34" cy="10" r="2.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5"/>
     <circle cx="62" cy="10" r="2.5" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5"/>
   </g>
-  <g transform="rotate(${CLINK_LEFT[index]} 29 50)">
+  <g transform="rotate(${pose(CLINK_LEFT, frame)} 29 50)">
     <path d="M18 39H11C8.5 39 7 41 7 44V54C7 57 8.5 59 11 59H18" fill="none" stroke="#0F172A" stroke-width="4.5" stroke-linecap="round"/>
     <path d="M18 39H11C8.5 39 7 41 7 44V54C7 57 8.5 59 11 59H18" fill="none" stroke="${c.top}" stroke-width="2" stroke-linecap="round"/>
     <rect x="16" y="31" width="26" height="36" rx="6" fill="${c.top}" stroke="#0F172A" stroke-width="3.5"/>
@@ -100,7 +111,7 @@ function activeTotem(frame: number, palette: TotemPalette): string {
     <rect x="28" y="39" width="3" height="20" rx="1.5" fill="#0F172A" fill-opacity="0.18"/>
     <path d="M13 31C13 26.5 16.5 24 20 24.5C21.5 21 26.5 20 29.5 22.5C33 20.5 38 22.5 38.5 26C41.5 26.5 44 29 43 32.5C42 35 39 35 36 35H16C14 35 13 33.5 13 31Z" fill="#FFFFFF" stroke="#0F172A" stroke-width="3.2"/>
   </g>
-  <g transform="rotate(${CLINK_RIGHT[index]} 67 50)">
+  <g transform="rotate(${pose(CLINK_RIGHT, frame)} 67 50)">
     <path d="M78 39H85C87.5 39 89 41 89 44V54C89 57 87.5 59 85 59H78" fill="none" stroke="#0F172A" stroke-width="4.5" stroke-linecap="round"/>
     <path d="M78 39H85C87.5 39 89 41 89 44V54C89 57 87.5 59 85 59H78" fill="none" stroke="${c.bottom}" stroke-width="2" stroke-linecap="round"/>
     <rect x="54" y="31" width="26" height="36" rx="6" fill="${c.bottom}" stroke="#0F172A" stroke-width="3.5"/>
@@ -118,8 +129,7 @@ const BUBBLE_Y = [58, 54, 50, 47, 51, 55] as const;
 /** Pinte transparente en remplissage, sans libellé. */
 function scheduledTotem(frame: number, palette: TotemPalette): string {
     const c = palette;
-    const index = frame % LIQUID_TOP.length;
-    const top = LIQUID_TOP[index];
+    const top = pose(LIQUID_TOP, frame);
     return wrap(92, 74, `
 <g transform="translate(8 0)">
   <rect x="29" y="3" width="8" height="9" rx="2" fill="#0F172A" stroke="#FFFFFF" stroke-width="1.5"/>
@@ -130,8 +140,8 @@ function scheduledTotem(frame: number, palette: TotemPalette): string {
   <g clip-path="url(#mugClip)">
     <rect x="16" y="${top}" width="38" height="${72 - top}" fill="${c.top}"/>
     <path d="M14 ${top + 1}C18 ${top - 2} 23 ${top + 3} 28 ${top}C33 ${top - 3} 38 ${top + 2} 43 ${top - 1}C47 ${top - 3} 50 ${top} 52 ${top + 1}V${top + 6}H14V${top + 1}Z" fill="#FFFFFF"/>
-    <circle cx="25" cy="${BUBBLE_Y[index]}" r="2" fill="#FFFFFF" fill-opacity="0.8"/>
-    <circle cx="38" cy="${BUBBLE_Y[index] + 4}" r="2.5" fill="#FFFFFF" fill-opacity="0.8"/>
+    <circle cx="25" cy="${pose(BUBBLE_Y, frame)}" r="2" fill="#FFFFFF" fill-opacity="0.8"/>
+    <circle cx="38" cy="${pose(BUBBLE_Y, frame) + 4}" r="2.5" fill="#FFFFFF" fill-opacity="0.8"/>
   </g>
   <line x1="21" y1="32" x2="27" y2="32" stroke="#0F172A" stroke-width="2" stroke-linecap="round" opacity="0.45"/>
   <line x1="21" y1="44" x2="29" y2="44" stroke="#0F172A" stroke-width="2" stroke-linecap="round" opacity="0.45"/>
@@ -213,22 +223,30 @@ export function groupLive(statuses: readonly AperoStatus[]): boolean {
 
 export function activeTotemAnimation(palette: TotemPalette): TotemAnimation {
     const key = keyOf('active', 0, palette);
-    return {
+    const cached = animations.get(key);
+    if (cached) return cached;
+    const animation = {
         key,
-        frames: CLINK_LEFT.map((_, index) => ({
+        frames: Array.from({length: ANIMATION_FRAMES}, (_, index) => ({
             key, svg: activeTotem(index, palette), width: 108, height: 72,
         })),
     };
+    animations.set(key, animation);
+    return animation;
 }
 
 export function scheduledTotemAnimation(palette: TotemPalette): TotemAnimation {
     const key = keyOf('scheduled', 0, palette);
-    return {
+    const cached = animations.get(key);
+    if (cached) return cached;
+    const animation = {
         key,
-        frames: LIQUID_TOP.map((_, index) => ({
+        frames: Array.from({length: ANIMATION_FRAMES}, (_, index) => ({
             key, svg: scheduledTotem(index, palette), width: 92, height: 74,
         })),
     };
+    animations.set(key, animation);
+    return animation;
 }
 
 export function pastTotemSpec(): TotemSpec {

@@ -37,9 +37,13 @@ class FakeMap {
     layers = new Set<string>();
     images = new Set<string>();
     queryResult: unknown[] = [];
+    visibleTotems = true;
+    features: Array<{properties?: Record<string, unknown>}> = [];
     updateImage = vi.fn();
+    triggerRepaint = vi.fn();
     queryRenderedFeatures = vi.fn((point?: unknown, options?: {layers?: string[]}) => {
-        void point; void options;
+        void point;
+        if (options?.layers?.includes('apero-totems')) return this.visibleTotems ? this.features : [];
         return this.queryResult;
     });
     private handlers = new Map<string, Set<(event?: unknown) => void>>();
@@ -67,7 +71,11 @@ class FakeMap {
     }
 
     addSource = (id: string) => {
-        this.sources.set(id, {setData: vi.fn()});
+        this.sources.set(id, {setData: vi.fn((data: unknown) => {
+            this.features = (data as {features: Array<{properties?: Record<string, unknown>}>}).features;
+            this.emit('sourcedata', {sourceId: id});
+            this.emit('render');
+        })});
     };
     getSource = (id: string) => this.sources.get(id);
     removeSource = (id: string) => {
@@ -161,12 +169,95 @@ afterEach(() => {
 
 describe('AperoMarkerLayer', () => {
     function imageStub(failed = false) {
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({
+            drawImage: vi.fn(),
+            getImageData: () => ({width: 2, height: 2, data: new Uint8ClampedArray(16)}),
+        }) as unknown as ReturnType<HTMLCanvasElement['getContext']>);
         vi.stubGlobal('Image', class {
+            naturalWidth = 2;
+            naturalHeight = 2;
             onload: (() => void) | null = null;
             onerror: (() => void) | null = null;
             set src(_value: string) { queueMicrotask(() => failed ? this.onerror?.() : this.onload?.()); }
         });
     }
+
+    it('demande un nouveau rendu après changement de frame même sans geste de caméra', async () => {
+        imageStub();
+        vi.useFakeTimers();
+        render(<AperoMarkerLayer {...makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})})} />);
+        await act(async () => { await Promise.resolve(); });
+        expect(fake.images.size).toBeGreaterThan(0);
+        fake.triggerRepaint.mockClear();
+        act(() => vi.advanceTimersByTime(1000));
+        expect(fake.updateImage).toHaveBeenCalled();
+        expect(fake.triggerRepaint).toHaveBeenCalled();
+        expect(fake.triggerRepaint.mock.calls.length).toBeGreaterThanOrEqual(20);
+        expect(fake.triggerRepaint.mock.calls.length).toBeLessThanOrEqual(25);
+    });
+
+    it('arrête le travail hors écran et reprend à la réapparition sans geste supplémentaire', async () => {
+        imageStub();
+        vi.useFakeTimers();
+        fake.visibleTotems = false;
+        render(<AperoMarkerLayer {...makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})})} />);
+        await act(async () => { await Promise.resolve(); });
+        fake.updateImage.mockClear(); fake.triggerRepaint.mockClear();
+        act(() => vi.advanceTimersByTime(1000));
+        expect(vi.getTimerCount()).toBe(0);
+        expect(fake.updateImage).not.toHaveBeenCalled();
+        expect(fake.triggerRepaint).not.toHaveBeenCalled();
+        act(() => { fake.visibleTotems = true; fake.emit('moveend'); fake.emit('render'); });
+        act(() => vi.advanceTimersByTime(1000));
+        expect(fake.updateImage.mock.calls.length).toBeGreaterThanOrEqual(20);
+        act(() => { fake.visibleTotems = false; fake.emit('moveend'); fake.emit('render'); });
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('démarre sans geste quand les totems sont placés après le montage', async () => {
+        imageStub();
+        vi.useFakeTimers();
+        fake.visibleTotems = false;
+        render(<AperoMarkerLayer {...makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})})} />);
+        await act(async () => { await Promise.resolve(); });
+        fake.updateImage.mockClear(); fake.triggerRepaint.mockClear();
+        act(() => vi.advanceTimersByTime(600));
+        expect(vi.getTimerCount()).toBe(0);
+        expect(fake.updateImage).not.toHaveBeenCalled();
+        // Le placement MapLibre n'aboutit qu'après les premières frames :
+        // `idle` doit suffire à lancer l'animation, sans pan ni pinch.
+        act(() => { fake.visibleTotems = true; fake.emit('idle'); });
+        expect(vi.getTimerCount()).toBe(1);
+        act(() => vi.advanceTimersByTime(500));
+        expect(fake.updateImage).toHaveBeenCalled();
+        expect(fake.triggerRepaint).toHaveBeenCalled();
+    });
+
+    it('partage une horloge et un repaint pour plusieurs icônes, sans rendu React par frame', async () => {
+        imageStub();
+        vi.useFakeTimers();
+        const commit = vi.fn();
+        render(<React.Profiler id="totems" onRender={commit}><AperoMarkerLayer {...makeProps({squadDetails: squad({
+            active_beer_call: [call('bc_a', 2.35, 48.85)],
+            scheduled_beer_calls: [call('bc_s', 3.5, 49.5, {status: 'scheduled'})],
+        })})} /></React.Profiler>);
+        await act(async () => { await Promise.resolve(); });
+        fake.updateImage.mockClear(); fake.triggerRepaint.mockClear(); commit.mockClear();
+        fake.queryRenderedFeatures.mockClear();
+        act(() => vi.advanceTimersByTime(1000));
+        expect(vi.getTimerCount()).toBe(1);
+        expect(fake.updateImage.mock.calls.length).toBe(fake.triggerRepaint.mock.calls.length * 2);
+        expect(fake.queryRenderedFeatures).not.toHaveBeenCalled();
+        expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('prépare assez de frames distinctes pour une animation fluide sans changer le dessin', () => {
+        const active = activeTotemAnimation(totemPalette());
+        const scheduled = scheduledTotemAnimation(totemPalette());
+        expect(active.frames.length).toBeGreaterThanOrEqual(24);
+        expect(new Set(active.frames.map((frame) => frame.svg)).size).toBeGreaterThan(6);
+        expect(scheduled.frames.length).toBeGreaterThanOrEqual(24);
+    });
 
     it('réinstalle les images mises en cache après un changement de style', async () => {
         imageStub();
@@ -205,11 +296,13 @@ describe('AperoMarkerLayer', () => {
         expect(props.handleBeerCallClick).not.toHaveBeenCalled();
     });
 
-    it('réagit au changement de préférence mouvement réduit sans remonter la carte', () => {
+    it('réagit au changement de préférence mouvement réduit sans remonter la carte', async () => {
+        imageStub();
         vi.useFakeTimers();
         const media = Object.assign(new EventTarget(), {matches: false});
         vi.stubGlobal('matchMedia', vi.fn(() => media));
         render(<AperoMarkerLayer {...makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})})} />);
+        await act(async () => { await Promise.resolve(); });
         expect(vi.getTimerCount()).toBe(1);
         act(() => { media.matches = true; media.dispatchEvent(new Event('change')); });
         expect(vi.getTimerCount()).toBe(0);
@@ -217,10 +310,12 @@ describe('AperoMarkerLayer', () => {
         expect(vi.getTimerCount()).toBe(1);
     });
 
-    it('suspend les animations lorsque le document est masqué puis les reprend', () => {
+    it('suspend les animations lorsque le document est masqué puis les reprend', async () => {
+        imageStub();
         vi.useFakeTimers();
         const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
         render(<AperoMarkerLayer {...makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})})} />);
+        await act(async () => { await Promise.resolve(); });
         expect(vi.getTimerCount()).toBe(1);
         act(() => { hidden.mockReturnValue(true); document.dispatchEvent(new Event('visibilitychange')); });
         expect(vi.getTimerCount()).toBe(0);
@@ -554,7 +649,8 @@ describe('AperoMarkerLayer', () => {
         expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('anime un programmé individuel puis nettoie l’intervalle', () => {
+    it('anime un programmé individuel puis nettoie l’intervalle', async () => {
+        imageStub();
         vi.useFakeTimers();
         const scheduled = call('bc_s', 2.45, 48.85, {
             status: 'scheduled',
@@ -563,6 +659,8 @@ describe('AperoMarkerLayer', () => {
         const {unmount} = render(<AperoMarkerLayer {...makeProps({
             squadDetails: squad({scheduled_beer_calls: [scheduled]}),
         })} />);
+
+        await act(async () => { await Promise.resolve(); });
 
         expect(screen.getByRole('button', {name: /Participer à l'apéro Lieu bc_s/})).not.toBeNull();
         expect(vi.getTimerCount()).toBeGreaterThan(0);
