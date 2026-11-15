@@ -546,6 +546,31 @@ describe('AperoMarkerLayer', () => {
         expect(screen.getAllByTestId('mock-marker')).toHaveLength(3);
     });
 
+    it('affiche un totem distinct par apéro au zoom de détail, même au même point', () => {
+        const active = call('bc_a', 2.35, 48.85, {location_name: 'Bar Alpha'});
+        const scheduled = call('bc_s', 2.35, 48.85, {
+            status: 'scheduled',
+            location_name: 'Bar Bravo',
+            scheduled_for: future(),
+        });
+        const past = call('bc_e', 2.35, 48.85, {status: 'ended', location_name: 'Bar Charlie'});
+        fake.zoom = 20;
+
+        render(<AperoMarkerLayer {...makeProps({
+            squadDetails: squad({
+                active_beer_call: [active],
+                scheduled_beer_calls: [scheduled],
+                past_beer_calls: [past],
+            }),
+        })} />);
+
+        expect(screen.queryByRole('button', {name: /apéros regroupés/})).toBeNull();
+        expect(screen.getAllByTestId('mock-marker')).toHaveLength(3);
+        expect(screen.getByRole('button', {name: /Bar Alpha/})).not.toBeNull();
+        expect(screen.getByRole('button', {name: /Bar Bravo/})).not.toBeNull();
+        expect(screen.getByRole('button', {name: /Bar Charlie/})).not.toBeNull();
+    });
+
     it('ouvre la feuille pour des coordonnées identiques et déclenche chaque action', () => {
         const active = call('bc_a', 2.35, 48.85, {location_name: 'Bar Alpha'});
         const scheduled = call('bc_s', 2.35, 48.85, {
@@ -561,7 +586,7 @@ describe('AperoMarkerLayer', () => {
                 past_beer_calls: [past],
             }),
         });
-        fake.zoom = 20;
+        fake.zoom = 18;
 
         render(<AperoMarkerLayer {...props} />);
         const open = () => {

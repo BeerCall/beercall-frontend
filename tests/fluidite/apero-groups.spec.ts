@@ -554,6 +554,18 @@ test.describe('14c — regroupement visuel des apéros', () => {
         await expect(page.getByRole('heading', { name: 'Les 3 Mondes' })).toBeVisible();
         await worlds.click();
         await expect(worlds).toHaveCount(0);
+
+        // Au zoom de détail, la girafe disparaît : trois totems distincts,
+        // même si les trois apéros sont exactement au même point.
+        await focusMap(page, SAME_CENTER, 20);
+        await expect(page.locator('button[aria-label*="apéros regroupés"]')).toHaveCount(0);
+        const detailTotems = page.getByRole('button', { name: /E2E Serre/ });
+        await expect(detailTotems).toHaveCount(3);
+        const boxes = await detailTotems.evaluateAll((elements: HTMLElement[]) => elements.map((element) => {
+            const rect = element.getBoundingClientRect();
+            return [Math.round(rect.x), Math.round(rect.y)] as [number, number];
+        }));
+        expect(new Set(boxes.map((box) => box.join(','))).size).toBe(3);
     });
 
     test('Mise à jour et retrait à chaud, puis recomposition, sans rechargement', async ({

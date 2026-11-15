@@ -1,5 +1,5 @@
 import type {AperoStatus, BeerCall} from '../../types/api';
-import {ClusterIndex} from './clusters';
+import {ClusterIndex, worldPixel} from './clusters';
 import type {ClusterPoint, Coordinates} from './types';
 
 /**
@@ -11,6 +11,8 @@ import type {ClusterPoint, Coordinates} from './types';
  */
 export const APERO_CLUSTER_RADIUS_PX = 44;
 export const APERO_EXPAND_MAX_ZOOM = 20;
+export const APERO_DETAIL_MIN_BUCKET = 19;
+export const APERO_DETAIL_SPREAD_RADIUS_PX = 36;
 export const APERO_SAME_POINT_EPSILON = 1e-6;
 export const APERO_EXPAND_PADDING = {top: 96, right: 48, bottom: 128, left: 48} as const;
 export const APERO_EXPAND_MIN_ADVANCE = 0.25;
@@ -109,12 +111,87 @@ export function createAperoIndex(points: readonly AperoPoint[]): ClusterIndex {
     return new ClusterIndex(points, APERO_CLUSTER_RADIUS_PX);
 }
 
+/**
+ * Décale un point de `dx`/`dy` pixels écran (nord en haut) au bucket donné.
+ * Utilisé uniquement au zoom de détail pour désempiler des apéros au même
+ * endroit ; les objets métier et leurs vraies coordonnées restent intacts.
+ */
+export function coordinatesWithPixelOffset(
+    coordinates: Coordinates,
+    dx: number,
+    dy: number,
+    bucket: number,
+): Coordinates {
+    const [x, y] = worldPixel(coordinates[0], coordinates[1], bucket);
+    const scale = 512 * 2 ** bucket;
+    const nextX = x + dx;
+    const nextY = y + dy;
+    const longitude = (nextX / scale) * 360 - 180;
+    const mercator = 0.5 - nextY / scale;
+    const latitude = (Math.asin(Math.tanh(2 * Math.PI * mercator)) * 180) / Math.PI;
+    return [longitude, latitude];
+}
+
+/**
+ * Au zoom de détail, plus aucune girafe : chaque apéro devient un totem.
+ * Les apéros encore à moins d'un rayon d'écran les uns des autres sont
+ * répartis en cercle autour de leur centre pour être tous visibles et
+ * cliquables, y compris quand leurs coordonnées sont identiques.
+ */
+function composeDetailEntries(
+    points: readonly AperoPoint[],
+    bucket: number,
+    index: ClusterIndex,
+): AperoEntry[] {
+    const clusters = index.compose(
+        points.map((point) => point.coordinates),
+        bucket,
+    );
+    const byIdMap = new Map(points.map((point) => [point.id, point]));
+    const entries: AperoEntry[] = [];
+    for (const cluster of clusters) {
+        if (cluster.members.length === 1) {
+            const member = byIdMap.get(cluster.members[0]);
+            if (!member) throw new Error(`Apéro inconnu: ${cluster.members[0]}`);
+            entries.push({
+                kind: 'single',
+                id: member.id,
+                call: member.call,
+                coordinates: member.coordinates,
+            });
+            continue;
+        }
+        const total = cluster.members.length;
+        cluster.members.forEach((id, position) => {
+            const member = byIdMap.get(id);
+            if (!member) throw new Error(`Apéro inconnu: ${id}`);
+            const angle = -Math.PI / 2 + (2 * Math.PI * position) / total;
+            entries.push({
+                kind: 'single',
+                id: member.id,
+                call: member.call,
+                coordinates: coordinatesWithPixelOffset(
+                    cluster.coordinates,
+                    Math.cos(angle) * APERO_DETAIL_SPREAD_RADIUS_PX,
+                    Math.sin(angle) * APERO_DETAIL_SPREAD_RADIUS_PX,
+                    bucket,
+                ),
+            });
+        });
+    }
+    return entries;
+}
+
 /** Un apéro apparaît exactement une fois : seul ou membre d'un groupe. */
 export function composeAperoEntries(
     points: readonly AperoPoint[],
     bucket: number,
     index: ClusterIndex = createAperoIndex(points),
 ): AperoEntry[] {
+    if (!Number.isFinite(bucket)) throw new Error(`Zoom invalide: ${bucket}`);
+    if (bucket >= APERO_DETAIL_MIN_BUCKET) {
+        return composeDetailEntries(points, bucket, index);
+    }
     const clusters = index.compose(
         points.map((point) => point.coordinates),
         bucket,

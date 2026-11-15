@@ -222,15 +222,54 @@ describe('composeAperoEntries', () => {
         expect(same.canExpand).toBe(false);
     });
 
+    it('sépare les apéros au même point en totems distincts au zoom de détail', () => {
+        const active = call('bc_1', 2.35, 48.85, {status: 'active'});
+        const scheduled = call('bc_2', 2.35, 48.85, {status: 'scheduled'});
+        const past = call('bc_3', 2.35, 48.85, {status: 'ended'});
+        const points = buildAperoPoints({
+            active_beer_call: [active],
+            scheduled_beer_calls: [scheduled],
+            past_beer_calls: [past],
+        });
+        const entries = composeAperoEntries(points, 20);
+        expect(entries).toHaveLength(3);
+        expect(entries.every((entry) => entry.kind === 'single')).toBe(true);
+        expect(entries.map((entry) => entry.id)).toEqual(['bc_1', 'bc_2', 'bc_3']);
+        const coordinates = entries.map((entry) => entry.coordinates.join(','));
+        expect(new Set(coordinates).size).toBe(3);
+        // Le centre du groupe est conservé : la dispersion reste locale.
+        const longitude = entries.reduce((sum, entry) => sum + entry.coordinates[0], 0) / 3;
+        const latitude = entries.reduce((sum, entry) => sum + entry.coordinates[1], 0) / 3;
+        expect(longitude).toBeCloseTo(2.35, 6);
+        expect(latitude).toBeCloseTo(48.85, 6);
+        if (entries[0].kind !== 'single' || entries[1].kind !== 'single') throw new Error('single attendu');
+        expect(entries[0].call).toBe(active);
+        expect(entries[1].call).toBe(scheduled);
+        // L'actif est placé en haut du cercle.
+        expect(entries[0].coordinates[1]).toBeGreaterThan(entries[1].coordinates[1]);
+    });
+
+    it('laisse aux coordonnées exactes les apéros déjà séparés au zoom de détail', () => {
+        const points = buildAperoPoints({
+            active_beer_call: [call('bc_1', 2.35, 48.85)],
+            scheduled_beer_calls: [call('bc_2', 2.35 + NEAR_LNG, 48.85, {status: 'scheduled'})],
+        });
+        const entries = composeAperoEntries(points, 20);
+        expect(entries).toHaveLength(2);
+        expect(entries.map((entry) => entry.coordinates)).toEqual([
+            [2.35, 48.85],
+            [2.35 + NEAR_LNG, 48.85],
+        ]);
+    });
+
     it('ne marque pas canExpand quand le plafond de zoom est atteint', () => {
         const points = buildAperoPoints({
             active_beer_call: [call('bc_1', 2.35, 48.85)],
             scheduled_beer_calls: [call('bc_2', 2.35 + 0.0000068, 48.85)],
         });
-        const [entry] = composeAperoEntries(points, APERO_EXPAND_MAX_ZOOM);
-        expect(entry.kind).toBe('group');
-        if (entry.kind !== 'group') throw new Error('groupe attendu');
-        expect(entry.canExpand).toBe(false);
+        const entries = composeAperoEntries(points, APERO_EXPAND_MAX_ZOOM);
+        expect(entries).toHaveLength(2);
+        expect(entries.every((entry) => entry.kind === 'single')).toBe(true);
     });
 
     it('accepte un index fourni et reste déterministe', () => {
