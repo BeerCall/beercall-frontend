@@ -54,31 +54,34 @@ input, textarea {
     scrollbar-width: none;
 }
 
-/* 14d — marqueurs d'apéros : halo pulsé et pointe GPS du médaillon. */
-@keyframes apero-pulse-ring {
-    0% { transform: scale(0.9); opacity: 0.55; }
-    75%, 100% { transform: scale(1.55); opacity: 0; }
-}
-
-.apero-pulse-ring {
-    animation: apero-pulse-ring 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+/* 14e — proxies accessibles des totems : invisibles, jamais cliquables au
+   pointeur (la carte gère le tap), mais focalisables au clavier. */
+.apero-proxy {
+    display: block;
+    width: 54px;
+    height: 70px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    opacity: 0;
     pointer-events: none;
 }
 
-.apero-pin-tip {
-    display: block;
-    width: 0;
-    height: 0;
-    margin-top: -1px;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 7px solid #FFFFFF;
-    filter: drop-shadow(0 2px 2px rgba(15, 23, 42, 0.25));
+.apero-proxy:focus-visible {
+    opacity: 1;
+    outline: 3px solid #FFFFFF;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 6px rgba(15, 23, 42, 0.35);
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .apero-pulse-ring {
-        animation: none;
-        opacity: 0;
-    }
+/* Secours uniquement si une image de carte est illisible : ne jamais perdre
+   l'accès tactile à un apéro. Les proxys normaux restent traversants. */
+.apero-proxy--fallback {
+    opacity: 1;
+    pointer-events: auto;
+    background: #0f172a;
+    color: #fff;
+    border: 2px solid #fff;
+    font-weight: 800;
 }

@@ -13,6 +13,7 @@
  */
 
 import { test, expect, type Page } from './base';
+import type { Locator } from '@playwright/test';
 import { loginAs } from './contextTracker';
 import { lastJsonLine, runPython } from './backendState';
 import { assertReleaseIsolation } from './releaseIsolation';
@@ -288,6 +289,9 @@ async function openSquad(page: Page, squadId: number): Promise<void> {
     await page.goto(`/squad/${squadId}`);
     await expect(page.locator('[data-bottom-nav]')).toBeVisible({ timeout: 30_000 });
     await waitForMap(page);
+    // Les totems et le nom de squad dépendent de la même réponse : attendre
+    // l'identité évite de cliquer sur une carte encore vide sur une page froide.
+    await expect(page.locator('[data-dashboard-identity] h2')).toBeVisible({ timeout: 30_000 });
 }
 
 async function focusMap(
@@ -356,9 +360,34 @@ async function sentinelValue(page: Page): Promise<string | undefined> {
 }
 
 function activeSingles(page: Page) {
-    // Les marqueurs individuels actifs exposent un attribut stable, indépendant
-    // du rendu visuel (médaillon 14d).
+    // Les proxies individuels actifs exposent un attribut stable, indépendant
+    // du rendu visuel des totems.
     return page.locator('.maplibregl-marker [data-apero-marker="single"][data-apero-status="active"]');
+}
+
+async function waitForTotemHit(page: Page, x: number, y: number): Promise<void> {
+    await expect.poll(() => page.evaluate(({x, y}) => {
+        const map = (window as unknown as {
+            __beercallMap?: {
+                queryRenderedFeatures?: (point: [number, number], options?: {layers?: string[]}) => unknown[];
+            };
+        }).__beercallMap;
+        if (!map?.queryRenderedFeatures) return 0;
+        try {
+            return map.queryRenderedFeatures([x, y], {layers: ['apero-totems']}).length;
+        } catch {
+            return 0;
+        }
+    }, {x, y}), {timeout: 20_000}).toBeGreaterThan(0);
+}
+
+async function tapTotem(page: Page, target: Locator): Promise<void> {
+    const box = await target.boundingBox();
+    if (!box) throw new Error('Totem non mesurable');
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await waitForTotemHit(page, x, y);
+    await page.mouse.click(x, y);
 }
 
 test.describe('14c — regroupement visuel des apéros', () => {
@@ -398,7 +427,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
         expect(joinedParticipants(fixtures.a3)).toBe(4);
 
         const zoomBefore = await mapZoom(page);
-        await groupTwo.click();
+        await tapTotem(page, groupTwo);
         await expect(page.getByRole('dialog')).toHaveCount(0);
         await expect(page.getByRole('heading', { name: 'Appel aux armes !' })).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Fermer les mondes' })).toHaveCount(0);
@@ -412,7 +441,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
 
         const opened: string[] = [];
         for (let index = 0; index < 2; index += 1) {
-            await singles.nth(index).click();
+            await tapTotem(page, singles.nth(index));
             const heading = page.getByRole('heading', { name: 'Appel aux armes !' });
             await expect(heading).toBeVisible();
             const modal = heading.locator('xpath=../..');
@@ -446,7 +475,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
 
         const groupThree = page.locator('button[aria-label^="3 apéros regroupés"]');
         await expect(groupThree).toHaveAttribute('aria-label', /Appuyer pour choisir un apéro\./);
-        await groupThree.click();
+        await tapTotem(page, groupThree);
 
         const dialog = page.getByRole('dialog', { name: 'Apéros au même endroit' });
         await expect(dialog).toBeVisible();
@@ -470,7 +499,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
         await expect(groupThree).toBeFocused();
 
         // 1/3 — apéro actif sans participation : Appel aux armes.
-        await groupThree.click();
+        await tapTotem(page, groupThree);
         await expect(dialog).toBeVisible();
         await members.nth(0).click();
         await expect(dialog).toHaveCount(0);
@@ -484,7 +513,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
         await expect(respond).toHaveCount(0);
 
         // 2/3 — apéro programmé : appareil photo, puis démarrage conservé.
-        await groupThree.click();
+        await tapTotem(page, groupThree);
         await expect(dialog).toBeVisible();
         const chooser = page.waitForEvent('filechooser');
         await members.nth(1).click();
@@ -498,7 +527,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
         await expect(start).toHaveCount(0);
 
         // 3/3 — apéro passé : Les 3 Mondes.
-        await groupThree.click();
+        await tapTotem(page, groupThree);
         await expect(dialog).toBeVisible();
         await members.nth(2).click();
         await expect(dialog).toHaveCount(0);
@@ -520,7 +549,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
 
         const groupTwo = page.locator('button[aria-label^="2 apéros regroupés"]');
         await expect(groupTwo).toBeVisible();
-        await groupTwo.click();
+        await tapTotem(page, groupTwo);
         const dialog = page.getByRole('dialog', { name: 'Apéros au même endroit' });
         await expect(dialog).toBeVisible();
         const members = dialog.locator('ul li button');
@@ -557,7 +586,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
         expect(await sentinelValue(page)).toBe('kept');
 
         // Tout retirer ferme le groupe et la feuille restée sans membre.
-        await groupTwo.click();
+        await tapTotem(page, groupTwo);
         await expect(dialog).toBeVisible();
         await expect(members).toHaveCount(2);
         deleteAperosByName('E2E Chaud %');
@@ -590,7 +619,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
 
         const groupThree = page.locator('button[aria-label^="3 apéros regroupés"]');
         await expect(groupThree).toBeVisible();
-        await groupThree.click();
+        await tapTotem(page, groupThree);
         const dialog = page.getByRole('dialog', { name: 'Apéros au même endroit' });
         await expect(dialog).toBeVisible();
 
@@ -660,7 +689,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
             // Feuille des inséparables sur carte tournée et écran étroit.
             const groupThree = page.locator('button[aria-label^="3 apéros regroupés"]');
             await expect(groupThree).toBeVisible();
-            await groupThree.click();
+            await tapTotem(page, groupThree);
             const dialog = page.getByRole('dialog', { name: 'Apéros au même endroit' });
             await expect(dialog).toBeVisible();
             const box = await dialog.boundingBox();
@@ -673,7 +702,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
             await focusMap(page, SMALL_NEAR_CENTER, 14, 40);
             const groupTwo = page.locator('button[aria-label^="2 apéros regroupés"]');
             await expect(groupTwo).toBeVisible();
-            await groupTwo.click();
+            await tapTotem(page, groupTwo);
             await expect(page.getByRole('dialog')).toHaveCount(0);
             await expect.poll(() => mapZoom(page), { timeout: 10_000 }).toBeGreaterThan(14.25);
             await expect(groupTwo).toHaveCount(0);
@@ -681,7 +710,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
         });
     });
 
-    test('Non-régression : appui long, gestes de carte et avatars', async ({ page, request }) => {
+    test('Non-régression : appui long, gestes de carte et avatars', async ({ page, request }, testInfo) => {
         await loginAs(page, request, 'FluiditeDemo');
         await openSquad(page, fixtures.a);
         await focusMap(page, SAME_CENTER, 14);
@@ -700,8 +729,11 @@ test.describe('14c — regroupement visuel des apéros', () => {
         await expect(groupThree).toBeVisible();
         const box = await groupThree.boundingBox();
         if (!box) throw new Error('Groupe non mesurable');
+        const x = box.x + box.width / 2;
+        const y = box.y + box.height / 2;
+        await waitForTotemHit(page, x, y);
         const zoomBefore = await mapZoom(page);
-        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.move(x, y);
         await page.mouse.down();
         await page.waitForTimeout(900);
         await expect(page.getByRole('heading', { name: "Programmer l'Apéro" })).toHaveCount(0);
@@ -721,7 +753,7 @@ test.describe('14c — regroupement visuel des apéros', () => {
             }).__beercallMap;
             if (!map) throw new Error('Carte MapLibre absente');
             map.fire('mousedown', {
-                point: { x: 40, y: 200 },
+                point: { x: 380, y: 200 },
                 lngLat: { lng: center[0], lat: center[1], toArray: () => center },
                 originalEvent: { target: document.body, touches: undefined },
             });
@@ -758,5 +790,59 @@ test.describe('14c — regroupement visuel des apéros', () => {
             () => page.locator('button[aria-label*="apéros regroupés"]').count(),
             { timeout: 10_000 },
         ).toBeGreaterThan(0);
+
+        // Vrai recouvrement : déplacer un apéro synthétique sous un avatar,
+        // sans modifier les personnes ni les sources/caches du frontend.
+        await focusMap(page, [2.3522, 48.8566], 20);
+        const readAvatar = () => page.evaluate(() => {
+            const map = (window as unknown as {__beercallMap?: {
+                queryRenderedFeatures: (point: undefined, options: {layers: string[]}) => Array<{
+                    properties?: {id?: string; size?: number}; geometry?: {coordinates?: number[]};
+                }>;
+            }}).__beercallMap;
+            const actor = map?.queryRenderedFeatures(undefined, {layers: ['snap-avatars']})
+                .find((feature) => Number(feature.properties?.size) === 1 && feature.geometry?.coordinates?.length === 2);
+            return actor ? {id: String(actor.properties?.id), coordinates: actor.geometry!.coordinates! as [number, number]} : null;
+        });
+        await expect.poll(readAvatar, {timeout: 20_000}).not.toBeNull();
+        const avatar = await readAvatar();
+        if (!avatar) throw new Error('Avatar individuel absent pour le contrôle de priorité');
+        runPython(`
+from db.database import SessionLocal
+from models.apero import Apero
+db = SessionLocal()
+try:
+    item = db.query(Apero).filter(Apero.id == ${fixtures.a1}).one()
+    item.longitude = ${avatar.coordinates[0]}
+    item.latitude = ${avatar.coordinates[1]}
+    db.commit()
+finally:
+    db.close()
+`);
+        await revalidate(page);
+        const hit = await page.evaluate((coordinates) => {
+            const map = (window as unknown as {__beercallMap?: {
+                project: (coordinates: [number, number]) => {x: number; y: number};
+                getStyle: () => {layers: Array<{id: string}>};
+            }}).__beercallMap;
+            if (!map) throw new Error('Carte absente');
+            const layers = map.getStyle().layers.map((layer) => layer.id);
+            if (layers.indexOf('apero-totems') >= layers.indexOf('snap-avatars')) throw new Error('Totems devant les avatars');
+            const projected = map.project(coordinates);
+            return {x: projected.x, y: projected.y - 35};
+        }, avatar.coordinates);
+        await waitForTotemHit(page, hit.x, hit.y);
+        const expectedProfile = await page.evaluate(({x, y}) => {
+            const map = (window as unknown as {__beercallMap?: {
+                queryRenderedFeatures: (point: [number, number], options: {layers: string[]}) => Array<{properties?: {id?: string; size?: number}}>;
+            }}).__beercallMap;
+            const actor = map?.queryRenderedFeatures([x, y], {layers: ['snap-avatars']})[0];
+            return Number(actor?.properties?.size) === 1 ? String(actor?.properties?.id) : null;
+        }, hit);
+        expect(expectedProfile, 'Un avatar individuel doit recevoir le tap de recouvrement').not.toBeNull();
+        await page.screenshot({path: testInfo.outputPath('avatar-priority.png')});
+        await page.mouse.click(hit.x, hit.y);
+        await expect(page).toHaveURL(new RegExp(`/profile/${expectedProfile}$`));
+        await expect(page.getByRole('heading', {name: 'Appel aux armes !'})).toHaveCount(0);
     });
 });

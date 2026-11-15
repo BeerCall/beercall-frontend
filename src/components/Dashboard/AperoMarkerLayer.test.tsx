@@ -1,11 +1,19 @@
 import React from 'react';
-import {act, fireEvent, render, screen, within} from '@testing-library/react';
+import {act, fireEvent, render, screen, waitFor, within} from '@testing-library/react';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import type {BeerCall, SquadDetails} from '../../types/api';
 import {AperoMarkerLayer} from './AperoMarkerLayer';
-import {AperoGroupBadge, AperoMarkerBadge} from './AperoMarkerVisual';
-import {APERO_NAVY, readableInk, squadAccent} from './aperoMarkerStyle';
-import {ScheduledMarkerCountdown} from '../UI/ScheduledMarkerCountdown';
+import {
+    activeLabel,
+    activeTotemAnimation,
+    clockLabel,
+    groupLive,
+    groupTotemSpec,
+    pastLabel,
+    pastTotemSpec,
+    scheduledTotemAnimation,
+    totemPalette,
+} from './aperoTotems';
 
 const mapState = vi.hoisted(() => ({current: null as unknown}));
 
@@ -26,23 +34,63 @@ class FakeMap {
         zoom: 15,
         bearing: 0,
     }));
-    private handlers = new Map<string, Set<() => void>>();
+    layers = new Set<string>();
+    images = new Set<string>();
+    queryResult: unknown[] = [];
+    updateImage = vi.fn();
+    queryRenderedFeatures = vi.fn((point?: unknown, options?: {layers?: string[]}) => {
+        void point; void options;
+        return this.queryResult;
+    });
+    private handlers = new Map<string, Set<(event?: unknown) => void>>();
+    private sources = new Map<string, {setData: (data: unknown) => void}>();
 
     getZoom = () => this.zoom;
+    isStyleLoaded = () => true;
+    getCanvas = () => ({style: {cursor: ''}});
+    getStyle = (): {layers: Array<{id: string}>} | undefined => ({layers: [...this.layers].map((id) => ({id}))});
 
-    on = (event: string, handler: () => void) => {
-        const handlers = this.handlers.get(event) ?? new Set<() => void>();
+    on = (event: string, arg1: unknown, arg2?: unknown) => {
+        const handler = (typeof arg1 === 'function' ? arg1 : arg2) as (event?: unknown) => void;
+        const handlers = this.handlers.get(event) ?? new Set<(event?: unknown) => void>();
         handlers.add(handler);
         this.handlers.set(event, handlers);
     };
 
-    off = (event: string, handler: () => void) => {
+    off = (event: string, arg1: unknown, arg2?: unknown) => {
+        const handler = (typeof arg1 === 'function' ? arg1 : arg2) as (event?: unknown) => void;
         this.handlers.get(event)?.delete(handler);
     };
 
-    emit(event: string) {
-        for (const handler of [...(this.handlers.get(event) ?? [])]) handler();
+    emit(event: string, payload?: unknown) {
+        for (const handler of [...(this.handlers.get(event) ?? [])]) handler(payload);
     }
+
+    addSource = (id: string) => {
+        this.sources.set(id, {setData: vi.fn()});
+    };
+    getSource = (id: string) => this.sources.get(id);
+    removeSource = (id: string) => {
+        this.sources.delete(id);
+    };
+    getLayer = (id: string) => this.layers.has(id) ? {id} : undefined;
+    addLayer = vi.fn((layer: {id: string}, before?: string) => {
+        const layers = [...this.layers];
+        const index = before ? layers.indexOf(before) : -1;
+        layers.splice(index < 0 ? layers.length : index, 0, layer.id);
+        this.layers = new Set(layers);
+    });
+    moveLayer = vi.fn();
+    removeLayer = (id: string) => {
+        this.layers.delete(id);
+    };
+    addImage = (id: string) => {
+        this.images.add(id);
+    };
+    hasImage = (id: string) => this.images.has(id);
+    removeImage = (id: string) => {
+        this.images.delete(id);
+    };
 }
 
 let fake: FakeMap;
@@ -108,45 +156,137 @@ afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
 });
 
 describe('AperoMarkerLayer', () => {
-    it('choisit une encre avec contraste AA sur les couleurs de squad', () => {
-        const luminance = (hex: string) => {
-            const channels = [1, 3, 5].map((start) => Number.parseInt(hex.slice(start, start + 2), 16) / 255)
-                .map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
-            return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
-        };
-        for (const color of ['#06B6D4', '#FFCC00', '#EF4444', '#22C55E', '#777777', '#FFFFFF', '#000000']) {
-            const values = [luminance(color), luminance(readableInk(color))].sort((a, b) => a - b);
-            expect((values[1] + 0.05) / (values[0] + 0.05), color).toBeGreaterThanOrEqual(4.5);
-        }
-        expect(readableInk('#06B6D4')).toBe(APERO_NAVY);
+    function imageStub(failed = false) {
+        vi.stubGlobal('Image', class {
+            onload: (() => void) | null = null;
+            onerror: (() => void) | null = null;
+            set src(_value: string) { queueMicrotask(() => failed ? this.onerror?.() : this.onload?.()); }
+        });
+    }
+
+    it('réinstalle les images mises en cache après un changement de style', async () => {
+        imageStub();
+        render(<AperoMarkerLayer {...makeProps({squadDetails: squad({active_beer_call: groupOfThree()})})} />);
+        await waitFor(() => expect(fake.images.size).toBeGreaterThan(0));
+        fake.images.clear();
+        fake.removeLayer('apero-totems');
+        fake.removeSource('apero-totems');
+        act(() => fake.emit('styledata'));
+        await waitFor(() => expect(fake.images.size).toBeGreaterThan(0));
     });
 
-    it('normalise les couleurs courtes avant composition des ombres alpha', () => {
-        expect(squadAccent('#abc')).toBe('#aabbcc');
-        expect(squadAccent('var(--foreign)')).toBe('#F59E0B');
+    it('ne nettoie pas les images après destruction du style par le parent MapLibre', async () => {
+        imageStub();
+        const {unmount} = render(<AperoMarkerLayer {...makeProps({squadDetails: squad({active_beer_call: groupOfThree()})})} />);
+        await waitFor(() => expect(fake.images.size).toBeGreaterThan(0));
+        fake.getStyle = () => undefined;
+        fake.hasImage = () => { throw new Error('MapLibre style undefined: getImage'); };
+        expect(() => unmount()).not.toThrow();
     });
 
-    it('expose heure et état prêt dans le nom accessible du marqueur programmé', () => {
-        const date = new Date(Date.now() + 3_600_000).toISOString();
-        const {rerender} = render(<ScheduledMarkerCountdown scheduledFor={date} label="Chez Léa" onClick={vi.fn()} />);
-        expect(screen.getByRole('button', {name: /Chez Léa.*\d{2}H\d{2}/})).not.toBeNull();
-        rerender(<ScheduledMarkerCountdown scheduledFor={new Date(Date.now() + 60_000).toISOString()} label="Chez Léa" onClick={vi.fn()} />);
-        expect(screen.getByRole('button', {name: /Chez Léa.*PRÊT/})).not.toBeNull();
+    it('ne réordonne pas une couche déjà placée sous les avatars à chaque styledata', () => {
+        fake.layers.add('snap-bases');
+        render(<AperoMarkerLayer {...makeProps()} />);
+        expect(fake.addLayer).toHaveBeenCalledWith(expect.objectContaining({id: 'apero-totems'}), 'snap-bases');
+        act(() => fake.emit('styledata'));
+        expect(fake.moveLayer).not.toHaveBeenCalled();
     });
 
-    it('neutralise aussi les points pulsés en mouvement réduit', () => {
-        const {container} = render(<AperoMarkerBadge variant="active" color="#FFCC00" pillText="EN COURS" pillKind="navy" />);
-        const dot = container.querySelector('.animate-pulse');
-        expect(dot?.classList.contains('motion-reduce:animate-none')).toBe(true);
+    it('ne laisse ni animation ni action carte lorsque la couche est masquée', () => {
+        vi.useFakeTimers();
+        const props = makeProps({enabled: false, squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})});
+        render(<AperoMarkerLayer {...props} />);
+        expect(vi.getTimerCount()).toBe(0);
+        act(() => fake.emit('click', {point: {x: 10, y: 10}, features: [{properties: {entryId: 'bc_a'}}]}));
+        expect(props.handleBeerCallClick).not.toHaveBeenCalled();
     });
 
-    it('ne suggère pas de statut programmé dans les cercles d’un groupe uniquement actif', () => {
-        const {container} = render(<AperoGroupBadge count={2} color="#06B6D4" statuses={['active']} dominantStatus="active" />);
-        const backColors = [...container.querySelectorAll<HTMLElement>('.absolute')].map((circle) => circle.style.backgroundColor);
-        expect(backColors).toEqual(['rgb(6, 182, 212)', 'rgb(6, 182, 212)']);
+    it('réagit au changement de préférence mouvement réduit sans remonter la carte', () => {
+        vi.useFakeTimers();
+        const media = Object.assign(new EventTarget(), {matches: false});
+        vi.stubGlobal('matchMedia', vi.fn(() => media));
+        render(<AperoMarkerLayer {...makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})})} />);
+        expect(vi.getTimerCount()).toBe(1);
+        act(() => { media.matches = true; media.dispatchEvent(new Event('change')); });
+        expect(vi.getTimerCount()).toBe(0);
+        act(() => { media.matches = false; media.dispatchEvent(new Event('change')); });
+        expect(vi.getTimerCount()).toBe(1);
+    });
+
+    it('suspend les animations lorsque le document est masqué puis les reprend', () => {
+        vi.useFakeTimers();
+        const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+        render(<AperoMarkerLayer {...makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})})} />);
+        expect(vi.getTimerCount()).toBe(1);
+        act(() => { hidden.mockReturnValue(true); document.dispatchEvent(new Event('visibilitychange')); });
+        expect(vi.getTimerCount()).toBe(0);
+        act(() => { hidden.mockReturnValue(false); document.dispatchEvent(new Event('visibilitychange')); });
+        expect(vi.getTimerCount()).toBe(1);
+    });
+
+    it('signale une image illisible et garde un bouton de secours sélectionnable', async () => {
+        imageStub(true);
+        const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const props = makeProps({squadDetails: squad({active_beer_call: groupOfThree()})});
+        render(<AperoMarkerLayer {...props} />);
+        const button = screen.getByRole('button', {name: /3 apéros regroupés/});
+        await waitFor(() => expect(button.getAttribute('data-apero-fallback')).toBe('true'));
+        expect(warning).toHaveBeenCalled();
+        fireEvent.click(button);
+        expect(fake.easeTo).toHaveBeenCalled();
+        expect(props.handleBeerCallClick).not.toHaveBeenCalled();
+    });
+
+    it('ne bloque pas un totem pour une base d’avatar sans action de profil', () => {
+        fake.layers.add('snap-bases');
+        fake.queryRenderedFeatures.mockImplementation((_point, options) => options?.layers?.includes('snap-bases') ? [{}] : []);
+        const props = makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})});
+        render(<AperoMarkerLayer {...props} />);
+        act(() => fake.emit('click', {point: {x: 10, y: 10}, features: [{properties: {entryId: 'bc_a'}}]}));
+        expect(props.handleBeerCallClick).toHaveBeenCalledWith(expect.objectContaining({id: 'bc_a'}));
+    });
+
+    it('garde le style ambré pour FLUID50 et bascule en cyan pour FLUID40', () => {
+        const amber = totemPalette('#FFCC00');
+        const cyan = totemPalette('#06B6D4');
+        const ended = totemPalette('#FFCC00', true);
+        expect(amber.top).toBe('#FBBF24');
+        expect(cyan.top).toBe('#38BDF8');
+        expect(ended.top).toBe('#F1F5F9');
+        expect(totemPalette('var(--foreign)').top).toBe('#FBBF24');
+    });
+
+    it('formate les libellés accessibles des totems', () => {
+        expect(activeLabel(4)).toBe('EN COURS · +4');
+        expect(activeLabel(0)).toBe('EN COURS');
+        expect(clockLabel(future())).toMatch(/^\d{2}:\d{2}$/);
+        expect(clockLabel(undefined)).toBe('PROGRAMMÉ');
+        expect(pastLabel(new Date(Date.now() - 3 * 86_400_000).toISOString())).toContain('3 J');
+        expect(groupLive(['active', 'ended'])).toBe(true);
+        expect(groupLive(['ended', 'cancelled'])).toBe(false);
+    });
+
+    it('dessine les totems animés, sans libellé sous l’objet', () => {
+        const animation = activeTotemAnimation(totemPalette('#FFCC00'));
+        const spec = animation.frames[0];
+        expect(spec.svg).toContain('drop-shadow');
+        expect(spec.svg).toContain('#FBBF24');
+        expect(spec.svg).not.toContain('EN COURS');
+        expect(animation.frames.length).toBeGreaterThan(1);
+        expect(animation.frames[1].svg).not.toBe(spec.svg);
+        const scheduled = scheduledTotemAnimation(totemPalette('#FFCC00'));
+        expect(scheduled.frames.length).toBeGreaterThan(1);
+        expect(scheduled.frames[2].svg).not.toBe(scheduled.frames[0].svg);
+        const group = groupTotemSpec(5, totemPalette('#FFCC00'));
+        expect(group.svg).toContain('>5<');
+        expect(group.svg).not.toContain('GIRAFE');
+        const past = pastTotemSpec();
+        expect(past.svg).toContain('rotate(-16');
+        expect(past.svg).not.toContain('VIDE');
     });
 
     it('utilise la provenance du doublon valide retenu après filtrage des coordonnées', () => {
@@ -233,8 +373,7 @@ describe('AperoMarkerLayer', () => {
         render(<AperoMarkerLayer {...props} />);
         const group = screen.getByRole('button', {name: /2 apéros regroupés/});
         expect(group.getAttribute('aria-label')).not.toMatch(/passé et passé/);
-        // La bande de statuts contient un seul dot pour les deux statuts métier passés.
-        expect(within(group).getByTestId('apero-group-statuses').children).toHaveLength(1);
+        expect(group.getAttribute('aria-label')).toContain('Dont passé.');
     });
 
     it('cadre au bearing courant et respecte la réduction des animations', () => {
@@ -287,9 +426,6 @@ describe('AperoMarkerLayer', () => {
 
         render(<AperoMarkerLayer {...props} />);
         const group = screen.getByRole('button', {name: /3 apéros regroupés/});
-
-        fireEvent.pointerDown(group);
-        expect(props.cancelLongPress).toHaveBeenCalledTimes(1);
 
         fireEvent.click(group);
         expect(fake.easeTo).toHaveBeenCalledWith(expect.objectContaining({
@@ -418,7 +554,7 @@ describe('AperoMarkerLayer', () => {
         expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('laisse le compte à rebours du marqueur programmé individuel', () => {
+    it('anime un programmé individuel puis nettoie l’intervalle', () => {
         vi.useFakeTimers();
         const scheduled = call('bc_s', 2.45, 48.85, {
             status: 'scheduled',
@@ -428,30 +564,50 @@ describe('AperoMarkerLayer', () => {
             squadDetails: squad({scheduled_beer_calls: [scheduled]}),
         })} />);
 
+        expect(screen.getByRole('button', {name: /Participer à l'apéro Lieu bc_s/})).not.toBeNull();
         expect(vi.getTimerCount()).toBeGreaterThan(0);
         unmount();
         expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('capte le geste du groupe sans le laisser remonter à la carte', () => {
-        const parentClick = vi.fn();
-        const parentPointerDown = vi.fn();
-        const calls = groupOfThree();
-        const props = makeProps({squadDetails: squad({active_beer_call: calls})});
+    it('coupe l’animation en mouvement réduit', () => {
+        vi.useFakeTimers();
+        vi.stubGlobal('matchMedia', vi.fn(() => ({matches: true})));
+        const scheduled = call('bc_s', 2.45, 48.85, {
+            status: 'scheduled',
+            scheduled_for: future(),
+        });
+        render(<AperoMarkerLayer {...makeProps({
+            squadDetails: squad({scheduled_beer_calls: [scheduled]}),
+        })} />);
 
-        render(
-            <div onClick={parentClick} onPointerDown={parentPointerDown}>
-                <AperoMarkerLayer {...props} />
-            </div>,
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('déclenche l’action par la carte', () => {
+        const props = makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})});
+        render(<AperoMarkerLayer {...props} />);
+
+        fake.queryResult = [];
+        act(() => fake.emit('click', {
+            point: {x: 10, y: 10},
+            features: [{properties: {entryId: 'bc_a'}}],
+        }));
+        expect(props.handleBeerCallClick).toHaveBeenCalledWith(
+            expect.objectContaining({id: 'bc_a'}),
         );
+    });
 
-        const group = screen.getByRole('button', {name: /3 apéros regroupés/});
-        fireEvent.pointerDown(group);
-        expect(props.cancelLongPress).toHaveBeenCalledTimes(1);
-        expect(parentPointerDown).not.toHaveBeenCalled();
+    it('laisse un avatar au-dessus du totem gagner le clic', () => {
+        const props = makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})});
+        render(<AperoMarkerLayer {...props} />);
 
-        fireEvent.click(group);
-        expect(parentClick).not.toHaveBeenCalled();
+        fake.layers.add('snap-avatars');
+        fake.queryResult = [{layer: {id: 'snap-avatars'}}];
+        act(() => fake.emit('click', {
+            point: {x: 10, y: 10},
+            features: [{properties: {entryId: 'bc_a'}}],
+        }));
         expect(props.handleBeerCallClick).not.toHaveBeenCalled();
     });
 });
