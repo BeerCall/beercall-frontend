@@ -1,14 +1,13 @@
 import React from 'react';
 import {createPortal} from 'react-dom';
-import Map, { Marker, NavigationControl, type MapRef, type MapLayerMouseEvent, type MapLayerTouchEvent } from 'react-map-gl/maplibre';
+import Map, { NavigationControl, type MapRef, type MapLayerMouseEvent, type MapLayerTouchEvent } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
-import { motion } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
-import { ScheduledMarkerCountdown } from '../UI/ScheduledMarkerCountdown';
 import type { BeerCall, SquadDetails, Profile } from '../../types/dashboard';
 import { useLocationStore } from '../../store/useLocationStore';
 import { recordSceneSignal, registerSceneInstance, unregisterSceneInstance, invalidateSceneInstance, allocateSceneInstanceId } from '../../lib/sceneMetrics';
 import { SnapAvatarLayer } from './SnapAvatarLayer';
+import { AperoMarkerLayer } from './AperoMarkerLayer';
 import type { SnapPerson } from '../../map/snap/types';
 import { trackCanvasContext, webglStats } from '../../three/lease/webgl';
 
@@ -458,86 +457,14 @@ export const MapSection: React.FC<MapSectionProps> = React.memo(({
                 onClusterClick={() => cancelLongPress()}
             />
 
-            {/* MARQUEURS ACTIFS */}
-            {squadDetails?.active_beer_call?.map((call: BeerCall) => {
-                const numLng = Number(call.longitude);
-                const numLat = Number(call.latitude);
-                if (isNaN(numLng) || isNaN(numLat)) return null;
-
-                return (
-                    <Marker key={`active-${call.id}`} longitude={numLng} latitude={numLat}
-                            anchor="bottom" style={{zIndex: 60}}>
-                        <div onClick={(e) => {
-                            e.stopPropagation();
-                            handleBeerCallClick(call);
-                        }}
-                                className="relative flex items-center justify-center cursor-pointer group pb-2">
-
-                            {/* L'onde radar orange */}
-                            <div
-                                className="absolute top-1 w-8 h-8 rounded-full animate-ping opacity-60 z-0 bg-amber-500"/>
-
-                            {/* La pastille */}
-                            <motion.div whileHover={{scale: 1.1, y: -4}} whileTap={{scale: 0.9}}
-                                        className="relative z-10 w-10 h-10 rounded-full shadow-lg flex items-center justify-center border-2 backdrop-blur-md transition-all bg-amber-500 text-white border-white shadow-amber-500/40">
-                                <span className="text-lg drop-shadow-sm leading-none">🍻</span>
-                                {/* Petit point de notification (pour dire 'c'est en cours') */}
-                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                    <span
-                                        className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
-                                    <span
-                                        className="relative inline-flex rounded-full h-3 w-3 bg-amber-200"></span>
-                                </span>
-                            </motion.div>
-
-                            {/* Le pointeur GPS */}
-                            <div
-                                className="absolute -bottom-1 w-3 h-3 rotate-45 rounded-sm shadow-sm transition-all z-0 bg-amber-500 border-r border-b border-white"/>
-                        </div>
-                    </Marker>
-                );
-            })}
-
-            {/* MARQUEURS PROGRAMMÉS */}
-            {squadDetails?.scheduled_beer_calls?.map((call: BeerCall) => {
-                const lng = Number(call.longitude), lat = Number(call.latitude);
-                if (isNaN(lng) || isNaN(lat)) return null;
-                return <Marker key={`scheduled-${call.id}`} longitude={lng} latitude={lat}
-                                anchor="bottom" style={{zIndex: 55}}>
-                    <ScheduledMarkerCountdown
-                        scheduledFor={call.scheduled_for || ''}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            openCamera({ lat, lng }, call);
-                        }}
-                    />
-                </Marker>;
-            })}
-
-            {/* MARQUEURS PASSÉS */}
-            {squadDetails?.past_beer_calls?.map((call: BeerCall) => {
-                const numLng = Number(call.longitude);
-                const numLat = Number(call.latitude);
-                if (isNaN(numLng) || isNaN(numLat)) return null;
-
-                return (
-                    <Marker key={`past-${call.id}`} longitude={numLng} latitude={numLat}
-                            anchor="bottom" style={{zIndex: 30}}>
-                        <div onClick={(e) => {
-                            e.stopPropagation();
-                            setIsWorldsModalOpen(call.id);
-                        }}
-                                className="relative flex items-center justify-center cursor-pointer group pb-2 opacity-60 hover:opacity-100 transition-opacity">
-                            <motion.div whileHover={{scale: 1.1, y: -4}} whileTap={{scale: 0.9}}
-                                        className="relative z-10 w-8 h-8 rounded-full shadow-sm flex items-center justify-center border-2 backdrop-blur-sm transition-all bg-gray-400 text-white border-white">
-                                <span className="text-sm drop-shadow-sm leading-none">👻</span>
-                            </motion.div>
-                            <div
-                                className="absolute -bottom-1 w-2.5 h-2.5 rotate-45 rounded-sm shadow-sm transition-all z-0 bg-gray-400 border-r border-b border-white"/>
-                        </div>
-                    </Marker>
-                );
-            })}
+            <AperoMarkerLayer
+                enabled={active && visible}
+                squadDetails={squadDetails}
+                handleBeerCallClick={handleBeerCallClick}
+                openCamera={openCamera}
+                setIsWorldsModalOpen={setIsWorldsModalOpen}
+                cancelLongPress={cancelLongPress}
+            />
         </>}>
             <RetainedNativeMap element={mapElement} frozen={isMapContextLost}/>
         </MapContentsContext.Provider>
