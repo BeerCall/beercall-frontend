@@ -483,7 +483,9 @@ function AperoMarkerContents({
             timer = undefined;
         };
         const updateFrames = () => {
-            if (!ready()) return;
+            // Un changement d'icône n'exige pas que toutes les tuiles ou le
+            // style soient chargés : seul le style et l'image comptent.
+            if (!hasTotemStyle(native)) return;
             let changed = false;
             for (const key of visibleKeys) {
                 const images = frameImagesRef.current.get(key);
