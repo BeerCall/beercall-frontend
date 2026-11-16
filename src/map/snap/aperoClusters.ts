@@ -1,5 +1,5 @@
 import type {AperoStatus, BeerCall} from '../../types/api';
-import {ClusterIndex, worldPixel} from './clusters';
+import {ClusterIndex, MAPLIBRE_MAX_ZOOM, MAPLIBRE_MIN_ZOOM, worldPixel} from './clusters';
 import type {ClusterPoint, Coordinates} from './types';
 
 /**
@@ -13,6 +13,12 @@ export const APERO_CLUSTER_RADIUS_PX = 44;
 export const APERO_EXPAND_MAX_ZOOM = 20;
 export const APERO_DETAIL_MIN_BUCKET = 19;
 export const APERO_DETAIL_SPREAD_RADIUS_PX = 36;
+const DETAIL_TARGET_SPACING_PX = 132;
+
+export interface AperoProjection {
+    project(coordinates: Coordinates): {x: number; y: number};
+    unproject(point: [number, number]): {lng: number; lat: number};
+}
 export const APERO_SAME_POINT_EPSILON = 1e-6;
 export const APERO_EXPAND_PADDING = {top: 96, right: 48, bottom: 128, left: 48} as const;
 export const APERO_EXPAND_MIN_ADVANCE = 0.25;
@@ -123,7 +129,7 @@ export function coordinatesWithPixelOffset(
     bucket: number,
 ): Coordinates {
     const [x, y] = worldPixel(coordinates[0], coordinates[1], bucket);
-    const scale = 512 * 2 ** bucket;
+    const scale = 512 * 2 ** Math.min(MAPLIBRE_MAX_ZOOM, Math.max(MAPLIBRE_MIN_ZOOM, bucket));
     const nextX = x + dx;
     const nextY = y + dy;
     const longitude = (nextX / scale) * 360 - 180;
@@ -142,6 +148,7 @@ function composeDetailEntries(
     points: readonly AperoPoint[],
     bucket: number,
     index: ClusterIndex,
+    projection?: AperoProjection,
 ): AperoEntry[] {
     const clusters = index.compose(
         points.map((point) => point.coordinates),
@@ -162,18 +169,26 @@ function composeDetailEntries(
             continue;
         }
         const total = cluster.members.length;
+        // La distance entre voisins ne doit pas diminuer avec le nombre de
+        // membres : les plus grands totems mesurent 108 × 72 px.
+        const radius = Math.max(APERO_DETAIL_SPREAD_RADIUS_PX,
+            DETAIL_TARGET_SPACING_PX / (2 * Math.sin(Math.PI / total)));
+        const center = projection?.project(cluster.coordinates);
         cluster.members.forEach((id, position) => {
             const member = byIdMap.get(id);
             if (!member) throw new Error(`Apéro inconnu: ${id}`);
             const angle = -Math.PI / 2 + (2 * Math.PI * position) / total;
+            const dx = Math.cos(angle) * radius;
+            const dy = Math.sin(angle) * radius;
+            const projected = center ? projection?.unproject([center.x + dx, center.y + dy]) : undefined;
             entries.push({
                 kind: 'single',
                 id: member.id,
                 call: member.call,
-                coordinates: coordinatesWithPixelOffset(
+                coordinates: projected ? [projected.lng, projected.lat] : coordinatesWithPixelOffset(
                     cluster.coordinates,
-                    Math.cos(angle) * APERO_DETAIL_SPREAD_RADIUS_PX,
-                    Math.sin(angle) * APERO_DETAIL_SPREAD_RADIUS_PX,
+                    dx,
+                    dy,
                     bucket,
                 ),
             });
@@ -187,10 +202,11 @@ export function composeAperoEntries(
     points: readonly AperoPoint[],
     bucket: number,
     index: ClusterIndex = createAperoIndex(points),
+    projection?: AperoProjection,
 ): AperoEntry[] {
     if (!Number.isFinite(bucket)) throw new Error(`Zoom invalide: ${bucket}`);
     if (bucket >= APERO_DETAIL_MIN_BUCKET) {
-        return composeDetailEntries(points, bucket, index);
+        return composeDetailEntries(points, bucket, index, projection);
     }
     const clusters = index.compose(
         points.map((point) => point.coordinates),

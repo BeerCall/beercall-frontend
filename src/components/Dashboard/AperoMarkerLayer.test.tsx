@@ -251,6 +251,35 @@ describe('AperoMarkerLayer', () => {
         expect(commit).not.toHaveBeenCalled();
     });
 
+    it('continue pendant le chargement des tuiles après une nouvelle mesure de visibilité', async () => {
+        imageStub();
+        vi.useFakeTimers();
+        render(<AperoMarkerLayer {...makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})})} />);
+        await act(async () => { await Promise.resolve(); });
+        fake.isStyleLoaded = () => false;
+        act(() => { fake.emit('moveend'); fake.emit('render'); });
+        fake.updateImage.mockClear();
+        act(() => vi.advanceTimersByTime(1000));
+        expect(fake.updateImage.mock.calls.length).toBeGreaterThanOrEqual(20);
+    });
+
+    it('ne sérialise pas le style par frame et ne touche pas au style détruit', async () => {
+        imageStub();
+        vi.useFakeTimers();
+        const native = Object.assign(fake, {style: {} as object | undefined});
+        render(<AperoMarkerLayer {...makeProps({squadDetails: squad({active_beer_call: [call('bc_a', 2.35, 48.85)]})})} />);
+        await act(async () => { await Promise.resolve(); });
+        const serialize = vi.spyOn(native, 'getStyle');
+        act(() => vi.advanceTimersByTime(1000));
+        expect(serialize).not.toHaveBeenCalled();
+        native.style = undefined;
+        native.updateImage.mockClear();
+        const access = vi.spyOn(native, 'hasImage').mockImplementation(() => { throw new Error('Style détruit'); });
+        act(() => vi.advanceTimersByTime(1000));
+        expect(access).not.toHaveBeenCalled();
+        expect(native.updateImage).not.toHaveBeenCalled();
+    });
+
     it('prépare assez de frames distinctes pour une animation fluide sans changer le dessin', () => {
         const active = activeTotemAnimation(totemPalette());
         const scheduled = scheduledTotemAnimation(totemPalette());

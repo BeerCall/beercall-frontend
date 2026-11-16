@@ -566,6 +566,23 @@ test.describe('14c — regroupement visuel des apéros', () => {
             return [Math.round(rect.x), Math.round(rect.y)] as [number, number];
         }));
         expect(new Set(boxes.map((box) => box.join(','))).size).toBe(3);
+        // Vérifier les vrais taps canvas, pas les clics clavier sur les proxys.
+        for (const bearing of [0, 90]) {
+            await focusMap(page, SAME_CENTER, 20, bearing);
+            await tapTotem(page, page.getByRole('button', { name: /Voir l'apéro E2E Serre Actif/ }));
+            await expect(respond).toBeVisible();
+            await expect(respond.locator('xpath=../..').getByRole('heading', {name: 'E2E Serre Actif', exact: true})).toBeVisible();
+            await respond.locator('xpath=..').getByRole('button').click();
+            const detailChooser = page.waitForEvent('filechooser');
+            await tapTotem(page, page.getByRole('button', { name: /Participer à l'apéro E2E Serre Programme/ }));
+            await (await detailChooser).setFiles({ name: 'e2e.png', mimeType: 'image/png', buffer: PNG });
+            await expect(start).toBeVisible();
+            await expect(start.locator('xpath=../..').getByPlaceholder('Ex: Bar Le Central...')).toHaveValue('E2E Serre Programme');
+            await start.locator('xpath=..').getByRole('button').click();
+            await tapTotem(page, page.getByRole('button', { name: /Voir le monde de E2E Serre Passe/ }));
+            await expect(worlds).toBeVisible();
+            await worlds.click();
+        }
     });
 
     test('Mise à jour et retrait à chaud, puis recomposition, sans rechargement', async ({

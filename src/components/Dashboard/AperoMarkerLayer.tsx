@@ -62,12 +62,16 @@ interface MapEvent {
 }
 
 interface NativeTotemMap {
+    /** Style public MapLibre : disparaît à remove(), sans sérialisation par frame. */
+    style?: unknown;
     on(event: string, handler: (event: MapEvent) => void): void;
     on(event: string, layer: string, handler: (event: MapEvent) => void): void;
     off(event: string, handler: (event: MapEvent) => void): void;
     off(event: string, layer: string, handler: (event: MapEvent) => void): void;
     getZoom(): number;
     getBearing(): number;
+    project?: (coordinates: [number, number]) => {x: number; y: number};
+    unproject?: (point: [number, number]) => {lng: number; lat: number};
     easeTo(options: Record<string, unknown>): void;
     cameraForBounds(bounds: unknown, options: Record<string, unknown>):
         {center?: [number, number]; zoom?: number} | null | undefined;
@@ -168,6 +172,7 @@ function AperoMarkerContents({
     const [bucket, setBucket] = useState(() => zoomBucket(native?.getZoom?.() ?? 14));
     const bucketRef = useRef(bucket);
     const [styleEpoch, setStyleEpoch] = useState(0);
+    const [cameraEpoch, setCameraEpoch] = useState(0);
 
     useEffect(() => {
         if (!native) return;
@@ -178,19 +183,28 @@ function AperoMarkerContents({
             setBucket(next);
         };
         update();
+        const settled = () => {
+            update();
+            if (bucketRef.current >= 19) setCameraEpoch((epoch) => epoch + 1);
+        };
         native.on('zoom', update);
-        native.on('moveend', update);
+        native.on('moveend', settled);
         return () => {
             native.off('zoom', update);
-            native.off('moveend', update);
+            native.off('moveend', settled);
         };
     }, [native]);
 
     const points = useMemo(() => buildAperoPoints(squadDetails ?? {}), [squadDetails]);
     const index = useMemo(() => createAperoIndex(points), [points]);
     const entries = useMemo(
-        () => composeAperoEntries(points, bucket, index),
-        [points, bucket, index],
+        () => composeAperoEntries(points, bucket, index, native?.project && native.unproject ? {
+            project: (coordinates) => native.project!(coordinates),
+            unproject: (point) => native.unproject!(point),
+        } : undefined),
+        // La projection dépend aussi de la rotation, de l'inclinaison et du zoom exact.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [points, bucket, index, native, cameraEpoch],
     );
 
     const sourceById = useMemo(() => {
@@ -477,7 +491,7 @@ function AperoMarkerContents({
         let forceRefresh = true;
         let lastVisibilityCheck = Number.NEGATIVE_INFINITY;
         const written = new Map<string, number>();
-        const ready = () => native.isStyleLoaded ? native.isStyleLoaded() : hasTotemStyle(native);
+        const ready = () => 'style' in native ? Boolean(native.style) : hasTotemStyle(native);
         const stop = () => {
             if (timer !== undefined) window.clearInterval(timer);
             timer = undefined;
@@ -485,7 +499,7 @@ function AperoMarkerContents({
         const updateFrames = () => {
             // Un changement d'icône n'exige pas que toutes les tuiles ou le
             // style soient chargés : seul le style et l'image comptent.
-            if (!hasTotemStyle(native)) return;
+            if (!ready()) return;
             let changed = false;
             for (const key of visibleKeys) {
                 const images = frameImagesRef.current.get(key);

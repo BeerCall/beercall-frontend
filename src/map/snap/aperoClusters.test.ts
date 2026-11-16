@@ -8,8 +8,45 @@ import {
     boundsOfCalls,
     buildAperoPoints,
     composeAperoEntries,
+    coordinatesWithPixelOffset,
     createAperoIndex,
 } from './aperoClusters';
+import {worldPixel} from './clusters';
+
+describe('detail projection boundaries', () => {
+    it('utilise la projection écran avec rotation et inclinaison sans déplacer les objets métier', () => {
+        const points = buildAperoPoints({active_beer_call: Array.from({length: 3}, (_, i) => call(`bc_${i}`, 2.35, 48.85))});
+        // Projection synthétique tournée de 90° et comprimée en hauteur.
+        const projection = {
+            project: ([lng, lat]: [number, number]) => ({x: lat * 10000, y: -lng * 5000}),
+            unproject: ([x, y]: [number, number]) => ({lng: -y / 5000, lat: x / 10000}),
+        };
+        const entries = composeAperoEntries(points, 20, createAperoIndex(points), projection);
+        const pixels = entries.map((entry) => projection.project(entry.coordinates));
+        for (let i = 0; i < pixels.length; i += 1) {
+            const next = pixels[(i + 1) % pixels.length];
+            expect(Math.hypot(pixels[i].x - next.x, pixels[i].y - next.y)).toBeCloseTo(132, 5);
+            const entry = entries[i];
+            expect(entry.kind === 'single' && entry.call).toBe(points[i].call);
+            expect(points[i].coordinates).toEqual([2.35, 48.85]);
+        }
+    });
+    it.each([-1, 25])('conserve les coordonnées sans décalage au zoom borné %s', (zoom) => {
+        const result = coordinatesWithPixelOffset([2.35, 48.85], 0, 0, zoom);
+        expect(result[0]).toBeCloseTo(2.35, 7);
+        expect(result[1]).toBeCloseTo(48.85, 7);
+    });
+
+    it('garde une cible indépendante pour douze apéros au même endroit', () => {
+        const points = buildAperoPoints({active_beer_call: Array.from({length: 12}, (_, i) => call(`bc_${i}`, 2.35, 48.85))});
+        const pixels = composeAperoEntries(points, 20).map((entry) => worldPixel(...entry.coordinates, 20));
+        for (let i = 0; i < pixels.length; i += 1) {
+            for (let j = i + 1; j < pixels.length; j += 1) {
+                expect(Math.hypot(pixels[i][0] - pixels[j][0], pixels[i][1] - pixels[j][1])).toBeGreaterThan(108);
+            }
+        }
+    });
+});
 
 const call = (
     id: string,
