@@ -32,6 +32,7 @@ export default defineConfig({
     fullyParallel: false,
     workers: 1,
     retries: 0,
+    globalTimeout: 15 * 60_000,
     timeout: 90_000,
     expect: {
         timeout: 15_000,
@@ -45,7 +46,9 @@ export default defineConfig({
     use: {
         baseURL: parsedUrl.origin,
         viewport: { width: 428, height: 727 },
-        deviceScaleFactor: 3,
+        // Keep the same mobile CSS viewport and interactions without rendering
+        // nine physical pixels per CSS pixel on the qualification PC.
+        deviceScaleFactor: 1,
         hasTouch: true,
         isMobile: true,
         locale: 'fr-FR',
