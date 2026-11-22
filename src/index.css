@@ -53,3 +53,35 @@ input, textarea {
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
+
+/* 14e — proxies accessibles des totems : invisibles, jamais cliquables au
+   pointeur (la carte gère le tap), mais focalisables au clavier. */
+.apero-proxy {
+    display: block;
+    width: 54px;
+    height: 70px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.apero-proxy:focus-visible {
+    opacity: 1;
+    outline: 3px solid #FFFFFF;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 6px rgba(15, 23, 42, 0.35);
+}
+
+/* Secours uniquement si une image de carte est illisible : ne jamais perdre
+   l'accès tactile à un apéro. Les proxys normaux restent traversants. */
+.apero-proxy--fallback {
+    opacity: 1;
+    pointer-events: auto;
+    background: #0f172a;
+    color: #fff;
+    border: 2px solid #fff;
+    font-weight: 800;
+}

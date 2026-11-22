@@ -1,19 +1,4 @@
-import type { WorldParticipant } from '../types/api';
-import type { WorldKind } from './pocWorldScenario';
 import WorldPhotoProof from './WorldPhotoProof';
-
-/**
- * 8h — pseudo autonome au Bar et au Dodo. La Piscine garde son pseudo dans
- * la bulle d'excuse (8f), pour ne pas le dupliquer.
- */
-export function nameForWorld(
-    world: WorldKind,
-    participant: Pick<WorldParticipant, 'username'>,
-): string | null {
-    if (world === 'piscine') return null;
-    const name = participant.username?.trim();
-    return name ? name : null;
-}
 
 export interface WorldNameLabelProps {
     username?: string | null;

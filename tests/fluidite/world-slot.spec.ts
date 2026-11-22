@@ -206,8 +206,10 @@ async function advanceToRunningGame(
         response.request().method() === 'POST', {timeout: 30_000});
     // Un seul clic : une ancienne frame du bouton peut rester montée pendant
     // AnimatePresence alors que le serveur a déjà changé de mini-jeu.
-    await ready.click({timeout: 20_000});
-    const response = await actionResponse;
+    const [response] = await Promise.all([
+        actionResponse,
+        ready.click({timeout: 20_000}),
+    ]);
     expect(response.ok()).toBe(true);
     expect(response.request().postDataJSON()).toMatchObject({action_id: 'START_RANDOM_GAME'});
     const state = await response.json() as GameStatePayload;

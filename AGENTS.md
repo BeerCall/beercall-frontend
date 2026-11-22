@@ -2,6 +2,15 @@
 
 Ce fichier définit les directives strictes, l'architecture et les conventions pour le développement du frontend BeerCall.
 
+## Tests — E2E uniquement (décision utilisateur du 16/11/2026)
+
+- **Ne créer, réintroduire ni lancer de TU**, y compris Vitest et tests isolés de composants/hooks. Les TU existants sont à supprimer dans la migration prioritaire, pas à rejouer avant celle-ci.
+- Tout risque de régression significatif doit être couvert par un E2E réel ; compléter les E2E plutôt qu'ajouter des TU.
+- E2E seuls : **≥75 % des lignes frontend ET ≥75 % backend**, séparément, sur le périmètre instrumenté existant, sans abaissement de seuil ni nouvelle exclusion de code vivant.
+- Suite E2E complète **≤15 minutes**, préparation/build/seed séparément mesurés et bornés ; ressources plafonnées, arrêt vérifié sur annulation. Aucune relance lourde ou reconstruction de dev sans GO.
+- Types, lint et build restent autorisés comme contrôles statiques sans lancement indirect de TU. Ne pas supprimer les fixtures/supports des E2E.
+- Cette décision prévaut sur les anciens plans/rapports demandant des TU. Migration prioritaire avant toute nouvelle qualification ; plan externe `C:/Users/Migz3rrr/.opencode/plan/beercall/plan-grand-menage-apres-deploiement.md`, §12k.
+
 ## 🏗 Architecture globale
 - **Type** : Single Page Application (SPA) / Progressive Web App (PWA).
 - **Structure des dossiers** :

@@ -82,11 +82,23 @@ test.describe('Dashboard — modales et formulaires', () => {
         // Déclenche le même handler que l'appui long MapLibre, sans dépendre
         // de la position d'un marqueur ou d'un drag du navigateur.
         await page.evaluate(() => {
-            const map = (window as {__beercallMap?: {fire: (type: string, event: unknown) => void}}).__beercallMap;
+            const map = (window as {__beercallMap?: {
+                fire: (type: string, event: unknown) => void;
+                getLayer: (id: string) => unknown;
+                queryRenderedFeatures: (point: [number, number], options: {layers: string[]}) => unknown[];
+                unproject: (point: [number, number]) => {toArray: () => number[]};
+            }}).__beercallMap;
             if (!map) throw new Error('Carte MapLibre absente');
+            // Le point fixe historique peut maintenant être occupé par un
+            // totem. Prouver le cas hors totem au lieu de contourner son garde.
+            const layers = ['apero-totems', 'snap-avatars', 'snap-labels'].filter((id) => map.getLayer(id));
+            const candidates: [number, number][] = [40, 100, 200, 300].flatMap((x) =>
+                [180, 240, 320].map((y): [number, number] => [x, y]));
+            const point = candidates.find((candidate) => !layers.length || map.queryRenderedFeatures(candidate, {layers}).length === 0);
+            if (!point) throw new Error('Aucun point libre de marqueur pour le maintien de recette');
             map.fire('mousedown', {
-                point: {x: 200, y: 300},
-                lngLat: {lng: 2.3522, lat: 48.8566, toArray: () => [2.3522, 48.8566]},
+                point: {x: point[0], y: point[1]},
+                lngLat: map.unproject(point),
                 originalEvent: {target: document.body, touches: undefined},
             });
         });

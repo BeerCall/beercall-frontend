@@ -10,7 +10,7 @@ on:
 
 jobs:
   test:
-    name: Run Tests
+    name: Static validation and build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -24,8 +24,7 @@ jobs:
           path: beercall-frontend
           persist-credentials: false
 
-      # These tests validate real catalogue entries and thumbnails, not mocks.
-      # Publish this backend commit before opening/merging the frontend PR.
+      # The application release workflow validates the integrated E2E coverage.
       - name: Checkout pinned catalogue used by the release
         uses: actions/checkout@v4
         with:
@@ -45,8 +44,13 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Run Unit Tests & Coverage
-        run: npm run coverage
+      - name: Validate application and E2E types
+        run: |
+          node node_modules/typescript/bin/tsc -b --pretty false
+          npm run fluidite:typecheck
+
+      - name: Lint application
+        run: npx --no-install eslint src
 
       - name: Run Build
         run: npm run build

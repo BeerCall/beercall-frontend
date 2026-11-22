@@ -5,12 +5,16 @@
  * et valide la structure via `validateManifest`.
  */
 
-import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { useContext } from 'react';
+import { QueryClient, QueryClientContext, useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { type GlbManifest, getCachedGlbManifest, setGlbManifest, validateManifest } from './manifest';
 
 export const GLB_MANIFEST_URL = '/models/glb/manifest.json';
 export const GLB_MANIFEST_QUERY_KEY = ['glb-manifest'];
+// Standalone previews may read the published cache without a provider. Keep
+// the query hook unconditional, but never fetch on this fallback client.
+const previewClient = new QueryClient();
 
 export async function fetchGlbManifest(): Promise<GlbManifest> {
     const response = await api.get<GlbManifest>(GLB_MANIFEST_URL, { baseURL: '' });
@@ -20,14 +24,17 @@ export async function fetchGlbManifest(): Promise<GlbManifest> {
 }
 
 export function useGlbManifest(): UseQueryResult<GlbManifest, Error> {
-    let hasClient = false;
-    try {
-        hasClient = Boolean(useQueryClient());
-    } catch {
-        hasClient = false;
-    }
+    const client = useContext(QueryClientContext);
+    const query = useQuery({
+        queryKey: GLB_MANIFEST_QUERY_KEY,
+        queryFn: fetchGlbManifest,
+        initialData: () => getCachedGlbManifest() ?? undefined,
+        enabled: Boolean(client),
+        staleTime: Infinity,
+        retry: 1,
+    }, client ?? previewClient);
 
-    if (!hasClient) {
+    if (!client) {
         return {
             data: getCachedGlbManifest() ?? undefined,
             isLoading: false,
@@ -37,11 +44,5 @@ export function useGlbManifest(): UseQueryResult<GlbManifest, Error> {
         } as unknown as UseQueryResult<GlbManifest, Error>;
     }
 
-    return useQuery({
-        queryKey: GLB_MANIFEST_QUERY_KEY,
-        queryFn: fetchGlbManifest,
-        initialData: () => getCachedGlbManifest() ?? undefined,
-        staleTime: Infinity,
-        retry: 1,
-    });
+    return query;
 }

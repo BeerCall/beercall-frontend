@@ -1,16 +1,3 @@
-import type { WorldParticipant } from '../types/api';
-import type { WorldKind } from './pocWorldScenario';
-
-/** Une excuse n'est affichée que dans le monde Piscine. */
-export function excuseForWorld(
-    world: WorldKind,
-    participant: Pick<WorldParticipant, 'excuse'>,
-): string | null {
-    if (world !== 'piscine') return null;
-    const excuse = participant.excuse?.trim();
-    return excuse ? excuse : null;
-}
-
 export interface WorldExcuseBubbleProps {
     excuse: string;
     username?: string | null;

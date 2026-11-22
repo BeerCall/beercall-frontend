@@ -147,8 +147,9 @@ async function waitForAction(
         (response) => actionUrl.test(response.url()) && response.request().method() === 'POST',
         {timeout},
     );
-    await trigger();
-    const response = await responsePromise;
+    // Fail on either the bounded HTTP wait or the gesture; do not leave an
+    // unobserved response timeout behind an unbounded click on an expired sensor.
+    const [response] = await Promise.all([responsePromise, trigger()]);
     expect(response.ok(), `action de mini-jeu rejetée (${response.status()})`).toBeTruthy();
     const payload = response.request().postDataJSON() as {action_id?: string};
     const actionId = payload.action_id ?? '';
@@ -383,13 +384,16 @@ test('Mini-jeux : les 9 capteurs envoient l’action attendue et la transition p
         };
 
         for (const gameId of GAMES) {
-            setTestGame(aperoId, gameId);
             await page.goto('/squad/2');
             await expect(page.locator('[data-bottom-nav]')).toBeVisible({timeout: 30_000});
             await openActiveWorlds(page, name);
 
             const start = page.getByRole('button', {name: 'Démarrer la partie'});
             await expect(start).toBeEnabled({timeout: 20_000});
+            // Arm time-based games only after navigation/world setup. Previously
+            // the 15–35s bomb clock included all cold page/asset loading.
+            setTestGame(aperoId, gameId);
+            const before = fetchPersistedGame(aperoId);
             // Le contrôle accessible est `sr-only` (hors viewport) : on déclenche
             // son handler directement.
             await start.evaluate((button) => (button as HTMLButtonElement).click());
@@ -417,7 +421,6 @@ test('Mini-jeux : les 9 capteurs envoient l’action attendue et la transition p
                 .poll(async () => (await readState()).required_sensor?.type, {timeout: 15_000})
                 .toBe(EXPECTED_SENSOR[gameId]);
 
-            const before = fetchPersistedGame(aperoId);
             const state = await readState();
             const actionId = await exerciseSensor(page, aperoId, state.required_sensor?.type ?? '', state);
             const after = fetchPersistedGame(aperoId);
