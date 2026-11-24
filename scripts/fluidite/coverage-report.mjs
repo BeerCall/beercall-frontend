@@ -36,7 +36,6 @@ const EXCLUDED_SOURCES = new Set([
     'perf/WorldProbePanel.tsx',
     'perf/WorldPreparationBadge.tsx',
     'components/UI/PerformancePanel.tsx',
-    'lib/thumbnailIdleEnvelope.ts',
     'lib/mobileDiagnostics.ts',
     'lib/worldResources.ts',
     'perf/worldProbeMetrics.ts',
