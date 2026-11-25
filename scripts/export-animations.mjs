@@ -451,7 +451,6 @@ export async function runCli(argv = process.argv.slice(2)) {
   const isCheck = argv.includes('--check');
 
   const approvedTemporaryRoots = [
-    resolve(frontend, '../bench/.runtime/remediation'),
     resolve(process.env.LOCALAPPDATA || 'C:/Users/Migz3rrr/AppData/Local', 'Temp/opencode'),
   ];
   const isWithin = (parent, child) => {
